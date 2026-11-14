@@ -43,17 +43,21 @@ async function settle(page, max) {
         const page = await browser.newPage({ serviceWorkers: 'block' });
         await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
         if (baseline) {
-            for (const file of ['js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-replay.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
-                const body = require('node:child_process').execFileSync('git', ['show', `HEAD:${file}`], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
-                await page.route(`**/${file}?*`, route => route.fulfill({ status: 200, contentType: 'text/javascript', body }));
-            }
+            const files = require('./lib/head-runtime.cjs').readHeadWebFiles();
+            const key = url => decodeURIComponent(url.pathname === '/' ? 'index.html' : url.pathname.slice(1));
+            await page.route(url => url.hostname === '127.0.0.1' && files.has(key(url)), route => {
+                const file = key(new URL(route.request().url()));
+                const contentType = file.endsWith('.html') ? 'text/html' : file.endsWith('.css') ? 'text/css' : 'text/javascript';
+                return route.fulfill({ status: 200, contentType, body: files.get(file) });
+            });
         }
         await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
         await page.evaluate(() => { let seed = 17; Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x100000000); });
         if (throttle > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
         await page.locator('#btn-startup-guest').click();
-        await page.locator('[data-class-id="warrior"]').click();
-        await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; });
+        // Class selection is followed by the basic skill's element; finish both before recording combat.
+        await require('../tests/browser/helpers').pickClass(page, 'warrior');
+        await page.evaluate(() => { window.GameModules.application.timers.stopCombat(); });
         const scenario = endgame ? await page.evaluate(require('./lib/offline-endgame-fixture')) : { name: 'starter' };
         console.log({ scenario, baseline, maximum, throttle });
         const profiler = process.argv.includes('--profile') ? await page.context().newCDPSession(page) : null;

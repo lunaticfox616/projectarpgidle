@@ -1,66 +1,144 @@
-// 세계수 연대기(data/chronicle.js): 장마다 저장 상태에서 지금 수와 목표를 세고, 무게를 곱한 완성도로 나이테를 감는다. 감긴 나이테는
-// game.chronicle.rings에 남고 풀리지 않는다. 확인은 자동 저장 직전(js/main.js)과 기록 창을 그릴 때 하고, 새 나이테는 'chronicle-ring'
-// 이벤트로 알린다(js/chronicle-ui.js). 방치 효율은 감긴 나이테 수만 읽는다(js/offline-progress.js).
-const chronicle = (() => {
-    const C = CHRONICLE;
-    const list = value => (Array.isArray(value) ? value : []);
-    const keysOf = value => (value && typeof value === 'object' ? Object.keys(value).filter(key => value[key]) : []);
-    const count = (value, goal) => ({ count: Math.max(0, Math.floor(Number(value) || 0)), goal });
-    // 비문은 선택해서 읽는 현장 기록: 연대기의 보상 목표나 완성도에는 포함하지 않는다.
-    const journalIds = new Set(JOURNAL_ENTRY_ORDER.filter(id => !JOURNAL_DB[id].discoveryOnly));
-    /** Loops finished: the loop counter, or for a save without one the loop it reached less the one it is in. */
-    const completedLoops = state => {
-        const loops = Math.max(0, Math.floor(Number(state.loopCount) || 0));
-        return loops > 0 ? loops : Math.max(0, Math.floor(Number(state.season) || 1) - 1);
-    };
-    // Each chapter's count and goal, read from a state (the live game or a settlement snapshot).
-    const COUNTERS = Object.freeze({
-        codex: state => count(keysOf(state.uniqueCodex).filter(key => UNIQUE_CODEX_KEYS.has(key)).length, UNIQUE_CODEX_KEYS.size),
-        mastery: state => count(weaponMastery.total(state), weaponMastery.ids.length * WEAPON_MASTERY.maxLevel),
-        talismans: state => count(list(state.stumpBox && state.stumpBox.codex).length, TALISMAN_UNIQUE_DB.length + TALISMAN_WILD_UNIQUE_DB.length),
-        journal: state => count(list(state.journalEntries).filter(id => journalIds.has(id)).length, journalIds.size),
-        depth: state => count(Math.max(0, (Number(state.records && state.records.best && state.records.best.abyssDepth) || 0) - 20), null),
-        loops: state => count(completedLoops(state), null),
-        harvest: state => count(list(state.stumpBox && state.stumpBox.harvest && state.stumpBox.harvest.grown).length,
-            STUMP_BOX_HARVEST.rows.length * Object.keys(STUMP_BOX_COLORS).length),
-        fishing: state => count(keysOf(state.ocean && state.ocean.fishCaughtTotal).filter(key => Object.hasOwn(OCEAN_FISH_DB, key)).length,
-            Object.keys(OCEAN_FISH_DB).length),
-        variants: state => count(state.atlas && state.atlas.memory ? bossVariants.records(state).filter(row => row.kills > 0).length : 0,
-            BOSS_VARIANTS.kinds.length),
-        memory: state => count(Math.max(0, ...Object.values((state.atlas && state.atlas.memory && state.atlas.memory.best) || {}).map(Number)), null),
-        epochs: state => count(state.atlas && state.atlas.epoch ? state.atlas.epoch.count : 0, null)
+// GENERATED from modules/chronicle*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/chronicle-rules.mjs
+  function chronicleList(value) {
+    return Array.isArray(value) ? value : [];
+  }
+  function chronicleKeysOf(value) {
+    return value && typeof value === "object" ? Object.keys(value).filter((key) => value[key]) : [];
+  }
+  function chronicleCount(value, goal) {
+    return { count: Math.max(0, Math.floor(Number(value) || 0)), goal };
+  }
+  function chronicleCompletedLoops(state) {
+    const loops = Math.max(0, Math.floor(Number(state.loopCount) || 0));
+    return loops > 0 ? loops : Math.max(0, Math.floor(Number(state.season) || 1) - 1);
+  }
+  function chronicleChapters(env, state) {
+    return env.C.chapters.map((row) => {
+      const read = env.COUNTERS[row.id](state), goal = row.goal || read.goal || 1;
+      return { ...row, count: Math.min(read.count, goal), goal, share: Math.min(1, read.count / goal) };
     });
-    /** Every chapter: {id, name, hint, weight, count, goal, share (0..1)}. */
-    function chapters(state) {
-        return C.chapters.map(row => {
-            const read = COUNTERS[row.id](state), goal = row.goal || read.goal || 1;
-            return { ...row, count: Math.min(read.count, goal), goal, share: Math.min(1, read.count / goal) };
-        });
+  }
+  function chronicleCompletion(env, state) {
+    const rows = chronicleChapters(env, state), weight = rows.reduce((sum, row) => sum + row.weight, 0);
+    const share = rows.reduce((sum, row) => sum + row.weight * row.share, 0) / weight;
+    return { rows, share, earned: Math.min(env.C.rings, Math.floor(share * env.C.rings + 1e-9)) };
+  }
+  function chronicleLedger(env, state) {
+    if (!state.chronicle || typeof state.chronicle !== "object") state.chronicle = { rings: 0 };
+    const rings = Math.floor(Number(state.chronicle.rings) || 0);
+    state.chronicle.rings = Math.max(0, Math.min(env.C.rings, rings));
+    return state.chronicle;
+  }
+  function chronicleRings(env, state) {
+    return chronicleLedger(env, state).rings;
+  }
+  function* chronicleCheck(env, state) {
+    const book = chronicleLedger(env, state), earned = chronicleCompletion(env, state).earned;
+    if (earned <= book.rings) return [];
+    const fresh = Array.from({ length: earned - book.rings }, (_, index) => book.rings + index + 1);
+    book.rings = earned;
+    yield { kind: "dispatchRuntimeEvent", args: ["chronicle-ring", { rings: fresh, total: earned }] };
+    return fresh;
+  }
+  function chronicleOffline(env, state) {
+    return chronicleRings(env, state) * env.C.offlinePerRing;
+  }
+
+  // modules/domain/chronicle.mjs
+  function createChronicle(deps) {
+    const env = { deps };
+    env.C = env.deps.CHRONICLE;
+    env.journalIds = new Set(env.deps.JOURNAL_ENTRY_ORDER.filter((id) => !env.deps.JOURNAL_DB[id].discoveryOnly));
+    env.COUNTERS = Object.freeze({
+      codex: (state) => chronicleCount(chronicleKeysOf(state.uniqueCodex).filter((key) => env.deps.UNIQUE_CODEX_KEYS.has(key)).length, env.deps.UNIQUE_CODEX_KEYS.size),
+      mastery: (state) => chronicleCount(env.deps.weaponMastery.total(state), env.deps.weaponMastery.ids.length * env.deps.WEAPON_MASTERY.maxLevel),
+      talismans: (state) => chronicleCount(chronicleList(state.stumpBox && state.stumpBox.codex).length, env.deps.TALISMAN_UNIQUE_DB.length + env.deps.TALISMAN_WILD_UNIQUE_DB.length),
+      journal: (state) => chronicleCount(chronicleList(state.journalEntries).filter((id) => env.journalIds.has(id)).length, env.journalIds.size),
+      depth: (state) => chronicleCount(Math.max(0, (Number(state.records && state.records.best && state.records.best.abyssDepth) || 0) - 20), null),
+      loops: (state) => chronicleCount(chronicleCompletedLoops(state), null),
+      harvest: (state) => chronicleCount(
+        chronicleList(state.stumpBox && state.stumpBox.harvest && state.stumpBox.harvest.grown).length,
+        env.deps.STUMP_BOX_HARVEST.rows.length * Object.keys(env.deps.STUMP_BOX_COLORS).length
+      ),
+      fishing: (state) => chronicleCount(
+        chronicleKeysOf(state.ocean && state.ocean.fishCaughtTotal).filter((key) => Object.hasOwn(env.deps.OCEAN_FISH_DB, key)).length,
+        Object.keys(env.deps.OCEAN_FISH_DB).length
+      ),
+      variants: (state) => chronicleCount(
+        state.atlas && state.atlas.memory ? env.deps.bossVariants.records(state).filter((row) => row.kills > 0).length : 0,
+        env.deps.BOSS_VARIANTS.kinds.length
+      ),
+      memory: (state) => chronicleCount(Math.max(0, ...Object.values(state.atlas && state.atlas.memory && state.atlas.memory.best || {}).map(Number)), null),
+      epochs: (state) => chronicleCount(state.atlas && state.atlas.epoch ? state.atlas.epoch.count : 0, null)
+    });
+    return Object.freeze({
+      chapters: (...args) => chronicleChapters(env, ...args),
+      completion: (...args) => chronicleCompletion(env, ...args),
+      rings: (...args) => chronicleRings(env, ...args),
+      check: (...args) => chronicleCheck(env, ...args),
+      offline: (...args) => chronicleOffline(env, ...args)
+    });
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/ui/runtime-event-commands.mjs
+  function runRuntimeEventCommands(commands, dispatch) {
+    return consumeDomainCommands(commands, { dispatchRuntimeEvent: dispatch });
+  }
+
+  // modules/chronicle-classic.mjs
+  var rules = createChronicle({
+    get CHRONICLE() {
+      return CHRONICLE;
+    },
+    get JOURNAL_ENTRY_ORDER() {
+      return JOURNAL_ENTRY_ORDER;
+    },
+    get JOURNAL_DB() {
+      return JOURNAL_DB;
+    },
+    get UNIQUE_CODEX_KEYS() {
+      return UNIQUE_CODEX_KEYS;
+    },
+    get weaponMastery() {
+      return weaponMastery;
+    },
+    get WEAPON_MASTERY() {
+      return WEAPON_MASTERY;
+    },
+    get TALISMAN_UNIQUE_DB() {
+      return TALISMAN_UNIQUE_DB;
+    },
+    get TALISMAN_WILD_UNIQUE_DB() {
+      return TALISMAN_WILD_UNIQUE_DB;
+    },
+    get STUMP_BOX_HARVEST() {
+      return STUMP_BOX_HARVEST;
+    },
+    get STUMP_BOX_COLORS() {
+      return STUMP_BOX_COLORS;
+    },
+    get OCEAN_FISH_DB() {
+      return OCEAN_FISH_DB;
+    },
+    get bossVariants() {
+      return bossVariants;
+    },
+    get BOSS_VARIANTS() {
+      return BOSS_VARIANTS;
     }
-    /** Weighted completion 0..1 and the rings it has earned. */
-    function completion(state) {
-        const rows = chapters(state), weight = rows.reduce((sum, row) => sum + row.weight, 0);
-        const share = rows.reduce((sum, row) => sum + row.weight * row.share, 0) / weight;
-        return { rows, share, earned: Math.min(C.rings, Math.floor(share * C.rings + 1e-9)) };
-    }
-    function ledger(state) {
-        if (!state.chronicle || typeof state.chronicle !== 'object') state.chronicle = { rings: 0 };
-        const rings = Math.floor(Number(state.chronicle.rings) || 0);
-        state.chronicle.rings = Math.max(0, Math.min(C.rings, rings));
-        return state.chronicle;
-    }
-    const rings = state => ledger(state).rings;
-    /** Winds every ring the completion has earned and not yet wound. Returns the new ring numbers. */
-    function check(state) {
-        const book = ledger(state), earned = completion(state).earned;
-        if (earned <= book.rings) return [];
-        const fresh = Array.from({ length: earned - book.rings }, (_, index) => book.rings + index + 1);
-        book.rings = earned;
-        dispatchRuntimeEvent('chronicle-ring', { rings: fresh, total: earned });
-        return fresh;
-    }
-    /** Efficiency the wound rings add to offline progress. */
-    const offline = state => rings(state) * C.offlinePerRing;
-    return Object.freeze({ chapters, completion, rings, check, offline });
+  });
+  var chronicle = Object.freeze({
+    ...rules,
+    check: (state) => runRuntimeEventCommands(rules.check(state), dispatchRuntimeEvent)
+  });
+  safeExposeGlobals({ chronicle });
 })();
-safeExposeGlobals({ chronicle });

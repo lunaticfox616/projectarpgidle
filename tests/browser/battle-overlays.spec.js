@@ -11,9 +11,9 @@ async function openGame(page, info) {
     const tap = info.project.use.isMobile ? 'tap' : 'click';
     await page.locator('#btn-startup-guest')[tap]();
     await pickClass(page, 'warrior', { tap: tap === 'tap' });
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
     });
     return errors;

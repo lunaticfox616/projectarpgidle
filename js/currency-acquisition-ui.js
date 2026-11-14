@@ -1,131 +1,286 @@
-// Currency state is committed in the domain; notices and logs cannot grant it again.
-/** 전투 화면의 기본 재화 줄(2026-10-21 사용자: "메인 화면 즉 전투화면에서 기본 재화들 (있는 것만) 몇개 있는지 보여주면"): 제작실의 기본 재화
- * 묶음(js/crafting-workspace-state.js) 가운데 가진 것만 지역 이름 아래에. 제작이 닫힌 루프 1에도 NPC 상점에 낼 재화가 보인다.
- * js/main.js refreshCombatTickUi가 틱마다 부르고, 수가 바뀐 때만 다시 그린다. */
-const combatCurrencyHud = (() => {
-    let keys = null, drawn = '';
-    function update() {
-        const root = document.getElementById('ui-combat-currencies');
-        if (!root) return;
-        keys = keys || Object.keys(ORB_DB).filter(key => craftingWorkspaceState.group(key) === 'basic' && ORB_DB[key].icon);
-        const held = keys.map(key => [key, Math.floor(Number(game.currencies[key]) || 0)]).filter(([, count]) => count > 0);
-        const sign = held.join('|');
-        if (sign === drawn) return;
-        drawn = sign;
-        root.hidden = !held.length;
-        root.innerHTML = held.map(([key, count]) => {
-            const name = escapeHTML(_t(ORB_DB[key].name));
-            return `<span data-tip="${name}" aria-label="${_t('{name} {count}개', { name, count })}"><img src="${ORB_DB[key].icon}" alt="">${count.toLocaleString(i18n.locale)}</span>`;
-        }).join('');
-    }
-    return Object.freeze({ update });
-})();
-safeExposeGlobals({ combatCurrencyHud });
+// GENERATED from modules/currency-acquisition-ui*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-    /** 알림창(js/ui-feedback.js): 황금률은 금빛, 체이싱 티어 재화(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스)는 붉은 금빛. */
-    function noticeCurrency(currencyKey,gain) {
-        if(!(gain>0))return;
-        const chase=lootMoments.ofCurrency(currencyKey)==='jackpot';
-        if(currencyKey!=='goldenRule' && !chase)return; // 그 밖의 재화는 알림이 없다(군락지 편린 같은 지갑 재화는 ORB_DB에 없어 이름을 읽다 멈췄다)
-        const name=_t(ORB_DB[currencyKey].name);
-        // 설정 > 아이템 필터의 발견 연출에서 끈 알림은 띄우지 않는다(game.settings.lootFx.notices).
-        if(game.settings.lootFx?.notices?.[chase?'chase':'goldenRule']===false)return;
-        showGameToast(_t('{name} 획득했습니다.', { name: withObjectParticle(name) }),{tone:chase?'chase':'reward',duration:chase?6000:3600});
-    }
-    /** 처음 얻은 제작 뿌리와 기억 조각칼: 어디서 어떻게 쓰는지 한 번(2026-10-18, 둘 다 늦은 콘텐츠의 드문 재화라 처음 보면 쓸 곳을 모른다). */
-    const FIRST_USE={
-        roots:['craft_roots','제작 뿌리','제작 뿌리를 얻었습니다.\n‘장비 → 제작실’의 ‘뿌리 함께 사용’에서 걸어 두면 그 뿌리가 바꾸는 다음 제작 한 번에 쓰입니다.'],
-        memoryImprint:['memory_chisel','기억 조각칼','기억 조각칼을 얻었습니다.\n‘장비 → 제작실’에서 장비의 지금 추가 옵션을 새겨 두면, 뒤에 제작이 마음에 들지 않을 때 그 옵션으로 한 번 되돌릴 수 있습니다.']
-    };
-    function noticeFirstUse(currencyKey,gain) {
-        const row=FIRST_USE[CRAFT_OMENS.keys.includes(currencyKey)?'roots':currencyKey];
-        if(gain>0&&row)queueTutorialNotice(row[0],row[1],row[2],'tab-items','item-tab-craft');
-    }
-    function announce(event) {
-        const {currencyKey,gain,unlocked}=event.detail;
-        noticeCurrency(currencyKey,gain);
-        noticeFirstUse(currencyKey,gain);
-        if(currencyKey==='goldenRule' && gain>0) {
-            addLog(_t('✨✨ <strong>{name} +{gain}</strong> 획득!', { name: _t(ORB_DB.goldenRule.name), gain }),'loot-unique');
-        }
-        if(['chaosKey','coreKey'].includes(currencyKey) && gain>0) {
-            const name=_t(ORB_DB[currencyKey].name);
-            addLog(_t('🗝️ <strong>{name} +{gain}</strong> 획득! 5차 미궁 시련(재능 개화)을 지도에서 확인하세요.', { name, gain }),'loot-unique');
-        }
-        if(currencyKey==='ouroboros' && gain>0) {
-            addLog(_t('🌿✨ <strong>{name} +{gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.', { name: _t(ORB_DB.ouroboros.name), gain }),'loot-unique');
-        }
-        if(unlocked.gem)addLog(_t('☁️ 스킬룬 탭의 각인이 열렸습니다!'),'loot-unique');
-    }
-    /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다.
-     * 이동 룬은 이동 칸에 끼므로 재지 않는다. */
-    const RUNE_UPGRADE_NOTICE_GAIN=1.1;
-    function noticeRuneUpgrade(name) {
-        if(game.activeSkill===name || isMobilityRuneName(name) || !(game.skills||[]).includes(name) || !canUseSkillWithCurrentEquipment(name))return;
-        const keep=game.activeSkill,before=getPlayerStats(false).dps||0;
-        let after=0;
-        game.activeSkill=name;
-        try { after=getPlayerStats(false).dps||0; } finally { game.activeSkill=keep; }
-        const format=COMPARE_STAT_META.dps.format;
-        if(before>0 && after>=before*RUNE_UPGRADE_NOTICE_GAIN)showGameToast(_t('더 강한 공격 룬을 얻었습니다. 「{name}」 DPS {before} → {after}', { name, before: format(before), after: format(after) }),{tone:'reward',duration:4200});
-    }
-    /** 주 공격으로 쓰는 공격 룬(위습 소환 말고)을 얻었으면 전투 틱이 끝난 뒤 noticeRuneUpgrade로 잰다. 방치 정산 중에는 재지 않는다. */
-    function queueRuneUpgradeNotice({gem,kind}) {
-        if(!gem || kind!=='attack' || game.isBackgroundCalculation || (SKILL_DB[gem.name]?.tags||[]).includes('summon'))return;
-        setTimeout(()=>noticeRuneUpgrade(gem.name),0);
-    }
-    // 공격 룬 줄은 이름까지만 적는다: 끝에 붙던 "(지금 무기로 쓸 수 없음: 근접 무기 필요)"는 2026-11-05 사용자 요청으로 뺐다(상점 카드에는 남는다).
-    function announceGemReward(reward) {
-        queueRuneUpgradeNotice(reward);
-        if(!game.settings.showLootLog)return;
-        const {gem,kind}=reward;
-        if(!gem)return;
-        if(kind==='attack')addLog(_t("✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}", { name: _t(gem.name), awakened: gem.awakened ? ` ${_t('(각성 후보)')}` : '' }));
-        else addLog(_t("🟢 보조스킬룬 <span class='loot-rare'>[{name}]</span> 획득! (해금: {supportTierLabel})", { name: _t(gem.name), supportTierLabel: getSupportTierLabel(gem.name,gem.tier) }));
-    }
-    window.addEventListener('project-idle:currency-acquired',announce);
-    /** 난입 보스와 보스 방의 불청객(js/combat-room-invader.js). */
-    const ROOM_INVADER_LINES=Object.freeze({arrived:[name=>`🩸 ${name}${pickParticle(name,'이','가')} 들이닥쳤습니다!`,'attack-monster'],twin:[()=>'🩸 보스가 둘입니다!','attack-monster'],slain:[name=>`🩸 ${name}${pickParticle(name,'을','를')} 쓰러뜨렸습니다!`,'loot-unique']});
-    window.addEventListener('project-idle:room-invader',event=>{
-        const [line,tone]=ROOM_INVADER_LINES[event.detail.kind];
-        addLog(line(event.detail.name),tone);
-    });
-    window.addEventListener('project-idle:gem-loot-received',event=>{
-        if (event.detail?.deferred) checkUnlocks();
-        // 체이싱 룬(data/skills.js chase, 2026-11-12 사용자): 체이싱 코어와 같은 알림(방치 정산 중에는 말고).
-        const name=event.detail?.gem?.name;
-        if(name && SKILL_DB[name]?.chase && !game.isBackgroundCalculation)dispatchRuntimeEvent('incident',{text:_t('체이싱 룬을 획득했습니다. 「{name}」', { name: _t(name) }),tone:'chase',chase:true});
-        announceGemReward(event.detail);
-    });
-    function announceJewelReward(receipt) {
-        if(!game.settings.showLootLog)return;
-        const {jewel,inventoryFull,protectOverflow,stored,shardGain}=receipt;
-        if(!stored) {
-            if(!game.isBackgroundCalculation)addLog(_t('💠 {how}: [{name}], 주얼 결정 +{gain}', { how: _t(inventoryFull?'가방이 가득 차 해체':'주얼 자동해체'), name: _t(jewel.name), gain: shardGain }),inventoryFull?'attack-monster':'loot-normal');
-            return;
-        }
-        const lines=getJewelStats(jewel).map(stat=>`${isJewelPetiteStat(stat)?_t('쁘띠 '):''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id,stat.val)}${Number.isFinite(Number(stat.tier))&&!isJewelPetiteStat(stat)?` T${Math.floor(stat.tier)}`:''}`).join(' / ');
-        addLog(_t('💠 {rarity} 주얼 [{name}] 획득!{protect} ({lines})', { rarity: _t(getJewelRarityLabel(jewel.rarity)), name: _t(jewel.name), protect: protectOverflow ? ` <span style="color:#ffb86b;">${_t('(공간 부족 보호)')}</span>` : '', lines: lines || _t('미가공') }),protectOverflow?'loot-unique':'loot-rare',{item:jewel,itemKind:'jewel'});
-    }
-    window.addEventListener('project-idle:jewel-drop-received',event=>announceJewelReward(event.detail));
-    function announceCore(core) {
-        // 완전한 코어(js/core-items.js rollPerfect): 체이싱 티어 알림(설정과 무관하게, 방치 정산 중에는 말고).
-        if(core.perfect && !game.isBackgroundCalculation)dispatchRuntimeEvent('incident',{text:_t('체이싱 코어를 획득했습니다. 「{name}」', { name: core.name }),tone:'chase',chase:true});
-        if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(_t('🧊 코어 [{name}] 획득! ({map})', { name: _t(core.name), map: core.lines.map(coreItems.describe).join(', ') }),'loot-unique',{item:core,itemKind:'core'});
-    }
-    window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
-    // 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.
-    function announceDropVariant({kind,items}) {
-        const item=items[0],name=`<span class='loot-${item.rarity}'>[${escapeHTML(getItemDisplayName(item))}]</span>`;
-        const text=kind==='corrupted'?_t('🩸 타락한 장비 {name}: 제작할 수 없지만 추가 옵션이 더 강합니다.', { name })
-            :kind==='duplicate'?_t('✨ 복제된 장비 {name}: 똑같은 장비가 하나 더 떨어졌습니다.', { name })
-            :_t('📦 장비 묶음: {baseName} {length}개가 함께 떨어졌습니다.', { baseName: escapeHTML(_t(item.baseName)||item.name), length: items.length });
-        addLog(text,'loot-unique',{item});
-    }
-    window.addEventListener('project-idle:equipment-drop-variant',event=>announceDropVariant(event.detail));
-    window.addEventListener('project-idle:exploration-departed',event=>{
-        if(event.detail.background)return;
-        updateStaticUI();queueImportantSave(220);
-    });
+  // modules/browser/window-methods.mjs
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
 
+  // modules/ui/combat-currency-hud.mjs
+  function updateCombatCurrencyHud(runtime) {
+    const root = runtime.deps.document.getElementById("ui-combat-currencies");
+    if (!root) return;
+    runtime.state.keys = runtime.state.keys || Object.keys(runtime.deps.ORB_DB).filter((key) => runtime.deps.craftingWorkspaceState.group(key) === "basic" && runtime.deps.ORB_DB[key].icon);
+    const held = runtime.state.keys.map((key) => [key, Math.floor(Number(runtime.deps.game.currencies[key]) || 0)]).filter(([, count]) => count > 0);
+    const sign = `${runtime.deps.i18n.locale}:${held.join("|")}`;
+    if (root === runtime.state.root && sign === runtime.state.drawn) return;
+    runtime.state.root = root;
+    runtime.state.drawn = sign;
+    root.hidden = !held.length;
+    root.innerHTML = held.map(([key, count]) => {
+      const name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(runtime.deps.ORB_DB[key].name));
+      return `<span data-tip="${name}" aria-label="${(0, runtime.deps._t)("{name} {count}개", { name, count })}"><img src="${runtime.deps.ORB_DB[key].icon}" alt="">${count.toLocaleString(runtime.deps.i18n.locale)}</span>`;
+    }).join("");
+  }
+
+  // modules/ui/loot-currency-notices.mjs
+  function noticeCurrency(runtime, currencyKey, gain) {
+    if (!(gain > 0)) return;
+    const chase = runtime.deps.lootMoments.ofCurrency(currencyKey) === "jackpot";
+    if (currencyKey !== "goldenRule" && !chase) return;
+    const name = (0, runtime.deps._t)(runtime.deps.ORB_DB[currencyKey].name);
+    if (runtime.deps.game.settings.lootFx?.notices?.[chase ? "chase" : "goldenRule"] === false) return;
+    (0, runtime.deps.showGameToast)((0, runtime.deps._t)("{name} 획득했습니다.", { name: (0, runtime.deps.withObjectParticle)(name) }), { tone: chase ? "chase" : "reward", duration: chase ? 6e3 : 3600 });
+  }
+  function noticeFirstUse(runtime, currencyKey, gain) {
+    const row = runtime.state.FIRST_USE[runtime.deps.CRAFT_OMENS.keys.includes(currencyKey) ? "roots" : currencyKey];
+    if (gain > 0 && row) (0, runtime.deps.queueTutorialNotice)(row[0], row[1], row[2], "tab-items", "item-tab-craft");
+  }
+  function announce(runtime, event) {
+    const { currencyKey, gain, unlocked } = event.detail;
+    noticeCurrency(runtime, currencyKey, gain);
+    noticeFirstUse(runtime, currencyKey, gain);
+    if (currencyKey === "goldenRule" && gain > 0) {
+      (0, runtime.deps.addLog)((0, runtime.deps._t)("✨✨ <strong>{name} +{gain}</strong> 획득!", { name: (0, runtime.deps._t)(runtime.deps.ORB_DB.goldenRule.name), gain }), "loot-unique");
+    }
+    if (["chaosKey", "coreKey"].includes(currencyKey) && gain > 0) {
+      const name = (0, runtime.deps._t)(runtime.deps.ORB_DB[currencyKey].name);
+      (0, runtime.deps.addLog)((0, runtime.deps._t)("🗝️ <strong>{name} +{gain}</strong> 획득! 5차 미궁 시련(재능 개화)을 지도에서 확인하세요.", { name, gain }), "loot-unique");
+    }
+    if (currencyKey === "ouroboros" && gain > 0) {
+      (0, runtime.deps.addLog)((0, runtime.deps._t)("🌿✨ <strong>{name} +{gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.", { name: (0, runtime.deps._t)(runtime.deps.ORB_DB.ouroboros.name), gain }), "loot-unique");
+    }
+    if (unlocked.gem) (0, runtime.deps.addLog)((0, runtime.deps._t)("☁️ 스킬룬 탭의 각인이 열렸습니다!"), "loot-unique");
+  }
+
+  // modules/ui/loot-rune-notices.mjs
+  function noticeRuneUpgrade(runtime, name) {
+    if (runtime.deps.game.activeSkill === name || (0, runtime.deps.isMobilityRuneName)(name) || !(runtime.deps.game.skills || []).includes(name) || !(0, runtime.deps.canUseSkillWithCurrentEquipment)(name)) return;
+    const { dps: [before, after] } = (0, runtime.deps.previewBuildStats)((copy) => {
+      copy.activeSkill = name;
+    });
+    const format = runtime.deps.COMPARE_STAT_META.dps.format;
+    if (before > 0 && after >= before * runtime.state.RUNE_UPGRADE_NOTICE_GAIN) (0, runtime.deps.showGameToast)((0, runtime.deps._t)("더 강한 공격 룬을 얻었습니다. 「{name}」 DPS {before} → {after}", { name, before: format(before), after: format(after) }), { tone: "reward", duration: 4200 });
+  }
+  function queueRuneUpgradeNotice(runtime, { gem, kind }) {
+    if (!gem || kind !== "attack" || runtime.deps.game.isBackgroundCalculation || (runtime.deps.SKILL_DB[gem.name]?.tags || []).includes("summon")) return;
+    const owner = runtime.deps.game, name = gem.name;
+    const timer = runtime.deps.setTimeout(() => {
+      runtime.timers.delete(timer);
+      if (runtime.active && runtime.deps.game === owner && !owner.isBackgroundCalculation) noticeRuneUpgrade(runtime, name);
+    }, 0);
+    runtime.timers.add(timer);
+  }
+  function announceGemReward(runtime, reward) {
+    queueRuneUpgradeNotice(runtime, reward);
+    if (!runtime.deps.game.settings.showLootLog) return;
+    const { gem, kind } = reward;
+    if (!gem) return;
+    if (kind === "attack") (0, runtime.deps.addLog)((0, runtime.deps._t)("✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}", { name: (0, runtime.deps._t)(gem.name), awakened: gem.awakened ? ` ${(0, runtime.deps._t)("(각성 후보)")}` : "" }));
+    else (0, runtime.deps.addLog)((0, runtime.deps._t)("🟢 보조스킬룬 <span class='loot-rare'>[{name}]</span> 획득! (해금: {supportTierLabel})", { name: (0, runtime.deps._t)(gem.name), supportTierLabel: (0, runtime.deps.getSupportTierLabel)(gem.name, gem.tier) }));
+  }
+
+  // modules/ui/loot-item-notices.mjs
+  function announceJewelReward(runtime, receipt) {
+    if (!runtime.deps.game.settings.showLootLog) return;
+    const { jewel, inventoryFull, protectOverflow, stored, shardGain } = receipt;
+    if (!stored) {
+      if (!runtime.deps.game.isBackgroundCalculation) (0, runtime.deps.addLog)((0, runtime.deps._t)("💠 {how}: [{name}], 주얼 결정 +{gain}", { how: (0, runtime.deps._t)(inventoryFull ? "가방이 가득 차 해체" : "주얼 자동해체"), name: (0, runtime.deps._t)(jewel.name), gain: shardGain }), inventoryFull ? "attack-monster" : "loot-normal");
+      return;
+    }
+    const lines = (0, runtime.deps.getJewelStats)(jewel).map((stat) => `${(0, runtime.deps.isJewelPetiteStat)(stat) ? (0, runtime.deps._t)("쁘띠 ") : ""}${(0, runtime.deps.getStatName)(stat.id)} +${(0, runtime.deps.formatJewelStatValue)(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !(0, runtime.deps.isJewelPetiteStat)(stat) ? ` T${Math.floor(stat.tier)}` : ""}`).join(" / ");
+    (0, runtime.deps.addLog)((0, runtime.deps._t)("💠 {rarity} 주얼 [{name}] 획득!{protect} ({lines})", { rarity: (0, runtime.deps._t)((0, runtime.deps.getJewelRarityLabel)(jewel.rarity)), name: (0, runtime.deps._t)(jewel.name), protect: protectOverflow ? ` <span style="color:#ffb86b;">${(0, runtime.deps._t)("(공간 부족 보호)")}</span>` : "", lines: lines || (0, runtime.deps._t)("미가공") }), protectOverflow ? "loot-unique" : "loot-rare", { item: jewel, itemKind: "jewel" });
+  }
+  function announceCore(runtime, core) {
+    if (core.perfect && !runtime.deps.game.isBackgroundCalculation) (0, runtime.deps.dispatchRuntimeEvent)("incident", { text: (0, runtime.deps._t)("체이싱 코어를 획득했습니다. 「{name}」", { name: core.name }), tone: "chase", chase: true });
+    if (runtime.deps.game.settings.showLootLog && !runtime.deps.game.isBackgroundCalculation) (0, runtime.deps.addLog)((0, runtime.deps._t)("🧊 코어 [{name}] 획득! ({map})", { name: (0, runtime.deps._t)(core.name), map: core.lines.map(runtime.deps.coreItems.describe).join(", ") }), "loot-unique", { item: core, itemKind: "core" });
+  }
+  function announceDropVariant(runtime, { kind, items }) {
+    const item = items[0], name = `<span class='loot-${item.rarity}'>[${(0, runtime.deps.escapeHTML)((0, runtime.deps.getItemDisplayName)(item))}]</span>`;
+    const text = kind === "corrupted" ? (0, runtime.deps._t)("🩸 타락한 장비 {name}: 제작할 수 없지만 추가 옵션이 더 강합니다.", { name }) : kind === "duplicate" ? (0, runtime.deps._t)("✨ 복제된 장비 {name}: 똑같은 장비가 하나 더 떨어졌습니다.", { name }) : (0, runtime.deps._t)("📦 장비 묶음: {baseName} {length}개가 함께 떨어졌습니다.", { baseName: (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(item.baseName) || item.name), length: items.length });
+    (0, runtime.deps.addLog)(text, "loot-unique", { item });
+  }
+
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+
+  // modules/ui/combat-receipt-view.mjs
+  function createCombatReceiptView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, owner: deps.game, timers: /* @__PURE__ */ new Set(), listeners: [] };
+    const handlers = { announce };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(void 0, runtime);
+    initialize(runtime);
+    runtime.api = Object.freeze({ update: () => {
+      if (!runtime.active) return;
+      syncReceiptOwner(runtime);
+      updateCombatCurrencyHud(runtime);
+    }, dispose: () => disposeCombatReceipts(runtime) });
+    listenReceipt(runtime, "project-idle:currency-acquired", runtime.handlers.announce);
+    listenReceipt(runtime, "project-idle:room-invader", (event) => {
+      const [line, tone] = runtime.state.ROOM_INVADER_LINES[event.detail.kind];
+      (0, runtime.deps.addLog)(line(event.detail.name), tone);
+    });
+    listenReceipt(runtime, "project-idle:gem-loot-received", (event) => {
+      if (event.detail?.deferred) (0, runtime.deps.checkUnlocks)();
+      const name = event.detail?.gem?.name;
+      if (name && runtime.deps.SKILL_DB[name]?.chase && !runtime.deps.game.isBackgroundCalculation) (0, runtime.deps.dispatchRuntimeEvent)("incident", { text: (0, runtime.deps._t)("체이싱 룬을 획득했습니다. 「{name}」", { name: (0, runtime.deps._t)(name) }), tone: "chase", chase: true });
+      announceGemReward(runtime, event.detail);
+    });
+    listenReceipt(runtime, "project-idle:jewel-drop-received", (event) => announceJewelReward(runtime, event.detail));
+    listenReceipt(runtime, "project-idle:core-item-received", (event) => announceCore(runtime, event.detail));
+    listenReceipt(runtime, "project-idle:equipment-drop-variant", (event) => announceDropVariant(runtime, event.detail));
+    listenReceipt(runtime, "project-idle:exploration-departed", (event) => {
+      if (event.detail.background) return;
+      (0, runtime.deps.updateStaticUI)();
+      (0, runtime.deps.queueImportantSave)(220);
+    });
+    return runtime.api;
+  }
+  function listenReceipt(runtime, type, handler) {
+    listenView(runtime, runtime.deps.window, type, (event) => {
+      if (!runtime.active) return;
+      syncReceiptOwner(runtime);
+      handler(event);
+    });
+  }
+  function syncReceiptOwner(runtime) {
+    if (runtime.owner === runtime.deps.game) return;
+    for (const timer of runtime.timers) runtime.deps.clearTimeout(timer);
+    runtime.timers.clear();
+    runtime.state.drawn = "";
+    runtime.state.root = null;
+    runtime.owner = runtime.deps.game;
+  }
+  function disposeCombatReceipts(runtime) {
+    if (!runtime.active) return;
+    releaseViewEvents(runtime);
+    for (const timer of runtime.timers) runtime.deps.clearTimeout(timer);
+    runtime.timers.clear();
+    runtime.state.root = null;
+  }
+  function initialize(runtime) {
+    runtime.state.keys = null;
+    runtime.state.drawn = "";
+    runtime.state.FIRST_USE = {
+      roots: ["craft_roots", "제작 뿌리", "제작 뿌리를 얻었습니다.\n‘장비 → 제작실’의 ‘뿌리 함께 사용’에서 걸어 두면 그 뿌리가 바꾸는 다음 제작 한 번에 쓰입니다."],
+      memoryImprint: ["memory_chisel", "기억 조각칼", "기억 조각칼을 얻었습니다.\n‘장비 → 제작실’에서 장비의 지금 추가 옵션을 새겨 두면, 뒤에 제작이 마음에 들지 않을 때 그 옵션으로 한 번 되돌릴 수 있습니다."]
+    };
+    runtime.state.RUNE_UPGRADE_NOTICE_GAIN = 1.1;
+    runtime.state.ROOM_INVADER_LINES = Object.freeze({ arrived: [(name) => `🩸 ${name}${(0, runtime.deps.pickParticle)(name, "이", "가")} 들이닥쳤습니다!`, "attack-monster"], twin: [() => "🩸 보스가 둘입니다!", "attack-monster"], slain: [(name) => `🩸 ${name}${(0, runtime.deps.pickParticle)(name, "을", "를")} 쓰러뜨렸습니다!`, "loot-unique"] });
+  }
+
+  // modules/currency-acquisition-ui-classic.mjs
+  var combatCurrencyHud = createCombatReceiptView({
+    get document() {
+      return document;
+    },
+    get ORB_DB() {
+      return ORB_DB;
+    },
+    get craftingWorkspaceState() {
+      return craftingWorkspaceState;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get _t() {
+      return _t;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get lootMoments() {
+      return lootMoments;
+    },
+    get showGameToast() {
+      return showGameToast;
+    },
+    get withObjectParticle() {
+      return withObjectParticle;
+    },
+    get CRAFT_OMENS() {
+      return CRAFT_OMENS;
+    },
+    get queueTutorialNotice() {
+      return queueTutorialNotice;
+    },
+    get addLog() {
+      return addLog;
+    },
+    get isMobilityRuneName() {
+      return isMobilityRuneName;
+    },
+    get canUseSkillWithCurrentEquipment() {
+      return canUseSkillWithCurrentEquipment;
+    },
+    get previewBuildStats() {
+      return previewBuildStats;
+    },
+    get COMPARE_STAT_META() {
+      return COMPARE_STAT_META;
+    },
+    get SKILL_DB() {
+      return SKILL_DB;
+    },
+    get setTimeout() {
+      return windowSetTimeout;
+    },
+    get clearTimeout() {
+      return windowClearTimeout;
+    },
+    get getSupportTierLabel() {
+      return getSupportTierLabel;
+    },
+    get getJewelStats() {
+      return getJewelStats;
+    },
+    get getJewelRarityLabel() {
+      return getJewelRarityLabel;
+    },
+    get isJewelPetiteStat() {
+      return isJewelPetiteStat;
+    },
+    get getStatName() {
+      return getStatName;
+    },
+    get formatJewelStatValue() {
+      return formatJewelStatValue;
+    },
+    get dispatchRuntimeEvent() {
+      return dispatchRuntimeEvent;
+    },
+    get coreItems() {
+      return coreItems;
+    },
+    get getItemDisplayName() {
+      return getItemDisplayName;
+    },
+    get pickParticle() {
+      return pickParticle;
+    },
+    get window() {
+      return window;
+    },
+    get checkUnlocks() {
+      return checkUnlocks;
+    },
+    get updateStaticUI() {
+      return updateStaticUI;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    }
+  });
+  safeExposeGlobals({ combatCurrencyHud });
 })();

@@ -1,0 +1,507 @@
+import { windowSetTimeout } from './browser/window-methods.mjs';
+import * as equipment_labels from './ui/equipment-labels.mjs';
+import * as equipment_salvage_text from './ui/equipment-salvage-text.mjs';
+import * as equipment_salvage_controls from './ui/equipment-salvage-controls.mjs';
+import * as equipment_salvage_actions from './ui/equipment-salvage-actions.mjs';
+import * as equipment_workshop_view from './ui/equipment-workshop-view.mjs';
+import { DROPPED_AFFIX_TIER_WEIGHT_FALLOFF, EQUIPMENT_DROP_SLOTS, uniqueMeetsTier, UNIQUE_JEWEL_DB, JEWEL_SUMMON_OPTION_IDS, JEWEL_SUMMON_OPTION_GROUP, JEWEL_OPTION_POOL, JEWEL_HIDDEN_TIER_COUNT, JEWEL_PETITE_OPTION_POOL, QUALITY_ATTRIBUTE_MODES, QUALITY_CATALYST_MODES, QUALITY_ATTRIBUTE_LABELS, BASE_ELEMENT_STATS } from './data/equipment-runtime-tables.mjs';
+import { createChaosInfuserOptions } from './data/chaos-infuser-options.mjs';
+import { freshGearIds, takeFreshGearIds } from './state/equipment-pickups.mjs';
+const CHAOS_INFUSER_OPTIONS = createChaosInfuserOptions(CURRENCY_LEGACY_MERGE);
+const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger, MOD_DB);
+const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
+const QUALITY_ATTRIBUTE_STAT_GROUPS = Object.fromEntries(Object.entries(AFFIX_TAG_LISTS.quality)
+    .map(([mode, rule]) => [mode, resolveAffixTagList(rule, MOD_DB)]));
+import { createEquipmentWorkshop } from './domain/equipment-workshop.mjs';
+import { createEquipmentRefinement } from './domain/equipment-refinement.mjs';
+import { createEquipmentAcquisition } from './domain/equipment-acquisition.mjs';
+import { createEquipmentGeneration } from './domain/equipment-generation.mjs';
+import { consumeDomainCommands } from './common/consume-commands.mjs';
+import { createEquipmentNormalization } from './domain/equipment-normalization.mjs';
+import { createEquipmentAffixRules } from './domain/equipment-affixes.mjs';
+
+const rules = createEquipmentAffixRules({
+    get clampNumber() { return clampNumber; },
+    get levelProgression() { return levelProgression; },
+    get FOSSIL_EXCLUSIVE_MODS() { return FOSSIL_EXCLUSIVE_MODS; },
+    get getWeaponCategoryOfBase() { return getWeaponCategoryOfBase; },
+    get getBaseChainRank() { return getBaseChainRank; },
+    get getBaseChainInfo() { return getBaseChainInfo; },
+    get BASE_DROP_WEIGHTS() { return BASE_DROP_WEIGHTS; },
+    get isTenthStat() { return isTenthStat; },
+    get getStatName() { return getStatName; },
+    get WHOLE_ROLL_STAT_IDS() { return WHOLE_ROLL_STAT_IDS; },
+    get gardenOils() { return typeof gardenOils === 'undefined' ? undefined : gardenOils; },
+    get _t() { return _t; },
+    get emberCorruption() { return typeof emberCorruption === 'undefined' ? undefined : emberCorruption; },
+    get itemInfluences() { return itemInfluences; },
+    get ATLAS() { return typeof ATLAS === 'undefined' ? undefined : ATLAS; },
+    get EQUIPMENT_DROP_SLOTS() { return EQUIPMENT_DROP_SLOTS; },
+    get BASE_ITEM_DB() { return BASE_ITEM_DB; },
+    get BASE_ELEMENT_STATS() { return BASE_ELEMENT_STATS; },
+    get WEAPON_CATEGORY_OFF_MODS() { return WEAPON_CATEGORY_OFF_MODS; },
+    get getWeaponCategoryId() { return getWeaponCategoryId; },
+    get MOD_DB() { return MOD_DB; },
+    get equipmentCrafting() { return equipmentCrafting; },
+    get atlas() { return atlas; }
+});
+const normalization = createEquipmentNormalization({
+    get getStatName() { return getStatName; },
+    get MOD_DB() { return MOD_DB; },
+    get makeDualDefenseAffixMod() { return rules.makeDualDefenseAffixMod; },
+    get getExplicitModStatIds() { return rules.getExplicitModStatIds; },
+    get equipmentCrafting() { return equipmentCrafting; },
+    get BASE_ITEM_DB() { return BASE_ITEM_DB; },
+    get clampNumber() { return clampNumber; },
+    get rollBaseStat() { return rules.rollBaseStat; },
+    get getBaseStatRollRange() { return rules.getBaseStatRollRange; },
+    get UNIQUE_EQUIPMENT_RULES() { return UNIQUE_EQUIPMENT_RULES; },
+    get colonyWards() { return typeof colonyWards === 'undefined' ? undefined : colonyWards; },
+    get UNIQUE_DB() { return UNIQUE_DB; },
+    get RENAMED_UNIQUES() { return RENAMED_UNIQUES; },
+    get itemSaveSlim() { return window.GameModules.itemSaveSlim; },
+    get bagItems() { return typeof bagItems === 'undefined' ? undefined : bagItems; },
+    allocateItemId: () => ++window.GameModules.state.session.itemIdCounter,
+    get levelProgression() { return levelProgression; },
+    getAbyssSocketCapacity: item => equipmentSockets.getAbyssSocketCapacity(item),
+    get normalizeItemOrigin() { return rules.normalizeItemOrigin; },
+    get ARM_GUARD_BASE_LEGACY_NAMES() { return ARM_GUARD_BASE_LEGACY_NAMES; },
+    get WEAPON_BASE_LEGACY_NAMES() { return WEAPON_BASE_LEGACY_NAMES; }
+});
+const generation = createEquipmentGeneration({
+    get BASE_ITEM_DB() { return BASE_ITEM_DB; },
+    get keepWeaponCategoryBases() { return rules.keepWeaponCategoryBases; },
+    get rndChoice() { return rndChoice; },
+    get getBaseDropWeight() { return rules.getBaseDropWeight; },
+    allocateItemId: () => ++window.GameModules.state.session.itemIdCounter,
+    get clampNumber() { return clampNumber; },
+    get levelProgression() { return levelProgression; },
+    get normalizeDropRegion() { return rules.normalizeDropRegion; },
+    get rollBaseStats() { return rules.rollBaseStats; },
+    get equipmentCrafting() { return equipmentCrafting; },
+    get getExplicitModStatIds() { return rules.getExplicitModStatIds; },
+    get isTenthStat() { return isTenthStat; },
+    get _t() { return _t; },
+    get getStatName() { return getStatName; },
+    get rollAffixValueInTierRange() { return rules.rollAffixValueInTierRange; },
+    get rollAffixValue() { return rules.rollAffixValue; },
+    get getItemExplicitOptionCount() { return rules.getItemExplicitOptionCount; },
+    get getAvailableMods() { return rules.getAvailableMods; },
+    get updateItemName() { return rules.updateItemName; },
+    get CHAOS_INFUSER_OPTIONS() { return CHAOS_INFUSER_OPTIONS; },
+    get getItemOccupiedExplicitModIds() { return rules.getItemOccupiedExplicitModIds; },
+    get isDefenseTypeStatAllowed() { return rules.isDefenseTypeStatAllowed; },
+    get EXPLICIT_AFFIX_LINE_CAP() { return EXPLICIT_AFFIX_LINE_CAP; },
+    get atlasMaps() { return typeof atlasMaps === 'undefined' ? undefined : atlasMaps; },
+    get contentProgression() { return contentProgression; },
+    get UNIQUE_DB() { return UNIQUE_DB; },
+    get uniqueMeetsTier() { return uniqueMeetsTier; },
+    get EQUIPMENT_DROP_SLOTS() { return EQUIPMENT_DROP_SLOTS; },
+    get RENAMED_UNIQUES() { return RENAMED_UNIQUES; },
+    get UNIQUE_EQUIPMENT_RULES() { return UNIQUE_EQUIPMENT_RULES; },
+    get getFossilExclusivePool() { return typeof getFossilExclusivePool === 'undefined' ? undefined : getFossilExclusivePool; },
+    get FOSSIL_EXCLUSIVE_MODS() { return FOSSIL_EXCLUSIVE_MODS; },
+    get getDroppedAffixTierRange() { return rules.getDroppedAffixTierRange; },
+    get DROPPED_AFFIX_TIER_WEIGHT_FALLOFF() { return DROPPED_AFFIX_TIER_WEIGHT_FALLOFF; },
+    get lootOmens() { return lootOmens; },
+    get getZone() { return getZone; },
+    get getRealmEquipmentHiddenTierCap() { return rules.getRealmEquipmentHiddenTierCap; },
+    get rollRealmItemDropTier() { return rules.rollRealmItemDropTier; },
+    get getRealmEquipmentAffixTierCap() { return rules.getRealmEquipmentAffixTierCap; },
+    get getRootMonsterWeapon() { return getRootMonsterWeapon; },
+    get getEquipmentDropRarity() { return getEquipmentDropRarity; },
+    get getRarityRank() { return getRarityRank; },
+    get equipmentSockets() { return equipmentSockets; },
+    get itemInfluences() { return itemInfluences; },
+    get UNIQUE_JEWEL_DB() { return UNIQUE_JEWEL_DB; },
+    get JEWEL_OPTION_POOL() { return JEWEL_OPTION_POOL; },
+    get JEWEL_SUMMON_OPTION_GROUP() { return JEWEL_SUMMON_OPTION_GROUP; },
+    get JEWEL_SUMMON_OPTION_IDS() { return JEWEL_SUMMON_OPTION_IDS; },
+    get JEWEL_HIDDEN_TIER_COUNT() { return JEWEL_HIDDEN_TIER_COUNT; },
+    get pickTierInRangeWeighted() { return rules.pickTierInRangeWeighted; },
+    get JEWEL_PETITE_OPTION_POOL() { return JEWEL_PETITE_OPTION_POOL; }
+});
+// Application boundary: resolve the UI effect only when a synchronous command is consumed.
+const generationEffects = { get equipmentLog() { return addLog.bind(undefined); } };
+const production = Object.freeze({ ...generation,
+    chooseItemBase: (slot, tier, zone = getZone(game.currentZoneId) || {}, category) => generation.chooseItemBase(slot, tier, zone, category),
+    uniqueDropsInZone: (unique, zone, owner = game) => generation.uniqueDropsInZone(unique, zone, owner),
+    getFairyRingUniquePools: (item, zone = getZone(game.currentZoneId) || {}, owner = game) => generation.getFairyRingUniquePools(item, zone, owner),
+    generateUniqueItem: (tier, slot, forcedName, zone = getZone(game.currentZoneId) || {}, owner = game) => consumeDomainCommands(generation.generateUniqueItem(tier, slot, forcedName, zone, owner), generationEffects),
+    generateEquipmentDrop: (enemy, options) => consumeDomainCommands(generation.generateEquipmentDrop(enemy, options, game), generationEffects)
+});
+const acquisitionRules = createEquipmentAcquisition({
+    claimCodexCompletion: owner => window.GameModules.lootRules.claimCodexCompletion(owner),
+    get getCanonicalCurrencyKey() { return getCanonicalCurrencyKey; },
+    get contentProgression() { return contentProgression; },
+    get currencyExchange() { return currencyExchange; },
+    get combatLootReceipts() { return combatLootReceipts; },
+    get ensureSkyTowerState() { return ensureSkyTowerState; },
+    get bagItems() { return typeof bagItems === 'undefined' ? undefined : bagItems; },
+    get _t() { return _t; },
+    get freshGearIds() { return freshGearIds; },
+    get uniqueHuntRuntime() { return typeof uniqueHuntRuntime === 'undefined' ? undefined : uniqueHuntRuntime; },
+    get getWeaponCategoryId() { return getWeaponCategoryId; },
+    get equipmentLootPolicy() { return equipmentLootPolicy; },
+    get normalizeItem() { return normalization.normalizeItem; },
+    get tryAutoEquipEmptySlot() { return typeof tryAutoEquipEmptySlot === 'undefined' ? undefined : tryAutoEquipEmptySlot; },
+    get equipmentInventoryGridRuntime() { return equipmentInventoryGridRuntime; },
+    get canStoreEquipmentItems() { return canStoreEquipmentItems; },
+    get getItemDisplayName() { return getItemDisplayName; },
+    get pickParticle() { return pickParticle; },
+    get UNIQUE_DB() { return UNIQUE_DB; },
+    get getItemCraftTier() { return rules.getItemCraftTier; },
+    get getItemExplicitOptionCount() { return rules.getItemExplicitOptionCount; },
+    get salvageRecoveryRuntime() { return typeof salvageRecoveryRuntime === 'undefined' ? undefined : salvageRecoveryRuntime; },
+    get equipmentSockets() { return equipmentSockets; },
+    get equipmentLoadoutRuntime() { return typeof equipmentLoadoutRuntime === 'undefined' ? undefined : equipmentLoadoutRuntime; },
+    get lootMoments() { return lootMoments; },
+    get LOOT_OMENS() { return LOOT_OMENS; },
+    get itemInfluences() { return itemInfluences; },
+    get colonyWards() { return colonyWards; }
+});
+const acquisitionEffects = {
+    get acquisitionSalvageText() { return formatSalvageRewardSummary.bind(undefined); },
+    get acquisitionLog() { return addLog.bind(undefined); },
+    get acquisitionUnlocks() { return checkUnlocks.bind(undefined); },
+    get acquisitionEvent() { return dispatchRuntimeEvent.bind(undefined); },
+    acquisitionIsLiveOwner: owner => owner === game
+};
+const acquisition = Object.freeze({ ...acquisitionRules,
+    resolveCurrencyAward: (...args) => acquisitionRules.resolveCurrencyAward(game, ...args),
+    awardCurrency: (...args) => consumeDomainCommands(acquisitionRules.awardCurrency(game, ...args), acquisitionEffects),
+    commitCurrencyGain: (...args) => consumeDomainCommands(acquisitionRules.commitCurrencyGain(game, ...args), acquisitionEffects),
+    notifyCurrencyAcquisition: (...args) => consumeDomainCommands(acquisitionRules.notifyCurrencyAcquisition(game, ...args), acquisitionEffects),
+    registerUniqueToCodexOnAcquire: (item, owner = game) => consumeDomainCommands(acquisitionRules.registerUniqueToCodexOnAcquire(owner, item), acquisitionEffects),
+    recordEquipmentAcquisition: (...args) => consumeDomainCommands(acquisitionRules.recordEquipmentAcquisition(game, ...args), acquisitionEffects),
+    passesItemPickupFilter: (...args) => acquisitionRules.passesItemPickupFilter(game, ...args),
+    isGuaranteedEquipmentPickup: (...args) => acquisitionRules.isGuaranteedEquipmentPickup(game, ...args),
+    previewEquipmentPickup: (...args) => acquisitionRules.previewEquipmentPickup(game, ...args),
+    getAcquiredItemAutoEquipSlot: (...args) => acquisitionRules.getAcquiredItemAutoEquipSlot(game, ...args),
+    stowBoughtItem: (...args) => consumeDomainCommands(acquisitionRules.stowBoughtItem(game, ...args), acquisitionEffects),
+    storeEquipmentPickup: (...args) => consumeDomainCommands(acquisitionRules.storeEquipmentPickup(game, ...args), acquisitionEffects),
+    addItemToInventory: (...args) => consumeDomainCommands(acquisitionRules.addItemToInventory(game, ...args), acquisitionEffects),
+    receiveJewelDrop: (...args) => consumeDomainCommands(acquisitionRules.receiveJewelDrop(game, ...args), acquisitionEffects),
+    salvageJewelObject: (jewel, silent, owner = game) => consumeDomainCommands(acquisitionRules.salvageJewelObject(owner, jewel, silent), acquisitionEffects),
+    salvageItemObject: (...args) => consumeDomainCommands(acquisitionRules.salvageItemObject(game, ...args), acquisitionEffects),
+    isBulkSalvageProtectedItem: (...args) => acquisitionRules.isBulkSalvageProtectedItem(game, ...args),
+    salvageBagItems: (...args) => consumeDomainCommands(acquisitionRules.salvageBagItems(game, ...args), acquisitionEffects),
+    confirmedSalvageTargets: (...args) => acquisitionRules.confirmedSalvageTargets(game, ...args)
+});
+const refinementRules = createEquipmentRefinement({
+    get getItemExplicitOptionCount() { return rules.getItemExplicitOptionCount; },
+    get EXPLICIT_AFFIX_LINE_CAP() { return EXPLICIT_AFFIX_LINE_CAP; },
+    get getItemOccupiedExplicitModIds() { return rules.getItemOccupiedExplicitModIds; },
+    get equipmentCrafting() { return equipmentCrafting; },
+    get MOD_DB() { return MOD_DB; },
+    get VENOM_STINGER_STAT_IDS() { return VENOM_STINGER_STAT_IDS; },
+    get isModForOrigin() { return rules.isModForOrigin; },
+    get contentProgression() { return contentProgression; },
+    get getChaosRealmTier() { return typeof getChaosRealmTier === 'undefined' ? undefined : getChaosRealmTier; },
+    get getRealmEquipmentAffixTierCap() { return rules.getRealmEquipmentAffixTierCap; },
+    get getRealmEquipmentHiddenTierCap() { return rules.getRealmEquipmentHiddenTierCap; },
+    get getItemCraftTier() { return rules.getItemCraftTier; },
+    get getAvailableMods() { return rules.getAvailableMods; },
+    get pickRandomMods() { return generation.pickRandomMods; },
+    get rollAffixValueInTierRange() { return rules.rollAffixValueInTierRange; },
+    get QUALITY_ATTRIBUTE_MODES() { return QUALITY_ATTRIBUTE_MODES; },
+    get QUALITY_CATALYST_MODES() { return QUALITY_CATALYST_MODES; },
+    get QUALITY_ATTRIBUTE_LABELS() { return QUALITY_ATTRIBUTE_LABELS; },
+    get QUALITY_ATTRIBUTE_STAT_GROUPS() { return QUALITY_ATTRIBUTE_STAT_GROUPS; },
+    get TAINTED_CRAFT_OUTCOMES() { return TAINTED_CRAFT_OUTCOMES; },
+    get equipmentSockets() { return equipmentSockets; },
+    get rndChoice() { return rndChoice; },
+    get getStatName() { return getStatName; },
+    get getOpenAffixMods() { return rules.getOpenAffixMods; },
+    get pickWeightedMod() { return generation.pickWeightedMod; },
+    get rollAffixValue() { return rules.rollAffixValue; },
+    get updateItemName() { return rules.updateItemName; },
+    get _t() { return _t; }
+});
+const refinement = Object.freeze({ ...refinementRules,
+    canPayCurrencyCosts: (...args) => refinementRules.canPayCurrencyCosts(game, ...args),
+    payCurrencyCosts: (...args) => refinementRules.payCurrencyCosts(game, ...args),
+    isChaosInfuserUnlocked: (...args) => refinementRules.isChaosInfuserUnlocked(game, ...args),
+    canApplyTaintedOutcome: (...args) => refinementRules.canApplyTaintedOutcome(game, ...args),
+    corruptCraftedItem: (...args) => refinementRules.corruptCraftedItem(game, ...args),
+    getCosmosBossRelicStatTotals: (...args) => refinementRules.getCosmosBossRelicStatTotals(game, ...args)
+});
+// UI selection and ordered effects stay at the application boundary until stage 5.
+const workshopRules = createEquipmentWorkshop({
+    get getCraftSelectionRef() { return typeof getCraftSelectionRef === 'undefined' ? undefined : getCraftSelectionRef; },
+    get isCraftSelectionEquip() { return typeof isCraftSelectionEquip === 'undefined' ? undefined : isCraftSelectionEquip; },
+    get clearCraftSelection() { return typeof clearCraftSelection === 'undefined' ? undefined : clearCraftSelection; },
+    get equipmentInventoryGridRuntime() { return equipmentInventoryGridRuntime; },
+    get bagItems() { return bagItems; },
+    get getZone() { return getZone; },
+    get generateJewelDrop() { return generation.generateJewelDrop; },
+    get awardCurrency() { return acquisitionRules.awardCurrency; },
+    get _t() { return _t; },
+    get isChaosInfuserUnlocked() { return refinementRules.isChaosInfuserUnlocked; },
+    get contentProgression() { return contentProgression; },
+    get isChaosInfusionEligibleItem() { return generation.isChaosInfusionEligibleItem; },
+    get getChaosInfuserOption() { return generation.getChaosInfuserOption; },
+    get P_STATS() { return P_STATS; },
+    get getChaosInfuserOptionsForItem() { return generation.getChaosInfuserOptionsForItem; },
+    get getChaosInfusionCost() { return generation.getChaosInfusionCost; },
+    get canPayCurrencyCosts() { return refinementRules.canPayCurrencyCosts; },
+    get payCurrencyCosts() { return refinementRules.payCurrencyCosts; },
+    get rollChaosInfusionOption() { return generation.rollChaosInfusionOption; },
+    get getStatName() { return getStatName; },
+    get formatValue() { return formatValue; },
+    get normalizeItem() { return normalization.normalizeItem; },
+    get ORB_DB() { return ORB_DB; },
+    get getVenomStingerRefusal() { return refinementRules.getVenomStingerRefusal; },
+    get getVenomStingerMods() { return refinementRules.getVenomStingerMods; },
+    get pickWeightedMod() { return generation.pickWeightedMod; },
+    get rollAffixValue() { return rules.rollAffixValue; },
+    get getItemCraftTier() { return rules.getItemCraftTier; },
+    get equipmentSockets() { return equipmentSockets; },
+    get pickParticle() { return pickParticle; },
+    get isSporeCraftEquipment() { return isSporeCraftEquipment; },
+    get getRotHarvestRefusal() { return refinementRules.getRotHarvestRefusal; },
+    get ROT_SPORE_STAT_IDS() { return ROT_SPORE_STAT_IDS; },
+    get rndChoice() { return rndChoice; },
+    get updateItemName() { return rules.updateItemName; },
+    get stumpBox() { return stumpBox; },
+    get equipmentCrafting() { return equipmentCrafting; },
+    get getFossilExclusivePool() { return typeof getFossilExclusivePool === 'undefined' ? undefined : getFossilExclusivePool; },
+    get FOSSIL_EXCLUSIVE_MODS() { return FOSSIL_EXCLUSIVE_MODS; },
+    get STUMP_BOX_HARVEST_CRAFT() { return STUMP_BOX_HARVEST_CRAFT; },
+    get rollEncroachmentLiberationOptions() { return refinementRules.rollEncroachmentLiberationOptions; }
+});
+const workshopEffects = {
+    get acquisitionEvent() { return acquisitionEffects.acquisitionEvent; },
+    workshopJewelCreated: jewel => notifyRefinedJewel(jewel),
+    get workshopCurrencyCosts() { return formatCurrencyCosts.bind(undefined); },
+    get workshopItemName() { return getItemDisplayName.bind(undefined); },
+    get workshopLog() { return addLog.bind(undefined); },
+    get workshopRefresh() { return updateStaticUI.bind(undefined); },
+    get workshopSave() { return queueImportantSave.bind(undefined); },
+    get workshopShowLiberation() { return showEncroachmentLiberationOverlay.bind(undefined); },
+    get workshopHideLiberation() { return hideEncroachmentLiberationOverlay.bind(undefined); }
+};
+function runSelectedWorkshop(action, args) {
+    const reason = workshopRules.getAdmission(game, action);
+    if (reason) return workshopEffects.workshopLog(reason, 'attack-monster');
+    const item = getSelectedCraftItem();
+    return consumeDomainCommands(workshopRules[action](game, item, ...args), workshopEffects);
+}
+function notifyRefinedJewel(jewel) {
+    const lineText = generation.getJewelStats(jewel).map(stat => `${generation.isJewelPetiteStat(stat) ? _t('쁘띠 ') : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !generation.isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
+    workshopEffects.workshopLog(_t('🎰 주얼 가공: {rarity} [{name}] 획득! ({lineText})', { rarity: getJewelRarityLabel(jewel.rarity), name: _t(jewel.name), lineText }), jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item: jewel, itemKind: 'jewel' });
+}
+const workshop = Object.freeze({
+    destroySelectedCraftItem: (item, owner = game) => workshopRules.destroySelectedCraftItem(owner, item),
+    drawJewelRefine: () => consumeDomainCommands(workshopRules.drawJewelRefine(game), workshopEffects),
+    liberateSelectedEncroachedItem: (...args) => runSelectedWorkshop('liberateEncroachment', args),
+    applyChaosInfusionToSelectedItem: (...args) => runSelectedWorkshop('applyChaosInfusion', args),
+    removeChaosInfusionFromSelectedItem: (...args) => runSelectedWorkshop('removeChaosInfusion', args),
+    applyEnchantedHoneyToSelectedItem: (...args) => runSelectedWorkshop('applyEnchantedHoney', args),
+    applyVenomStingerToSelectedItem: (...args) => runSelectedWorkshop('applyVenomStinger', args),
+    applyVoidChiselToSelectedItem: (...args) => runSelectedWorkshop('applyVoidChisel', args),
+    applyWoodsmanTouchToSelectedItem: (...args) => runSelectedWorkshop('applyWoodsmanTouch', args),
+    applyCorruptSporeToSelectedItem: (...args) => runSelectedWorkshop('applyCorruptSpore', args),
+    applyRiftSporeToSelectedItem: (...args) => runSelectedWorkshop('applyRiftSpore', args),
+    openEncroachmentLiberationOverlay: (...args) => consumeDomainCommands(workshopRules.openEncroachment(game, ...args), workshopEffects),
+    closeEncroachmentLiberationOverlay: (...args) => consumeDomainCommands(workshopRules.closeEncroachment(game, ...args), workshopEffects),
+    confirmEncroachmentLiberation: (...args) => consumeDomainCommands(workshopRules.confirmEncroachment(game, ...args), workshopEffects)
+});
+
+
+const uiDeps = {
+    get ITEM_RARITY_LABELS() { return ITEM_RARITY_LABELS; },
+    get ORB_DB() { return ORB_DB; },
+    get _t() { return _t; },
+    get addLog() { return addLog; },
+    get bagItems() { return bagItems; },
+    get clearCraftSelection() { return clearCraftSelection; },
+    get confirmedSalvageTargets() { return acquisition.confirmedSalvageTargets; },
+    get craftCurrencyUse() { return craftCurrencyUse; },
+    get dispatchRuntimeEvent() { return dispatchRuntimeEvent; },
+    get document() { return document; },
+    get ensureCraftSelectionValid() { return ensureCraftSelectionValid; },
+    get equipmentLoadoutRuntime() { return typeof equipmentLoadoutRuntime === 'undefined' ? undefined : equipmentLoadoutRuntime; },
+    get equipmentWindowUi() { return equipmentWindowUi; },
+    get formatValue() { return formatValue; },
+    get game() { return game; },
+    get getCraftSelectionRef() { return getCraftSelectionRef; },
+    get getCurrencyInfo() { return getCurrencyInfo; },
+    // Optional legacy hook; the inventory view's own implementation is private.
+    get getInventoryRarityFilter() { return globalThis.getInventoryRarityFilter; },
+    get getItemSalvageRewardProfile() { return acquisition.getItemSalvageRewardProfile; },
+    get getJewelOptionDef() { return production.getJewelOptionDef; },
+    get getJewelSalvageShardGain() { return acquisition.getJewelSalvageShardGain; },
+    get getStatName() { return getStatName; },
+    get getStyledOrbName() { return getStyledOrbName; },
+    get getTierClassName() { return rules.getTierClassName; },
+    get getTierDisplayLevel() { return rules.getTierDisplayLevel; },
+    get isBulkSalvageProtectedItem() { return acquisition.isBulkSalvageProtectedItem; },
+    get isCraftSelectionEquip() { return isCraftSelectionEquip; },
+    get mergeSalvageRewards() { return acquisition.mergeSalvageRewards; },
+    get pickParticle() { return pickParticle; },
+    get queueImportantSave() { return queueImportantSave; },
+    get requestGameConfirmation() { return requestGameConfirmation; },
+    get salvageBagItems() { return acquisition.salvageBagItems; },
+    get salvageItemObject() { return acquisition.salvageItemObject; },
+    get salvageJewelObject() { return acquisition.salvageJewelObject; },
+    get setTimeout() { return windowSetTimeout; },
+    get updateStaticUI() { return updateStaticUI; },
+};
+const getTierBadgeHtml = equipment_labels.getTierBadgeHtml.bind(undefined, uiDeps);
+const showEncroachmentLiberationOverlay = equipment_workshop_view.showEncroachmentLiberationOverlay.bind(undefined, uiDeps);
+const hideEncroachmentLiberationOverlay = equipment_workshop_view.hideEncroachmentLiberationOverlay.bind(undefined, uiDeps);
+const formatJewelStatValue = equipment_labels.formatJewelStatValue.bind(undefined, uiDeps);
+const getJewelRarityLabel = equipment_labels.getJewelRarityLabel.bind(undefined, uiDeps);
+const getJewelRarityClass = equipment_labels.getJewelRarityClass;
+const salvageJewel = equipment_salvage_actions.salvageJewel.bind(undefined, uiDeps);
+const formatSalvageRewardSummary = equipment_salvage_text.formatSalvageRewardSummary.bind(undefined, uiDeps);
+const getItemSalvagePreviewText = equipment_salvage_text.getItemSalvagePreviewText.bind(undefined, uiDeps);
+const salvageItem = equipment_salvage_actions.salvageItem.bind(undefined, uiDeps);
+const syncSalvageControlsFromSettings = equipment_salvage_controls.syncSalvageControlsFromSettings.bind(undefined, uiDeps);
+const toggleAutoSalvage = equipment_salvage_controls.toggleAutoSalvage.bind(undefined, uiDeps);
+const bulkSalvageSelected = equipment_salvage_actions.bulkSalvageSelected.bind(undefined, uiDeps);
+const bulkSalvageAllInventory = equipment_salvage_actions.bulkSalvageAllInventory.bind(undefined, uiDeps);
+const confirmBulkSalvageAll = equipment_salvage_actions.confirmBulkSalvageAll.bind(undefined, uiDeps);
+const useCurrency = equipment_workshop_view.useCurrency.bind(undefined, uiDeps);
+const formatCurrencyCosts = equipment_labels.formatCurrencyCosts.bind(undefined, uiDeps);
+function ensureAbyssSockets(item) {
+    equipmentSockets.ensureAbyssSockets(item);
+}
+exposeFileGlobals({
+    isChaosInfuserUnlocked: refinement.isChaosInfuserUnlocked,
+    addItemToInventory: acquisition.addItemToInventory,
+    receiveJewelDrop: acquisition.receiveJewelDrop,
+    getChaosInfuserOptionsForItem: production.getChaosInfuserOptionsForItem,
+    isChaosInfusionEligibleItem: production.isChaosInfusionEligibleItem,
+    getChaosInfusionCost: production.getChaosInfusionCost,
+    getAffixTierRange: rules.getAffixTierRange,
+    getItemExplicitOptionCount: rules.getItemExplicitOptionCount,
+    findStoredEquipmentAffix: normalization.findStoredEquipmentAffix,
+    normalizeArmGuardIdentity: normalization.normalizeArmGuardIdentity,
+    migrateEquipmentBlockBases: normalization.migrateEquipmentBlockBases,
+    normalizeItem: normalization.normalizeItem,
+    getItemCraftTier: rules.getItemCraftTier,
+    getRealmEquipmentHiddenTierCap: rules.getRealmEquipmentHiddenTierCap,
+    getZoneEquipmentTierCap: rules.getZoneEquipmentTierCap,
+    getChaosDepthEquipmentTierCap: rules.getChaosDepthEquipmentTierCap,
+    getRealmEquipmentAffixTierCap: rules.getRealmEquipmentAffixTierCap,
+    getRealmItemDropTierRange: rules.getRealmItemDropTierRange,
+    getDroppedAffixTierRange: rules.getDroppedAffixTierRange,
+    getCraftTierRangeForItem: rules.getCraftTierRangeForItem,
+    isFixedEquipmentAffix: rules.isFixedEquipmentAffix,
+    getTierClassName: rules.getTierClassName,
+    getTierBadgeHtml,
+    getUniqueCodexKeyByItem: acquisition.getUniqueCodexKeyByItem,
+    registerUniqueToCodexOnAcquire: acquisition.registerUniqueToCodexOnAcquire,
+    keepWeaponCategoryBases: rules.keepWeaponCategoryBases,
+    getBaseDropWeight: rules.getBaseDropWeight,
+    chooseItemBase: production.chooseItemBase,
+    baseStatRollBounds: rules.baseStatRollBounds,
+    rollBaseStat: rules.rollBaseStat,
+    rollBaseStats: rules.rollBaseStats,
+    getListedAffixTierRange: rules.getListedAffixTierRange,
+    rollTierValueAffix: rules.rollTierValueAffix,
+    rerollStoredAffixValue: rules.rerollStoredAffixValue,
+    rollAffixValue: rules.rollAffixValue,
+    rollRealmItemDropTier: rules.rollRealmItemDropTier,
+    rollAffixValueInTierRange: rules.rollAffixValueInTierRange,
+    getImmutableItemSpecialStats: rules.getImmutableItemSpecialStats,
+    getItemOccupiedExplicitModIds: rules.getItemOccupiedExplicitModIds,
+    liberateSelectedEncroachedItem: workshop.liberateSelectedEncroachedItem,
+    openEncroachmentLiberationOverlay: workshop.openEncroachmentLiberationOverlay,
+    confirmEncroachmentLiberation: workshop.confirmEncroachmentLiberation,
+    closeEncroachmentLiberationOverlay: workshop.closeEncroachmentLiberationOverlay,
+    getItemBaseDefenseTypes: rules.getItemBaseDefenseTypes,
+    isDefenseTypeStatAllowed: rules.isDefenseTypeStatAllowed,
+    isKaleidoscopeShieldItem: rules.isKaleidoscopeShieldItem,
+    getExplicitModStatIds: rules.getExplicitModStatIds,
+    isModForOrigin: rules.isModForOrigin,
+    buildAvailableModPool: rules.buildAvailableModPool,
+    getAvailableMods: rules.getAvailableMods,
+    getOpenAffixMods: rules.getOpenAffixMods,
+    updateItemName: rules.updateItemName,
+    rerollChaosInfusionForItem: production.rerollChaosInfusionForItem,
+    rerollExplicitMods: production.rerollExplicitMods,
+    chaosInfusionFitsAffixRoom: production.chaosInfusionFitsAffixRoom,
+    canPayCurrencyCosts: refinement.canPayCurrencyCosts,
+    payCurrencyCosts: refinement.payCurrencyCosts,
+    applyChaosInfusionToSelectedItem: workshop.applyChaosInfusionToSelectedItem,
+    removeChaosInfusionFromSelectedItem: workshop.removeChaosInfusionFromSelectedItem,
+    applyEnchantedHoneyToSelectedItem: workshop.applyEnchantedHoneyToSelectedItem,
+    getVenomStingerRefusal: refinement.getVenomStingerRefusal,
+    applyVenomStingerToSelectedItem: workshop.applyVenomStingerToSelectedItem,
+    applyVoidChiselToSelectedItem: workshop.applyVoidChiselToSelectedItem,
+    applyWoodsmanTouchToSelectedItem: workshop.applyWoodsmanTouchToSelectedItem,
+    ensureAbyssSockets,
+    createItemFromBase: production.createItemFromBase,
+    pickWeightedMod: production.pickWeightedMod,
+    pickRandomMods: production.pickRandomMods,
+    getUniqueStatRollRange: production.getUniqueStatRollRange,
+    getChaseUniqueChance: production.getChaseUniqueChance,
+    uniqueDropsInZone: production.uniqueDropsInZone,
+    getFairyRingUniquePools: production.getFairyRingUniquePools,
+    generateUniqueItem: production.generateUniqueItem,
+    getEquipmentDropSlot: production.getEquipmentDropSlot,
+    generateEquipmentDrop: production.generateEquipmentDrop,
+    boostExceptionalBaseLine: production.boostExceptionalBaseLine,
+    maybeApplyExceptionalBase: production.maybeApplyExceptionalBase,
+    resolveCurrencyAward: acquisition.resolveCurrencyAward,
+    awardCurrency: acquisition.awardCurrency,
+    commitCurrencyGain: acquisition.commitCurrencyGain,
+    notifyCurrencyAcquisition: acquisition.notifyCurrencyAcquisition,
+    getAcquiredItemAutoEquipSlot: acquisition.getAcquiredItemAutoEquipSlot,
+    isGuaranteedEquipmentPickup: acquisition.isGuaranteedEquipmentPickup,
+    previewEquipmentPickup: acquisition.previewEquipmentPickup,
+    stowBoughtItem: acquisition.stowBoughtItem,
+    storeEquipmentPickup: acquisition.storeEquipmentPickup,
+    recordEquipmentAcquisition: acquisition.recordEquipmentAcquisition,
+    passesItemPickupFilter: acquisition.passesItemPickupFilter,
+    getJewelUniqueEffectText: production.getJewelUniqueEffectText,
+    rollJewelCraftStats: production.rollJewelCraftStats,
+    isJewelPetiteStat: production.isJewelPetiteStat,
+    formatJewelStatValue,
+    normalizeJewelStat: production.normalizeJewelStat,
+    getJewelDropTierRange: production.getJewelDropTierRange,
+    generateJewelDrop: production.generateJewelDrop,
+    getJewelStats: production.getJewelStats,
+    getJewelRarityLabel,
+    getJewelRarityClass,
+    getJewelSalvageShardGain: acquisition.getJewelSalvageShardGain,
+    salvageJewelObject: acquisition.salvageJewelObject,
+    destroySelectedCraftItem: workshop.destroySelectedCraftItem,
+    drawJewelRefine: workshop.drawJewelRefine,
+    salvageJewel,
+    isChaseUniqueItem: acquisition.isChaseUniqueItem,
+    getItemSalvageRewardProfile: acquisition.getItemSalvageRewardProfile,
+    mergeSalvageRewards: acquisition.mergeSalvageRewards,
+    formatSalvageRewardSummary,
+    getItemSalvagePreviewText,
+    rollItemSalvageRewards: acquisition.rollItemSalvageRewards,
+    salvageItemObject: acquisition.salvageItemObject,
+    salvageItem,
+    syncSalvageControlsFromSettings,
+    toggleAutoSalvage,
+    isBulkSalvageProtectedItem: acquisition.isBulkSalvageProtectedItem,
+    salvageBagItems: acquisition.salvageBagItems,
+    confirmedSalvageTargets: acquisition.confirmedSalvageTargets,
+    bulkSalvageSelected,
+    bulkSalvageAllInventory,
+    confirmBulkSalvageAll,
+    applyCorruptSporeToSelectedItem: workshop.applyCorruptSporeToSelectedItem,
+    applyRiftSporeToSelectedItem: workshop.applyRiftSporeToSelectedItem,
+    getItemQualityAttributeMode: refinement.getItemQualityAttributeMode,
+    getItemQualityAttributeLabel: refinement.getItemQualityAttributeLabel,
+    isQualityAttributeStat: refinement.isQualityAttributeStat,
+    applyAbyssCatalystToItemQuality: refinement.applyAbyssCatalystToItemQuality,
+    getCosmosBossRelicStatTotals: refinement.getCosmosBossRelicStatTotals,
+    getAnnulmentRemovableStats: refinement.getAnnulmentRemovableStats,
+    canApplyTaintedOutcome: refinement.canApplyTaintedOutcome,
+    corruptCraftedItem: refinement.corruptCraftedItem,
+    useCurrency,
+    isMarketUnlocked: refinement.isMarketUnlocked
+});
+const equipmentDefinitions = { DROPPED_AFFIX_TIER_WEIGHT_FALLOFF, EQUIPMENT_DROP_SLOTS, CHAOS_INFUSER_OPTIONS, VENOM_STINGER_STAT_IDS, uniqueMeetsTier, freshGearIds, takeFreshGearIds, UNIQUE_JEWEL_DB, JEWEL_SUMMON_OPTION_IDS, JEWEL_SUMMON_OPTION_GROUP, JEWEL_OPTION_POOL, JEWEL_HIDDEN_TIER_COUNT, JEWEL_PETITE_OPTION_POOL, ROT_SPORE_STAT_IDS, QUALITY_ATTRIBUTE_MODES, QUALITY_CATALYST_MODES, QUALITY_ATTRIBUTE_LABELS, QUALITY_ATTRIBUTE_STAT_GROUPS };
+Object.assign(globalThis, equipmentDefinitions);
+safeExposeGlobals(equipmentDefinitions);
+safeExposeGlobals({ formatCurrencyCosts });

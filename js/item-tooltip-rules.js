@@ -1,61 +1,82 @@
-// 장비 툴팁의 표시 규칙(2026-10-03): 추가 옵션의 순서와 방어도, 회피, 에너지 보호막 수치. 게임 툴팁(js/ui.js showItemTooltip)과
-// 공개 프로필의 장비 카드(js/social.js)가 같은 규칙을 쓰도록 한 곳에 둔다. DOM 없음.
-const itemTooltipRules = (() => {
-    // 추가 옵션 묶음, 이 순서로 보인다: 에너지 보호막, 방어도, 회피, 생명력, 저항, 피해, 치명타, 속도. 그 밖은 맨 뒤.
-    // 옵션 이름(소문자)이 목록에 있거나 조각을 품으면 그 묶음이다.
-    const STAT_GROUPS = Object.freeze([
-        [['energyshield', 'energyshieldpct', 'energyshieldregen', 'es'], ['energyshield']],
-        [['armor', 'armorpct', 'dr'], ['armor']],
-        [['evasion', 'evasionpct', 'deflectchance', 'deflectdamagereduce'], ['evasion', 'deflect']],
-        [['flathp', 'pcthp', 'regen', 'regenflat'], ['hp', 'life']],
-        [['resf', 'resc', 'resl', 'resall', 'reschaos'], ['res']],
-        [['firepctdmg', 'coldpctdmg', 'lightpctdmg', 'chaospctdmg', 'dotpctdmg', 'pctdmg'], ['dmg', 'dot']],
-        [['crit', 'critdmg'], ['crit']],
-        [['aspd', 'move'], ['speed', 'move']]
-    ]);
-    const DEFENSE_IDS = Object.freeze(['armor', 'evasion', 'energyShield']);
-    const DEFENSE_PCT = Object.freeze({ armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' });
+// GENERATED from modules/item-tooltip-rules*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/item-tooltip-calculations.mjs
+  function itemTooltipStatOrder(env, statId) {
+    const key = String(statId || "").toLowerCase();
+    const index = env.STAT_GROUPS.findIndex(([names, parts]) => names.includes(key) || parts.some((part) => key.includes(part)));
+    return index < 0 ? 99 : index + 1;
+  }
+  function itemTooltipCompareStats(env, a, b) {
+    const aKey = a && (a.id || a.stat), bKey = b && (b.id || b.stat);
+    return itemTooltipStatOrder(env, aKey) - itemTooltipStatOrder(env, bKey) || String(aKey || "").localeCompare(String(bKey || ""));
+  }
+  function itemTooltipDefenseTable() {
+    return { armor: 0, evasion: 0, energyShield: 0 };
+  }
+  function itemTooltipDefenseSources(env, item) {
+    const lines = (Array.isArray(item.stats) ? item.stats : []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], env.deps.getImmutableItemSpecialStats(item));
+    return lines.filter(Boolean).flatMap((stat) => [stat].concat(Array.isArray(stat.extraStats) ? stat.extraStats : [])).filter(Boolean);
+  }
+  function itemTooltipDefenseView(env, item) {
+    const base = itemTooltipDefenseTable(), flat = itemTooltipDefenseTable(), pct = itemTooltipDefenseTable(), implicit = env.deps.getUniqueImplicitMultiplier(item);
+    (Array.isArray(item.baseStats) ? item.baseStats : []).forEach((stat) => {
+      if (stat && Object.hasOwn(base, stat.id)) base[stat.id] += Number(stat.val || 0) * implicit;
+    });
+    itemTooltipDefenseSources(env, item).forEach((stat) => {
+      if (Object.hasOwn(flat, stat.id)) flat[stat.id] += Number(stat.val || 0);
+      if (Object.hasOwn(env.DEFENSE_PCT, stat.id)) pct[env.DEFENSE_PCT[stat.id]] += Number(stat.val || 0);
+    });
+    const view = Object.fromEntries(env.DEFENSE_IDS.map((id) => [id, Math.floor((base[id] + flat[id]) * (1 + pct[id] / 100))]));
+    return { ...view, base };
+  }
 
-    function statOrder(statId) {
-        const key = String(statId || '').toLowerCase();
-        const index = STAT_GROUPS.findIndex(([names, parts]) => names.includes(key) || parts.some(part => key.includes(part)));
-        return index < 0 ? 99 : index + 1;
-    }
+  // modules/domain/item-tooltip-rules.mjs
+  var STAT_GROUPS = Object.freeze([
+    [["energyshield", "energyshieldpct", "energyshieldregen", "es"], ["energyshield"]],
+    [["armor", "armorpct", "dr"], ["armor"]],
+    [["evasion", "evasionpct", "deflectchance", "deflectdamagereduce"], ["evasion", "deflect"]],
+    [["flathp", "pcthp", "regen", "regenflat"], ["hp", "life"]],
+    [["resf", "resc", "resl", "resall", "reschaos"], ["res"]],
+    [["firepctdmg", "coldpctdmg", "lightpctdmg", "chaospctdmg", "dotpctdmg", "pctdmg"], ["dmg", "dot"]],
+    [["crit", "critdmg"], ["crit"]],
+    [["aspd", "move"], ["speed", "move"]]
+  ]);
+  var DEFENSE_IDS = Object.freeze(["armor", "evasion", "energyShield"]);
+  var DEFENSE_PCT = Object.freeze({ armorPct: "armor", evasionPct: "evasion", energyShieldPct: "energyShield" });
+  function createItemTooltipRules(deps) {
+    const env = { deps, STAT_GROUPS, DEFENSE_IDS, DEFENSE_PCT };
+    return Object.freeze({ statOrder: (...args) => itemTooltipStatOrder(env, ...args), compareStats: (...args) => itemTooltipCompareStats(env, ...args), defenseView: (...args) => itemTooltipDefenseView(env, ...args), DEFENSE_IDS: env.DEFENSE_IDS });
+  }
 
-    /** Sort comparator for explicit affixes: group order, then stat id. */
-    function compareStats(a, b) {
-        const aKey = a && (a.id || a.stat), bKey = b && (b.id || b.stat);
-        return statOrder(aKey) - statOrder(bKey) || String(aKey || '').localeCompare(String(bKey || ''));
-    }
+  // modules/ui/item-tooltip-empty.mjs
+  function renderEmptyItemExplicit(deps, item) {
+    const ward = typeof deps.colonyWards === "object" && deps.colonyWards.isWard(item);
+    return `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">${ward ? deps._t("장비창의 액막이 칸에 끼웁니다") : deps._t("일반 아이템: 추가 옵션 없음")}</div>`;
+  }
 
-    function defenseTable() {
-        return { armor: 0, evasion: 0, energyShield: 0 };
+  // modules/item-tooltip-rules-classic.mjs
+  var rules = createItemTooltipRules({
+    get getImmutableItemSpecialStats() {
+      return getImmutableItemSpecialStats;
+    },
+    get getUniqueImplicitMultiplier() {
+      return getUniqueImplicitMultiplier;
     }
-
-    // 잠식 특수 옵션과 복합 옵션도 실제 전투 계산과 같은 방식으로 베이스 방어 수치에 반영한다.
-    function defenseSources(item) {
-        const lines = (Array.isArray(item.stats) ? item.stats : []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], getImmutableItemSpecialStats(item));
-        return lines.filter(Boolean).flatMap(stat => [stat].concat(Array.isArray(stat.extraStats) ? stat.extraStats : [])).filter(Boolean);
+  });
+  var display = {
+    get colonyWards() {
+      return typeof colonyWards === "undefined" ? void 0 : colonyWards;
+    },
+    get _t() {
+      return _t;
     }
-
-    /** Base and final armour, evasion and energy shield: (base + flat) × (1 + %/100), floored. The base counts a unique's
-     * 기본 옵션 배율 (getUniqueImplicitMultiplier) like the stat calculation. */
-    function defenseView(item) {
-        const base = defenseTable(), flat = defenseTable(), pct = defenseTable(), implicit = getUniqueImplicitMultiplier(item);
-        (Array.isArray(item.baseStats) ? item.baseStats : []).forEach(stat => { if (stat && Object.hasOwn(base, stat.id)) base[stat.id] += Number(stat.val || 0) * implicit; });
-        defenseSources(item).forEach(stat => {
-            if (Object.hasOwn(flat, stat.id)) flat[stat.id] += Number(stat.val || 0);
-            if (Object.hasOwn(DEFENSE_PCT, stat.id)) pct[DEFENSE_PCT[stat.id]] += Number(stat.val || 0);
-        });
-        const view = Object.fromEntries(DEFENSE_IDS.map(id => [id, Math.floor((base[id] + flat[id]) * (1 + pct[id] / 100))]));
-        return { ...view, base };
-    }
-
-    /** The line an item without explicit lines shows: a ward (js/colony-wards.js) says where it goes, anything else that it is plain. */
-    function emptyExplicitHtml(item) {
-        const ward = typeof colonyWards === 'object' && colonyWards.isWard(item);
-        return `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">${ward ? _t('장비창의 액막이 칸에 끼웁니다') : _t('일반 아이템: 추가 옵션 없음')}</div>`;
-    }
-    return Object.freeze({ statOrder, compareStats, defenseView, emptyExplicitHtml, DEFENSE_IDS });
+  };
+  var itemTooltipRules = Object.freeze({
+    statOrder: rules.statOrder,
+    compareStats: rules.compareStats,
+    defenseView: rules.defenseView,
+    emptyExplicitHtml: (item) => renderEmptyItemExplicit(display, item),
+    DEFENSE_IDS: rules.DEFENSE_IDS
+  });
+  safeExposeGlobals({ itemTooltipRules });
 })();
-safeExposeGlobals({ itemTooltipRules });

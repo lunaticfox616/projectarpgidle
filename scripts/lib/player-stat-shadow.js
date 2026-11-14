@@ -51,7 +51,7 @@ const NESTED = `window.__nested = (() => {
         for (const field of Object.keys(game)) instrument(field, game[field]);
     } });
     playerStatTick.observe({ reading(on) { reading += on ? 1 : -1; } });
-    return { uncovered: () => [...seen.keys()].filter(id => !/\\((ensure|normalize)[A-Z]/.test(id)) };
+    return { uncovered: () => [...seen.keys()].filter(id => !/\\((?:[\\w$]+\\.)?(?:(ensure|normalize)[A-Z]|boundaryEnsureBeyondBoundaryState|passiveRuleNormalizePassiveSpecializationState)/.test(id)) };
 })();`;
 
 function readShadow(run) {

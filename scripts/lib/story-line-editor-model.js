@@ -3,15 +3,16 @@
  * 게임 파일은 실행하지 않고 구문만 푼다(espree). 대사 문자열마다 표 안의 길(path)과 자리(range)를 모으고, 저장은 그 자리의 글이
  * 편집기가 읽은 글과 같을 때만 같은 따옴표의 새 문자열로 바꾼다. 언제 나오는지는 js/canvas-act-title-card.js(띠와 말풍선),
  * js/act-exploration-doors.js storyGuide(1막 안내자는 루프 1에만 선다), js/content-progression-ui.js(NPC 창)를 따른다. */
-const fs = require('fs');
 const path = require('path');
 const espree = require('espree');
+const { readDataSource } = require('./data-authoring.cjs');
 
-const PARSE = Object.freeze({ ecmaVersion: 'latest', sourceType: 'script', range: true, loc: true });
+const PARSE = Object.freeze({ ecmaVersion: 'latest', sourceType: 'module', range: true, loc: true });
 const STORY = 'data/story-journal.js', BOARD = 'data/atlas-board.js';
 const LINE_FILES = Object.freeze([STORY, BOARD]);
 // 지역과 지도의 이름(id와 name이 함께 적힌 객체), 액트 제목과 보스 이름(STORY_ACTS).
-const NAME_FILES = Object.freeze(['data/maps.js', 'data/atlas-endgame.js', 'js/state.js']);
+const NAME_FILES = Object.freeze(['data/maps.js', 'data/atlas-endgame.js',
+    'modules/data/world-progression-definitions.mjs', 'modules/domain/world-zone-catalog.mjs']);
 // scripts/import-story-pack.cjs와 같은 규칙: 화면 대사(띠와 말풍선)는 50자까지(넘으면 경고), 가운뎃점과 줄표는 오류.
 const SCREEN_MAX = 50;
 const BANNED = /[·・—―]/u;
@@ -68,16 +69,21 @@ function walk(node, visit) {
 
 // ---- 이름 ----------------------------------------------------------------------------------------------------------------
 /** Act titles and boss names by act order, and the name of every zone or atlas map by id (an id written as a const of its file
- * counts, as js/state.js names the outside-chaos fight). */
+ * counts, including the world catalog's reference to its shared data definition). */
 function readNames(root) {
     const acts = {}, byId = {};
-    for (const file of NAME_FILES) {
-        const ast = espree.parse(fs.readFileSync(path.join(root, file), 'utf8'), PARSE), tables = tablesOf(ast);
-        const consts = Object.fromEntries(Object.entries(tables).map(([name, node]) => [name, stringOf(node)]).filter(([, value]) => value));
+    const sources = NAME_FILES.map(file => {
+        const ast = espree.parse(readDataSource(path.join(root, file)), PARSE);
+        return { ast, tables: tablesOf(ast) };
+    });
+    const consts = Object.fromEntries(sources.flatMap(({ tables }) => Object.entries(tables))
+        .map(([name, node]) => [name, stringOf(node)]).filter(([, value]) => value));
+    for (const { ast, tables } of sources) {
         walk(ast, node => {
             if (node.type !== 'ObjectExpression') return;
             const idNode = child(node, 'id'), name = stringOf(child(node, 'name'));
-            const id = stringOf(idNode) || (idNode && idNode.type === 'Identifier' ? consts[idNode.name] : null);
+            const reference = idNode?.type === 'MemberExpression' && !idNode.computed ? idNode.property.name : idNode?.name;
+            const id = stringOf(idNode) || consts[reference];
             if (id && name && !byId[id]) byId[id] = name;
         });
         for (const [, row] of entries(tables.STORY_ACTS)) {
@@ -215,7 +221,7 @@ function boardLines(tables, push) {
     }
 }
 function readTexts(root) {
-    return Object.fromEntries(LINE_FILES.map(file => [file, fs.readFileSync(path.join(root, file), 'utf8')]));
+    return Object.fromEntries(LINE_FILES.map(file => [file, readDataSource(path.join(root, file))]));
 }
 const TAB_ORDER = Object.freeze(['hero', 'npc', 'boss']);
 /** The editor's order, for the page and the exported sheet: by tab, then groups in the order of their first act (ties in file

@@ -1,0 +1,6 @@
+export const MERGED_TAB_GROUPS = Object.freeze({
+    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: game => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직을 고르고 노드와 키스톤을 할당합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
+    gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬룬', icon: 9, detail: '룬을 장착하고 키웁니다.' }] },
+    loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: game => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: (game, contentProgression) => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-guide', gate: 'journal', label: '가이드', icon: 10, detail: '주요 조작을 다시 따라 하거나 용어를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
+});

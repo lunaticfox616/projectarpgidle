@@ -180,7 +180,7 @@ async function checkBossCenter(page, frame, mobile) {
             await page.screenshot({path:'artifacts/new-skill-gems/battle-'+(mobile?'mobile':'desktop')+'.png'});
             await frame.evaluate(() => {game.combatHalted = true;});
             await page.waitForFunction(() => document.querySelector('#counter').textContent === '집중 대기');
-            assert.equal(await frame.evaluate(()=>combatChannelRuntime.id),0);
+            assert.equal(await frame.evaluate(()=>window.GameModules.state.combat.combatChannelRuntime.id),0);
             assert.deepEqual(errors,[]);
             await page.close();
         }

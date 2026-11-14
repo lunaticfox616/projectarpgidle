@@ -1,227 +1,381 @@
-// PC 단축키: 키 입력 처리, 메뉴·HUD 키 표시, 설정 > 조작 > 단축키 목록.
-// 배정 해석은 js/hotkeys.js(hotkeyBindings), 창 열기/닫기는 ui-window-manager(toggleWindowFromHotkey),
-// 이동 스킬은 js/mobility-skill.js(request), 자동 이동과 키보드 걷기는
-// js/act-exploration-ui.js(toggleAuto, holdMove)가 소유한다. Esc(창 닫기)는 ui-window-manager 고정.
-const hotkeysUi = (() => {
-    'use strict';
-    const DENIED_TOAST_GAP_MS = 1200;
-    // 걷기의 고정 키(바꿀 수 있는 WASD 배정과 함께, data/hotkeys.js move:*).
-    const ARROW_MOVES = Object.freeze({ ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right' });
-    let capturing = null;
-    let notice = '';
-    let lastDenied = { reason: '', at: 0 };
-    let shownSignature = null;
-
-    function overrides() { return game.settings.hotkeyOverrides; }
-
-    function isBlocked(event) {
-        if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.repeat) return true;
-        if (document.body.classList.contains('startup-active')) return true;
-        // 글을 치는 칸만 막는다(js/utils.js isTextEntryTarget): 셀렉박스나 체크박스에 포커스가 남아도 단축키는 듣는다. 셀렉박스에서는
-        // 키가 쓰이면 막아서(preventDefault, onKeydown) 글자로 항목을 고르는 일도 없다.
-        return isTextEntryTarget(event.target) || !!document.querySelector('dialog:modal, .tutorial-overlay.active, .selection-overlay');
+// GENERATED from modules/hotkeys-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
     }
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
+    }
+    runtime.listeners = retained;
+  }
 
-    function flashHudButton(button, ok) {
+  // modules/ui/hotkeys-view.mjs
+  var HotkeysView = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.active = true;
+      this.listeners = [];
+      for (const name of ["overrides", "isBlocked", "flashHudButton", "announceDenied", "useMobility", "useCombatAction", "moveDirection", "isMoveBlocked", "keepsOwnTab", "leaveField", "routeTabToChat", "onKeydown", "captureKey", "commit", "startCapture", "resetDefaults", "rowHtml", "render", "labelRail", "refresh", "sync", "cancelCaptureOutside", "onSettingsClick", "onKeyup", "init"]) this[name] = this[name].bind(this);
+      this.DENIED_TOAST_GAP_MS = 1200;
+      this.ARROW_MOVES = Object.freeze({ ArrowUp: "up", ArrowLeft: "left", ArrowDown: "down", ArrowRight: "right" });
+      this.capturing = null;
+      this.notice = "";
+      this.lastDenied = { reason: "", at: 0 };
+      this.shownSignature = null;
+      this.owner = null;
+      this.settings = null;
+      this.host = null;
+      this.initialized = false;
+      this.heldCodes = /* @__PURE__ */ new Map();
+    }
+    overrides() {
+      return this.deps.game.settings.hotkeyOverrides;
+    }
+    isBlocked(event) {
+      if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.repeat) return true;
+      if (this.deps.document.body.classList.contains("startup-active")) return true;
+      return this.deps.isTextEntryTarget(event.target) || !!this.deps.document.querySelector("dialog:modal, .tutorial-overlay.active, .selection-overlay");
+    }
+    flashHudButton(button, ok) {
+      if (!button) return;
+      button.classList.remove("hud-key-used", "hud-key-denied");
+      void button.offsetWidth;
+      button.classList.add(ok ? "hud-key-used" : "hud-key-denied");
+    }
+    announceDenied(message) {
+      const now = this.deps.performance.now();
+      if (this.lastDenied.reason === message && now - this.lastDenied.at < this.DENIED_TOAST_GAP_MS) return;
+      this.lastDenied = { reason: message, at: now };
+      this.deps.showGameToast(message, { tone: "warning", duration: 1600 });
+    }
+    useMobility(button) {
+      if (!this.active) return "";
+      const reason = this.deps.mobilitySkill.request();
+      if (reason) this.announceDenied(reason);
+      this.flashHudButton(button || this.deps.document.querySelector("#ui-combat-skill-gems .player-hud-skill-slot.mobility"), !reason);
+      return reason;
+    }
+    useCombatAction(target) {
+      if (target === "mobility") this.useMobility();
+      else this.deps.actExplorationUi.toggleAuto();
+    }
+    moveDirection(code) {
+      if (Object.hasOwn(this.ARROW_MOVES, code)) return this.ARROW_MOVES[code];
+      const action = this.deps.hotkeyBindings.actionForCode(this.overrides(), code);
+      return action && action.kind === "move" ? action.target : null;
+    }
+    isMoveBlocked(event) {
+      if (event.ctrlKey || event.altKey || event.metaKey || this.deps.document.body.classList.contains("startup-active")) return true;
+      if (event.target instanceof this.deps.Element && event.target.closest('input,textarea,select,[contenteditable="true"]')) return true;
+      const modal = this.deps.document.querySelector("dialog:modal");
+      return !!modal && modal.id !== "act-exploration-dialog" || !!this.deps.document.querySelector(".tutorial-overlay.active, .selection-overlay");
+    }
+    keepsOwnTab(event) {
+      const body = this.deps.document.body.classList;
+      if (body.contains("startup-active") || body.contains("mobile-tab-drawer-open")) return true;
+      return !!(this.deps.document.querySelector("dialog:modal, .selection-overlay") || event.target.closest?.("form, dialog"));
+    }
+    leaveField(target) {
+      const field = target.closest ? target.closest("input, select, textarea") : null;
+      if (field && field.id !== "social-chat-input") field.blur();
+    }
+    routeTabToChat(event) {
+      if (!this.active) return;
+      if (event.key !== "Tab" || this.capturing || this.keepsOwnTab(event)) return;
+      event.preventDefault();
+      this.leaveField(event.target);
+      const input = this.chatInput();
+      if (input && !input.disabled && input.getClientRects().length) input.focus({ preventScroll: true });
+    }
+    chatInput() {
+      let input = this.deps.document.getElementById("social-chat-input");
+      if (input && !input.getClientRects().length && this.deps.messageFrames.isActive()) {
+        this.deps.messageFrames.showTab("chat");
+        input = this.deps.document.getElementById("social-chat-input");
+      }
+      return input;
+    }
+    onKeydown(event) {
+      if (!this.active) return;
+      if (!this.adoptOwner()) {
+        this.refresh();
+        return;
+      }
+      if (this.capturing) {
+        this.captureKey(event);
+        return;
+      }
+      const direction = this.moveDirection(event.code);
+      if (direction) {
+        if (!this.isMoveBlocked(event) && this.deps.actExplorationUi.holdMove(direction, true)) {
+          this.heldCodes.set(event.code, direction);
+          event.preventDefault();
+        }
+        return;
+      }
+      if (this.isBlocked(event)) return;
+      this.routeAction(event);
+    }
+    routeAction(event) {
+      const action = this.deps.hotkeyBindings.actionForCode(this.overrides(), event.code);
+      if (!action) return;
+      if (action.kind === "window") {
+        if (this.deps.toggleWindowFromHotkey(action.target)) event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      this.useCombatAction(action.target);
+    }
+    captureKey(event) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.repeat || ["ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight"].includes(event.code)) return;
+      if (event.code === "Escape") {
+        this.capturing = null;
+        this.notice = "";
+        this.render();
+        return;
+      }
+      if (event.code === "Backspace" || event.code === "Delete") {
+        this.commit(this.capturing, "");
+        return;
+      }
+      if (event.ctrlKey || event.altKey || event.metaKey || !this.deps.hotkeyBindings.isAssignable(event.code)) {
+        this.notice = this.deps._t("글자/숫자/기호 키만 쓸 수 있습니다. Esc로 취소, Backspace로 키 없음.");
+        this.render();
+        return;
+      }
+      this.commit(this.capturing, event.code);
+    }
+    commit(actionId, code) {
+      if (!this.active || !this.adoptOwner()) {
+        this.render();
+        return;
+      }
+      this.releaseWalking();
+      const result = this.deps.hotkeyBindings.assign(this.overrides(), actionId, code);
+      this.owner.settings.hotkeyOverrides = result.overrides;
+      this.capturing = null;
+      const moved = result.displaced.map((id) => this.deps.hotkeyBindings.actions.find((action) => action.id === id).label);
+      this.notice = moved.length ? this.deps._t('{key} 키를 쓰던 "{actions}"의 단축키를 비웠습니다.', { key: this.deps.hotkeyBindings.label(code), actions: moved.map((label) => this.deps._t(label)).join(", ") }) : "";
+      this.refresh();
+      this.deps.queueImportantSave(300);
+    }
+    startCapture(actionId) {
+      if (!this.active || !this.deps.hotkeyBindings.actions.some((action) => action.id === actionId)) return;
+      this.adoptOwner();
+      this.releaseWalking();
+      this.capturing = actionId;
+      this.notice = this.deps._t("새 키를 누르세요 (Esc 취소, Backspace 키 없음)");
+      this.render();
+      this.deps.document.querySelector(`#ui-hotkey-settings [data-hotkey-action="${actionId}"]`)?.focus();
+    }
+    resetDefaults() {
+      if (!this.active || !this.adoptOwner()) {
+        this.render();
+        return;
+      }
+      this.releaseWalking();
+      this.owner.settings.hotkeyOverrides = {};
+      this.capturing = null;
+      this.notice = this.deps._t("기본 단축키로 되돌렸습니다.");
+      this.refresh();
+      this.deps.queueImportantSave(300);
+    }
+    rowHtml(action, bindings) {
+      const code = bindings.get(action.id);
+      const waiting = this.capturing === action.id;
+      const text = waiting ? this.deps._t("키 입력…") : code ? this.deps.hotkeyBindings.label(code) : this.deps._t("없음");
+      const changed = code !== action.code;
+      return `<div class="hotkey-row"><span class="cfg-label">${this.deps.escapeHTML(this.deps._t(action.label))}</span><button type="button" class="hotkey-key${waiting ? " capturing" : ""}${code ? "" : " unbound"}${changed ? " changed" : ""}" data-hotkey-action="${action.id}" aria-label="${this.deps._t("{action} 단축키: {key}. 눌러서 바꾸기", { action: this.deps._t(action.label), key: text })}">${this.deps.escapeHTML(text)}</button></div>`;
+    }
+    render() {
+      if (!this.active) return;
+      this.adoptOwner();
+      const host = this.deps.document.getElementById("ui-hotkey-settings");
+      if (!host) return;
+      this.bindHost(host);
+      const bindings = this.deps.hotkeyBindings.effective(this.overrides());
+      const group = (kind) => this.deps.hotkeyBindings.actions.filter((action) => action.kind === kind).map((action) => this.rowHtml(action, bindings)).join("");
+      host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">${this.deps._t("창 열고 닫기")}</div>${group("window")}</div><div class="hotkey-section"><div class="hotkey-section-title">${this.deps._t("전투와 이동")}</div>${group("combat")}</div><div class="hotkey-section"><div class="hotkey-section-title">${this.deps._t("탐험 지도 걷기(방향키도 됨)")}</div>${group("move")}</div><div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${this.deps.escapeHTML(this.notice)}</span><button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>${this.deps._t("기본값으로")}</button></div>`;
+    }
+    labelRail() {
+      const bindings = this.deps.hotkeyBindings.effective(this.overrides());
+      this.deps.hotkeyBindings.actions.filter((action) => action.kind === "window").forEach((action) => {
+        const button = this.deps.document.getElementById("btn-" + action.target);
         if (!button) return;
-        button.classList.remove('hud-key-used', 'hud-key-denied');
-        void button.offsetWidth;
-        button.classList.add(ok ? 'hud-key-used' : 'hud-key-denied');
-    }
-
-    /** A held key or quick taps repeat the same refusal; one toast per reason in DENIED_TOAST_GAP_MS. */
-    function announceDenied(message) {
-        const now = performance.now();
-        if (lastDenied.reason === message && now - lastDenied.at < DENIED_TOAST_GAP_MS) return;
-        lastDenied = { reason: message, at: now };
-        showGameToast(message, { tone: 'warning', duration: 1600 });
-    }
-
-    /** HUD 이동 스킬 칸 클릭과 단축키가 함께 쓰는 입구: 다음 전투 틱에 시전된다. '' = 받아들임, 아니면 못 쓰는 까닭. */
-    function useMobility(button) {
-        const reason = mobilitySkill.request();
-        if (reason) announceDenied(reason);
-        flashHudButton(button || document.querySelector('#ui-combat-skill-gems .player-hud-skill-slot.mobility'), !reason);
-        return reason;
-    }
-
-    function useCombatAction(target) {
-        if (target === 'mobility') useMobility();
-        else actExplorationUi.toggleAuto();
-    }
-
-    /** The walking direction of a key: the arrows always, letters as bound (move:* actions), else null. */
-    function moveDirection(code) {
-        if (Object.hasOwn(ARROW_MOVES, code)) return ARROW_MOVES[code];
-        const action = hotkeyBindings.actionForCode(overrides(), code);
-        return action && action.kind === 'move' ? action.target : null;
-    }
-
-    /** Walking keys work like the other hotkeys, but a held key repeats and the large exploration map (a modal dialog) still walks. */
-    function isMoveBlocked(event) {
-        if (event.ctrlKey || event.altKey || event.metaKey || document.body.classList.contains('startup-active')) return true;
-        if (event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable="true"]')) return true;
-        const modal = document.querySelector('dialog:modal');
-        return (!!modal && modal.id !== 'act-exploration-dialog') || !!document.querySelector('.tutorial-overlay.active, .selection-overlay');
-    }
-
-    /** Tab only reaches the chat input (2026-10-25 사용자: Tab이 화면 곳곳에 네모난 표시를 옮겨 다녔다. 채팅 입력으로 가는 것만
-     *둔다). Modal windows, the start screen (login fields) and forms keep their own Tab (js/ui-feedback.js, js/selection-dialog-ui.js). */
-    function keepsOwnTab(event) {
-        const body = document.body.classList;
-        if (body.contains('startup-active') || body.contains('mobile-tab-drawer-open')) return true;
-        return !!(document.querySelector('dialog:modal, .selection-overlay') || event.target.closest?.('form, dialog'));
-    }
-    /** Tab in an input field leaves it, which commits its value (change): only blocking Tab left a number field (the crafting
-     * workspace's auto-use count) unchanged. The chat input stays. */
-    function leaveField(target) {
-        const field = target.closest ? target.closest('input, select, textarea') : null;
-        if (field && field.id !== 'social-chat-input') field.blur();
-    }
-    function routeTabToChat(event) {
-        if (event.key !== 'Tab' || capturing || keepsOwnTab(event)) return;
-        event.preventDefault();
-        leaveField(event.target);
-        let input = document.getElementById('social-chat-input');
-        // PC 메시지 창이 전투 기록을 보이고 있으면 채팅 탭으로 바꾼 뒤 입력으로 간다(js/message-frames-ui.js).
-        if (input && !input.getClientRects().length && messageFrames.isActive()) { messageFrames.showTab('chat'); input = document.getElementById('social-chat-input'); }
-        if (input && !input.disabled && input.getClientRects().length) input.focus({ preventScroll: true });
-    }
-
-    function onKeydown(event) {
-        if (capturing) { captureKey(event); return; }
-        const direction = moveDirection(event.code);
-        if (direction) {
-            if (!isMoveBlocked(event) && actExplorationUi.holdMove(direction, true)) event.preventDefault();
-            return;
+        const label = this.deps.hotkeyBindings.label(bindings.get(action.id));
+        const tip = button.querySelector(".ui-rail-label");
+        if (label) {
+          button.dataset.hotkey = label;
+          button.setAttribute("aria-keyshortcuts", label);
+        } else {
+          delete button.dataset.hotkey;
+          button.removeAttribute("aria-keyshortcuts");
         }
-        if (isBlocked(event)) return;
-        const action = hotkeyBindings.actionForCode(overrides(), event.code);
-        if (!action) return;
-        if (action.kind === 'window') {
-            if (toggleWindowFromHotkey(action.target)) event.preventDefault();
-            return;
-        }
-        event.preventDefault();
-        useCombatAction(action.target);
+        if (tip && label) tip.dataset.hotkey = label;
+        else if (tip) delete tip.dataset.hotkey;
+      });
     }
-
-    function captureKey(event) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        if (event.repeat || ['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight'].includes(event.code)) return;
-        if (event.code === 'Escape') { capturing = null; notice = ''; render(); return; }
-        if (event.code === 'Backspace' || event.code === 'Delete') { commit(capturing, ''); return; }
-        if (event.ctrlKey || event.altKey || event.metaKey || !hotkeyBindings.isAssignable(event.code)) {
-            notice = _t('글자/숫자/기호 키만 쓸 수 있습니다. Esc로 취소, Backspace로 키 없음.');
-            render();
-            return;
-        }
-        commit(capturing, event.code);
+    refresh() {
+      if (!this.active) return;
+      this.adoptOwner();
+      this.shownSignature = this.deps.JSON.stringify(this.overrides());
+      this.labelRail();
+      this.render();
+      this.deps.renderCombatSkillHud();
     }
-
-    function commit(actionId, code) {
-        const result = hotkeyBindings.assign(overrides(), actionId, code);
-        game.settings.hotkeyOverrides = result.overrides;
-        capturing = null;
-        const moved = result.displaced.map(id => hotkeyBindings.actions.find(action => action.id === id).label);
-        notice = moved.length ? _t('{key} 키를 쓰던 "{actions}"의 단축키를 비웠습니다.', { key: hotkeyBindings.label(code), actions: moved.map(label => _t(label)).join(', ') }) : '';
-        refresh();
-        queueImportantSave(300);
+    sync() {
+      if (!this.active) return;
+      if (!this.adoptOwner() || this.deps.JSON.stringify(this.overrides()) !== this.shownSignature) this.refresh();
+      else {
+        const host = this.deps.document.getElementById("ui-hotkey-settings");
+        if (host !== this.host) this.render();
+      }
     }
-
-    function startCapture(actionId) {
-        capturing = actionId;
-        notice = _t('새 키를 누르세요 (Esc 취소, Backspace 키 없음)');
-        render();
-        document.querySelector(`#ui-hotkey-settings [data-hotkey-action="${actionId}"]`)?.focus();
+    cancelCaptureOutside(event) {
+      if (!this.capturing || event.target.closest("#ui-hotkey-settings")) return;
+      this.capturing = null;
+      this.notice = "";
+      this.render();
     }
-
-    function resetDefaults() {
-        game.settings.hotkeyOverrides = {};
-        capturing = null;
-        notice = _t('기본 단축키로 되돌렸습니다.');
-        refresh();
-        queueImportantSave(300);
+    onSettingsClick(event) {
+      if (!this.adoptOwner()) {
+        this.refresh();
+        return;
+      }
+      const key = event.target.closest("[data-hotkey-action]");
+      if (key) {
+        this.startCapture(key.dataset.hotkeyAction);
+        return;
+      }
+      if (event.target.closest("[data-hotkey-reset]")) this.resetDefaults();
     }
-
-    function rowHtml(action, bindings) {
-        const code = bindings.get(action.id);
-        const waiting = capturing === action.id;
-        const text = waiting ? _t('키 입력…') : (code ? hotkeyBindings.label(code) : _t('없음'));
-        const changed = code !== action.code;
-        return `<div class="hotkey-row"><span class="cfg-label">${escapeHTML(_t(action.label))}</span>`
-            + `<button type="button" class="hotkey-key${waiting ? ' capturing' : ''}${code ? '' : ' unbound'}${changed ? ' changed' : ''}" data-hotkey-action="${action.id}" aria-label="${_t('{action} 단축키: {key}. 눌러서 바꾸기', { action: _t(action.label), key: text })}">${escapeHTML(text)}</button></div>`;
+    onKeyup(event) {
+      const direction = this.heldCodes.get(event.code);
+      this.heldCodes.delete(event.code);
+      if (direction && ![...this.heldCodes.values()].includes(direction)) this.deps.actExplorationUi.holdMove(direction, false);
     }
-
-    function render() {
-        const host = document.getElementById('ui-hotkey-settings');
-        if (!host) return;
-        const bindings = hotkeyBindings.effective(overrides());
-        const group = kind => hotkeyBindings.actions.filter(action => action.kind === kind).map(action => rowHtml(action, bindings)).join('');
-        host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">${_t('창 열고 닫기')}</div>${group('window')}</div>`
-            + `<div class="hotkey-section"><div class="hotkey-section-title">${_t('전투와 이동')}</div>${group('combat')}</div>`
-            + `<div class="hotkey-section"><div class="hotkey-section-title">${_t('탐험 지도 걷기(방향키도 됨)')}</div>${group('move')}</div>`
-            + `<div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${escapeHTML(notice)}</span>`
-            + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>${_t('기본값으로')}</button></div>`;
+    init() {
+      if (!this.active) return;
+      if (this.initialized) {
+        this.sync();
+        return;
+      }
+      this.initialized = true;
+      listenView(this, this.deps.document, "keydown", this.onKeydown, true);
+      listenView(this, this.deps.document, "keydown", this.routeTabToChat, true);
+      listenView(this, this.deps.document, "keyup", this.onKeyup, true);
+      listenView(this, this.deps.window, "blur", () => this.releaseWalking(true));
+      listenView(this, this.deps.document, "pointerdown", this.cancelCaptureOutside, true);
+      this.refresh();
     }
-
-    /** 레일 메뉴의 키 표시(ui-window-manager의 버튼 id 규칙: btn-<tabId>). 하단 HUD 메뉴는 이름표(.ui-rail-label)에 적는다. */
-    function labelRail() {
-        const bindings = hotkeyBindings.effective(overrides());
-        hotkeyBindings.actions.filter(action => action.kind === 'window').forEach(action => {
-            const button = document.getElementById('btn-' + action.target);
-            if (!button) return;
-            const label = hotkeyBindings.label(bindings.get(action.id));
-            const tip = button.querySelector('.ui-rail-label');
-            if (label) { button.dataset.hotkey = label; button.setAttribute('aria-keyshortcuts', label); }
-            else { delete button.dataset.hotkey; button.removeAttribute('aria-keyshortcuts'); }
-            if (tip && label) tip.dataset.hotkey = label;
-            else if (tip) delete tip.dataset.hotkey;
-        });
+    api() {
+      return Object.freeze({ init: this.init, sync: this.sync, useMobility: this.useMobility });
     }
-
-    function refresh() {
-        shownSignature = JSON.stringify(overrides());
-        labelRail();
-        render();
-        renderCombatSkillHud();
+    bindHost(host) {
+      if (host === this.host) return;
+      releaseViewTarget(this, this.host);
+      this.host = host;
+      this.capturing = null;
+      this.notice = "";
+      listenView(this, host, "click", this.onSettingsClick);
     }
-
-    /** 저장 불러오기 등으로 game이 바뀌면 표시를 맞춘다(바뀐 게 없으면 아무것도 하지 않음). */
-    function sync() {
-        if (JSON.stringify(overrides()) !== shownSignature) refresh();
+    adoptOwner() {
+      const owner = this.deps.game;
+      if (this.owner === owner && this.settings === owner.settings && this.season === owner.season) return true;
+      if (this.heldCodes.size) this.releaseWalking();
+      this.owner = owner;
+      this.settings = owner.settings;
+      this.season = owner.season;
+      this.capturing = null;
+      this.notice = "";
+      this.lastDenied = { reason: "", at: 0 };
+      this.shownSignature = null;
+      return false;
     }
-
-    function cancelCaptureOutside(event) {
-        if (!capturing || event.target.closest('#ui-hotkey-settings')) return;
-        capturing = null;
-        notice = '';
-        render();
+    releaseWalking(force = false) {
+      if (!force && !this.heldCodes.size) return;
+      this.heldCodes.clear();
+      this.deps.actExplorationUi.holdMove(null, false);
     }
-
-    function onSettingsClick(event) {
-        const key = event.target.closest('[data-hotkey-action]');
-        if (key) { startCapture(key.dataset.hotkeyAction); return; }
-        if (event.target.closest('[data-hotkey-reset]')) resetDefaults();
+    dispose() {
+      this.releaseWalking(true);
+      releaseViewEvents(this);
+      this.capturing = null;
+      this.host = this.owner = this.settings = null;
     }
+  };
+  function createHotkeysView(deps) {
+    const view = new HotkeysView(deps);
+    return Object.freeze({ ...view.api(), dispose: () => view.dispose() });
+  }
 
-    /** Letting go of a walking key stops the walk; so does leaving the window (its keyup never arrives). */
-    function onKeyup(event) {
-        const direction = moveDirection(event.code);
-        if (direction) actExplorationUi.holdMove(direction, false);
+  // modules/hotkeys-ui-classic.mjs
+  var hotkeysUi = createHotkeysView({
+    get Element() {
+      return Element;
+    },
+    get JSON() {
+      return JSON;
+    },
+    get _t() {
+      return _t;
+    },
+    get actExplorationUi() {
+      return actExplorationUi;
+    },
+    get document() {
+      return document;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get hotkeyBindings() {
+      return hotkeyBindings;
+    },
+    get isTextEntryTarget() {
+      return isTextEntryTarget;
+    },
+    get messageFrames() {
+      return messageFrames;
+    },
+    get mobilitySkill() {
+      return mobilitySkill;
+    },
+    get performance() {
+      return performance;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    },
+    get renderCombatSkillHud() {
+      return renderCombatSkillHud;
+    },
+    get showGameToast() {
+      return showGameToast;
+    },
+    get toggleWindowFromHotkey() {
+      return toggleWindowFromHotkey;
+    },
+    get window() {
+      return window;
     }
-
-    function init() {
-        document.addEventListener('keydown', onKeydown, true);
-        document.addEventListener('keydown', routeTabToChat, true);
-        document.addEventListener('keyup', onKeyup, true);
-        window.addEventListener('blur', () => actExplorationUi.holdMove(null, false));
-        document.addEventListener('pointerdown', cancelCaptureOutside, true);
-        document.getElementById('ui-hotkey-settings')?.addEventListener('click', onSettingsClick);
-        refresh();
-    }
-
-    return Object.freeze({ init, sync, useMobility });
+  });
+  safeExposeGlobals({ hotkeysUi });
 })();
-safeExposeGlobals({ hotkeysUi });

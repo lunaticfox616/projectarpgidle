@@ -6,16 +6,11 @@ const { createZipArchive } = require('./lib/zip-archive');
 
 const ROOT = path.resolve(__dirname, '..');
 
-const source = fs.readFileSync('js/battle-assets.js', 'utf8');
-const manifestStart = source.indexOf('    const manifest = {', source.indexOf('function initBattleAssets('));
-const manifestEnd = source.indexOf('\n    };', manifestStart);
-
-assert(manifestStart >= 0 && manifestEnd > manifestStart, 'battle asset manifest must be present');
-const manifestSource = source.slice(manifestStart, manifestEnd);
-const assetPaths = [...manifestSource.matchAll(/'((?:assets\/)[^'?]+)(?:\?[^']*)?'/g)].map(match => match[1]);
-const vm = require('vm');
-const {buildGameRuntime} = require('./lib/game-runtime');
-assetPaths.push(...vm.runInContext('Object.values(SKILL_AREA_VFX_ASSETS)', buildGameRuntime()));
+async function main() {
+const { createBattleImageManifest } = await import('../modules/browser/battle-image-manifest.mjs');
+const { SKILL_AREA_VFX_ASSETS } = await import('../modules/data/skills.mjs');
+const manifest = createBattleImageManifest({ customHeroSrc: null, areaVfx: SKILL_AREA_VFX_ASSETS, bossAssets: {}, passiveNodes: {} });
+const assetPaths = Object.values(manifest).map(source => source.split('?')[0]);
 
 assert(assetPaths.length > 20, 'battle asset manifest must retain its local asset entries');
 assetPaths.forEach(assetPath => {
@@ -28,7 +23,7 @@ assert.ok(vfxAssets.some(asset => asset.key === 'skillFxFrostBurst' && asset.lab
 assert.ok(vfxAssets.some(asset => asset.key === 'skillFxFrostWaveRing' && asset.label === '서리 폭발 파동'),
     'the separate frost wavefront should be available to the editor');
 assert.ok(vfxAssets.every(asset => assetPaths.includes(asset.path)), 'VFX editor should only expose live manifest assets');
-assert.ok(!source.includes('battle-effects-v1.png') && !fs.existsSync('assets/battle-effects-v1.png'),
+assert.ok(!assetPaths.includes('assets/battle-effects-v1.png') && !fs.existsSync('assets/battle-effects-v1.png'),
     'unused legacy battle effect atlas should stay removed');
 
 const editorHtml = fs.readFileSync('tools/skill-vfx-editor/index.html', 'utf8');
@@ -50,3 +45,5 @@ assert.deepStrictEqual(decodeVfxData(pngAsset, pngDataUrl), pngBytes,
     'VFX replacement should preserve a valid same-format image');
 
 console.log(`smoke-battle-asset-manifest passed (${assetPaths.length} local assets)`);
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

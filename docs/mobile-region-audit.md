@@ -17,7 +17,7 @@ artifacts/audit-region-mobile.cjs에 보관했다.
 
 일반 사냥터 화면에서 정적 UI를 10회 갱신했을 때 숨겨진 ui-underworld-panel,
 ui-ocean-panel, ui-fishing-panel에 각각 10회 DOM 변경이 발생했다.
-현재 oceanDiveUi.render(js/ocean-dive-ui.js)·fishingUi.render는 ensureOceanState를 호출하며,
+현재 oceanDiveUi.render(`modules/ui/ocean-dive-panel.mjs`)·fishingUi.render(`modules/ui/fishing-panel.mjs`)는 ensureOceanState를 호출하며,
 이 함수는 산소·수심 보정과 루프 조건에 따른 해금을 수행한다. 렌더 호출만 막기 전에
 이 상태 처리가 전투·저장·진행 경계에서 보장되는지 추적해야 한다.
 renderUnderworldMapPanel도 underworldProgress를 대입한다. 읽기 전용 표현으로

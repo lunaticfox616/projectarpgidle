@@ -1,143 +1,191 @@
-/** Sprite-only playback. Placement is cached per cast and viewport.
- * @typedef {{x:number,y:number}} SignaturePoint
- * @typedef {{p:number,age:number,phase:number,prepare:boolean,fade:number,frame?:number}} SignaturePhase
- */
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/canvas-skill-signatures*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function getSkillGemVfxImage(imageKey) {
-    let image = battleAssets && battleAssets.images ? battleAssets.images[imageKey] : null;
-    return image && image.complete && image.naturalWidth ? image : null;
-}
+  // modules/common/numbers.mjs
+  function clampNumber(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
 
-/** Placement is derived only from cast geometry, never from the number of victims. */
-function getSkillSpritePlacement(fp, spec, source, target) {
-    let place={x:fp.x,y:fp.y,width:fp.width*1.12,height:fp.height*1.12,angle:0};
-    if (spec.layout==='cone' && fp.cone) {
-        let cone=fp.cone, origin=cone.vertices[0];
-        return {x:origin.x+Math.cos(cone.angle)*cone.length/2,y:origin.y+Math.sin(cone.angle)*cone.length/2,
-            width:cone.length*1.16,height:cone.width*1.12,angle:cone.angle};
+  // modules/rendering/skill-sprite-geometry.mjs
+  function getSkillSpritePlacement(fp, spec, source, target) {
+    let place = { x: fp.x, y: fp.y, width: fp.width * 1.12, height: fp.height * 1.12, angle: 0 };
+    if (spec.layout === "cone" && fp.cone) {
+      let cone = fp.cone, origin = cone.vertices[0];
+      return {
+        x: origin.x + Math.cos(cone.angle) * cone.length / 2,
+        y: origin.y + Math.sin(cone.angle) * cone.length / 2,
+        width: cone.length * 1.16,
+        height: cone.width * 1.12,
+        angle: cone.angle
+      };
     }
-    if (['line','link'].includes(spec.layout)) {
-        let end=target;
-        if (spec.layout==='line') end=fp.points.reduce((far,point)=>Math.hypot(point.x-source.x,point.y-source.y)>
-            Math.hypot(far.x-source.x,far.y-source.y) ? point : far,target);
-        return {x:(source.x+end.x)/2,y:(source.y+end.y)/2,width:Math.max(fp.tileW,Math.hypot(end.x-source.x,end.y-source.y))*1.12,
-            height:fp.tileH*1.4,angle:Math.atan2(end.y-source.y,end.x-source.x)};
+    if (["line", "link"].includes(spec.layout)) {
+      let end = target;
+      if (spec.layout === "line") end = fp.points.reduce((far, point) => Math.hypot(point.x - source.x, point.y - source.y) > Math.hypot(far.x - source.x, far.y - source.y) ? point : far, target);
+      return {
+        x: (source.x + end.x) / 2,
+        y: (source.y + end.y) / 2,
+        width: Math.max(fp.tileW, Math.hypot(end.x - source.x, end.y - source.y)) * 1.12,
+        height: fp.tileH * 1.4,
+        angle: Math.atan2(end.y - source.y, end.x - source.x)
+      };
     }
-    if (spec.layout==='impact') place={x:target.x,y:target.y,width:fp.tileW*1.3,height:fp.tileH*1.3,
-        angle:Math.atan2(target.y-source.y,target.x-source.x)};
+    if (spec.layout === "impact") place = {
+      x: target.x,
+      y: target.y,
+      width: fp.tileW * 1.3,
+      height: fp.tileH * 1.3,
+      angle: Math.atan2(target.y - source.y, target.x - source.x)
+    };
     return place;
-}
-
-/** @param {{skillName:string}} owner FX object whose lifetime owns the cache entry.
- * @param {{fp:ReturnType<typeof projectSkillFootprint>,spec:SkillSignatureSprite,source:SignaturePoint,target:SignaturePoint}} input
- */
-function cacheSkillSpriteGeometry(owner, input) {
-    let {fp,spec,source,target}=input;
-    if (!fp) return null;
-    let value={fp,place:getSkillSpritePlacement(fp,spec,source,target)};
-    skillSignatureGeometryCache.set(owner,value);
-    return value;
-}
-
-function getSkillSpriteTravelGeometry(fx, projection, spec) {
-    let origin=projection.cellToScreen(0,0), cached=skillSignatureGeometryCache.get(fx);
-    let stamp=`${projection.tileW},${projection.tileH},${origin.x},${origin.y}`;
-    if (cached?.stamp===stamp) return cached;
-    let fp=projectSkillFootprint(fx.attackFootprint,projection,fx.sourceCell);
-    if (!fp) return null;
-    let result=cacheSkillSpriteGeometry(fx,{fp,spec,source:fp.sourcePoint,target:fp.centerPoint});
-    result.stamp=stamp;
-    return result;
-}
-
-/** Exactly one source cell is sampled, including sheets with odd dimensions. */
-function drawSkillSpriteFrame(ctx, image, frame, place) {
-    let columns=place.columns || 4, rows=place.rows || 4;
-    let sx=Math.round(frame%columns*image.naturalWidth/columns), sy=Math.round(Math.floor(frame/columns)*image.naturalHeight/rows);
-    let sw=Math.round((frame%columns+1)*image.naturalWidth/columns)-sx;
-    let sh=Math.round((Math.floor(frame/columns)+1)*image.naturalHeight/rows)-sy;
-    ctx.translate(place.x,place.y); ctx.rotate(place.angle);
-    ctx.drawImage(image,sx,sy,sw,sh,-place.width/2,-place.height/2,place.width,place.height);
-}
-
-/** @param {SkillSignatureSprite} spec @param {SignaturePhase} phase @returns {number} */
-function getSkillSpriteFrame(spec, phase) {
+  }
+  function drawSkillSpriteFrame(ctx, image, frame, place) {
+    let columns = place.columns || 4, rows = place.rows || 4;
+    let sx = Math.round(frame % columns * image.naturalWidth / columns), sy = Math.round(Math.floor(frame / columns) * image.naturalHeight / rows);
+    let sw = Math.round((frame % columns + 1) * image.naturalWidth / columns) - sx;
+    let sh = Math.round((Math.floor(frame / columns) + 1) * image.naturalHeight / rows) - sy;
+    ctx.translate(place.x, place.y);
+    ctx.rotate(place.angle);
+    ctx.drawImage(image, sx, sy, sw, sh, -place.width / 2, -place.height / 2, place.width, place.height);
+  }
+  function getSkillSpriteFrame(spec, phase) {
     if (spec.staticFrame) return phase.frame ?? 7;
-    if (spec.layout==='combo') {
-        let start=Math.min(2,phase.phase)*5;
-        let count=start===10 ? 6 : 5;
-        return start+Math.min(count-1,Math.floor(phase.p*count));
+    if (spec.layout === "combo") {
+      let start = Math.min(2, phase.phase) * 5;
+      let count = start === 10 ? 6 : 5;
+      return start + Math.min(count - 1, Math.floor(phase.p * count));
     }
-    if (phase.prepare) return Math.min(spec.hitStart-1,Math.floor(phase.p*spec.hitStart));
-    if (spec.hold && phase.fade===1) return spec.hitStart+Math.floor(phase.age/65)%(12-spec.hitStart);
-    return Math.min(15,spec.hitStart+Math.floor(phase.p*(16-spec.hitStart)));
-}
+    if (phase.prepare) return Math.min(spec.hitStart - 1, Math.floor(phase.p * spec.hitStart));
+    if (spec.hold && phase.fade === 1) return spec.hitStart + Math.floor(phase.age / 65) % (12 - spec.hitStart);
+    return Math.min(15, spec.hitStart + Math.floor(phase.p * (16 - spec.hitStart)));
+  }
+  function getSkillSignaturePhase(fx, time) {
+    let prepare = time.now < time.arriveAt, phase = fx.stageIndex || 0;
+    if (prepare && phase > 0) return null;
+    let age = time.now - time.arriveAt, remaining = fx.start + fx.duration - time.now;
+    let p = prepare ? clampNumber((time.now - fx.start) / Math.max(1, time.arriveAt - fx.start), 0, 1) : clampNumber(age / Math.max(1, fx.start + fx.duration - time.arriveAt), 0, 1);
+    return { p, age, phase, prepare, fade: prepare ? 0.3 : clampNumber(remaining / 160, 0, 1) };
+  }
 
-/** Missing images use the existing loader/error UI, never a procedural fallback. */
-function paintSkillSprite(ctx, spec, geometry, phase) {
-    let image=getSkillGemVfxImage(spec.asset);
-    if (!image) return;
-    ctx.save(); ctx.filter='none'; ctx.shadowBlur=0; ctx.imageSmoothingEnabled=false;
-    ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=spec.alpha*phase.fade;
-    let place=geometry.place;
-    if (spec.layout==='wave') place={...place,width:place.width*phase.p,height:place.height*phase.p};
-    drawSkillSpriteFrame(ctx,image,getSkillSpriteFrame(spec,phase),place);
-    ctx.restore();
-}
-
-/** Delay later phases until their real hit; the first phase alone has preparation. */
-function getSkillSignaturePhase(fx, time) {
-    let prepare=time.now<time.arriveAt, phase=fx.stageIndex || 0;
-    if (prepare && phase>0) return null;
-    let age=time.now-time.arriveAt, remaining=fx.start+fx.duration-time.now;
-    let p=prepare ? clampNumber((time.now-fx.start)/Math.max(1,time.arriveAt-fx.start),0,1)
-        : clampNumber(age/Math.max(1,fx.start+fx.duration-time.arriveAt),0,1);
-    return {p,age,phase,prepare,fade:prepare ? 0.3 : clampNumber(remaining/160,0,1)};
-}
-
-/** @param {CanvasRenderingContext2D} ctx
- * @param {{skillName:string,attackFootprint:ReturnType<typeof getSkillStageFootprint>,sourceCell:{gx:number,gy:number},start:number,duration:number,stageIndex?:number,stageDelayMs?:number,waveDurationMs?:number}} fx
- * @param {{now:number,launchAt:number,arriveAt:number}} time
- * @param {{tileW:number,tileH:number,cellToScreen:function(number,number):SignaturePoint}} projection
- * @returns {boolean} True claims the visual, including unloaded/expired frames.
- */
-function drawSkillSignatureTravel(ctx, fx, time, projection) {
-    let spec=SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[fx.skillName]?.signature];
-    if (!spec || !fx.attackFootprint) return false;
-    if (time.now<fx.start || time.now>=fx.start+fx.duration) return true;
-    let phase=getSkillSignaturePhase(fx,time);
-    if (!phase || (spec.staticFrame && phase.prepare)) return true;
-    let geometry=getSkillSpriteTravelGeometry(fx,projection,spec);
-    if (!geometry) return true;
-    renderSkillSpriteTravel(ctx,{fx,spec,geometry,phase});
-    return true;
-}
-
-function renderSkillSpriteTravel(ctx, view) {
-    let {fx,spec,geometry,phase}=view;
-    if (spec.layout==='wave') {
-        let elapsed=phase.age+(fx.stageDelayMs || 0);
-        phase={...phase,p:clampNumber(elapsed/Math.max(1,fx.waveDurationMs || 220),0,1),prepare:elapsed<0};
+  // modules/rendering/skill-signatures.mjs
+  var SkillSignatureRenderer = class {
+    constructor(deps) {
+      this.deps = deps;
+      for (const name of ["getSkillGemVfxImage", "cacheSkillSpriteGeometry", "getSkillSpriteTravelGeometry", "paintSkillSprite", "drawSkillSignatureTravel", "renderSkillSpriteTravel", "drawSkillSignatureImpact"]) this[name] = this[name].bind(this);
+      this.skillSignatureGeometryCache = /* @__PURE__ */ new WeakMap();
     }
-    if (spec.staticFrame) phase={...phase,frame:fx.spriteFrame,fade:1-phase.p};
-    paintSkillSprite(ctx,spec,geometry,phase);
-}
+    getSkillGemVfxImage(imageKey) {
+      let image = this.deps.image(imageKey);
+      return image && image.complete && image.naturalWidth ? image : null;
+    }
+    /** @param {{skillName:string}} owner FX object whose lifetime owns the cache entry.
+     * @param {{fp:ReturnType<typeof projectSkillFootprint>,spec:SkillSignatureSprite,source:SignaturePoint,target:SignaturePoint}} input
+     */
+    cacheSkillSpriteGeometry(owner, input) {
+      let { fp, spec, source, target } = input;
+      if (!fp) return null;
+      let value = { fp, place: getSkillSpritePlacement(fp, spec, source, target) };
+      this.skillSignatureGeometryCache.set(owner, value);
+      return value;
+    }
+    getSkillSpriteTravelGeometry(fx, projection, spec) {
+      let origin = projection.cellToScreen(0, 0), cached = this.skillSignatureGeometryCache.get(fx);
+      let stamp = `${projection.tileW},${projection.tileH},${origin.x},${origin.y}`;
+      if (cached?.stamp === stamp) return cached;
+      let fp = this.deps.projectSkillFootprint(fx.attackFootprint, projection, fx.sourceCell);
+      if (!fp) return null;
+      let result = this.cacheSkillSpriteGeometry(fx, { fp, spec, source: fp.sourcePoint, target: fp.centerPoint });
+      result.stamp = stamp;
+      return result;
+    }
+    /** Missing images use the existing loader/error UI, never a procedural fallback. */
+    paintSkillSprite(ctx, spec, geometry, phase) {
+      let image = this.getSkillGemVfxImage(spec.asset);
+      if (!image) return;
+      ctx.save();
+      ctx.filter = "none";
+      ctx.shadowBlur = 0;
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = spec.alpha * phase.fade;
+      let place = geometry.place;
+      if (spec.layout === "wave") place = { ...place, width: place.width * phase.p, height: place.height * phase.p };
+      drawSkillSpriteFrame(ctx, image, getSkillSpriteFrame(spec, phase), place);
+      ctx.restore();
+    }
+    /** @param {CanvasRenderingContext2D} ctx
+     * @param {{skillName:string,attackFootprint:ReturnType<typeof getSkillStageFootprint>,sourceCell:{gx:number,gy:number},start:number,duration:number,stageIndex?:number,stageDelayMs?:number,waveDurationMs?:number}} fx
+     * @param {{now:number,launchAt:number,arriveAt:number}} time
+     * @param {{tileW:number,tileH:number,cellToScreen:function(number,number):SignaturePoint}} projection
+     * @returns {boolean} True claims the visual, including unloaded/expired frames.
+     */
+    drawSkillSignatureTravel(ctx, fx, time, projection) {
+      let spec = this.deps.SKILL_SIGNATURE_SPRITES[this.deps.SKILL_GEM_VFX_PROFILES[fx.skillName]?.signature];
+      if (!spec || !fx.attackFootprint) return false;
+      if (time.now < fx.start || time.now >= fx.start + fx.duration) return true;
+      let phase = getSkillSignaturePhase(fx, time);
+      if (!phase || spec.staticFrame && phase.prepare) return true;
+      let geometry = this.getSkillSpriteTravelGeometry(fx, projection, spec);
+      if (!geometry) return true;
+      this.renderSkillSpriteTravel(ctx, { fx, spec, geometry, phase });
+      return true;
+    }
+    renderSkillSpriteTravel(ctx, view) {
+      let { fx, spec, geometry, phase } = view;
+      if (spec.layout === "wave") {
+        let elapsed = phase.age + (fx.stageDelayMs || 0);
+        phase = { ...phase, p: clampNumber(elapsed / Math.max(1, fx.waveDurationMs || 220), 0, 1), prepare: elapsed < 0 };
+      }
+      if (spec.staticFrame) phase = { ...phase, frame: fx.spriteFrame, fade: 1 - phase.p };
+      this.paintSkillSprite(ctx, spec, geometry, phase);
+    }
+    /** Confirmed melee/chain stages use existing per-cast deduplication. */
+    drawSkillSignatureImpact(ctx, effect, progress) {
+      let spec = this.deps.SKILL_SIGNATURE_SPRITES[this.deps.SKILL_GEM_VFX_PROFILES[effect.skillName]?.signature];
+      if (!spec || !effect.footprint) return false;
+      let geometry = this.skillSignatureGeometryCache.get(effect) || this.cacheSkillSpriteGeometry(effect, {
+        fp: effect.footprint,
+        spec,
+        source: { x: effect.fromX, y: effect.fromY },
+        target: { x: effect.toX, y: effect.toY }
+      });
+      this.paintSkillSprite(ctx, spec, geometry, {
+        p: progress,
+        age: progress * effect.duration,
+        phase: effect.repeatIndex || 0,
+        prepare: false,
+        fade: Math.min(1, (1 - progress) * 3)
+      });
+      return true;
+    }
+    api() {
+      return { getSkillGemVfxImage: this.getSkillGemVfxImage, drawSkillSpriteFrame, drawSkillSignatureTravel: this.drawSkillSignatureTravel, drawSkillSignatureImpact: this.drawSkillSignatureImpact };
+    }
+  };
+  function createSkillSignatureRenderer(deps) {
+    const renderer = new SkillSignatureRenderer(deps);
+    return Object.freeze({ ...renderer.api(), dispose: () => {
+      renderer.skillSignatureGeometryCache = /* @__PURE__ */ new WeakMap();
+    } });
+  }
 
-/** Confirmed melee/chain stages use existing per-cast deduplication. */
-function drawSkillSignatureImpact(ctx, effect, progress) {
-    let spec=SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[effect.skillName]?.signature];
-    if (!spec || !effect.footprint) return false;
-    let geometry=skillSignatureGeometryCache.get(effect) || cacheSkillSpriteGeometry(effect,{fp:effect.footprint,spec,
-        source:{x:effect.fromX,y:effect.fromY},target:{x:effect.toX,y:effect.toY}});
-    paintSkillSprite(ctx,spec,geometry,{p:progress,age:progress*effect.duration,phase:effect.repeatIndex || 0,
-        prepare:false,fade:Math.min(1,(1-progress)*3)});
-    return true;
-}
-
-exposeFileGlobals({ getSkillGemVfxImage, drawSkillSpriteFrame, drawSkillSignatureTravel, drawSkillSignatureImpact });
+  // modules/canvas-skill-signatures-classic.mjs
+  var native = createSkillSignatureRenderer({
+    get SKILL_GEM_VFX_PROFILES() {
+      return SKILL_GEM_VFX_PROFILES;
+    },
+    get SKILL_SIGNATURE_SPRITES() {
+      return SKILL_SIGNATURE_SPRITES;
+    },
+    image: (key) => battleAssets && battleAssets.images ? battleAssets.images[key] : null,
+    get projectSkillFootprint() {
+      return projectSkillFootprint;
+    }
+  });
+  window.GameModules.skillSignatureRenderer = native;
+  safeExposeGlobals({
+    getSkillGemVfxImage: native.getSkillGemVfxImage,
+    drawSkillSpriteFrame: native.drawSkillSpriteFrame,
+    drawSkillSignatureTravel: native.drawSkillSignatureTravel,
+    drawSkillSignatureImpact: native.drawSkillSignatureImpact
+  });
 })();
-const skillSignatureGeometryCache = new WeakMap();
-
-
-safeExposeGlobals({drawSkillSpriteFrame,drawSkillSignatureTravel,drawSkillSignatureImpact});

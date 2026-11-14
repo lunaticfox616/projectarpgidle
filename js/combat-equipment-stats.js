@@ -1,190 +1,217 @@
-// Orchestrates the existing stat calculator on isolated equipment views. No DOM or saved disabled flags.
-const combatEquipmentStats = (() => {
-    const cache = new WeakMap();
-    const evaluating = new WeakSet();
-    // One synchronous game tick validates the build once; its helpers reuse that result.
-    // It is the same tick-start snapshot the combat step already takes for player stats.
-    let tickResults = null;
-    function missing(item, attributes, owner, maintaining, slot) {
-        if (maintaining && item.legacyRequirementGrace) return [];
-        const req = levelProgression.requirements(item), result = [];
-        if (owner.level < req.level) result.push(`레벨 ${req.level}`);
-        for (const [key, value] of Object.entries(req.attributes)) {
-            if ((attributes[key] || 0) < value) result.push(`${getStatName(key)} ${value}`);
+// GENERATED from modules/combat-equipment-stats*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/equipment-requirements.mjs
+  var EquipmentRequirements = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.cache = /* @__PURE__ */ new WeakMap();
+      this.evaluating = /* @__PURE__ */ new WeakSet();
+      this.tickResults = null;
+    }
+    missing(item, attributes, owner, maintaining, slot) {
+      if (maintaining && item.legacyRequirementGrace) return [];
+      const req = this.deps.requirements(item), result = [];
+      if (owner.level < req.level) result.push(`레벨 ${req.level}`);
+      for (const [key, value] of Object.entries(req.attributes)) {
+        if ((attributes[key] || 0) < value) result.push(`${this.deps.statName(key)} ${value}`);
+      }
+      const slotNeed = this.slotRequirement(item, slot, owner);
+      if (slotNeed) result.push(slotNeed);
+      return result;
+    }
+    slotRequirement(item, slot, owner) {
+      if (slot === "방패" && item.slot === "무기" && this.deps.offhandLocked(owner)) return "쌍수 훈련 키스톤";
+      return slot === "반지3" && !this.deps.thirdFingerOpen(owner) ? "세 번째 손가락" : "";
+    }
+    permanentSnapshot(owner) {
+      const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [], actExploration: void 0 }));
+      if (owner.actExploration !== void 0) snapshot.actExploration = owner.actExploration;
+      snapshot.isBackgroundCalculation = true;
+      snapshot.uniqueEliteTraitBuff = null;
+      snapshot.incidentBreath = null;
+      return snapshot;
+    }
+    attributes(snapshot, equipment) {
+      const candidate = { ...snapshot, equipment };
+      this.evaluating.add(candidate);
+      try {
+        return this.deps.attributes(candidate);
+      } finally {
+        this.evaluating.delete(candidate);
+      }
+    }
+    sameEquipment(previous, owner) {
+      return previous.equipmentRef === owner.equipment && Object.entries(owner.equipment || {}).every(([slot, item]) => previous.itemRefs[slot] === item);
+    }
+    withinTick(work) {
+      if (this.tickResults) return work();
+      this.tickResults = /* @__PURE__ */ new WeakMap();
+      try {
+        return work();
+      } finally {
+        this.tickResults = null;
+      }
+    }
+    evaluate(owner) {
+      const memo = this.deps.memo(owner);
+      const kept = this.tickResults?.get(owner) || memo?.get("equipment-evaluation");
+      if (kept && kept.level === owner.level && this.sameEquipment(kept, owner)) return kept;
+      const result = this.evaluateBuild(owner);
+      this.tickResults?.set(owner, result);
+      memo?.set("equipment-evaluation", result);
+      return result;
+    }
+    resolveActive(snapshot, equipment, owner) {
+      const disabled = {};
+      let totals = this.attributes(snapshot, equipment);
+      for (let round = 0; round < Object.keys(equipment).length; round++) {
+        const rejected = Object.entries(equipment).filter(([slot, item]) => item && this.missing(item, totals, owner, true, slot).length);
+        if (!rejected.length) break;
+        for (const [slot, item] of rejected) {
+          disabled[slot] = this.missing(item, totals, owner, true, slot);
+          equipment[slot] = null;
         }
-        const slotNeed = slotRequirement(item, slot, owner);
-        if (slotNeed) result.push(slotNeed);
+        totals = this.attributes(snapshot, equipment);
+      }
+      return { disabled, totals };
+    }
+    evaluateBuild(owner) {
+      const signature = this.deps.signature(owner), previous = this.cache.get(owner);
+      if (previous?.signature === signature && this.sameEquipment(previous, owner)) return previous;
+      const snapshot = this.permanentSnapshot(owner), equipment = { ...snapshot.equipment };
+      const { disabled, totals } = this.resolveActive(snapshot, equipment, owner);
+      const active = Object.keys(disabled).length ? Object.fromEntries(Object.entries(owner.equipment).map(([slot, item]) => [slot, disabled[slot] ? null : item])) : owner.equipment;
+      const result = {
+        signature,
+        level: owner.level,
+        disabled,
+        totals,
+        snapshot,
+        active,
+        equipmentRef: owner.equipment,
+        itemRefs: { ...owner.equipment },
+        inspections: /* @__PURE__ */ new Map()
+      };
+      this.cache.set(owner, result);
+      return result;
+    }
+    inspect(item, slot, owner) {
+      const current = this.evaluate(owner), key = JSON.stringify([slot, item.baseId, item.baseName, item.rarity, item.name]);
+      if (current.inspections.has(key)) return current.inspections.get(key);
+      const equipment = { ...owner.equipment, [slot]: null };
+      for (const key2 of Object.keys(current.disabled)) equipment[key2] = null;
+      const totals = this.evaluate({ ...owner, equipment }).totals;
+      const unmet = this.missing(item, totals, owner, false);
+      const result = { ok: unmet.length === 0, reason: unmet.length ? this.deps.translate("장착 요구: {unmet}", { unmet: unmet.join(", ") }) : "" };
+      current.inspections.set(key, result);
+      return result;
+    }
+    validateLoadout(equipment, owner) {
+      const candidate = { ...owner, equipment }, currentItems = new Set(Object.values(owner.equipment)), view = { ...equipment };
+      for (const [slot, item] of Object.entries(view)) if (item && !currentItems.has(item)) view[slot] = null;
+      const pending = Object.entries(equipment).filter(([, item]) => item && !currentItems.has(item));
+      while (pending.length) {
+        const index = pending.findIndex(([slot2, item2]) => this.inspect(item2, slot2, { ...owner, equipment: view }).ok);
+        if (index < 0) return { ok: false, reason: this.deps.translate("프리셋의 새 장비가 요구 레벨/능력치를 충족하지 않습니다.") };
+        const [[slot, item]] = pending.splice(index, 1);
+        view[slot] = item;
+      }
+      return Object.keys(this.evaluate(candidate).disabled).length ? { ok: false, reason: this.deps.translate("프리셋 적용 시 요구조건이 부족해지는 장비가 있습니다.") } : { ok: true };
+    }
+    validateBuildLoadout(equipment, config, owner) {
+      if (!config) return this.validateLoadout(equipment, owner);
+      const runes = this.deps.runes, candidate = this.permanentSnapshot(owner);
+      candidate.equipment = JSON.parse(JSON.stringify(equipment));
+      const structure = runes.inspect(config, candidate);
+      if (!structure.ok) return structure;
+      runes.apply(config, candidate);
+      const gear = this.validateLoadout(equipment, { ...candidate, equipment: owner.equipment });
+      if (!gear.ok) return gear;
+      this.evaluating.add(candidate);
+      try {
+        return this.deps.inspectBuild(candidate, config);
+      } finally {
+        this.evaluating.delete(candidate);
+      }
+    }
+    read(owner, includeBreakdowns) {
+      const status = this.evaluate(owner), originalEquipment = owner.equipment;
+      const memo = this.deps.memo(owner);
+      try {
+        owner.equipment = status.active;
+        this.evaluating.add(owner);
+        const result = this.deps.readStats(owner, includeBreakdowns, memo, status);
+        result.disabledEquipment = status.disabled;
+        result.requirementAttributes = status.totals;
         return result;
+      } finally {
+        this.evaluating.delete(owner);
+        owner.equipment = originalEquipment;
+      }
     }
-    /** What the slot itself asks: a weapon in the shield slot needs dual wielding, a ring in 반지3 the third finger. '' when nothing. */
-    const slotRequirement = (item, slot, owner) => offhandWeaponRequirement(item, slot, owner) || (slot === '반지3' && !thirdFingerOpen(owner) ? '세 번째 손가락' : '');
-    /** 반지3은 초월 공허 '세 번째 손가락'이 있을 때만 열린다(js/items.js getEquipCandidateSlots): 그 초월이 사라지면 그 칸의 반지는
-     * 꺼진다(2026-10-20 검토: 공허를 돌려받아도 반지 셋의 능력치가 그대로였다). */
-    const thirdFingerOpen = owner => typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger', owner) > 0;
-    /** 방패 칸의 무기는 쌍수 훈련 키스톤(w3, 고른 것이든 우주계 쌍둥이든)이 켜져 있을 때만 적용된다. 쌍둥이 주얼을 빼면
-     * 꺼진다(예전에는 다시 끼울 때까지 그대로 남았다, 2026-10-02 검토). */
-    function offhandWeaponRequirement(item, slot, owner) {
-        return slot === '방패' && item.slot === '무기' && typeof hasKeystone === 'function' && !hasKeystone('w3', owner) ? '쌍수 훈련 키스톤' : '';
+    activeEquipment(owner) {
+      return this.evaluating.has(owner) ? owner.equipment : this.evaluate(owner).active;
     }
-    /** The exploration run (the room map, about 60% of a save in a room stage) is no stat input (data/build-stat-inputs.js) and the
-     * calculation never writes it: shared, not copied. Copying it was a third of a bag analysis (2026-11-07). */
-    function permanentSnapshot(owner) {
-        const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [], actExploration: undefined }));
-        if (owner.actExploration !== undefined) snapshot.actExploration = owner.actExploration;
-        snapshot.isBackgroundCalculation = true;
-        snapshot.uniqueEliteTraitBuff = null;
-        snapshot.incidentBreath = null; // 세계수의 숨결도 잠깐의 전투 버프다
-        // Observed constellation is a persistent build choice until rerolled/looped, not a timed combat buff.
-        return snapshot;
+  };
+  function createEquipmentRequirements(deps) {
+    const runtime = new EquipmentRequirements(deps);
+    return Object.freeze({
+      evaluate: runtime.evaluate.bind(runtime),
+      inspect: runtime.inspect.bind(runtime),
+      validateLoadout: runtime.validateLoadout.bind(runtime),
+      validateBuildLoadout: runtime.validateBuildLoadout.bind(runtime),
+      read: runtime.read.bind(runtime),
+      activeEquipment: runtime.activeEquipment.bind(runtime),
+      withinTick: runtime.withinTick.bind(runtime)
+    });
+  }
+
+  // modules/combat-equipment-stats-classic.mjs
+  var withEquipmentCalculationOwner = (owner, calculate) => {
+    const state = window.GameModules.state, live = state.game;
+    try {
+      state.game = owner;
+      return calculate();
+    } finally {
+      state.game = live;
     }
-    function attributes(snapshot, equipment) {
-        const live = game, stateBridge = window.GameState, windowGame = stateBridge.game;
-        try {
-            game = { ...snapshot, equipment };
-            stateBridge.game = game;
-            evaluating.add(game);
-            return equipmentStatCalculator(false, true, true);
-        } finally { evaluating.delete(game); game = live; stateBridge.game = windowGame; }
-    }
-    function sameEquipment(previous, owner) {
-        return previous.equipmentRef === owner.equipment
-            && Object.entries(owner.equipment || {}).every(([slot, item]) => previous.itemRefs[slot] === item);
-    }
-    /**
-     * Run one synchronous tick while sharing build validation between its helpers.
-     * A level-up or equipment change inside the tick still re-validates.
-     * @template T
-     * @param {() => T} work
-     * @returns {T}
-     */
-    function withinTick(work) {
-        if (tickResults) return work();
-        tickResults = new WeakMap();
-        try { return work(); } finally { tickResults = null; }
-    }
-    /** A settlement also keeps the check while its build memo holds (until a kill, a level-up or new gear:
-     * js/background-build-cache.js): its build signature was 5% of real-combat settlement time, read every tick. A new item in a
-     * slot or a level-up re-validates at once, as within a tick. */
-    function evaluate(owner) {
-        const memo = getBackgroundBuildMemo(owner);
-        const kept = tickResults?.get(owner) || memo?.get('equipment-evaluation');
-        if (kept && kept.level === owner.level && sameEquipment(kept, owner)) return kept;
-        const result = evaluateBuild(owner);
-        tickResults?.set(owner, result);
-        memo?.set('equipment-evaluation', result);
-        return result;
-    }
-    function evaluateBuild(owner) {
-        const signature = getPersistentBuildSignature(owner);
-        const previous = cache.get(owner);
-        if (previous?.signature === signature && sameEquipment(previous, owner)) return previous;
-        const snapshot = permanentSnapshot(owner), equipment = { ...snapshot.equipment }, disabled = {};
-        let totals = attributes(snapshot, equipment);
-        // Descending fixed point: each round only removes invalid items, so at most slot-count rounds.
-        for (let round = 0; round < Object.keys(equipment).length; round++) {
-            const rejected = Object.entries(equipment).filter(([slot, item]) => item && missing(item, totals, owner, true, slot).length);
-            if (!rejected.length) break;
-            for (const [slot, item] of rejected) {
-                disabled[slot] = missing(item, totals, owner, true, slot); equipment[slot] = null;
-            }
-            totals = attributes(snapshot, equipment);
-        }
-        const active = Object.keys(disabled).length
-            ? Object.fromEntries(Object.entries(owner.equipment).map(([slot, item]) => [slot, disabled[slot] ? null : item])) : owner.equipment;
-        const result = { signature, level: owner.level, disabled, totals, snapshot, active, equipmentRef: owner.equipment,
-            itemRefs: { ...owner.equipment }, inspections: new Map() };
-        cache.set(owner, result);
-        return result;
-    }
-    function inspect(item, slot, owner = game) {
-        const current = evaluate(owner);
-        const key = JSON.stringify([slot, item.baseId, item.baseName, item.rarity, item.name]);
-        if (current.inspections.has(key)) return current.inspections.get(key);
-        const equipment = { ...owner.equipment, [slot]: null };
-        for (const key of Object.keys(current.disabled)) equipment[key] = null;
-        const totals = evaluate({ ...owner, equipment }).totals;
-        const unmet = missing(item, totals, owner, false);
-        const result = { ok: unmet.length === 0, reason: unmet.length ? _t('장착 요구: {unmet}', { unmet: unmet.join(', ') }) : '' };
-        current.inspections.set(key, result);
-        return result;
-    }
-    function validateLoadout(equipment, owner) {
-        const candidate = { ...owner, equipment };
-        const currentItems = new Set(Object.values(owner.equipment));
-        const view = { ...equipment };
-        // Old gear can maintain itself; new gear must have a valid sequential equip order.
-        for (const [slot, item] of Object.entries(view)) if (item && !currentItems.has(item)) view[slot] = null;
-        const pending = Object.entries(equipment).filter(([, item]) => item && !currentItems.has(item));
-        while (pending.length) {
-            const index = pending.findIndex(([slot, item]) => inspect(item, slot, { ...owner, equipment: view }).ok);
-            if (index < 0) return { ok: false, reason: _t('프리셋의 새 장비가 요구 레벨/능력치를 충족하지 않습니다.') };
-            const [[slot, item]] = pending.splice(index, 1); view[slot] = item;
-        }
-        const disabled = evaluate(candidate).disabled;
-        return Object.keys(disabled).length ? { ok: false, reason: _t('프리셋 적용 시 요구조건이 부족해지는 장비가 있습니다.') } : { ok: true };
-    }
-    /** Equipment and saved runes are one transaction. An old equipment-only preset (config null) checks only the gear:
-     * the current runes stay and adapt to it as after a manual equip (main rune rests, extra supports come off). */
-    function validateBuildLoadout(equipment, config, owner) {
-        if (!config) return validateLoadout(equipment, owner);
-        const runes = window.GameModules.skills.loadouts;
-        const candidate = permanentSnapshot(owner);
-        candidate.equipment = JSON.parse(JSON.stringify(equipment));
-        const structure = runes.inspect(config, candidate);
-        if (!structure.ok) return structure;
-        runes.apply(config, candidate);
-        const gear = validateLoadout(equipment, { ...candidate, equipment: owner.equipment });
-        if (!gear.ok) return gear;
-        return inspectBuildCandidate(candidate, config);
-    }
-    function inspectBuildCandidate(candidate, selected) {
-        const live = game, bridge = window.GameState, windowGame = bridge.game;
-        try {
-            game = candidate;
-            bridge.game = candidate;
-            evaluating.add(candidate);
-            // Only the main rune must fit the weapon: mobility and summon runes stay worn and rest on a weapon they do not fit
-            // (mobilitySkill.ready, getActiveSummonGemDefs), so a build saved that way loads again.
-            const main = selected.activeSkill;
-            if (!canUseSkillWithCurrentEquipment(main)) return { ok: false, reason: `${main}: ${getSkillRuneWeaponNote(main)}` };
-            const stats = getPlayerStats(false), runes = window.GameModules.skills.loadouts;
-            if (!runes.equals(selected, candidate)) return { ok: false, reason: _t('현재 장비로 저장된 룬 구성을 유지할 수 없습니다.') };
-            return runes.inspect(selected, candidate, stats);
-        } finally {
-            evaluating.delete(candidate);
-            game = live;
-            bridge.game = windowGame;
-        }
-    }
-    /** Retire attacks authored by the old build; retain cooldowns, summon health and respawn times. */
-    function finishBuildLoadout(owner) {
-        if (owner !== game) return;
-        playerStatCache.invalidate();
-        pendingSkillStageHits = [];
-        skillGemCombatRuntime = null;
-        resetCombatChannelRuntime();
-        mobilitySkill.reset(true);
-        wispSummons.reset();
-    }
-    function read(includeBreakdowns) {
-        const owner = game, status = evaluate(owner);
-        const originalEquipment = owner.equipment;
-        const equipment = status.active;
-        // The settlement memo of the real gear (the masked gear keeps its own values).
-        const memo = getBackgroundBuildMemo(owner);
-        try {
-            // Keep ordinary runtime normalization on the real state while masking disabled slots synchronously.
-            owner.equipment = equipment;
-            evaluating.add(owner);
-            const result = playerStatCache.read(includeBreakdowns, memo, status);
-            result.disabledEquipment = status.disabled;
-            result.requirementAttributes = status.totals;
-            return result;
-        } finally { evaluating.delete(owner); owner.equipment = originalEquipment; }
-    }
-    function activeEquipment(owner) {
-        if (evaluating.has(owner)) return owner.equipment;
-        return evaluate(owner).active;
-    }
-    return Object.freeze({ evaluate, inspect, validateLoadout, validateBuildLoadout, finishBuildLoadout, read, activeEquipment, withinTick });
+  };
+  var inspectSavedRuneBuild = (owner, selected) => withEquipmentCalculationOwner(owner, () => {
+    const main = selected.activeSkill;
+    if (!canUseSkillWithCurrentEquipment(main)) return { ok: false, reason: `${main}: ${getSkillRuneWeaponNote(main)}` };
+    const stats = getPlayerStats(false), runes = window.GameModules.skills.loadouts;
+    if (!runes.equals(selected, owner)) return { ok: false, reason: _t("현재 장비로 저장된 룬 구성을 유지할 수 없습니다.") };
+    return runes.inspect(selected, owner, stats);
+  });
+  var requirements = createEquipmentRequirements({
+    requirements: (item) => levelProgression.requirements(item),
+    statName: (key) => getStatName(key),
+    translate: (...args) => _t(...args),
+    offhandLocked: (owner) => typeof hasKeystone === "function" && !hasKeystone("w3", owner),
+    thirdFingerOpen: (owner) => typeof getTranscendentVoidPassiveCount === "function" && getTranscendentVoidPassiveCount("thirdFinger", owner) > 0,
+    memo: (owner) => getBackgroundBuildMemo(owner),
+    signature: (owner) => getPersistentBuildSignature(owner),
+    attributes: (owner) => withEquipmentCalculationOwner(owner, () => equipmentStatCalculator(false, true, true)),
+    inspectBuild: inspectSavedRuneBuild,
+    get runes() {
+      return window.GameModules.skills.loadouts;
+    },
+    readStats: (owner, includeBreakdowns, memo, status) => playerStatCache.read(includeBreakdowns, memo, status, owner)
+  });
+  var finishBuildLoadout = (owner) => {
+    if (owner !== game) return;
+    playerStatCache.invalidate();
+    window.GameModules.state.combat.pendingSkillStageHits = [];
+    window.GameModules.state.combat.skillGemCombatRuntime = null;
+    resetCombatChannelRuntime();
+    mobilitySkill.reset(true);
+    wispSummons.reset();
+  };
+  var combatEquipmentStats = Object.freeze({
+    ...requirements,
+    inspect: (item, slot, owner = game) => requirements.inspect(item, slot, owner),
+    read: (includeBreakdowns, owner = game) => owner === game ? requirements.read(owner, includeBreakdowns) : withEquipmentCalculationOwner(owner, () => requirements.read(owner, includeBreakdowns)),
+    finishBuildLoadout
+  });
+  safeExposeGlobals({ combatEquipmentStats });
 })();

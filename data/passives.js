@@ -1,376 +1,412 @@
-if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/passives.js');
-
-// Phase-1 extracted data block.
-const PASSIVE_EQUIPMENT_RESTRICTIONS = Object.freeze([
-    { nodeId: 'n39ip40yc3d', slot: '무기', reason: '야만을 할당한 동안 무기를 장착할 수 없습니다.' }
-]);
-const GEM_SKY_ENHANCEMENTS = {
-    sky_fury: { id: 'sky_fury', name: '폭풍 충전', desc: '스킬 피해 +8%', stat: 'pctDmg', val: 8 },
-    sky_swiftness: { id: 'sky_swiftness', name: '질풍 각인', desc: '스킬 공격속도 +8%', stat: 'aspd', val: 8 },
-    sky_precision: { id: 'sky_precision', name: '창공의 눈', desc: '스킬 치명타 확률 +6%', stat: 'crit', val: 6 },
-    sky_blood: { id: 'sky_blood', name: '비상의 맥박', desc: '스킬 흡수 +0.6%', stat: 'leech', val: 0.6 },
-    sky_tempest: { id: 'sky_tempest', name: '폭풍 분기', desc: '스킬 타겟 수 +1', stat: 'targets', val: 1 },
-    sky_projectile_split: { id: 'sky_projectile_split', name: '삼갈래 분산', desc: '투사체를 3방향으로 분산 발사. 피해 28% 감폭, 보조 방향은 45% 피해', stat: 'projectilePattern', projectilePatternMode: 'split', requiredTag: 'projectile' },
-    sky_projectile_focus: { id: 'sky_projectile_focus', name: '단일 집속', desc: '모든 투사체를 한 대상에게 집속. 타격 피해 55% 증폭', stat: 'projectilePattern', projectilePatternMode: 'focus', requiredTag: 'projectile' },
-    sky_projectile_return: { id: 'sky_projectile_return', name: '귀환 궤도', desc: '투사체가 관통 후 되돌아옴. 왕복 타격은 각각 45% 피해', stat: 'projectilePattern', projectilePatternMode: 'return', requiredTag: 'projectile' },
-    sky_keen: { id: 'sky_keen', name: '예리한 파열', desc: '치명타 피해 배율 +25%', stat: 'critDmg', val: 25 },
-    sky_blitz: { id: 'sky_blitz', name: '천공 붕괴', desc: '지속 피해 계열 스킬 피해 +18%', stat: 'dotMulti', val: 18 },
-    sky_harmony: { id: 'sky_harmony', name: '창공의 조율', desc: '스킬 피해 +6%, 공격속도 +6%', stat: 'hybrid', val: 6 },
-    sky_sunder: { id: 'sky_sunder', name: '갑주 분쇄', desc: '스킬의 물리 피해 감소 무시 +6%', stat: 'physIgnore', val: 6 },
-    sky_pierce: { id: 'sky_pierce', name: '균열 투과', desc: '스킬의 저항 관통 +6%', stat: 'resPen', val: 6 },
-    sky_gemcraft_edge: { id: 'sky_gemcraft_edge', name: '폭풍 메아리', desc: '스킬의 연속 타격 +18%, 공격속도 -3%', stat: 'ds', val: 18, penaltyAspdPct: 3 },
-    sky_gemcraft_swift: { id: 'sky_gemcraft_swift', name: '혈맥 증폭', desc: '스킬의 흡수 +1.2%, 피해 -4%', stat: 'leechRegenHybrid', leechVal: 1.2, penaltyDmgPct: 4 },
-    sky_gemcraft_focus: { id: 'sky_gemcraft_focus', name: '차원 압축', desc: '스킬의 기본 타격 피해 +12%, 공격속도 -4%', stat: 'flatSkillDmgPct', val: 12, penaltyAspdPct: 4 },
-    sky_gemcraft_pierce: { id: 'sky_gemcraft_pierce', name: '과열 반응', desc: '스킬의 치명타 피해 배율 +40%, 치명타 확률 -3%', stat: 'critDmg', val: 40, penaltyCrit: 3 },
-    sky_gemcraft_break: { id: 'sky_gemcraft_break', name: '파동 분산', desc: '스킬의 타겟 수 +2, 피해 -5%', stat: 'targets', val: 2, penaltyDmgPct: 5 },
-    sky_gemcraft_vigor: { id: 'sky_gemcraft_vigor', name: '축전 사슬', desc: '스킬의 공격속도 +5%, 피해 +5%, 저항 관통 -2%', stat: 'hybrid', val: 5, penaltyResPen: 2 },
-    sky_gemcraft_echo: { id: 'sky_gemcraft_echo', name: '관성 격침', desc: '스킬의 물리 피해 감소 무시 +10%, 치명타 피해 배율 -12%', stat: 'physIgnore', val: 10, penaltyCritDmg: 12 },
-    sky_gemcraft_hybrid: { id: 'sky_gemcraft_hybrid', name: '공명 침식', desc: '스킬의 저항 관통 +10%, 피해 -3%', stat: 'resPen', val: 10, penaltyDmgPct: 3 },
-    sky_gemcraft_dot: { id: 'sky_gemcraft_dot', name: '잔향 도약', desc: '지속 피해 계열 스킬의 지속 피해 배율 +30%, 타격 피해 -6%', stat: 'dotMultiplier', val: 30, penaltyDmgPct: 6 },
-    sky_gemcraft_critical: { id: 'sky_gemcraft_critical', name: '정점 절개', desc: '스킬의 치명타 확률 +9%, 저항 관통 -2%', stat: 'crit', val: 9, penaltyResPen: 2 },
-    sky_awakened_force: { id: 'sky_awakened_force', name: '각성: 파쇄 문양', desc: '룬의 피해 배율 10% 증폭', stat: 'awakenedDamageMul', val: 10 },
-    sky_awakened_surge: { id: 'sky_awakened_surge', name: '각성: 초가속 문양', desc: '룬의 공격 속도 배율 8% 증폭', stat: 'awakenedAspdMul', val: 8 },
-    sky_awakened_focus: { id: 'sky_awakened_focus', name: '각성: 주문핵 문양', desc: '룬의 주문 내장 피해 15% 증폭', stat: 'awakenedSpellFlatMul', val: 15 },
-    sky_awakened_overdrive: { id: 'sky_awakened_overdrive', name: '각성: 금단 파열', desc: '치명타 불가, 룬의 피해 배율 100% 증폭', stat: 'awakenedNoCritDouble', val: 100 },
-    sky_awakened_resonance: { id: 'sky_awakened_resonance', name: '각성: 심층 초월', desc: '룬 레벨 +3', stat: 'awakenedGemLevel', gemLvVal: 3 }
-};
-
-const HERO_SELECTION_DEFS = {
+// GENERATED from modules/data/passives.mjs. Edit the ESM source; run npm run build:modules.
+(() => {
+  // modules/data/passives.mjs
+  var PASSIVE_EQUIPMENT_RESTRICTIONS = Object.freeze([
+    { nodeId: "n39ip40yc3d", slot: "무기", reason: "야만을 할당한 동안 무기를 장착할 수 없습니다." }
+  ]);
+  var GEM_SKY_ENHANCEMENTS = {
+    sky_fury: { id: "sky_fury", name: "폭풍 충전", desc: "스킬 피해 +8%", stat: "pctDmg", val: 8 },
+    sky_swiftness: { id: "sky_swiftness", name: "질풍 각인", desc: "스킬 공격속도 +8%", stat: "aspd", val: 8 },
+    sky_precision: { id: "sky_precision", name: "창공의 눈", desc: "스킬 치명타 확률 +6%", stat: "crit", val: 6 },
+    sky_blood: { id: "sky_blood", name: "비상의 맥박", desc: "스킬 흡수 +0.6%", stat: "leech", val: 0.6 },
+    sky_tempest: { id: "sky_tempest", name: "폭풍 분기", desc: "스킬 타겟 수 +1", stat: "targets", val: 1 },
+    sky_projectile_split: { id: "sky_projectile_split", name: "삼갈래 분산", desc: "투사체를 3방향으로 분산 발사. 피해 28% 감폭, 보조 방향은 45% 피해", stat: "projectilePattern", projectilePatternMode: "split", requiredTag: "projectile" },
+    sky_projectile_focus: { id: "sky_projectile_focus", name: "단일 집속", desc: "모든 투사체를 한 대상에게 집속. 타격 피해 55% 증폭", stat: "projectilePattern", projectilePatternMode: "focus", requiredTag: "projectile" },
+    sky_projectile_return: { id: "sky_projectile_return", name: "귀환 궤도", desc: "투사체가 관통 후 되돌아옴. 왕복 타격은 각각 45% 피해", stat: "projectilePattern", projectilePatternMode: "return", requiredTag: "projectile" },
+    sky_keen: { id: "sky_keen", name: "예리한 파열", desc: "치명타 피해 배율 +25%", stat: "critDmg", val: 25 },
+    sky_blitz: { id: "sky_blitz", name: "천공 붕괴", desc: "지속 피해 계열 스킬 피해 +18%", stat: "dotMulti", val: 18 },
+    sky_harmony: { id: "sky_harmony", name: "창공의 조율", desc: "스킬 피해 +6%, 공격속도 +6%", stat: "hybrid", val: 6 },
+    sky_sunder: { id: "sky_sunder", name: "갑주 분쇄", desc: "스킬의 물리 피해 감소 무시 +6%", stat: "physIgnore", val: 6 },
+    sky_pierce: { id: "sky_pierce", name: "균열 투과", desc: "스킬의 저항 관통 +6%", stat: "resPen", val: 6 },
+    sky_gemcraft_edge: { id: "sky_gemcraft_edge", name: "폭풍 메아리", desc: "스킬의 연속 타격 +18%, 공격속도 -3%", stat: "ds", val: 18, penaltyAspdPct: 3 },
+    sky_gemcraft_swift: { id: "sky_gemcraft_swift", name: "혈맥 증폭", desc: "스킬의 흡수 +1.2%, 피해 -4%", stat: "leechRegenHybrid", leechVal: 1.2, penaltyDmgPct: 4 },
+    sky_gemcraft_focus: { id: "sky_gemcraft_focus", name: "차원 압축", desc: "스킬의 기본 타격 피해 +12%, 공격속도 -4%", stat: "flatSkillDmgPct", val: 12, penaltyAspdPct: 4 },
+    sky_gemcraft_pierce: { id: "sky_gemcraft_pierce", name: "과열 반응", desc: "스킬의 치명타 피해 배율 +40%, 치명타 확률 -3%", stat: "critDmg", val: 40, penaltyCrit: 3 },
+    sky_gemcraft_break: { id: "sky_gemcraft_break", name: "파동 분산", desc: "스킬의 타겟 수 +2, 피해 -5%", stat: "targets", val: 2, penaltyDmgPct: 5 },
+    sky_gemcraft_vigor: { id: "sky_gemcraft_vigor", name: "축전 사슬", desc: "스킬의 공격속도 +5%, 피해 +5%, 저항 관통 -2%", stat: "hybrid", val: 5, penaltyResPen: 2 },
+    sky_gemcraft_echo: { id: "sky_gemcraft_echo", name: "관성 격침", desc: "스킬의 물리 피해 감소 무시 +10%, 치명타 피해 배율 -12%", stat: "physIgnore", val: 10, penaltyCritDmg: 12 },
+    sky_gemcraft_hybrid: { id: "sky_gemcraft_hybrid", name: "공명 침식", desc: "스킬의 저항 관통 +10%, 피해 -3%", stat: "resPen", val: 10, penaltyDmgPct: 3 },
+    sky_gemcraft_dot: { id: "sky_gemcraft_dot", name: "잔향 도약", desc: "지속 피해 계열 스킬의 지속 피해 배율 +30%, 타격 피해 -6%", stat: "dotMultiplier", val: 30, penaltyDmgPct: 6 },
+    sky_gemcraft_critical: { id: "sky_gemcraft_critical", name: "정점 절개", desc: "스킬의 치명타 확률 +9%, 저항 관통 -2%", stat: "crit", val: 9, penaltyResPen: 2 },
+    sky_awakened_force: { id: "sky_awakened_force", name: "각성: 파쇄 문양", desc: "룬의 피해 배율 10% 증폭", stat: "awakenedDamageMul", val: 10 },
+    sky_awakened_surge: { id: "sky_awakened_surge", name: "각성: 초가속 문양", desc: "룬의 공격 속도 배율 8% 증폭", stat: "awakenedAspdMul", val: 8 },
+    sky_awakened_focus: { id: "sky_awakened_focus", name: "각성: 주문핵 문양", desc: "룬의 주문 내장 피해 15% 증폭", stat: "awakenedSpellFlatMul", val: 15 },
+    sky_awakened_overdrive: { id: "sky_awakened_overdrive", name: "각성: 금단 파열", desc: "치명타 불가, 룬의 피해 배율 100% 증폭", stat: "awakenedNoCritDouble", val: 100 },
+    sky_awakened_resonance: { id: "sky_awakened_resonance", name: "각성: 심층 초월", desc: "룬 레벨 +3", stat: "awakenedGemLevel", gemLvVal: 3 }
+  };
+  var HERO_SELECTION_DEFS = {
     hero1: {
-        id: 'hero1',
-        label: '궁수',
-        blindLabel: '궁수',
-        portrait: 'assets/portraits/hero1.png',
-        talentsText: '투사체 피해 +18%, 공격 속도 +12%, 최소 대미지 보정 +10%',
-        stats: [{ stat: 'projectilePctDmg', value: 18 }, { stat: 'aspd', value: 12 }, { stat: 'minDmgRoll', value: 10 }],
-        strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
+      id: "hero1",
+      label: "궁수",
+      blindLabel: "궁수",
+      portrait: "assets/portraits/hero1.png",
+      talentsText: "투사체 피해 +18%, 공격 속도 +12%, 최소 대미지 보정 +10%",
+      stats: [{ stat: "projectilePctDmg", value: 18 }, { stat: "aspd", value: 12 }, { stat: "minDmgRoll", value: 10 }],
+      strips: { idle: "hero1Idle", walk: "hero1Walk", attack: "hero1Attack", hurt: "hero1Hurt", death: "hero1Death" }
     },
     hero2: {
-        id: 'hero2',
-        label: '전사',
-        blindLabel: '전사',
-        portrait: 'assets/portraits/hero2.png',
-        talentsText: '근접 피해 +20%, 최대 생명력 +10%, 최대 대미지 보정 +10%, 강타 피해 +18%',
-        stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'pctHp', value: 10 }, { stat: 'maxDmgRoll', value: 10 }, { stat: 'slamPctDmg', value: 18 }],
-        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
+      id: "hero2",
+      label: "전사",
+      blindLabel: "전사",
+      portrait: "assets/portraits/hero2.png",
+      talentsText: "근접 피해 +20%, 최대 생명력 +10%, 최대 대미지 보정 +10%, 강타 피해 +18%",
+      stats: [{ stat: "meleePctDmg", value: 20 }, { stat: "pctHp", value: 10 }, { stat: "maxDmgRoll", value: 10 }, { stat: "slamPctDmg", value: 18 }],
+      strips: { idle: "hero2Idle", walk: "hero2Walk", attack: "hero2Attack", hurt: "hero2Hurt", death: "hero2Death" }
     },
     hero3: {
-        id: 'hero3',
-        label: '드루이드',
-        blindLabel: '드루이드',
-        portrait: 'assets/portraits/hero3.png',
-        talentsText: '원소 피해 +22%, 생명력 재생 +1.2%, 모든 저항 +5%',
-        stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'regen', value: 1.2 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }, { stat: 'resChaos', value: 5 }],
-        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
+      id: "hero3",
+      label: "드루이드",
+      blindLabel: "드루이드",
+      portrait: "assets/portraits/hero3.png",
+      talentsText: "원소 피해 +22%, 생명력 재생 +1.2%, 모든 저항 +5%",
+      stats: [{ stat: "elementalPctDmg", value: 22 }, { stat: "regen", value: 1.2 }, { stat: "resF", value: 5 }, { stat: "resC", value: 5 }, { stat: "resL", value: 5 }, { stat: "resChaos", value: 5 }],
+      strips: { idle: "hero3Idle", walk: "hero3Walk", attack: "hero3Attack", hurt: "hero3Hurt", death: "hero3Death" }
     },
     hero4: {
-        id: 'hero4',
-        label: '블레이드',
-        blindLabel: '블레이드',
-        portrait: 'assets/portraits/hero4.png',
-        talentsText: '카오스 피해 +20%, 흡혈 +0.2%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
-        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 0.2 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
-        strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
+      id: "hero4",
+      label: "블레이드",
+      blindLabel: "블레이드",
+      portrait: "assets/portraits/hero4.png",
+      talentsText: "카오스 피해 +20%, 흡혈 +0.2%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%",
+      stats: [{ stat: "chaosPctDmg", value: 20 }, { stat: "leech", value: 0.2 }, { stat: "move", value: 12 }, { stat: "critDmg", value: 20 }, { stat: "crit", value: 2.5 }],
+      strips: { idle: "hero4Idle", walk: "hero4Walk", attack: "hero4Attack", hurt: "hero4Hurt", death: "hero4Death" }
     },
     hero5: {
-        id: 'hero5',
-        label: '성기사',
-        blindLabel: '성기사',
-        portrait: 'assets/portraits/hero5.png',
-        talentsText: '물리/번개 피해 +20%, 방어도/에너지 보호막 +15%, 연속 타격 +5%, 카오스 저항 +8%, 최대 카오스 저항 +1%',
-        stats: [{ stat: 'physPctDmg', value: 20 }, { stat: 'lightPctDmg', value: 20 }, { stat: 'armorPct', value: 15 }, { stat: 'energyShieldPct', value: 15 }, { stat: 'ds', value: 5 }, { stat: 'resChaos', value: 8 }, { stat: 'maxResChaos', value: 1 }],
-        strips: { idle: 'hero5Idle', walk: 'hero5Walk', attack: 'hero5Attack', hurt: 'hero5Hurt', death: 'hero5Death' }
+      id: "hero5",
+      label: "성기사",
+      blindLabel: "성기사",
+      portrait: "assets/portraits/hero5.png",
+      talentsText: "물리/번개 피해 +20%, 방어도/에너지 보호막 +15%, 연속 타격 +5%, 카오스 저항 +8%, 최대 카오스 저항 +1%",
+      stats: [{ stat: "physPctDmg", value: 20 }, { stat: "lightPctDmg", value: 20 }, { stat: "armorPct", value: 15 }, { stat: "energyShieldPct", value: 15 }, { stat: "ds", value: 5 }, { stat: "resChaos", value: 8 }, { stat: "maxResChaos", value: 1 }],
+      strips: { idle: "hero5Idle", walk: "hero5Walk", attack: "hero5Attack", hurt: "hero5Hurt", death: "hero5Death" }
     },
     hero6: {
-        id: 'hero6',
-        label: '저격수',
-        blindLabel: '저격수',
-        portrait: 'assets/portraits/hero6.png',
-        talentsText: '투사체 피해 +20%, 치명타 확률 +5%, 치명타 피해 +25%, 공격 속도 -5%, 최대 대미지 보정 +10%',
-        stats: [{ stat: 'projectilePctDmg', value: 20 }, { stat: 'crit', value: 5 }, { stat: 'critDmg', value: 25 }, { stat: 'aspd', value: -5 }, { stat: 'maxDmgRoll', value: 10 }],
-        strips: { idle: 'hero6Idle', walk: 'hero6Walk', attack: 'hero6Attack', hurt: 'hero6Hurt', death: 'hero6Death' }
+      id: "hero6",
+      label: "저격수",
+      blindLabel: "저격수",
+      portrait: "assets/portraits/hero6.png",
+      talentsText: "투사체 피해 +20%, 치명타 확률 +5%, 치명타 피해 +25%, 공격 속도 -5%, 최대 대미지 보정 +10%",
+      stats: [{ stat: "projectilePctDmg", value: 20 }, { stat: "crit", value: 5 }, { stat: "critDmg", value: 25 }, { stat: "aspd", value: -5 }, { stat: "maxDmgRoll", value: 10 }],
+      strips: { idle: "hero6Idle", walk: "hero6Walk", attack: "hero6Attack", hurt: "hero6Hurt", death: "hero6Death" }
     },
     hero7: {
-        id: 'hero7',
-        label: '소환사',
-        blindLabel: '소환사',
-        portrait: 'assets/portraits/hero7.png',
-        talentsText: '소환수 피해 +20%, 소환수 한도 +1, 소환수 효율 +20%',
-        stats: [{ stat: 'summonPctDmg', value: 20 }, { stat: 'summonCap', value: 1 }, { stat: 'summonEfficiency', value: 20 }],
-        strips: { idle: 'hero7Idle', walk: 'hero7Walk', attack: 'hero7Attack', hurt: 'hero7Hurt', death: 'hero7Death' }
+      id: "hero7",
+      label: "소환사",
+      blindLabel: "소환사",
+      portrait: "assets/portraits/hero7.png",
+      talentsText: "소환수 피해 +20%, 소환수 한도 +1, 소환수 효율 +20%",
+      stats: [{ stat: "summonPctDmg", value: 20 }, { stat: "summonCap", value: 1 }, { stat: "summonEfficiency", value: 20 }],
+      strips: { idle: "hero7Idle", walk: "hero7Walk", attack: "hero7Attack", hurt: "hero7Hurt", death: "hero7Death" }
     },
     hero8: {
-        id: 'hero8',
-        label: '수호자',
-        blindLabel: '수호자',
-        portrait: 'assets/portraits/hero8.png',
-        talentsText: '최대 생명력 +15%, 받는 피해 -5%, 생명력 재생 +1%, 방어도 +20%',
-        stats: [{ stat: 'pctHp', value: 15 }, { stat: 'genericTakenDamageReducePct', value: 5 }, { stat: 'regen', value: 1 }, { stat: 'armorPct', value: 20 }],
-        strips: { idle: 'hero8Idle', walk: 'hero8Walk', attack: 'hero8Attack', hurt: 'hero8Hurt', death: 'hero8Death' }
+      id: "hero8",
+      label: "수호자",
+      blindLabel: "수호자",
+      portrait: "assets/portraits/hero8.png",
+      talentsText: "최대 생명력 +15%, 받는 피해 -5%, 생명력 재생 +1%, 방어도 +20%",
+      stats: [{ stat: "pctHp", value: 15 }, { stat: "genericTakenDamageReducePct", value: 5 }, { stat: "regen", value: 1 }, { stat: "armorPct", value: 20 }],
+      strips: { idle: "hero8Idle", walk: "hero8Walk", attack: "hero8Attack", hurt: "hero8Hurt", death: "hero8Death" }
     },
     hero9: {
-        id: 'hero9',
-        label: '원소술사',
-        blindLabel: '원소술사',
-        portrait: 'assets/portraits/hero9.png',
-        attackAnimationDurationScale: 1.4,
-        talentsText: '원소 피해 +22%, 원소 저항 관통 +10%, 모든 원소 저항 +5%',
-        stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'resPen', value: 10 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }],
-        strips: { idle: 'hero9Idle', walk: 'hero9Walk', attack: 'hero9Attack', hurt: 'hero9Hurt', death: 'hero9Death' }
+      id: "hero9",
+      label: "원소술사",
+      blindLabel: "원소술사",
+      portrait: "assets/portraits/hero9.png",
+      attackAnimationDurationScale: 1.4,
+      talentsText: "원소 피해 +22%, 원소 저항 관통 +10%, 모든 원소 저항 +5%",
+      stats: [{ stat: "elementalPctDmg", value: 22 }, { stat: "resPen", value: 10 }, { stat: "resF", value: 5 }, { stat: "resC", value: 5 }, { stat: "resL", value: 5 }],
+      strips: { idle: "hero9Idle", walk: "hero9Walk", attack: "hero9Attack", hurt: "hero9Hurt", death: "hero9Death" }
     },
     hero10: {
-        id: 'hero10',
-        label: '연금술사',
-        blindLabel: '연금술사',
-        portrait: 'assets/portraits/hero10.png',
-        talentsText: '지속 피해 배율 +20%, 이동 속도 +10%, 회피 +15%, 출혈/점화/중독 확률 +15%',
-        stats: [{ stat: 'dotPctDmg', value: 20 }, { stat: 'move', value: 10 }, { stat: 'evasionPct', value: 15 }, { stat: 'bleedChance', value: 15 }, { stat: 'igniteChance', value: 15 }, { stat: 'poisonChance', value: 15 }],
-        strips: { idle: 'hero10Idle', walk: 'hero10Walk', attack: 'hero10Attack', hurt: 'hero10Hurt', death: 'hero10Death' }
+      id: "hero10",
+      label: "연금술사",
+      blindLabel: "연금술사",
+      portrait: "assets/portraits/hero10.png",
+      talentsText: "지속 피해 배율 +20%, 이동 속도 +10%, 회피 +15%, 출혈/점화/중독 확률 +15%",
+      stats: [{ stat: "dotPctDmg", value: 20 }, { stat: "move", value: 10 }, { stat: "evasionPct", value: 15 }, { stat: "bleedChance", value: 15 }, { stat: "igniteChance", value: 15 }, { stat: "poisonChance", value: 15 }],
+      strips: { idle: "hero10Idle", walk: "hero10Walk", attack: "hero10Attack", hurt: "hero10Hurt", death: "hero10Death" }
     }
-};
-
-// 플레이어가 고르는 6직업의 표시·전투 외형 정의다. 직업 선택 시 recommendedTalentHeroId로
-// 시작 재능과 보상을 맞춘 뒤, 플레이어는 패시브 화면에서 재능만 다시 바꿀 수 있다.
-const PLAYER_CLASS_DEFS = Object.freeze({
+  };
+  var PLAYER_CLASS_DEFS = Object.freeze({
     occultist: {
-        id: 'occultist', label: '비술사', blindLabel: '비술사',
-        portrait: 'assets/portraits/classes/occultist.webp',
-        recommendedTalentHeroId: 'hero9',
-        attackAnimationDurationScale: 1.2,
-        strips: { idle: 'playerClassOccultistIdle',
-            idleDirections: { north: 'playerClassOccultistIdleNorth', east: 'playerClassOccultistIdle', south: 'playerClassOccultistIdleSouth' }, walk: 'playerClassOccultistWalk',
-            walkDirections: { north: 'playerClassOccultistWalkNorth', east: 'playerClassOccultistWalk', south: 'playerClassOccultistWalkSouth', west: 'playerClassOccultistWalkWest' }, attack: 'playerClassOccultistAttack',
-            attacks: ['playerClassOccultistAttack', 'playerClassOccultistAttack2'],
-            attackDirections: {
-                north: ['playerClassOccultistAttackNorth', 'playerClassOccultistAttack2North'],
-                east: ['playerClassOccultistAttack', 'playerClassOccultistAttack2'],
-                south: ['playerClassOccultistAttackSouth', 'playerClassOccultistAttack2South']
-            }, hurt: 'playerClassOccultistIdle', death: 'playerClassOccultistIdle' }
+      id: "occultist",
+      label: "비술사",
+      blindLabel: "비술사",
+      portrait: "assets/portraits/classes/occultist.webp",
+      recommendedTalentHeroId: "hero9",
+      attackAnimationDurationScale: 1.2,
+      strips: {
+        idle: "playerClassOccultistIdle",
+        idleDirections: { north: "playerClassOccultistIdleNorth", east: "playerClassOccultistIdle", south: "playerClassOccultistIdleSouth" },
+        walk: "playerClassOccultistWalk",
+        walkDirections: { north: "playerClassOccultistWalkNorth", east: "playerClassOccultistWalk", south: "playerClassOccultistWalkSouth", west: "playerClassOccultistWalkWest" },
+        attack: "playerClassOccultistAttack",
+        attacks: ["playerClassOccultistAttack", "playerClassOccultistAttack2"],
+        attackDirections: {
+          north: ["playerClassOccultistAttackNorth", "playerClassOccultistAttack2North"],
+          east: ["playerClassOccultistAttack", "playerClassOccultistAttack2"],
+          south: ["playerClassOccultistAttackSouth", "playerClassOccultistAttack2South"]
+        },
+        hurt: "playerClassOccultistIdle",
+        death: "playerClassOccultistIdle"
+      }
     },
     wanderer: {
-        id: 'wanderer', label: '방랑자', blindLabel: '방랑자',
-        portrait: 'assets/portraits/classes/wanderer.webp',
-        recommendedTalentHeroId: 'hero4',
-        strips: { idle: 'playerClassWandererIdle',
-            idleDirections: { north: 'playerClassWandererIdleNorth', east: 'playerClassWandererIdle', south: 'playerClassWandererIdleSouth' }, walk: 'playerClassWandererWalk',
-            walkDirections: { north: 'playerClassWandererWalkNorth', east: 'playerClassWandererWalk', south: 'playerClassWandererWalkSouth', west: 'playerClassWandererWalkWest' }, attack: 'playerClassWandererAttack',
-            attacks: ['playerClassWandererAttack', 'playerClassWandererAttack2'],
-            attackDirections: {
-                north: ['playerClassWandererAttackNorth'],
-                east: ['playerClassWandererAttack', 'playerClassWandererAttack2'],
-                south: ['playerClassWandererAttackSouth', 'playerClassWandererAttack2South']
-            }, hurt: 'playerClassWandererIdle', death: 'playerClassWandererIdle' }
+      id: "wanderer",
+      label: "방랑자",
+      blindLabel: "방랑자",
+      portrait: "assets/portraits/classes/wanderer.webp",
+      recommendedTalentHeroId: "hero4",
+      strips: {
+        idle: "playerClassWandererIdle",
+        idleDirections: { north: "playerClassWandererIdleNorth", east: "playerClassWandererIdle", south: "playerClassWandererIdleSouth" },
+        walk: "playerClassWandererWalk",
+        walkDirections: { north: "playerClassWandererWalkNorth", east: "playerClassWandererWalk", south: "playerClassWandererWalkSouth", west: "playerClassWandererWalkWest" },
+        attack: "playerClassWandererAttack",
+        attacks: ["playerClassWandererAttack", "playerClassWandererAttack2"],
+        attackDirections: {
+          north: ["playerClassWandererAttackNorth"],
+          east: ["playerClassWandererAttack", "playerClassWandererAttack2"],
+          south: ["playerClassWandererAttackSouth", "playerClassWandererAttack2South"]
+        },
+        hurt: "playerClassWandererIdle",
+        death: "playerClassWandererIdle"
+      }
     },
     cleric: {
-        id: 'cleric', label: '성직자', blindLabel: '성직자',
-        portrait: 'assets/portraits/classes/cleric.webp',
-        recommendedTalentHeroId: 'hero5',
-        attackAnimationDurationScale: 1.2,
-        strips: { idle: 'playerClassClericIdle',
-            idleDirections: { north: 'playerClassClericIdleNorth', east: 'playerClassClericIdle', south: 'playerClassClericIdleSouth' }, walk: 'playerClassClericWalk',
-            walkDirections: { north: 'playerClassClericWalkNorth', east: 'playerClassClericWalk', south: 'playerClassClericWalkSouth', west: 'playerClassClericWalkWest' }, attack: 'playerClassClericAttack',
-            attackDirections: { north: ['playerClassClericAttackNorth'], east: ['playerClassClericAttack'], south: ['playerClassClericAttackSouth'] },
-            hurt: 'playerClassClericIdle', death: 'playerClassClericIdle' }
+      id: "cleric",
+      label: "성직자",
+      blindLabel: "성직자",
+      portrait: "assets/portraits/classes/cleric.webp",
+      recommendedTalentHeroId: "hero5",
+      attackAnimationDurationScale: 1.2,
+      strips: {
+        idle: "playerClassClericIdle",
+        idleDirections: { north: "playerClassClericIdleNorth", east: "playerClassClericIdle", south: "playerClassClericIdleSouth" },
+        walk: "playerClassClericWalk",
+        walkDirections: { north: "playerClassClericWalkNorth", east: "playerClassClericWalk", south: "playerClassClericWalkSouth", west: "playerClassClericWalkWest" },
+        attack: "playerClassClericAttack",
+        attackDirections: { north: ["playerClassClericAttackNorth"], east: ["playerClassClericAttack"], south: ["playerClassClericAttackSouth"] },
+        hurt: "playerClassClericIdle",
+        death: "playerClassClericIdle"
+      }
     },
     archer: {
-        id: 'archer', label: '궁수', blindLabel: '궁수',
-        portrait: 'assets/portraits/classes/archer.webp',
-        recommendedTalentHeroId: 'hero1',
-        attackAnimationDurationScale: 1.2,
-        strips: { idle: 'playerClassArcherIdle',
-            idleDirections: { north: 'playerClassArcherIdleNorth', east: 'playerClassArcherIdle', south: 'playerClassArcherIdleSouth' }, walk: 'playerClassArcherWalk',
-            walkDirections: { north: 'playerClassArcherWalkNorth', east: 'playerClassArcherWalk', south: 'playerClassArcherWalkSouth', west: 'playerClassArcherWalkWest' }, attack: 'playerClassArcherAttack',
-            attacks: ['playerClassArcherAttack', 'playerClassArcherAttack2'],
-            attackDirections: {
-                north: ['playerClassArcherAttackNorth', 'playerClassArcherAttack2North'],
-                east: ['playerClassArcherAttack', 'playerClassArcherAttack2'],
-                south: ['playerClassArcherAttackSouth', 'playerClassArcherAttack2South']
-            }, hurt: 'playerClassArcherIdle', death: 'playerClassArcherIdle' }
+      id: "archer",
+      label: "궁수",
+      blindLabel: "궁수",
+      portrait: "assets/portraits/classes/archer.webp",
+      recommendedTalentHeroId: "hero1",
+      attackAnimationDurationScale: 1.2,
+      strips: {
+        idle: "playerClassArcherIdle",
+        idleDirections: { north: "playerClassArcherIdleNorth", east: "playerClassArcherIdle", south: "playerClassArcherIdleSouth" },
+        walk: "playerClassArcherWalk",
+        walkDirections: { north: "playerClassArcherWalkNorth", east: "playerClassArcherWalk", south: "playerClassArcherWalkSouth", west: "playerClassArcherWalkWest" },
+        attack: "playerClassArcherAttack",
+        attacks: ["playerClassArcherAttack", "playerClassArcherAttack2"],
+        attackDirections: {
+          north: ["playerClassArcherAttackNorth", "playerClassArcherAttack2North"],
+          east: ["playerClassArcherAttack", "playerClassArcherAttack2"],
+          south: ["playerClassArcherAttackSouth", "playerClassArcherAttack2South"]
+        },
+        hurt: "playerClassArcherIdle",
+        death: "playerClassArcherIdle"
+      }
     },
     alchemist: {
-        id: 'alchemist', label: '연금술사', blindLabel: '연금술사',
-        portrait: 'assets/portraits/classes/alchemist.webp',
-        recommendedTalentHeroId: 'hero10',
-        attackAnimationDurationScale: 1.15,
-        attackVariantWeights: [49, 49, 2],
-        strips: { idle: 'playerClassAlchemistIdle',
-            idleDirections: { north: 'playerClassAlchemistIdleNorth', east: 'playerClassAlchemistIdle', south: 'playerClassAlchemistIdleSouth' }, walk: 'playerClassAlchemistWalk',
-            walkDirections: { north: 'playerClassAlchemistWalkNorth', east: 'playerClassAlchemistWalk', south: 'playerClassAlchemistWalkSouth', west: 'playerClassAlchemistWalkWest' }, attack: 'playerClassAlchemistAttack',
-            attacks: ['playerClassAlchemistAttack', 'playerClassAlchemistAttack2', 'playerClassAlchemistAttack3'],
-            attackDirections: {
-                north: ['playerClassAlchemistAttackNorth', 'playerClassAlchemistAttack2North'],
-                east: ['playerClassAlchemistAttack', 'playerClassAlchemistAttack2', 'playerClassAlchemistAttack3'],
-                south: ['playerClassAlchemistAttackSouth']
-            }, hurt: 'playerClassAlchemistIdle', death: 'playerClassAlchemistIdle' }
+      id: "alchemist",
+      label: "연금술사",
+      blindLabel: "연금술사",
+      portrait: "assets/portraits/classes/alchemist.webp",
+      recommendedTalentHeroId: "hero10",
+      attackAnimationDurationScale: 1.15,
+      attackVariantWeights: [49, 49, 2],
+      strips: {
+        idle: "playerClassAlchemistIdle",
+        idleDirections: { north: "playerClassAlchemistIdleNorth", east: "playerClassAlchemistIdle", south: "playerClassAlchemistIdleSouth" },
+        walk: "playerClassAlchemistWalk",
+        walkDirections: { north: "playerClassAlchemistWalkNorth", east: "playerClassAlchemistWalk", south: "playerClassAlchemistWalkSouth", west: "playerClassAlchemistWalkWest" },
+        attack: "playerClassAlchemistAttack",
+        attacks: ["playerClassAlchemistAttack", "playerClassAlchemistAttack2", "playerClassAlchemistAttack3"],
+        attackDirections: {
+          north: ["playerClassAlchemistAttackNorth", "playerClassAlchemistAttack2North"],
+          east: ["playerClassAlchemistAttack", "playerClassAlchemistAttack2", "playerClassAlchemistAttack3"],
+          south: ["playerClassAlchemistAttackSouth"]
+        },
+        hurt: "playerClassAlchemistIdle",
+        death: "playerClassAlchemistIdle"
+      }
     },
     warrior: {
-        id: 'warrior', label: '전사', blindLabel: '전사',
-        portrait: 'assets/portraits/classes/warrior.webp',
-        recommendedTalentHeroId: 'hero2',
-        attackAnimationDurationScale: 1.15,
-        // Feet, not the sword tip: each directional sheet uses a different canvas size.
-        motionAnchors: { idle: 78, walk: 80, attacks: [90, 90, 91],
-            north: { walk: 80, attacks: [84, 84, 84] },
-            south: { walk: 80 }, west: { walk: 80 } },
-        strips: { idle: 'playerClassWarriorIdle',
-            idleDirections: { north: 'playerClassWarriorIdleNorth', east: 'playerClassWarriorIdle', south: 'playerClassWarriorIdleSouth' }, walk: 'playerClassWarriorWalk',
-            walkDirections: { north: 'playerClassWarriorWalkNorth', east: 'playerClassWarriorWalk', south: 'playerClassWarriorWalkSouth', west: 'playerClassWarriorWalkWest' }, attack: 'playerClassWarriorAttack',
-            attacks: ['playerClassWarriorAttack', 'playerClassWarriorAttack2', 'playerClassWarriorAttack3'],
-            attackDirections: {
-                north: ['playerClassWarriorAttackNorth', 'playerClassWarriorAttack2North', 'playerClassWarriorAttack3North'],
-                east: ['playerClassWarriorAttack', 'playerClassWarriorAttack2', 'playerClassWarriorAttack3'],
-                south: ['playerClassWarriorAttackSouth', 'playerClassWarriorAttack2South', 'playerClassWarriorAttack3South']
-            }, hurt: 'playerClassWarriorIdle', death: 'playerClassWarriorIdle' }
+      id: "warrior",
+      label: "전사",
+      blindLabel: "전사",
+      portrait: "assets/portraits/classes/warrior.webp",
+      recommendedTalentHeroId: "hero2",
+      attackAnimationDurationScale: 1.15,
+      // Feet, not the sword tip: each directional sheet uses a different canvas size.
+      motionAnchors: {
+        idle: 78,
+        walk: 80,
+        attacks: [90, 90, 91],
+        north: { walk: 80, attacks: [84, 84, 84] },
+        south: { walk: 80 },
+        west: { walk: 80 }
+      },
+      strips: {
+        idle: "playerClassWarriorIdle",
+        idleDirections: { north: "playerClassWarriorIdleNorth", east: "playerClassWarriorIdle", south: "playerClassWarriorIdleSouth" },
+        walk: "playerClassWarriorWalk",
+        walkDirections: { north: "playerClassWarriorWalkNorth", east: "playerClassWarriorWalk", south: "playerClassWarriorWalkSouth", west: "playerClassWarriorWalkWest" },
+        attack: "playerClassWarriorAttack",
+        attacks: ["playerClassWarriorAttack", "playerClassWarriorAttack2", "playerClassWarriorAttack3"],
+        attackDirections: {
+          north: ["playerClassWarriorAttackNorth", "playerClassWarriorAttack2North", "playerClassWarriorAttack3North"],
+          east: ["playerClassWarriorAttack", "playerClassWarriorAttack2", "playerClassWarriorAttack3"],
+          south: ["playerClassWarriorAttackSouth", "playerClassWarriorAttack2South", "playerClassWarriorAttack3South"]
+        },
+        hurt: "playerClassWarriorIdle",
+        death: "playerClassWarriorIdle"
+      }
     }
-});
-
-const LEGACY_HERO_TO_PLAYER_CLASS = Object.freeze({
-    hero1: 'archer', hero2: 'warrior', hero3: 'alchemist', hero4: 'wanderer', hero5: 'cleric',
-    hero6: 'archer', hero7: 'occultist', hero8: 'cleric', hero9: 'occultist', hero10: 'alchemist'
-});
-
-const TALENT_BLOOM_SPECIALIZATION_DEFS = Object.freeze({
-    hero1: Object.freeze([{ stat: 'projectilePctDmg', val: 35 }, { stat: 'aspd', val: 18 }]),
-    hero2: Object.freeze([{ stat: 'physPctDmg', val: 35 }, { stat: 'pctHp', val: 22 }]),
-    hero3: Object.freeze([{ stat: 'elementalPctDmg', val: 35 }, { stat: 'regen', val: 1.8 }]),
-    hero4: Object.freeze([{ stat: 'chaosPctDmg', val: 35 }, { stat: 'move', val: 18 }]),
-    hero5: Object.freeze([{ stat: 'lightPctDmg', val: 35 }, { stat: 'armorPct', val: 22 }]),
-    hero6: Object.freeze([{ stat: 'projectilePctDmg', val: 35 }, { stat: 'critDmg', val: 60 }]),
-    hero7: Object.freeze([{ stat: 'summonPctDmg', val: 45 }, { stat: 'summonEfficiency', val: 25 }]),
-    hero8: Object.freeze([{ stat: 'pctHp', val: 28 }, { stat: 'dr', val: 10 }]),
-    hero9: Object.freeze([{ stat: 'elementalPctDmg', val: 40 }, { stat: 'resPen', val: 14 }]),
-    hero10: Object.freeze([{ stat: 'dotPctDmg', val: 40 }, { stat: 'evasionPct', val: 22 }])
-});
-
-const PASSIVE_TREE = { nodes: {}, edges: [] };
-
-const PASSIVE_TARGET_NODES = 1230;
-
-const PASSIVE_DISCOVERY_RADIUS = 209;
-
-const PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH = 1;
-
-const PASSIVE_DISCOVERY_EDGE_DEPTH = 1;
-
-const PASSIVE_PREVIEW_RADIUS = 142;
-
-const PASSIVE_PREVIEW_EDGE_DEPTH = 1;
-
-const PASSIVE_THEME_POOLS = {
-    center: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'pctHp'],
-    templar: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'energyShield', 'energyShieldPct', 'spellFlatPct', 'aoePctDmg', 'resAll'],
-    witch: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'energyShield', 'energyShieldPct', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'dotPctDmg', 'gemLevel'],
-    shadow: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'evasion', 'evasionPct', 'critDmg', 'chaosPctDmg', 'leechRateCap'],
-    ranger: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'evasion', 'evasionPct', 'projectilePctDmg', 'projectileExtraShots', 'coldPctDmg'],
-    duelist: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'armor', 'armorPct', 'meleePctDmg', 'physPctDmg', 'ds', 'leechInstanceCap'],
-    marauder: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'armor', 'armorPct', 'physPctDmg', 'slamPctDmg', 'pctHp', 'leechTotalCap']
-};
-
-const PASSIVE_SECTOR_TITLES = {
-    templar: '성직자의 회랑',
-    witch: '마녀의 장막',
-    shadow: '암영의 굴절',
-    ranger: '유격수의 길',
-    duelist: '결투가의 원',
-    marauder: '전사의 틈'
-};
-
-const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp', 'energyShieldPct', 'evasionPct', 'armorPct', 'projectilePctDmg', 'meleePctDmg', 'physPctDmg'];
-
-const PASSIVE_STAR_BLESSING = { flatHp: 70, pctDmg: 12, move: 5 };
-
-// 별쐐기를 대신한 초월 공허 패시브의 반경(트리 좌표). 안드로메다: 이 거리 안의 노드는 연결 없이 할당.
-// 소행성대: 이 거리 안에 할당한 패시브 하나마다 피해(js/combat.js). 9단계 균형에서 다시 잰다.
-// 2026-10-28 v23 개편에서 트리 좌표를 1.35배로 넓혀 두 반경도 같은 배율로 늘렸다(320, 300에서).
-const TRANSCENDENT_ANDROMEDA_RADIUS = 432;
-const TRANSCENDENT_ASTEROID_RADIUS = 405;
-
-const PASSIVE_APEX_CONFIGS = [
+  });
+  var LEGACY_HERO_TO_PLAYER_CLASS = Object.freeze({
+    hero1: "archer",
+    hero2: "warrior",
+    hero3: "alchemist",
+    hero4: "wanderer",
+    hero5: "cleric",
+    hero6: "archer",
+    hero7: "occultist",
+    hero8: "cleric",
+    hero9: "occultist",
+    hero10: "alchemist"
+  });
+  var TALENT_BLOOM_SPECIALIZATION_DEFS = Object.freeze({
+    hero1: Object.freeze([{ stat: "projectilePctDmg", val: 35 }, { stat: "aspd", val: 18 }]),
+    hero2: Object.freeze([{ stat: "physPctDmg", val: 35 }, { stat: "pctHp", val: 22 }]),
+    hero3: Object.freeze([{ stat: "elementalPctDmg", val: 35 }, { stat: "regen", val: 1.8 }]),
+    hero4: Object.freeze([{ stat: "chaosPctDmg", val: 35 }, { stat: "move", val: 18 }]),
+    hero5: Object.freeze([{ stat: "lightPctDmg", val: 35 }, { stat: "armorPct", val: 22 }]),
+    hero6: Object.freeze([{ stat: "projectilePctDmg", val: 35 }, { stat: "critDmg", val: 60 }]),
+    hero7: Object.freeze([{ stat: "summonPctDmg", val: 45 }, { stat: "summonEfficiency", val: 25 }]),
+    hero8: Object.freeze([{ stat: "pctHp", val: 28 }, { stat: "dr", val: 10 }]),
+    hero9: Object.freeze([{ stat: "elementalPctDmg", val: 40 }, { stat: "resPen", val: 14 }]),
+    hero10: Object.freeze([{ stat: "dotPctDmg", val: 40 }, { stat: "evasionPct", val: 22 }])
+  });
+  var PASSIVE_TREE = { nodes: {}, edges: [] };
+  var PASSIVE_TARGET_NODES = 1230;
+  var PASSIVE_DISCOVERY_RADIUS = 209;
+  var PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH = 1;
+  var PASSIVE_DISCOVERY_EDGE_DEPTH = 1;
+  var PASSIVE_PREVIEW_RADIUS = 142;
+  var PASSIVE_PREVIEW_EDGE_DEPTH = 1;
+  var PASSIVE_THEME_POOLS = {
+    center: ["aspd", "move", "flatHp", "crit", "pctDmg", "flatDmg", "regen", "pctHp"],
+    templar: ["aspd", "move", "flatHp", "crit", "pctDmg", "flatDmg", "regen", "energyShield", "energyShieldPct", "spellFlatPct", "aoePctDmg", "resAll"],
+    witch: ["aspd", "move", "flatHp", "crit", "pctDmg", "flatDmg", "regen", "energyShield", "energyShieldPct", "coldPctDmg", "lightPctDmg", "chaosPctDmg", "dotPctDmg", "gemLevel"],
+    shadow: ["aspd", "move", "flatHp", "crit", "pctDmg", "flatDmg", "regen", "evasion", "evasionPct", "critDmg", "chaosPctDmg", "leechRateCap"],
+    ranger: ["aspd", "move", "flatHp", "crit", "pctDmg", "flatDmg", "regen", "evasion", "evasionPct", "projectilePctDmg", "projectileExtraShots", "coldPctDmg"],
+    duelist: ["aspd", "move", "flatHp", "crit", "pctDmg", "flatDmg", "regen", "armor", "armorPct", "meleePctDmg", "physPctDmg", "ds", "leechInstanceCap"],
+    marauder: ["aspd", "move", "flatHp", "crit", "pctDmg", "flatDmg", "regen", "armor", "armorPct", "physPctDmg", "slamPctDmg", "pctHp", "leechTotalCap"]
+  };
+  var PASSIVE_SECTOR_TITLES = {
+    templar: "성직자의 회랑",
+    witch: "마녀의 장막",
+    shadow: "암영의 굴절",
+    ranger: "유격수의 길",
+    duelist: "결투가의 원",
+    marauder: "전사의 틈"
+  };
+  var PASSIVE_CORE_GENERIC_STATS = ["flatHp", "flatDmg", "pctDmg", "aspd", "move", "crit", "regen", "pctHp", "energyShieldPct", "evasionPct", "armorPct", "projectilePctDmg", "meleePctDmg", "physPctDmg"];
+  var PASSIVE_STAR_BLESSING = { flatHp: 70, pctDmg: 12, move: 5 };
+  var TRANSCENDENT_ANDROMEDA_RADIUS = 432;
+  var TRANSCENDENT_ASTEROID_RADIUS = 405;
+  var PASSIVE_APEX_CONFIGS = [
     {
-        title: '별끝의 심장',
-        stat: 'flatHp',
-        val: 60,
-        desc: '가장 바깥 성좌의 생명력을 끌어와 몸체를 두텁게 만듭니다.',
-        outerNodes: [
-            { title: '심핵의 외연', stat: 'pctHp', val: 8, kind: 'evolved', desc: '바깥 별무리가 생명력 비율을 키워 줍니다.' },
-            { title: '불멸의 맥', stat: 'regen', val: 1.2, kind: 'evolved', desc: '성좌가 서서히 몸을 회복시킵니다.' },
-            { title: '초신성의 심장', stat: 'flatHp', val: 120, kind: 'transcendent', desc: '각성 후 가장 단단한 별핵입니다.' }
-        ]
+      title: "별끝의 심장",
+      stat: "flatHp",
+      val: 60,
+      desc: "가장 바깥 성좌의 생명력을 끌어와 몸체를 두텁게 만듭니다.",
+      outerNodes: [
+        { title: "심핵의 외연", stat: "pctHp", val: 8, kind: "evolved", desc: "바깥 별무리가 생명력 비율을 키워 줍니다." },
+        { title: "불멸의 맥", stat: "regen", val: 1.2, kind: "evolved", desc: "성좌가 서서히 몸을 회복시킵니다." },
+        { title: "초신성의 심장", stat: "flatHp", val: 120, kind: "transcendent", desc: "각성 후 가장 단단한 별핵입니다." }
+      ]
     },
     {
-        title: '별끝의 불꽃',
-        stat: 'pctDmg',
-        val: 36,
-        desc: '순수한 전투 의지를 불러내 전반적인 화력을 끌어올립니다.',
-        outerNodes: [
-            { title: '쇄도의 편린', stat: 'pctDmg', val: 20, kind: 'evolved', desc: '공격 전체를 더 날카롭게 밀어 올립니다.' },
-            { title: '격돌의 잔광', stat: 'flatDmg', val: 24, kind: 'evolved', desc: '기초 타격 자체를 무겁게 만듭니다.' },
-            { title: '초신성의 불꽃', stat: 'critDmg', val: 35, kind: 'transcendent', desc: '치명타가 폭발적으로 강해집니다.' }
-        ]
+      title: "별끝의 불꽃",
+      stat: "pctDmg",
+      val: 36,
+      desc: "순수한 전투 의지를 불러내 전반적인 화력을 끌어올립니다.",
+      outerNodes: [
+        { title: "쇄도의 편린", stat: "pctDmg", val: 20, kind: "evolved", desc: "공격 전체를 더 날카롭게 밀어 올립니다." },
+        { title: "격돌의 잔광", stat: "flatDmg", val: 24, kind: "evolved", desc: "기초 타격 자체를 무겁게 만듭니다." },
+        { title: "초신성의 불꽃", stat: "critDmg", val: 35, kind: "transcendent", desc: "치명타가 폭발적으로 강해집니다." }
+      ]
     },
     {
-        title: '별끝의 바람',
-        stat: 'aspd',
-        val: 8,
-        desc: '움직임과 공격 템포를 함께 날렵하게 바꿉니다.',
-        outerNodes: [
-            { title: '가속의 갈래', stat: 'aspd', val: 12, kind: 'evolved', desc: '별빛이 손끝의 리듬을 끌어올립니다.' },
-            { title: '유성의 꼬리', stat: 'move', val: 10, kind: 'evolved', desc: '탐험 속도와 전장 이동이 가벼워집니다.' },
-            { title: '초신성의 바람', stat: 'crit', val: 8, kind: 'transcendent', desc: '민첩함이 정밀한 치명타로 이어집니다.' }
-        ]
+      title: "별끝의 바람",
+      stat: "aspd",
+      val: 8,
+      desc: "움직임과 공격 템포를 함께 날렵하게 바꿉니다.",
+      outerNodes: [
+        { title: "가속의 갈래", stat: "aspd", val: 12, kind: "evolved", desc: "별빛이 손끝의 리듬을 끌어올립니다." },
+        { title: "유성의 꼬리", stat: "move", val: 10, kind: "evolved", desc: "탐험 속도와 전장 이동이 가벼워집니다." },
+        { title: "초신성의 바람", stat: "crit", val: 8, kind: "transcendent", desc: "민첩함이 정밀한 치명타로 이어집니다." }
+      ]
     },
     {
-        title: '별끝의 갑주',
-        stat: 'resAll',
-        val: 10,
-        desc: '원소 폭풍을 견디는 외곽 성벽을 형성합니다.',
-        outerNodes: [
-            { title: '수호의 편광', stat: 'resAll', val: 10, kind: 'evolved', desc: '세 가지 원소 저항을 함께 단단하게 다집니다.' },
-            { title: '철성의 궤도', stat: 'dr', val: 8, kind: 'evolved', desc: '별무리가 받는 충격을 흩어 놓습니다.' },
-            { title: '초신성의 갑주', stat: 'resChaos', val: 10, kind: 'transcendent', desc: '깊은 공허까지 버티는 외피가 형성됩니다.' }
-        ]
+      title: "별끝의 갑주",
+      stat: "resAll",
+      val: 10,
+      desc: "원소 폭풍을 견디는 외곽 성벽을 형성합니다.",
+      outerNodes: [
+        { title: "수호의 편광", stat: "resAll", val: 10, kind: "evolved", desc: "세 가지 원소 저항을 함께 단단하게 다집니다." },
+        { title: "철성의 궤도", stat: "dr", val: 8, kind: "evolved", desc: "별무리가 받는 충격을 흩어 놓습니다." },
+        { title: "초신성의 갑주", stat: "resChaos", val: 10, kind: "transcendent", desc: "깊은 공허까지 버티는 외피가 형성됩니다." }
+      ]
     },
     {
-        title: '별끝의 통찰',
-        stat: 'crit',
-        val: 6,
-        desc: '성좌의 흐름을 읽어 전투와 룬 운용을 정교하게 다듬습니다.',
-        outerNodes: [
-            { title: '공명의 실마리', stat: 'suppCap', val: 1, kind: 'evolved', desc: '보조스킬룬 배치 한도를 넓혀 줍니다.' },
-            { title: '천구의 음영', stat: 'gemLevel', val: 1, kind: 'evolved', desc: '장착한 스킬룬의 힘을 더 끌어냅니다.' },
-            { title: '초신성의 통찰', stat: 'critDmg', val: 28, kind: 'transcendent', desc: '정교함이 강력한 치명 일격으로 완성됩니다.' }
-        ]
+      title: "별끝의 통찰",
+      stat: "crit",
+      val: 6,
+      desc: "성좌의 흐름을 읽어 전투와 룬 운용을 정교하게 다듬습니다.",
+      outerNodes: [
+        { title: "공명의 실마리", stat: "suppCap", val: 1, kind: "evolved", desc: "보조스킬룬 배치 한도를 넓혀 줍니다." },
+        { title: "천구의 음영", stat: "gemLevel", val: 1, kind: "evolved", desc: "장착한 스킬룬의 힘을 더 끌어냅니다." },
+        { title: "초신성의 통찰", stat: "critDmg", val: 28, kind: "transcendent", desc: "정교함이 강력한 치명 일격으로 완성됩니다." }
+      ]
     }
-];
-
-const PASSIVE_SPECIAL_NODE_CONFIGS = [
-    { sector: 'marauder', kinds: ['deadend', 'major', 'keystone'], stat: 'physIgnore', val: 6, title: '갑주 분쇄', desc: '물리 타격이 적의 갑주를 무너뜨려 물리 피해 감소를 무시합니다.' },
-    { sector: 'duelist', kinds: ['deadend', 'major', 'keystone'], stat: 'physIgnore', val: 5, title: '전장 파열', desc: '정교한 베기가 적의 물리 보호막을 찢어 냅니다.' },
-    { sector: 'shadow', kinds: ['deadend', 'major', 'keystone'], stat: 'physIgnore', val: 4, title: '암전 절개', desc: '그림자 속 일격이 단단한 방어도 틈을 내어 통과합니다.' },
-    { sector: 'templar', kinds: ['deadend', 'major', 'keystone'], stat: 'resPen', val: 5, title: '성흔 균열', desc: '성광의 균열이 적의 저항을 뚫고 더 깊은 상처를 남깁니다.' },
-    { sector: 'witch', kinds: ['deadend', 'major', 'keystone'], stat: 'resPen', val: 6, title: '원소 침식', desc: '원소 마력이 적의 저항을 마모시켜 음수 영역까지 끌어내립니다.' },
-    { sector: 'ranger', kinds: ['deadend', 'major', 'keystone'], stat: 'resPen', val: 5, title: '관통 탄도', desc: '날카로운 궤적이 원소와 독의 장벽을 그대로 꿰뚫습니다.' },
-    { sector: 'templar', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '재생 봉인', desc: '공격이 적의 생명력 재생을 누적 억제합니다.' },
-    { sector: 'witch', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '부패한 상처', desc: '저주받은 흔적이 적의 재생 능력을 잠급니다.' },
-    { sector: 'shadow', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '그림자 상흔', desc: '은밀한 일격이 상처 재생을 가로막습니다.' },
-    { sector: 'duelist', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '회복 절단', desc: '이중 베기로 적의 회복 루프를 끊어냅니다.' },
-    { sector: 'shadow', kinds: ['major', 'keystone'], stat: 'leechRateCap', val: 1.0, title: '혈류 가속', desc: '흡혈 인스턴스의 초당 회복 속도 한계를 높입니다.' },
-    { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'leechInstanceCap', val: 3, title: '깊은 상처', desc: '한 번의 타격으로 저장할 수 있는 흡혈량 한계를 높입니다.' },
-    { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'leechTotalCap', val: 5, title: '피의 저수지', desc: '동시에 유지할 수 있는 흡혈 총 저장량 한계를 높입니다.' },
-    { sector: 'marauder', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '절맥 강타', desc: '강한 충격이 적의 회복 혈류를 억제합니다.' },
-    { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'minDmgRoll', val: 4, title: '하한 안정', desc: '연속 교전에서도 피해 하한을 안정적으로 유지합니다.' },
-    { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
-];
-
-/** 초월 공허 패시브 수치 가운데 옛 고유 별쐐기 자리 다섯(보조 콘텐츠 통합 9단계, 2026-10-02 측정으로 올림): 공허 소켓과
- * 초월이 돌려주는 피해가 옛 별쐐기(+32~273%)보다 한참 적었다(+4~11%). min~max 사이에서 굴린다. */
-const TRANSCENDENT_VOID_VALUES = Object.freeze({
+  ];
+  var PASSIVE_SPECIAL_NODE_CONFIGS = [
+    { sector: "marauder", kinds: ["deadend", "major", "keystone"], stat: "physIgnore", val: 6, title: "갑주 분쇄", desc: "물리 타격이 적의 갑주를 무너뜨려 물리 피해 감소를 무시합니다." },
+    { sector: "duelist", kinds: ["deadend", "major", "keystone"], stat: "physIgnore", val: 5, title: "전장 파열", desc: "정교한 베기가 적의 물리 보호막을 찢어 냅니다." },
+    { sector: "shadow", kinds: ["deadend", "major", "keystone"], stat: "physIgnore", val: 4, title: "암전 절개", desc: "그림자 속 일격이 단단한 방어도 틈을 내어 통과합니다." },
+    { sector: "templar", kinds: ["deadend", "major", "keystone"], stat: "resPen", val: 5, title: "성흔 균열", desc: "성광의 균열이 적의 저항을 뚫고 더 깊은 상처를 남깁니다." },
+    { sector: "witch", kinds: ["deadend", "major", "keystone"], stat: "resPen", val: 6, title: "원소 침식", desc: "원소 마력이 적의 저항을 마모시켜 음수 영역까지 끌어내립니다." },
+    { sector: "ranger", kinds: ["deadend", "major", "keystone"], stat: "resPen", val: 5, title: "관통 탄도", desc: "날카로운 궤적이 원소와 독의 장벽을 그대로 꿰뚫습니다." },
+    { sector: "templar", kinds: ["deadend"], stat: "regenSuppress", val: 0.5, title: "재생 봉인", desc: "공격이 적의 생명력 재생을 누적 억제합니다." },
+    { sector: "witch", kinds: ["deadend"], stat: "regenSuppress", val: 0.5, title: "부패한 상처", desc: "저주받은 흔적이 적의 재생 능력을 잠급니다." },
+    { sector: "shadow", kinds: ["deadend"], stat: "regenSuppress", val: 0.5, title: "그림자 상흔", desc: "은밀한 일격이 상처 재생을 가로막습니다." },
+    { sector: "duelist", kinds: ["deadend"], stat: "regenSuppress", val: 0.5, title: "회복 절단", desc: "이중 베기로 적의 회복 루프를 끊어냅니다." },
+    { sector: "shadow", kinds: ["major", "keystone"], stat: "leechRateCap", val: 1, title: "혈류 가속", desc: "흡혈 인스턴스의 초당 회복 속도 한계를 높입니다." },
+    { sector: "duelist", kinds: ["major", "keystone"], stat: "leechInstanceCap", val: 3, title: "깊은 상처", desc: "한 번의 타격으로 저장할 수 있는 흡혈량 한계를 높입니다." },
+    { sector: "marauder", kinds: ["major", "keystone"], stat: "leechTotalCap", val: 5, title: "피의 저수지", desc: "동시에 유지할 수 있는 흡혈 총 저장량 한계를 높입니다." },
+    { sector: "marauder", kinds: ["deadend"], stat: "regenSuppress", val: 0.5, title: "절맥 강타", desc: "강한 충격이 적의 회복 혈류를 억제합니다." },
+    { sector: "duelist", kinds: ["major", "keystone"], stat: "minDmgRoll", val: 4, title: "하한 안정", desc: "연속 교전에서도 피해 하한을 안정적으로 유지합니다." },
+    { sector: "marauder", kinds: ["major", "keystone"], stat: "maxDmgRoll", val: 4, title: "상한 폭발", desc: "강타의 최고 피해를 끌어올립니다." }
+  ];
+  var TRANSCENDENT_VOID_VALUES = Object.freeze({
     comet: Object.freeze({ fixed: 24 }),
     asteroidBelt: Object.freeze({ min: 2, max: 3 }),
     zeroGravity: Object.freeze({ min: 20, max: 30 }),
     satellite: Object.freeze({ min: 10, max: 15 }),
     supernova: Object.freeze({ min: 50, max: 80 })
-});
+  });
 
-safeExposeData({ TRANSCENDENT_VOID_VALUES });
-safeExposeData({ GEM_SKY_ENHANCEMENTS, HERO_SELECTION_DEFS, PLAYER_CLASS_DEFS, LEGACY_HERO_TO_PLAYER_CLASS, TALENT_BLOOM_SPECIALIZATION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, TRANSCENDENT_ANDROMEDA_RADIUS, TRANSCENDENT_ASTEROID_RADIUS, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });
+  // modules/data/passives.mjs:classic
+  Object.assign(globalThis, { PASSIVE_EQUIPMENT_RESTRICTIONS, GEM_SKY_ENHANCEMENTS, HERO_SELECTION_DEFS, PLAYER_CLASS_DEFS, LEGACY_HERO_TO_PLAYER_CLASS, TALENT_BLOOM_SPECIALIZATION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, TRANSCENDENT_ANDROMEDA_RADIUS, TRANSCENDENT_ASTEROID_RADIUS, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS, TRANSCENDENT_VOID_VALUES });
+  if (typeof safeExposeData === "function") safeExposeData({ PASSIVE_EQUIPMENT_RESTRICTIONS, GEM_SKY_ENHANCEMENTS, HERO_SELECTION_DEFS, PLAYER_CLASS_DEFS, LEGACY_HERO_TO_PLAYER_CLASS, TALENT_BLOOM_SPECIALIZATION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, TRANSCENDENT_ANDROMEDA_RADIUS, TRANSCENDENT_ASTEROID_RADIUS, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS, TRANSCENDENT_VOID_VALUES });
+})();

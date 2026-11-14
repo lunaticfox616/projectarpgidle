@@ -1,42 +1,45 @@
-// Runtime integrity checks for modularized build (non-fatal).
-(function () {
-  var globalRoot = typeof window !== 'undefined' ? window : globalThis;
-
-  function missingWindow(name) {
-    return typeof globalRoot[name] === 'undefined' || globalRoot[name] === null || !!(globalRoot[name] && globalRoot[name].__placeholderGlobal === true);
-  }
-
-  function hasMapZones() {
-    return (typeof globalRoot.MAP_ZONES !== 'undefined' && globalRoot.MAP_ZONES !== null)
-      || (typeof MAP_ZONES !== 'undefined' && MAP_ZONES !== null);
-  }
-
-  // The atlas stylesheet arrives through css/main.css (and the one hashed CSS file of the web bundle), so only the
-  // script is checked. Linking css/cosmos-atlas.css again loaded it twice and was a 404 in the Pages bundle.
-  function ensureCosmosAtlasAssets() {
-    if (typeof document === 'undefined') return;
-    if (!document.querySelector('script[src*="js/cosmos-atlas.js"]')) {
-      var script = document.createElement('script');
-      script.defer = true;
-      script.src = 'js/cosmos-atlas.js?v=20260603-runtime-coherent2';
-      document.body.appendChild(script);
-    }
-  }
-
-  ensureCosmosAtlasAssets();
-
-  globalRoot.runModuleIntegrityChecks = function runModuleIntegrityChecks() {
-    var required = [
-      'defaultGame', 'SKILL_DB', 'UNIQUE_DB', 'ORB_DB', 'PASSIVE_TREE',
-      'saveGame', 'loadGame', 'getPlayerStats', 'getSkillTargets', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'startMoving', 'startEncounterRun', 'renderBattlefield', 'drawPassiveTree'
-    ];
-    var missingKeys = required.filter(missingWindow);
-    if (!hasMapZones()) missingKeys.push('MAP_ZONES');
-    if (missingKeys.length > 0) {
-      console.warn('[integrity-check] missing globals:', missingKeys.join(', '));
+// GENERATED from modules/smoke-checks*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/application/runtime-integrity.mjs
+  var REQUIRED_NAMES = Object.freeze([
+    "defaultGame",
+    "SKILL_DB",
+    "UNIQUE_DB",
+    "ORB_DB",
+    "PASSIVE_TREE",
+    "saveGame",
+    "loadGame",
+    "getPlayerStats",
+    "getSkillTargets",
+    "updateStaticUI",
+    "updateCombatUI",
+    "coreLoop",
+    "startMoving",
+    "startEncounterRun",
+    "renderBattlefield",
+    "drawPassiveTree",
+    "renderCosmosAtlas"
+  ]);
+  function checkRuntimeIntegrity(contracts2, logger) {
+    const missing = REQUIRED_NAMES.filter((name) => {
+      const value = contracts2[name];
+      return value == null || value.__placeholderGlobal === true;
+    });
+    if (contracts2.MAP_ZONES == null) missing.push("MAP_ZONES");
+    if (missing.length) {
+      logger.warn("[integrity-check] missing globals:", missing.join(", "));
       return false;
     }
-    console.info('[integrity-check] modular globals look ready.');
+    logger.info("[integrity-check] modular globals look ready.");
     return true;
-  };
+  }
+
+  // modules/smoke-checks-classic.mjs
+  var globalRoot = typeof window !== "undefined" ? window : globalThis;
+  var contracts = Object.create(globalRoot, {
+    MAP_ZONES: { get() {
+      return globalRoot.MAP_ZONES ?? (typeof MAP_ZONES === "undefined" ? void 0 : MAP_ZONES);
+    } }
+  });
+  globalRoot.runModuleIntegrityChecks = () => checkRuntimeIntegrity(contracts, console);
 })();

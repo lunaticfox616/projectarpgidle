@@ -3,16 +3,14 @@
 /**
  * Skill tree pictures from Codex's passive art folder (2026-10-28: 62 icons, 5 node frames), packed into the files the game loads:
  *   node scripts/build-passive-tree-art.js <art folder>
- * The art folder holds manifest.json, icons-64/ and frames/ (frames/manifest.json, frames/native/). The cells come from js/passives.js
+ * The art folder holds manifest.json, icons-64/ and frames/ (frames/manifest.json, frames/native/). The cells come from modules/data/passive-node-art.mjs
  * (PASSIVE_ICON_ATLAS_CELL, PASSIVE_NOTABLE_ICON_ATLAS_CELL, PASSIVE_KEYSTONE_ICON_CELL_BY_ID, PASSIVE_TREE_FRAME_SHEET), so the
  * game and this script share one table. Every cell must get exactly one icon and every frame its listed size, or nothing is written.
  * Pixels are copied one to one (no scaling); the game scales them when it paints a node.
  */
 const fs = require('fs');
 const path = require('path');
-const vm = require('vm');
 const { chromium } = require('@playwright/test');
-const { buildGameRuntime } = require('./lib/game-runtime');
 
 const ROOT = path.resolve(__dirname, '..');
 const CELL = 64;
@@ -24,10 +22,11 @@ const OUTPUT = Object.freeze({
 });
 const FRAME_IDS = Object.freeze({ small: 'small', medium: 'normal', notable: 'notable', keystone: 'keystone', void: 'void' });
 
-function gameTables() {
-    const context = buildGameRuntime();
-    return JSON.parse(vm.runInContext(`JSON.stringify({ basic: PASSIVE_ICON_ATLAS_CELL, basicRows: PASSIVE_ICON_ATLAS_ROWS, notable: PASSIVE_NOTABLE_ICON_ATLAS_CELL,
-        keystone: PASSIVE_KEYSTONE_ICON_CELL_BY_ID, keystoneRows: PASSIVE_KEYSTONE_ICON_ATLAS_ROWS, frames: PASSIVE_TREE_FRAME_SHEET })`, context));
+async function gameTables() {
+    const tables = await import('../modules/data/passive-node-art.mjs');
+    return { basic: tables.PASSIVE_ICON_ATLAS_CELL, basicRows: tables.PASSIVE_ICON_ATLAS_ROWS,
+        notable: tables.PASSIVE_NOTABLE_ICON_ATLAS_CELL, keystone: tables.PASSIVE_KEYSTONE_ICON_CELL_BY_ID,
+        keystoneRows: tables.PASSIVE_KEYSTONE_ICON_ATLAS_ROWS, frames: tables.PASSIVE_TREE_FRAME_SHEET };
 }
 
 /** [{ file, x, y }] per atlas; throws when a cell is missing, doubled, or an icon has no cell. */
@@ -84,7 +83,7 @@ async function pack(page, sheet) {
 async function main() {
     const artDir = process.argv[2];
     if (!artDir || !fs.existsSync(path.join(artDir, 'manifest.json'))) throw new Error('사용법: node scripts/build-passive-tree-art.js <Codex 패시브 그림 폴더>');
-    const sheets = plan(artDir, gameTables());
+    const sheets = plan(artDir, await gameTables());
     const browser = await chromium.launch();
     try {
         const page = await browser.newPage();

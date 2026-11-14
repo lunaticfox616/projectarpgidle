@@ -1,1094 +1,1737 @@
-// 메뉴와 탭: 휴대폰 메뉴, 탭 묶음과 순서 끌기, 알림 점, 묶인 창의 탭 (2026-11-10에 js/ui.js에서 그대로 옮겼다. js/ui.js 뒤에 읽는다.)
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/tab-navigation-ui*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function isMobilePrimaryNavigationEnabled() {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    if (document.body.classList.contains('desktop-windowed-ui')) return false;
-    return uiDisplay.matches('(max-width: 1080px)');
-}
+  var __defProp = Object.defineProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
 
-function setMobileTabDrawerOpen(open) {
-    const wasOpen = document.body.classList.contains('mobile-tab-drawer-open');
-    let enabled = isMobilePrimaryNavigationEnabled();
-    let nextOpen = enabled && !!open;
-    let goalDrawer = document.getElementById('ui-goal-drawer');
-    if (nextOpen && goalDrawer && goalDrawer.classList.contains('expanded') && typeof toggleGoalDrawer === 'function') {
-        toggleGoalDrawer(false);
+  // modules/browser/window-methods.mjs
+  var windowCancelAnimationFrame = (...args) => globalThis.cancelAnimationFrame(...args);
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowGetComputedStyle = (...args) => globalThis.getComputedStyle(...args);
+  var windowRequestAnimationFrame = (...args) => globalThis.requestAnimationFrame(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
+
+  // modules/ui/tab-notification-keys.mjs
+  var TAB_HEADER_NOTI_KEYS = ["char", "season", "items", "skills", "codex", "map", "traits", "talent", "journal", "currency", "fossil", "ascend", "loop", "social", "stump", "npcs"];
+  var TAB_UNLOCK_BUTTON_KEYS = ["char", "season", "items", "skills", "codex", "map", "traits", "talent", "stump"];
+
+  // modules/ui/tab-definitions.mjs
+  var MERGED_TAB_GROUPS = Object.freeze({
+    growth: { launcher: "tab-char", title: "스킬트리", tabs: [{ id: "tab-char", label: "스킬트리", icon: 2, count: (game) => game.passivePoints, detail: "스킬트리 노드에 포인트를 씁니다." }, { id: "tab-traits", label: "전직", icon: 16, detail: "전직을 고르고 노드와 키스톤을 할당합니다." }, { id: "tab-talent", gate: "talent", label: "재능", icon: 17, detail: "재능 개화 카드를 고르고 키웁니다." }] },
+    gear: { launcher: "tab-items", title: "장비", tabs: [{ id: "tab-items", label: "장비", icon: 6, detail: "장비와 가방을 봅니다." }, { id: "tab-skills", label: "스킬룬", icon: 9, detail: "룬을 장착하고 키웁니다." }] },
+    loop: { launcher: "tab-season", title: "루프", tabs: [{ id: "tab-season", label: "루프 패시브", icon: 4, count: (game) => game.seasonPoints, detail: "루프 포인트로 영구 노드에 투자합니다." }, { id: "tab-unlocks", label: "해금", icon: 3, count: (game, contentProgression2) => contentProgression2.points(game).balance, detail: "해금 포인트로 다음 콘텐츠를 고릅니다." }] },
+    records: { launcher: "tab-journal", title: "기록", tabs: [{ id: "tab-journal", gate: "journal", label: "이야기 저널", icon: 10, detail: "진행 기록과 안내를 확인합니다." }, { id: "tab-guide", gate: "journal", label: "가이드", icon: 10, detail: "주요 조작을 다시 따라 하거나 용어를 확인합니다." }, { id: "tab-codex", gate: "codex", label: "도감", icon: 13, detail: "발견한 항목과 수집 현황을 확인합니다." }, { id: "tab-records", gate: "journal", label: "기록", icon: 20, detail: "루프 소요 시간과 최고 기록을 확인합니다." }] }
+  });
+
+  // modules/ui/tab-navigation-queries.mjs
+  function isMobilePrimaryNavigationEnabled(runtime) {
+    if (typeof runtime.deps.window === "undefined" || !runtime.deps.window.matchMedia) return false;
+    if (runtime.deps.document.body.classList.contains("desktop-windowed-ui")) return false;
+    return runtime.deps.uiDisplay.matches("(max-width: 1080px)");
+  }
+  function getOrderedTabGroups(runtime) {
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    let order = Array.isArray(runtime.deps.tabLayoutUi.current().tabGroupOrder) ? runtime.deps.tabLayoutUi.current().tabGroupOrder : [];
+    let byKey = {};
+    runtime.state.TAB_GROUPS.forEach((group) => {
+      byKey[group.key] = group;
+    });
+    return order.concat(runtime.state.TAB_GROUPS.map((group) => group.key)).filter((key, idx, arr) => byKey[key] && arr.indexOf(key) === idx).map((key) => byKey[key]);
+  }
+  function getTabGroupForId(runtime, tabId) {
+    let id = String(tabId || "").replace(/^btn-/, "");
+    let g = runtime.state.TAB_GROUPS.find((group) => group.tabs.includes(id));
+    return g ? g.key : "etc";
+  }
+  function isTabGroupingActive(runtime) {
+    if (typeof runtime.deps.window === "undefined" || !runtime.deps.window.matchMedia) return false;
+    if (typeof runtime.deps.document !== "undefined" && runtime.deps.document.body && runtime.deps.document.body.classList.contains("desktop-windowed-ui")) return false;
+    return runtime.deps.uiDisplay.matches("(min-width: 1081px)");
+  }
+  function getActiveTabGroup(runtime) {
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    let cur = runtime.deps.game.settings.activeTabGroup;
+    if (!runtime.state.TAB_GROUPS.some((g) => g.key === cur)) cur = "character";
+    return cur;
+  }
+  function getTabHeaderUiSignature(runtime) {
+    let unlocks = runtime.deps.game.unlocks || {};
+    let mobileBattle = runtime.deps.uiDisplay.matches(`(max-width: ${runtime.deps.MOBILE_BATTLE_BREAKPOINT}px)`) ? "mobileBattle" : "desktopBattle";
+    return [
+      runtime.deps.i18n.language,
+      mobileBattle,
+      isMobilePrimaryNavigationEnabled(runtime) ? "mobilePrimary" : "legacyTabs",
+      runtime.deps.game.settings && runtime.deps.game.settings.tabNotiEnabled === false ? "notiOff" : "notiOn",
+      // 알림 점은 getTabNotiSignature가 따로 본다(점 하나에 머리 전체를 다시 그리지 않게).
+      TAB_HEADER_NOTI_KEYS.map((key) => `${key}:${unlocks[key] ? 1 : 0}`).join("|"),
+      runtime.deps.contentProgression.opening.signature(runtime.deps.game),
+      ...tabLayoutSignature(runtime),
+      isTabGroupingActive(runtime) ? "grp:" + getActiveTabGroup(runtime) : "nogrp"
+    ].join("::");
+  }
+  function tabLayoutSignature(runtime) {
+    return [
+      Array.isArray(runtime.deps.game.settings && runtime.deps.tabLayoutUi.current().tabOrder) ? runtime.deps.tabLayoutUi.current().tabOrder.join(",") : "",
+      JSON.stringify(runtime.deps.game.settings && runtime.deps.tabLayoutUi.current().tabPlacement || {}),
+      Array.isArray(runtime.deps.game.settings && runtime.deps.tabLayoutUi.current().tabGroupOrder) ? runtime.deps.tabLayoutUi.current().tabGroupOrder.join(",") : ""
+    ];
+  }
+  function getTabNotiSignature(runtime) {
+    let noti = runtime.deps.game.noti || {};
+    let filters = runtime.deps.game.settings && runtime.deps.game.settings.notiFilters || {};
+    return TAB_HEADER_NOTI_KEYS.map((key) => noti[key] && filters[key] !== false ? 1 : 0).join("");
+  }
+  function isNotiEnabled(runtime, key) {
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    if (runtime.deps.game.settings.tabNotiEnabled === false) return false;
+    runtime.deps.game.settings.notiFilters = runtime.deps.game.settings.notiFilters || {};
+    return runtime.deps.game.settings.notiFilters[key] !== false;
+  }
+  function isMergedTabAvailable(runtime, tab) {
+    let tabId = typeof tab === "string" ? tab : tab.id;
+    if (runtime.deps.window.playerGuideUi?.allowsTab(tabId) === false) return false;
+    if (runtime.deps.game.contentProgression) return runtime.deps.contentProgression.canOpen(tabId);
+    let gateKey = typeof tab === "string" ? runtime.deps.TAB_UNLOCK_GATES[tabId] : tab.gate || runtime.deps.TAB_UNLOCK_GATES[tabId];
+    if (gateKey === "journal") return (0, runtime.deps.isJournalTabUnlockReady)();
+    return !gateKey || !!(runtime.deps.game.unlocks && runtime.deps.game.unlocks[gateKey]);
+  }
+  function getMergedTabGroup(runtime, tabId) {
+    return Object.entries(MERGED_TAB_GROUPS).find(([, group]) => group.tabs.some((tab) => tab.id === tabId)) || null;
+  }
+  function getSelectedMergedTabId(runtime, groupKey) {
+    let group = MERGED_TAB_GROUPS[groupKey];
+    if (!group) return null;
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    runtime.deps.game.settings.mergedTabSelection = runtime.deps.game.settings.mergedTabSelection || {};
+    let selected = runtime.deps.game.settings.mergedTabSelection[groupKey];
+    if (group.tabs.some((tab) => tab.id === selected && isMergedTabAvailable(runtime, tab))) return selected;
+    let firstAvailable = group.tabs.find(runtime.handlers.isMergedTabAvailable);
+    return firstAvailable ? firstAvailable.id : null;
+  }
+  function getActiveTopLevelTabElement(runtime) {
+    return runtime.deps.document.querySelector(".tab-content.active:not(.merged-subtab-pane)");
+  }
+  function getActiveUiTabId(runtime) {
+    let activeContent = getActiveTopLevelTabElement(runtime);
+    if (!activeContent) return "";
+    return resolveRenderedTabId(runtime, activeContent.id);
+  }
+  function resolveRenderedTabId(runtime, tabId) {
+    let mergedEntry = getMergedTabGroup(runtime, tabId);
+    if (!mergedEntry || mergedEntry[1].launcher !== tabId) return tabId;
+    return getSelectedMergedTabId(runtime, mergedEntry[0]) || tabId;
+  }
+  function getRenderingUiTabIds(runtime) {
+    let ids = /* @__PURE__ */ new Set();
+    let desktop = runtime.deps.document.body.classList.contains("desktop-windowed-ui");
+    let active = getActiveTopLevelTabElement(runtime);
+    let closed = active && desktop && active.classList.contains("ui-window") && (!active.classList.contains("ui-window-open") || active.classList.contains("ui-window-minimized"));
+    if (active && !closed) ids.add(resolveRenderedTabId(runtime, active.id));
+    if (!desktop) return ids;
+    runtime.deps.document.querySelectorAll(".tab-content.ui-window-open:not(.ui-window-minimized)").forEach((el) => {
+      if (el.id) ids.add(resolveRenderedTabId(runtime, el.id));
+    });
+    return ids;
+  }
+  function isTabSurfaceAvailable(runtime, tabId) {
+    if (!tabId || runtime.deps.window.playerGuideUi?.allowsTab(tabId, true) === false) return false;
+    let mergedEntry = getMergedTabGroup(runtime, tabId);
+    if (mergedEntry) {
+      if (mergedEntry[1].launcher === tabId) return !!getSelectedMergedTabId(runtime, mergedEntry[0]);
+      return isMergedTabAvailable(runtime, mergedEntry[1].tabs.find((tab) => tab.id === tabId) || tabId);
     }
-    document.body.classList.toggle('mobile-tab-drawer-open', nextOpen);
-    let more = document.getElementById('btn-mobile-nav-more');
-    if (more) more.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
-    let header = document.getElementById('tab-header-main');
-    if (header && enabled) header.setAttribute('aria-hidden', nextOpen ? 'false' : 'true');
-    syncMobileMenuFocus(header, more, wasOpen, nextOpen);
-}
+    if (!runtime.deps.contentProgression.canOpen(tabId)) return false;
+    let gateKey = runtime.deps.TAB_UNLOCK_GATES[tabId];
+    return !gateKey || !!(runtime.deps.game.unlocks && runtime.deps.game.unlocks[gateKey]);
+  }
 
-function syncMobileMenuFocus(header, more, wasOpen, nextOpen) {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
+    }
+    runtime.listeners = retained;
+  }
+
+  // modules/ui/tab-mobile-menu.mjs
+  function setMobileTabDrawerOpen(runtime, open) {
+    const wasOpen = runtime.deps.document.body.classList.contains("mobile-tab-drawer-open");
+    let enabled = isMobilePrimaryNavigationEnabled(runtime);
+    let nextOpen = enabled && !!open;
+    closeGoalDrawerForMenu(runtime, nextOpen);
+    runtime.deps.document.body.classList.toggle("mobile-tab-drawer-open", nextOpen);
+    let more = runtime.deps.document.getElementById("btn-mobile-nav-more");
+    if (more) more.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+    let header = runtime.deps.document.getElementById("tab-header-main");
+    if (header && enabled) header.setAttribute("aria-hidden", nextOpen ? "false" : "true");
+    syncMobileMenuFocus(runtime, header, more, wasOpen, nextOpen);
+  }
+  function closeGoalDrawerForMenu(runtime, nextOpen) {
+    let goalDrawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (nextOpen && goalDrawer && goalDrawer.classList.contains("expanded") && typeof runtime.deps.toggleGoalDrawer === "function") {
+      (0, runtime.deps.toggleGoalDrawer)(false);
+    }
+  }
+  function syncMobileMenuFocus(runtime, header, more, wasOpen, nextOpen) {
     if (wasOpen === nextOpen || !header) return;
     if (nextOpen) {
-        header.querySelector('.mobile-tab-drawer-head button')?.focus({ preventScroll: true });
-        return;
+      header.querySelector(".mobile-tab-drawer-head button")?.focus({ preventScroll: true });
+      return;
     }
-    if (header.contains(document.activeElement) || document.activeElement.id === 'mobile-tab-drawer-backdrop') {
-        more?.focus({ preventScroll: true });
+    if (header.contains(runtime.deps.document.activeElement) || runtime.deps.document.activeElement.id === "mobile-tab-drawer-backdrop") {
+      more?.focus({ preventScroll: true });
     }
-}
-
-function handleMobileMenuKey(event) {
-    if (!document.body.classList.contains('mobile-tab-drawer-open') || !['Tab', 'Escape'].includes(event.key)) return;
-    if (document.querySelector('dialog:modal')) return;
+  }
+  function handleMobileMenuKey(runtime, event) {
+    if (!runtime.deps.document.body.classList.contains("mobile-tab-drawer-open") || !["Tab", "Escape"].includes(event.key)) return;
+    if (runtime.deps.document.querySelector("dialog:modal")) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (event.key === 'Escape') { setMobileTabDrawerOpen(false); return; }
-    const header = document.getElementById('tab-header-main');
-    const buttons = Array.from(header.querySelectorAll('button:not([disabled]),[data-mobile-tab-button]')).filter(button => button.getClientRects().length > 0);
+    if (event.key === "Escape") {
+      setMobileTabDrawerOpen(runtime, false);
+      return;
+    }
+    const header = runtime.deps.document.getElementById("tab-header-main");
+    const buttons = Array.from(header.querySelectorAll("button:not([disabled]),[data-mobile-tab-button]")).filter((button) => button.getClientRects().length > 0);
     if (!buttons.length) return;
-    const current = buttons.indexOf(document.activeElement);
+    const current = buttons.indexOf(runtime.deps.document.activeElement);
     const next = (current + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
     buttons[next].focus();
-}
-
-function restoreMobileMenuFocus(focused) {
-    if (!document.body.classList.contains('mobile-tab-drawer-open')) return;
-    const header = document.getElementById('tab-header-main');
+  }
+  function restoreMobileMenuFocus(runtime, focused) {
+    if (!runtime.deps.document.body.classList.contains("mobile-tab-drawer-open")) return;
+    const header = runtime.deps.document.getElementById("tab-header-main");
     if (!header.contains(focused)) return;
-    const target = focused.getClientRects().length ? focused : header.querySelector('.mobile-tab-drawer-head button');
+    const target = focused.getClientRects().length ? focused : header.querySelector(".mobile-tab-drawer-head button");
     target?.focus({ preventScroll: true });
-}
-
-function prepareMobileTabButtons(headers) {
-    headers.forEach(header => header.querySelectorAll('.tab-btn:not(button)').forEach(button => {
-        button.setAttribute('data-mobile-tab-button', '');
-        button.setAttribute('role', 'button');
-        button.tabIndex = 0;
+  }
+  function prepareMobileTabButtons(runtime, headers) {
+    headers.forEach((header) => header.querySelectorAll(".tab-btn:not(button)").forEach((button) => {
+      button.setAttribute("data-mobile-tab-button", "");
+      button.setAttribute("role", "button");
+      button.tabIndex = 0;
     }));
-}
-
-function handleMobileTabActivation(event) {
-    if (!document.body.classList.contains('mobile-primary-navigation')) return;
-    if (!event.target.matches('[data-mobile-tab-button]') || !['Enter', ' '].includes(event.key)) return;
+  }
+  function handleMobileTabActivation(runtime, event) {
+    if (!runtime.deps.document.body.classList.contains("mobile-primary-navigation")) return;
+    if (!event.target.matches("[data-mobile-tab-button]") || !["Enter", " "].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
     event.target.click();
-}
-
-function toggleMobileTabDrawer() {
-    setMobileTabDrawerOpen(!document.body.classList.contains('mobile-tab-drawer-open'));
-}
-
-function createMobileTabDrawerHead() {
-    let head = document.createElement('div');
-    head.className = 'mobile-tab-drawer-head';
-    let title = document.createElement('strong');
-    title.textContent = '전체 메뉴';
-    title.dataset.i18n = '';
-    let actions = document.createElement('span');
-    actions.className = 'mobile-tab-drawer-actions';
-    let close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = '닫기';
-    close.dataset.i18n = '';
-    close.setAttribute('aria-label', '전체 메뉴 닫기');
-    close.dataset.i18nAttr = 'aria-label';
-    close.addEventListener('click', () => setMobileTabDrawerOpen(false));
+  }
+  function toggleMobileTabDrawer(runtime) {
+    setMobileTabDrawerOpen(runtime, !runtime.deps.document.body.classList.contains("mobile-tab-drawer-open"));
+  }
+  function createMobileTabDrawerHead(runtime) {
+    let head = runtime.deps.document.createElement("div");
+    head.className = "mobile-tab-drawer-head";
+    let title = runtime.deps.document.createElement("strong");
+    title.textContent = "전체 메뉴";
+    title.dataset.i18n = "";
+    let actions = runtime.deps.document.createElement("span");
+    actions.className = "mobile-tab-drawer-actions";
+    let close = runtime.deps.document.createElement("button");
+    close.type = "button";
+    close.textContent = "닫기";
+    close.dataset.i18n = "";
+    close.setAttribute("aria-label", "전체 메뉴 닫기");
+    close.dataset.i18nAttr = "aria-label";
+    listenView(runtime, close, "click", () => runtime.handlers.setMobileTabDrawerOpen(false));
     actions.append(close);
     head.append(title, actions);
-    i18n.applyStatic(head);
+    runtime.deps.i18n.applyStatic(head);
     return head;
-}
-
-function createMobileMoreButton() {
-    let button = document.createElement('button');
-    button.id = 'btn-mobile-nav-more';
-    button.type = 'button';
-    button.className = 'mobile-nav-more';
-    button.setAttribute('aria-controls', 'tab-header-main');
-    button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', '전체 메뉴 열기');
-    button.dataset.i18nAttr = 'aria-label';
+  }
+  function createMobileMoreButton(runtime) {
+    let button = runtime.deps.document.createElement("button");
+    button.id = "btn-mobile-nav-more";
+    button.type = "button";
+    button.className = "mobile-nav-more";
+    button.setAttribute("aria-controls", "tab-header-main");
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-label", "전체 메뉴 열기");
+    button.dataset.i18nAttr = "aria-label";
     button.innerHTML = '<span data-i18n>전체</span><span class="noti-dot"></span>';
-    i18n.applyStatic(button);
-    button.addEventListener('click', toggleMobileTabDrawer);
+    runtime.deps.i18n.applyStatic(button);
+    listenView(runtime, button, "click", runtime.handlers.toggleMobileTabDrawer);
     return button;
-}
-
-function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
+  }
+  function ensureMobilePrimaryNavigation(runtime, topHeader, bottomHeader) {
     if (!topHeader || !bottomHeader) return null;
-    document.body.classList.add('mobile-primary-navigation', 'has-bottom-tabs');
-    topHeader.setAttribute('role', 'dialog');
-    topHeader.setAttribute('aria-modal', 'true');
-    topHeader.setAttribute('aria-label', _t('전체 메뉴'));
-    topHeader.setAttribute('aria-hidden', String(!document.body.classList.contains('mobile-tab-drawer-open')));
-    bottomHeader.setAttribute('role', 'navigation');
-    bottomHeader.setAttribute('aria-label', _t('빠른 탭 메뉴'));
-    let head = topHeader.querySelector(':scope > .mobile-tab-drawer-head');
-    if (!head) topHeader.prepend(createMobileTabDrawerHead());
-    let more = document.getElementById('btn-mobile-nav-more');
-    if (!more) more = createMobileMoreButton();
+    runtime.deps.document.body.classList.add("mobile-primary-navigation", "has-bottom-tabs");
+    topHeader.setAttribute("role", "dialog");
+    topHeader.setAttribute("aria-modal", "true");
+    topHeader.setAttribute("aria-label", (0, runtime.deps._t)("전체 메뉴"));
+    topHeader.setAttribute("aria-hidden", String(!runtime.deps.document.body.classList.contains("mobile-tab-drawer-open")));
+    bottomHeader.setAttribute("role", "navigation");
+    bottomHeader.setAttribute("aria-label", (0, runtime.deps._t)("빠른 탭 메뉴"));
+    let head = topHeader.querySelector(":scope > .mobile-tab-drawer-head");
+    if (!head) topHeader.prepend(createMobileTabDrawerHead(runtime));
+    let more = runtime.deps.document.getElementById("btn-mobile-nav-more");
+    if (!more) more = createMobileMoreButton(runtime);
     bottomHeader.appendChild(more);
-    let backdrop = document.getElementById('mobile-tab-drawer-backdrop');
+    let backdrop = runtime.deps.document.getElementById("mobile-tab-drawer-backdrop");
     if (!backdrop) {
-        backdrop = document.createElement('button');
-        backdrop.id = 'mobile-tab-drawer-backdrop';
-        backdrop.type = 'button';
-        backdrop.setAttribute('aria-label', _t('전체 메뉴 닫기'));
-        backdrop.addEventListener('click', () => setMobileTabDrawerOpen(false));
-        document.body.appendChild(backdrop);
+      backdrop = runtime.deps.document.createElement("button");
+      backdrop.id = "mobile-tab-drawer-backdrop";
+      backdrop.type = "button";
+      backdrop.setAttribute("aria-label", (0, runtime.deps._t)("전체 메뉴 닫기"));
+      listenView(runtime, backdrop, "click", () => runtime.handlers.setMobileTabDrawerOpen(false));
+      runtime.deps.document.body.appendChild(backdrop);
     }
-    if (!mobileNavigationKeyBound) {
-        mobileNavigationKeyBound = true;
-        document.addEventListener('keydown', handleMobileMenuKey, true);
-        document.addEventListener('keydown', handleMobileTabActivation, true);
+    if (!runtime.state.mobileNavigationKeyBound) {
+      runtime.state.mobileNavigationKeyBound = true;
+      listenView(runtime, runtime.deps.document, "keydown", runtime.handlers.handleMobileMenuKey, true);
+      listenView(runtime, runtime.deps.document, "keydown", runtime.handlers.handleMobileTabActivation, true);
     }
-    prepareMobileTabButtons([topHeader, bottomHeader]);
+    prepareMobileTabButtons(runtime, [topHeader, bottomHeader]);
     return more;
-}
-
-function teardownMobilePrimaryNavigation(topHeader, bottomHeader) {
-    setMobileTabDrawerOpen(false);
-    document.querySelectorAll('[data-mobile-tab-button]').forEach(button => {
-        button.removeAttribute('data-mobile-tab-button');
-        button.removeAttribute('role');
-        button.removeAttribute('tabindex');
+  }
+  function teardownMobilePrimaryNavigation(runtime, topHeader, bottomHeader) {
+    setMobileTabDrawerOpen(runtime, false);
+    runtime.deps.document.querySelectorAll("[data-mobile-tab-button]").forEach((button) => {
+      button.removeAttribute("data-mobile-tab-button");
+      button.removeAttribute("role");
+      button.removeAttribute("tabindex");
+      button.removeAttribute("aria-pressed");
     });
-    document.body.classList.remove('mobile-primary-navigation', 'mobile-tab-drawer-open', 'has-bottom-tabs');
+    runtime.deps.document.body.classList.remove("mobile-primary-navigation", "mobile-tab-drawer-open", "has-bottom-tabs");
     if (topHeader && bottomHeader) {
-        Array.from(bottomHeader.querySelectorAll(':scope > .tab-btn')).forEach(button => topHeader.appendChild(button));
+      Array.from(bottomHeader.querySelectorAll(":scope > .tab-btn")).forEach((button) => topHeader.appendChild(button));
     }
     if (topHeader) {
-        topHeader.removeAttribute('role');
-        topHeader.removeAttribute('aria-modal');
-        topHeader.removeAttribute('aria-label');
-        topHeader.removeAttribute('aria-hidden');
-        topHeader.querySelector(':scope > .mobile-tab-drawer-head')?.remove();
-        topHeader.querySelectorAll('.mobile-menu-group-title').forEach(title => title.remove());
+      topHeader.removeAttribute("role");
+      topHeader.removeAttribute("aria-modal");
+      topHeader.removeAttribute("aria-label");
+      topHeader.removeAttribute("aria-hidden");
+      const head = topHeader.querySelector(":scope > .mobile-tab-drawer-head");
+      if (head) releaseViewTarget(runtime, head.querySelector("button"));
+      head?.remove();
+      topHeader.querySelectorAll(".mobile-menu-group-title").forEach((title) => title.remove());
     }
     if (bottomHeader) {
-        bottomHeader.removeAttribute('role');
-        bottomHeader.removeAttribute('aria-label');
-        bottomHeader.style.removeProperty('display');
+      bottomHeader.removeAttribute("role");
+      bottomHeader.removeAttribute("aria-label");
+      bottomHeader.style.removeProperty("display");
     }
-    document.getElementById('btn-mobile-nav-more')?.remove();
-    document.getElementById('mobile-tab-drawer-backdrop')?.remove();
-    document.body.style.setProperty('--bottom-tab-height', '0px');
-}
-
-function syncMobilePrimaryNavigationState() {
-    let more = document.getElementById('btn-mobile-nav-more');
-    let topHeader = document.getElementById('tab-header-main');
+    for (const id of ["btn-mobile-nav-more", "mobile-tab-drawer-backdrop"]) {
+      const element = runtime.deps.document.getElementById(id);
+      if (element) releaseViewTarget(runtime, element);
+      element?.remove();
+    }
+    runtime.deps.document.body.style.setProperty("--bottom-tab-height", "0px");
+  }
+  function syncMobilePrimaryNavigationState(runtime) {
+    let more = runtime.deps.document.getElementById("btn-mobile-nav-more");
+    let topHeader = runtime.deps.document.getElementById("tab-header-main");
     if (!more || !topHeader) return;
-    document.querySelectorAll('[data-mobile-tab-button]').forEach(button => {
-        button.setAttribute('aria-pressed', String(button.classList.contains('active')));
+    runtime.deps.document.querySelectorAll("[data-mobile-tab-button]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.classList.contains("active")));
     });
-    let activeSecondary = !!topHeader.querySelector(':scope > .tab-btn.active');
-    more.classList.toggle('active', activeSecondary);
-    let hasNotice = Array.from(topHeader.querySelectorAll('.tab-btn .noti-dot'))
-        .some(dot => dot.style.display !== 'none' && getComputedStyle(dot).display !== 'none');
-    let dot = more.querySelector('.noti-dot');
-    if (dot) dot.style.display = hasNotice ? 'block' : 'none';
-}
-
-function renderTabOrderSettings() {
-    tabLayoutUi.render();
-}
-
-function renderMobileMenuGroups(header) {
-    for (const group of getOrderedTabGroups()) {
-        const buttons = group.tabs.map(id => document.getElementById('btn-' + id))
-            .filter(button => button && button.parentElement === header && button.style.display !== 'none'
-                && !button.hidden && button.dataset.mergedTabMember !== '1');
-        let title = header.querySelector('[data-mobile-group="' + group.key + '"]');
-        if (!title) {
-            title = document.createElement('div');
-            title.className = 'mobile-menu-group-title';
-            title.dataset.mobileGroup = group.key;
-        }
-        title.textContent = _t(group.label);
-        title.hidden = buttons.length === 0;
-        header.appendChild(title);
-        buttons.forEach(button => header.appendChild(button));
+    let activeSecondary = !!topHeader.querySelector(":scope > .tab-btn.active");
+    more.classList.toggle("active", activeSecondary);
+    let hasNotice = Array.from(topHeader.querySelectorAll(".tab-btn .noti-dot")).some((dot2) => dot2.style.display !== "none" && (0, runtime.deps.getComputedStyle)(dot2).display !== "none");
+    let dot = more.querySelector(".noti-dot");
+    if (dot) dot.style.display = hasNotice ? "block" : "none";
+  }
+  function renderTabOrderSettings(runtime) {
+    runtime.deps.tabLayoutUi.render();
+  }
+  function renderMobileMenuGroups(runtime, header) {
+    for (const group of getOrderedTabGroups(runtime)) {
+      const buttons = group.tabs.map((id) => runtime.deps.document.getElementById("btn-" + id)).filter((button) => button && button.parentElement === header && button.style.display !== "none" && !button.hidden && button.dataset.mergedTabMember !== "1");
+      let title = header.querySelector('[data-mobile-group="' + group.key + '"]');
+      if (!title) {
+        title = runtime.deps.document.createElement("div");
+        title.className = "mobile-menu-group-title";
+        title.dataset.mobileGroup = group.key;
+      }
+      title.textContent = (0, runtime.deps._t)(group.label);
+      title.hidden = buttons.length === 0;
+      header.appendChild(title);
+      buttons.forEach((button) => header.appendChild(button));
     }
-}
+  }
 
-function getOrderedTabGroups() {
-    game.settings = game.settings || {};
-    let order = Array.isArray(tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder : [];
-    let byKey = {};
-    TAB_GROUPS.forEach(group => { byKey[group.key] = group; });
-    return order.concat(TAB_GROUPS.map(group => group.key))
-        .filter((key, idx, arr) => byKey[key] && arr.indexOf(key) === idx)
-        .map(key => byKey[key]);
-}
-
-function moveTabGroupBefore(sourceKey, targetKey) {
-    if (!sourceKey || !targetKey || sourceKey === targetKey) return;
-    let groups = getOrderedTabGroups();
-    let sourceIdx = groups.findIndex(group => group.key === sourceKey);
-    let targetIdx = groups.findIndex(group => group.key === targetKey);
-    if (sourceIdx < 0 || targetIdx < 0) return;
-    let moved = groups.slice();
-    let source = moved.splice(sourceIdx, 1)[0];
-    let insertIdx = moved.findIndex(group => group.key === targetKey);
-    moved.splice(Math.max(0, insertIdx), 0, source);
-    game.settings = game.settings || {};
-    tabLayoutUi.current().tabGroupOrder = moved.map(group => group.key);
-    lastTabHeaderUiSignature = null;
-    renderTabCategoryBar();
-    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
-    renderTabOrderSettings();
-    queueImportantSave(300);
-}
-
-function onTabGroupDragStart(event, groupKey) {
-    if (!event || !event.dataTransfer) return;
-    event.dataTransfer.setData('text/plain', groupKey);
-    event.dataTransfer.effectAllowed = 'move';
-}
-
-function onTabGroupDrop(event, targetKey) {
-    if (!event || !event.dataTransfer) return;
-    event.preventDefault();
-    moveTabGroupBefore(event.dataTransfer.getData('text/plain'), targetKey);
-}
-
-function getTabGroupForId(tabId) {
-    // 버튼 id('btn-tab-x')와 탭 id('tab-x')를 모두 허용한다.
-    let id = String(tabId || '').replace(/^btn-/, '');
-    let g = TAB_GROUPS.find(group => group.tabs.includes(id));
-    return g ? g.key : 'etc';
-}
-
-function isTabGroupingActive() {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    // 데스크톱 창형 UI에서는 좌측 레일이 모든 창 실행 버튼을 보여야 하므로
-    // 2단 그룹핑(활성 그룹 외 버튼 숨김)을 적용하지 않는다.
-    if (typeof document !== 'undefined' && document.body && document.body.classList.contains('desktop-windowed-ui')) return false;
-    return uiDisplay.matches('(min-width: 1081px)');
-}
-
-function getActiveTabGroup() {
-    game.settings = game.settings || {};
-    let cur = game.settings.activeTabGroup;
-    if (!TAB_GROUPS.some(g => g.key === cur)) cur = 'character';
-    return cur;
-}
-
-function selectTabGroup(groupKey) {
-    if (!TAB_GROUPS.some(g => g.key === groupKey)) return;
-    game.settings = game.settings || {};
-    game.settings.activeTabGroup = groupKey;
-    // 현재 활성 탭이 이 그룹에 없으면 그룹의 첫 번째 사용 가능한 탭으로 이동.
-    let activeInGroup = lastActiveTabId && getTabGroupForId(lastActiveTabId) === groupKey;
-    applyTabGroupFilter();
-    if (!activeInGroup) {
-        let group = getOrderedTabGroups().find(g => g.key === groupKey);
-        let firstVisible = group.tabs.find(id => {
-            let btn = document.getElementById('btn-' + id);
-            return btn && btn.style.display !== 'none' && !btn.dataset.groupHidden;
-        });
-        if (firstVisible) switchTab(firstVisible);
-    }
-    renderTabCategoryBar();
-}
-
-// 해금 판정 + 그룹 필터를 한 번에 적용한다(권위 지점은 updateTabUnlockButtons).
-function applyTabGroupFilter() {
-    updateTabUnlockButtons();
-}
-
-function ensureTabCategoryBarPlacement(bar) {
-    let header = document.querySelector('.tab-header');
-    if (bar && header && header.parentElement && bar.nextElementSibling !== header) {
-        header.parentElement.insertBefore(bar, header);
-    }
-}
-
-function renderTabCategoryBar() {
-    let bar = document.getElementById('tab-category-bar');
-    if (!bar) return;
-    ensureTabCategoryBarPlacement(bar);
-    if (!isTabGroupingActive()) {
-        bar.style.display = 'none';
-        syncMapCompleteActionQuickControl();
-        return;
-    }
-    bar.style.display = 'inline-flex';
-    let active = getActiveTabGroup();
-    let unlocks = game.unlocks || {};
-    bar.innerHTML = getOrderedTabGroups().map(group => {
-        // 그룹 내 알림 점 집계. 잠긴(미해금) 탭은 열어서 알림을 끌 방법이 없으므로,
-        // 저장 데이터에 남은 stale 알림이 그룹 점을 영구히 켜지 않도록 집계에서 제외한다.
-        let hasNoti = group.key !== active && group.tabs.some(id => {
-            let key = id.replace('tab-', '');
-            let gate = (typeof TAB_UNLOCK_GATES !== 'undefined') ? TAB_UNLOCK_GATES[id] : null;
-            if (gate && !(game.unlocks && game.unlocks[gate])) return false;
-            return game.noti && game.noti[key] && isNotiEnabled(key);
-        });
-        return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" draggable="true" ondragstart="onTabGroupDragStart(event,'${group.key}')" ondragover="event.preventDefault()" ondrop="onTabGroupDrop(event,'${group.key}')" onclick="selectTabGroup('${group.key}')">${_t(group.label)}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
-    }).join('');
-    syncMapCompleteActionQuickControl();
-}
-
-function getTabButtonFromTarget(target) {
-    return target && target.closest ? target.closest('.tab-header .tab-btn') : null;
-}
-
-function getTabHeaders() {
-    return Array.from(document.querySelectorAll('.tab-header'));
-}
-
-function getTabHeaderOrderSnapshot(headers) {
-    return (headers || getTabHeaders()).flatMap(header => Array.from(header.querySelectorAll('.tab-btn')).map(el => el.id).filter(Boolean));
-}
-
-function getTabHeaderUnderPoint(clientX, clientY) {
-    let hit = document.elementFromPoint ? document.elementFromPoint(clientX, clientY) : null;
-    let hitHeader = hit && hit.closest ? hit.closest('.tab-header') : null;
-    if (hitHeader) return hitHeader;
-    return getTabHeaders().find(header => {
-        let rect = header.getBoundingClientRect();
-        return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
-    }) || null;
-}
-
-function updateTabDragGhost(state, clientX, clientY) {
-    if (!state || !state.ghost) return;
-    let offsetX = Number.isFinite(state.grabOffsetX) ? state.grabOffsetX : 0;
-    let offsetY = Number.isFinite(state.grabOffsetY) ? state.grabOffsetY : 0;
-    state.ghost.style.left = `${(clientX - offsetX) / uiDisplay.factor}px`;
-    state.ghost.style.top = `${(clientY - offsetY) / uiDisplay.factor}px`;
-}
-
-function beginTabHeaderDrag(state) {
-    if (!state || state.dragging) return;
-    state.dragging = true;
-    let rect = state.button.getBoundingClientRect();
-    state.grabOffsetX = clampNumber(state.lastX - rect.left, 0, rect.width);
-    state.grabOffsetY = clampNumber(state.lastY - rect.top, 0, rect.height);
-    state.ghost = document.createElement('div');
-    state.ghost.className = 'tab-drag-ghost';
-    state.ghost.setAttribute('aria-hidden', 'true');
-    state.ghost.innerHTML = state.button.innerHTML;
-    state.ghost.style.width = `${Math.max(1, rect.width / uiDisplay.factor)}px`;
-    state.ghost.style.height = `${Math.max(1, rect.height / uiDisplay.factor)}px`;
-    document.body.appendChild(state.ghost);
-    updateTabDragGhost(state, state.lastX, state.lastY);
-    state.button.classList.add('dragging');
-    document.body.classList.add('tab-drag-active');
-}
-
-/** Whether menu buttons drag only inside the phone's bottom dock (they never move into the full menu drawer). */
-function isMobileDockDrag() {
-    return document.body.classList.contains('mobile-primary-navigation');
-}
-
-function moveDraggedTabToPoint(state, clientX, clientY) {
-    let header = isMobileDockDrag() ? state.header : getTabHeaderUnderPoint(clientX, clientY);
-    header = header || state.button.parentElement;
-    if (!header) return;
-    if (state.button.parentElement !== header) header.appendChild(state.button);
-    let siblings = Array.from(header.querySelectorAll('.tab-btn')).filter(el => el !== state.button);
-    let before = siblings.find(el => {
-        let rect = el.getBoundingClientRect();
-        return clientX < rect.left + rect.width / 2;
+  // modules/ui/view-frames.mjs
+  function scheduleViewFrame(runtime, callback) {
+    if (!runtime.active) return;
+    const owner = runtime.deps.game;
+    const handle = runtime.deps.requestAnimationFrame(() => {
+      runtime.frames.delete(handle);
+      if (runtime.active && runtime.deps.game === owner) callback();
     });
-    // 하단 메뉴의 전체 단추는 늘 맨 끝이다
-    header.insertBefore(state.button, before || header.querySelector(':scope > #btn-mobile-nav-more'));
-}
+    runtime.frames.add(handle);
+  }
+  function cancelViewFrames(runtime) {
+    for (const handle of runtime.frames) runtime.deps.cancelAnimationFrame(handle);
+    runtime.frames.clear();
+  }
 
-/** The phone dock's order after a drag: its buttons first in their new order (each kept on the dock), the rest as they were. */
-function commitMobileDockOrder() {
-    const layout = tabLayoutUi.current();
-    const dock = Array.from(document.querySelectorAll('#tab-header-bottom > .tab-btn')).map(button => button.id);
-    dock.forEach(id => { layout.tabPlacement[id] = 'top'; });
-    layout.tabOrder = [...dock, ...layout.tabOrder.filter(id => !dock.includes(id))];
-}
-
-function commitTabHeaderDragOrder() {
-    if (isMobileDockDrag()) { commitMobileDockOrder(); return; }
-    let headers = getTabHeaders();
-    game.settings = game.settings || {};
-    tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
-    headers.forEach(header => {
-        let placement = header.id === 'tab-header-bottom' ? 'bottom' : 'top';
-        Array.from(header.querySelectorAll('.tab-btn')).forEach(btn => { tabLayoutUi.current().tabPlacement[btn.id] = placement; });
+  // modules/ui/tab-merged-panels.mjs
+  function renderVisibleManagementPanels(runtime, tabIds) {
+    if (tabIds.has("tab-talent")) runtime.deps.talentUi.render();
+    if (tabIds.has("tab-stump")) runtime.deps.stumpBoxUi.renderStumpBoxTab();
+    if (tabIds.has("tab-trade")) (0, runtime.deps.renderMarketUI)();
+    else (0, runtime.deps.refreshBlackMarket)(false);
+  }
+  function closeRelockedTabSurfaces(runtime) {
+    Array.from(runtime.deps.document.querySelectorAll(".tab-content:not(.merged-subtab-pane)")).forEach((el) => {
+      if (!el.id || isTabSurfaceAvailable(runtime, el.id)) return;
+      let wasActive = el.classList.contains("active");
+      let windowOpen = el.classList.contains("ui-window-open") || el.classList.contains("ui-window-minimized");
+      if (!wasActive && !windowOpen) return;
+      el.classList.remove("active");
+      let btn = runtime.deps.document.getElementById("btn-" + el.id);
+      if (btn) btn.classList.remove("active");
+      closeRelockedWindow(runtime, el.id, windowOpen, wasActive);
     });
-    tabLayoutUi.current().tabOrder = getTabHeaderOrderSnapshot(headers);
-}
-
-function activateTabButtonFromDrag(button) {
-    // 하단 메뉴에서는 자리만 바꾼다(끌어 놓은 탭이 열리지 않는다)
-    if (!button || !button.id || typeof switchTab !== 'function' || isMobileDockDrag()) return;
-    if (!button.id.startsWith('btn-tab-')) return;
-    switchTab(button.id.replace(/^btn-/, ''));
-}
-
-function clearTabHeaderDragState(saveOrder) {
-    let state = tabHeaderDragState;
-    tabHeaderDragState = null;
-    if (!state) return;
-    clearTimeout(state.longPressTimer);
-    if (state.ghost) state.ghost.remove();
-    state.button.classList.remove('dragging');
-    document.body.classList.remove('tab-drag-active');
-    if (saveOrder && state.dragging) {
-        commitTabHeaderDragOrder();
-        tabHeaderSuppressClickUntil = Date.now() + 450;
-        applyTabHeaderOrder(true);
-        queueImportantSave(300);
-        activateTabButtonFromDrag(state.button);
-    }
-}
-
-/** How long a press waits before the button drags (ms), or 0 where menu buttons do not drag: the PC window rail, and on phones
- * everything but the bottom dock. */
-function tabDragPressMs(button) {
-    const classes = document.body.classList;
-    if (classes.contains('desktop-windowed-ui')) return 0;
-    if (!classes.contains('mobile-primary-navigation')) return TAB_DRAG_LONG_PRESS_MS;
-    return button.closest('#tab-header-bottom') ? MOBILE_DOCK_LONG_PRESS_MS : 0;
-}
-
-function onTabHeaderPointerDown(event) {
-    if (tabHeaderDragState) return;
-    let button = getTabButtonFromTarget(event.target);
-    let pressMs = button ? tabDragPressMs(button) : 0;
-    if (!pressMs || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    let header = button.closest ? button.closest('.tab-header') : null;
-    tabHeaderDragState = {
-        button,
-        header,
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        startX: event.clientX,
-        startY: event.clientY,
-        lastX: event.clientX,
-        lastY: event.clientY,
-        startScrollLeft: header ? header.scrollLeft : 0,
-        grabOffsetX: 0,
-        grabOffsetY: 0,
-        ghost: null,
-        dragging: false,
-        scrolling: false,
-        longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), pressMs)
-    };
-    if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
-}
-
-function onTabHeaderPointerMove(event) {
-    let state = tabHeaderDragState;
-    if (!state || event.pointerId !== state.pointerId) return;
-    state.lastX = event.clientX;
-    state.lastY = event.clientY;
-    let dx = Math.abs(event.clientX - state.startX);
-    let dy = Math.abs(event.clientY - state.startY);
-    // 가로 스와이프로 탭 헤더를 좌우 스크롤한다(모바일). touch-action:pan-y 때문에
-    // 브라우저가 가로 스크롤을 처리하지 않으므로 scrollLeft을 직접 갱신한다.
-    if (state.scrolling) {
-        if (state.header) state.header.scrollLeft = state.startScrollLeft - (event.clientX - state.startX);
-        event.preventDefault();
-        return;
-    }
-    // While waiting for the long-press, a clear vertical swipe means the user is
-    // scrolling the page (touch-action: pan-y) — let it through by cancelling the drag.
-    if (!state.dragging && state.pointerType === 'touch' && dy > dx && dy > TAB_DRAG_CANCEL_PX) {
-        clearTabHeaderDragState(false);
-        return;
-    }
-    // 아직 재정렬 드래그 전에 가로 이동이 우세하면 스크롤 모드로 전환한다.
-    if (!state.dragging && state.pointerType === 'touch' && dx > dy && dx > TAB_DRAG_CANCEL_PX
-        && state.header && state.header.scrollWidth > state.header.clientWidth + 1) {
-        state.scrolling = true;
-        clearTimeout(state.longPressTimer);
-        state.header.scrollLeft = state.startScrollLeft - (event.clientX - state.startX);
-        event.preventDefault();
-        return;
-    }
-    let cancelPx = state.pointerType === 'touch' ? 16 : TAB_DRAG_CANCEL_PX;
-    if (!state.dragging && (dx + dy) > cancelPx) {
-        clearTabHeaderDragState(false);
-        return;
-    }
-    if (!state.dragging) return;
-    event.preventDefault();
-    updateTabDragGhost(state, event.clientX, event.clientY);
-    moveDraggedTabToPoint(state, event.clientX, event.clientY);
-}
-
-function onTabHeaderPointerEnd(event) {
-    let state = tabHeaderDragState;
-    if (!state || event.pointerId !== state.pointerId) return;
-    if (state.scrolling) {
-        // 스와이프 스크롤 직후의 탭 전환(클릭)을 막는다.
-        if (Math.abs(state.lastX - state.startX) > 6) tabHeaderSuppressClickUntil = Date.now() + 350;
-        clearTabHeaderDragState(false);
-        return;
-    }
-    clearTabHeaderDragState(true);
-}
-
-function onTabHeaderClickCapture(event) {
-    if (Date.now() <= tabHeaderSuppressClickUntil && getTabButtonFromTarget(event.target)) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-    }
-    returnToBattleFromOpenTab(event);
-}
-
-/** 휴대폰 하단 메뉴에서 이미 열린 탭을 다시 누르면(두 번 누르면) 전투 화면으로 돌아간다(2026-11-07 사용자). */
-function returnToBattleFromOpenTab(event) {
-    const button = event.target.closest && event.target.closest('#tab-header-bottom > .tab-btn.active');
-    if (!button || button.id === 'btn-tab-battle' || !document.body.classList.contains('mobile-primary-navigation')) return;
-    event.preventDefault();
-    event.stopPropagation();
-    switchTab('tab-battle');
-}
-
-function installTabHeaderDragReorder() {
-    if (window.__tabHeaderDragReorderBound) return;
-    window.__tabHeaderDragReorderBound = true;
-    document.addEventListener('pointerdown', onTabHeaderPointerDown, true);
-    document.addEventListener('pointermove', onTabHeaderPointerMove, { capture: true, passive: false });
-    document.addEventListener('pointerup', onTabHeaderPointerEnd, true);
-    document.addEventListener('pointercancel', event => clearTabHeaderDragState(false), true);
-    document.addEventListener('click', onTabHeaderClickCapture, true);
-}
-
-function applyTabHeaderOrder(shouldRenderSettings){
-    const focused = document.activeElement;
-    game.settings=game.settings||{};
-    tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
-    let headers = Array.from(document.querySelectorAll('.tab-header'));
-    let topHeader = headers.find(header => header.id !== 'tab-header-bottom');
-    let bottomHeader = document.getElementById('tab-header-bottom');
-    // 데스크톱 창형 레일의 버튼 배치(고정 탭 + 더보기 메뉴)는 창 관리자가 소유한다.
-    // 여기서 버튼을 다시 헤더 루트로 옮기면 더보기 메뉴가 비워져 레일이 깨진다.
-    if (document.body.classList.contains('desktop-windowed-ui')) {
-        teardownMobilePrimaryNavigation(topHeader, bottomHeader);
-        if (typeof syncDesktopRailGroups === 'function') syncDesktopRailGroups();
-        if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
-        return;
-    }
-    if(!topHeader) return;
-    let mobilePrimary = isMobilePrimaryNavigationEnabled();
-    let primaryIds = new Set(tabLayoutUi.mobilePrimaryIds());
-    if (!mobilePrimary) teardownMobilePrimaryNavigation(topHeader, bottomHeader);
-    else ensureMobilePrimaryNavigation(topHeader, bottomHeader);
-    installTabHeaderDragReorder();
-    let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
-    let ids=allTabButtons.map(el=>el.id);
-    let order = Array.from(new Set(['btn-tab-battle', ...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder]));
-    let map={}; allTabButtons.forEach(el=>map[el.id]=el);
-    order.forEach(id=>{
-        if(!map[id]) return;
-        let target = mobilePrimary
-            ? (primaryIds.has(id) ? bottomHeader : topHeader)
-            : ((game.settings.twoRowTabs && tabLayoutUi.current().tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader);
-        target.appendChild(map[id]);
-    });
-    ids.forEach(id=>{
-        if(order.includes(id) || !map[id]) return;
-        let target = mobilePrimary && primaryIds.has(id) ? bottomHeader : topHeader;
-        target.appendChild(map[id]);
-    });
-    if (mobilePrimary) primaryIds.forEach(id => { if (map[id]) bottomHeader.appendChild(map[id]); });
-    if (bottomHeader) {
-        let more = document.getElementById('btn-mobile-nav-more');
-        if (more) bottomHeader.appendChild(more);
-        let hasBottomTabs = bottomHeader.children.length > 0;
-        bottomHeader.style.display = hasBottomTabs ? 'flex' : 'none';
-        document.body.classList.toggle('has-bottom-tabs', hasBottomTabs);
-        updateBottomTabSpacing();
-    }
-    if (mobilePrimary) renderMobileMenuGroups(topHeader);
-    syncMobilePrimaryNavigationState();
-    restoreMobileMenuFocus(focused);
-    if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
-}
-
-// Reserve scroll space at the bottom of the page so the fixed bottom tab bar
-// does not overlap (and block taps on) the last buttons in the content.
-function updateBottomTabSpacing(){
-    let bottomHeader = document.getElementById('tab-header-bottom');
-    let visible = bottomHeader && document.body.classList.contains('has-bottom-tabs') &&
-        window.getComputedStyle(bottomHeader).display !== 'none';
-    let height = visible ? Math.ceil(bottomHeader.getBoundingClientRect().height) : 0;
-    // body의 변수는 문서 전체가 물려받는다: 같은 값을 다시 쓰면 모든 요소의 스타일을 다시 계산했다(2026-10-07 프레임 드랍).
-    if (document.body.style.getPropertyValue('--bottom-tab-height') !== height + 'px') document.body.style.setProperty('--bottom-tab-height', height + 'px');
-}
-
-function scheduleTabHeaderViewportSync() {
-    clearTabHeaderDragState(false);
-    requestAnimationFrame(() => {
-        updateBottomTabSpacing();
-        lastTabHeaderUiSignature = null;
-        refreshTabHeaderUiIfNeeded();
-    });
-}
-
-function getTabHeaderUiSignature() {
-    let unlocks = game.unlocks || {};
-    let mobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`) ? 'mobileBattle' : 'desktopBattle';
-    return [
-        i18n.language,
-        mobileBattle,
-        isMobilePrimaryNavigationEnabled() ? 'mobilePrimary' : 'legacyTabs',
-        (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
-        // 알림 점은 getTabNotiSignature가 따로 본다(점 하나에 머리 전체를 다시 그리지 않게).
-        TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}`).join('|'),
-        contentProgression.opening.signature(game),
-        Array.isArray(game.settings && tabLayoutUi.current().tabOrder) ? tabLayoutUi.current().tabOrder.join(',') : '',
-        JSON.stringify((game.settings && tabLayoutUi.current().tabPlacement) || {}),
-        Array.isArray(game.settings && tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder.join(',') : '',
-        isTabGroupingActive() ? ('grp:' + getActiveTabGroup()) : 'nogrp'
-    ].join('::');
-}
-
-function updateTabNotificationDots() {
-    // 데스크톱 창형 모드에서 커뮤니티는 탭 전환 없이 도킹 패널로 열리므로,
-    // 패널이 열려 있는 동안은 채팅을 읽고 있는 것으로 간주해 알림을 꺼 둔다.
-    if (typeof isSocialTabActive === 'function' && isSocialTabActive()) game.noti.social = false;
-    TAB_HEADER_NOTI_KEYS.forEach(key => {
-        // 이미 보고 있는 탭에서 계속 발생하는 이벤트(전투 중 드랍 등)가 알림을 되살리지 않도록,
-        // 활성 탭에 해당하는 알림은 매 갱신마다 계속 꺼둔다.
-        if (lastActiveTabId === 'tab-' + key) game.noti[key] = false;
-        let el = document.getElementById('noti-' + key);
-        if (el) el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none';
-    });
-    // 도킹 토글 버튼(💬)의 미읽음 점은 커뮤니티 탭 알림과 동일한 상태를 미러링한다.
-    let dockDot = document.getElementById('noti-social-dock');
-    if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
-    syncMergedTabLauncherState();
-    // 첫 루프의 시작 무기가 장착을 기다리면 장비 단추에 표시를 단다
-    let itemsTabButton = document.getElementById('btn-tab-items');
-    if (itemsTabButton) itemsTabButton.classList.toggle('starter-equip-tutorial-pending', !!getStarterWeaponTutorialTarget());
-}
-
-/** 해금 단추 표시. 휴대폰 하단 메뉴의 지도는 열리기 전에도 흐린 잠금 칸으로 자리를 지킨다 — 액트 1을 마쳐 지도가 열리는 순간
- * 메뉴 칸이 넷에서 다섯으로 늘며 스킬룬 칸이 밀리던 것을 막는다(누르면 notifyLockedTab이 여는 조건을 알린다). */
-function syncTabUnlockButton(key) {
-    let button = document.getElementById('btn-tab-' + key);
-    let reserved = key === 'map' && !game.unlocks.map && isMobilePrimaryNavigationEnabled()
-        && !contentProgression.opening.applies(game) && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
-    button.classList.toggle('nav-locked', reserved);
-    if (reserved) button.setAttribute('aria-disabled', 'true');
-    else button.removeAttribute('aria-disabled');
-    button.style.display = game.unlocks[key] || reserved ? 'flex' : 'none';
-}
-
-function updateTabUnlockButtons() {
-    TAB_UNLOCK_BUTTON_KEYS.forEach(syncTabUnlockButton);
-    let battleBtn = document.getElementById('btn-tab-battle');
-    if (battleBtn) battleBtn.style.display = isMobilePrimaryNavigationEnabled() ? 'flex' : 'none';
-    syncMergedTabLauncherVisibility();
-    // 해금 상태가 바뀌면 "열려 있는" 병합 창의 내부 탭 목록과 표시 중인 화면도 다시 맞춘다.
-    // 이게 없으면 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고,
-    // 내부 탭 버튼에 잠긴 탭이 계속 보인다(선택 상태만 조용히 다른 탭으로 바뀐다).
-    Object.entries(MERGED_TAB_GROUPS).forEach(([groupKey, group]) => {
-        let root = document.getElementById(group.launcher);
-        if (root && root.classList.contains('active')) renderMergedTabPanels(groupKey);
-    });
-    // 다시 잠긴 탭의 창/패널이 열린 채로 남지 않게 정리한다(갱신이 멈춘 잔상 방지).
-    closeRelockedTabSurfaces();
-    // 2단 그룹핑이 활성이면 해금 판정 직후 활성 그룹 외 탭을 숨긴다(단일 권위 지점).
-    hideOutOfGroupTabButtons();
-    // 데스크톱 창형 레일은 그룹 섹션 단위로 표시되므로, 해금 변경 시 빈 그룹을 함께 숨긴다.
-    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
-}
-
-function isUngatedPersistentTabButton(btn) {
-    return btn && (btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character');
-}
-
-// updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
-function hideOutOfGroupTabButtons() {
-    let grouping = isTabGroupingActive();
-    let active = getActiveTabGroup();
-    Array.from(document.querySelectorAll('.tab-header .tab-btn')).forEach(btn => {
-        if (!grouping) {
-            delete btn.dataset.groupHidden;
-            if (isUngatedPersistentTabButton(btn)) btn.style.display = 'flex';
-            return;
-        }
-        if (getTabGroupForId(btn.id) !== active) {
-            btn.dataset.groupHidden = '1';
-            btn.style.display = 'none';
-            return;
-        }
-        delete btn.dataset.groupHidden;
-        if (isUngatedPersistentTabButton(btn)) btn.style.display = 'flex';
-    });
-}
-
-/** Which tabs show a notification dot (filters applied). Kept apart from the header's signature: a dot that came or went rebuilt
- * the whole tab header and phone menu, and the restyle that followed, every few seconds of combat (2026-10-07 frame drops: about
- * 75 ms on a 4x-throttled phone). */
-function getTabNotiSignature() {
-    let noti = game.noti || {};
-    let filters = (game.settings && game.settings.notiFilters) || {};
-    return TAB_HEADER_NOTI_KEYS.map(key => (noti[key] && filters[key] !== false ? 1 : 0)).join('');
-}
-
-/** 쓸 포인트가 남은 동안 스킬트리와 전직 알림 점을 켜 둔다(2026-10-26 사용자: "1포인트라도 있으면"). 그 화면을 보는 동안은 끈다. */
-function applyStandingTabNotices() {
-    const standing = { char: game.passivePoints > 0, traits: !!game.unlocks.traits && (game.ascendPoints > 0 || game.ascendKeystonePoints > 0), season: worldTreeBark.barkHasFreePoints(game) };
-    Object.entries(standing).forEach(([key, on]) => { if (on && lastActiveTabId !== 'tab-' + key) game.noti[key] = true; });
-}
-
-function refreshTabHeaderUiIfNeeded() {
-    applyStandingTabNotices();
-    let signature = getTabHeaderUiSignature();
-    if (signature === lastTabHeaderUiSignature) {
-        if (getTabNotiSignature() === lastTabNotiSignature) return false;
-        updateTabNotificationDots();
-        if (isTabGroupingActive()) renderTabCategoryBar(); // its group buttons carry the dots too
-        lastTabNotiSignature = getTabNotiSignature();
-        return false;
-    }
-    lastTabHeaderUiSignature = signature;
-    updateTabUnlockButtons();
-    applyTabHeaderOrder();
-    updateTabNotificationDots();
-    applyTabGroupFilter();
-    renderTabCategoryBar();
-    lastTabNotiSignature = getTabNotiSignature();
-    return true;
-}
-
-function isNotiEnabled(key){ game.settings=game.settings||{}; if (game.settings.tabNotiEnabled === false) return false; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
-
-function isMergedTabAvailable(tab) {
-    let tabId = typeof tab === 'string' ? tab : tab.id;
-    if (window.playerGuideUi?.allowsTab(tabId) === false) return false;
-    if (game.contentProgression) return contentProgression.canOpen(tabId);
-    let gateKey = typeof tab === 'string' ? TAB_UNLOCK_GATES[tabId] : tab.gate || TAB_UNLOCK_GATES[tabId];
-    // 저널은 루프를 건너 유지되는 영구 기록이라 고유 아이템 보유 여부와 무관하게 열려 있어야 한다.
-    // (도감은 game.unlocks.codex가 권위이며 checkUnlocks가 루프마다 다시 판정한다. 여기서
-    //  "지금 고유를 들고 있는가"를 다시 보면, 고유를 처분하거나 루프를 넘긴 직후 기록 메뉴 자체가
-    //  사라져 저널·도감을 열 수 없게 된다.)
-    if (gateKey === 'journal') return isJournalTabUnlockReady();
-    return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
-}
-
-function getMergedTabGroup(tabId) {
-    return Object.entries(MERGED_TAB_GROUPS).find(([, group]) => group.tabs.some(tab => tab.id === tabId)) || null;
-}
-
-function getSelectedMergedTabId(groupKey) {
+  }
+  function closeRelockedWindow(runtime, id, windowOpen, wasActive) {
+    if (windowOpen && typeof runtime.deps.closeWindow === "function") (0, runtime.deps.closeWindow)(id);
+    if (runtime.state.lastActiveTabId === id) runtime.state.lastActiveTabId = null;
+    if (wasActive) runtime.state.pendingRelockedTabFallback = true;
+  }
+  function mountMergedTabGroup(runtime, groupKey) {
     let group = MERGED_TAB_GROUPS[groupKey];
-    if (!group) return null;
-    game.settings = game.settings || {};
-    game.settings.mergedTabSelection = game.settings.mergedTabSelection || {};
-    let selected = game.settings.mergedTabSelection[groupKey];
-    if (group.tabs.some(tab => tab.id === selected && isMergedTabAvailable(tab))) return selected;
-    let firstAvailable = group.tabs.find(isMergedTabAvailable);
-    return firstAvailable ? firstAvailable.id : null;
-}
-
-// 지금 보고 있는 "최상위" 탭 화면. 병합 그룹의 하위 패널(.merged-subtab-pane)은 각 창의
-// 안쪽 선택을 표현하려고 .active를 계속 유지하므로 반드시 제외해야 한다. 하위 패널은
-// 런처 안으로 옮겨져 문서 순서가 바뀌기 때문에(예: tab-traits는 tab-char 안 = tab-skills보다 앞),
-// 제외하지 않으면 병합 창을 한 번 연 뒤부터 다른 탭이 전부 그 패널로 오인식된다.
-function getActiveTopLevelTabElement() {
-    return document.querySelector('.tab-content.active:not(.merged-subtab-pane)');
-}
-
-function getActiveUiTabId() {
-    let activeContent = getActiveTopLevelTabElement();
-    if (!activeContent) return '';
-    return resolveRenderedTabId(activeContent.id);
-}
-
-// 최상위 탭 id를 "실제로 내용을 그려야 하는" 탭 id로 바꾼다.
-// 병합 그룹의 런처는 안쪽에서 선택된 탭이 곧 렌더 대상이다.
-function resolveRenderedTabId(tabId) {
-    let mergedEntry = getMergedTabGroup(tabId);
-    if (!mergedEntry || mergedEntry[1].launcher !== tabId) return tabId;
-    return getSelectedMergedTabId(mergedEntry[0]) || tabId;
-}
-
-// 지금 화면에 내용이 보이는 탭 전체. 데스크톱 창 모드는 창을 여러 개 동시에 띄우므로
-// 포커스된 창 하나만 그리면 나머지 창은 보이는 채로 갱신이 멈춘다(레일 버튼으로 다시
-// 열기 전까지 계속 옛 내용이 남아 "탭이 고장난" 것처럼 보인다).
-function getRenderingUiTabIds() {
-    let ids = new Set();
-    let desktop = document.body.classList.contains('desktop-windowed-ui');
-    let active = getActiveTopLevelTabElement();
-    // PC 창 모드에서는 창을 닫아도 그 탭이 active로 남는다. 닫히거나 접힌 창의 탭은 그리지 않는다(2026-10-25: 닫힌 스킬룬 화면을
-    // 처치마다 290ms씩 다시 그려 사냥이 끊겼다).
-    let closed = active && desktop && active.classList.contains('ui-window')
-        && (!active.classList.contains('ui-window-open') || active.classList.contains('ui-window-minimized'));
-    if (active && !closed) ids.add(resolveRenderedTabId(active.id));
-    if (!desktop) return ids;
-    // ui-window-open은 창 관리자가 준비한 최상위 창에만 붙는다(하위 패널에는 붙지 않는다).
-    document.querySelectorAll('.tab-content.ui-window-open:not(.ui-window-minimized)').forEach(el => {
-        if (el.id) ids.add(resolveRenderedTabId(el.id));
-    });
-    return ids;
-}
-
-// Keep timed stock progression independent of whether its management panel is visible.
-function renderVisibleManagementPanels(tabIds) {
-    if (tabIds.has('tab-talent')) talentUi.render();
-    if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
-    if (tabIds.has('tab-trade')) renderMarketUI();
-    else refreshBlackMarket(false);
-}
-
-// 지금 이 탭 화면(창/패널)을 열어 둘 수 있는지 판정한다.
-// 병합 그룹의 런처는 안쪽에 열 수 있는 탭이 하나라도 남아 있어야 유효하다.
-function isTabSurfaceAvailable(tabId) {
-    if (!tabId || window.playerGuideUi?.allowsTab(tabId, true) === false) return false;
-    let mergedEntry = getMergedTabGroup(tabId);
-    if (mergedEntry) {
-        if (mergedEntry[1].launcher === tabId) return !!getSelectedMergedTabId(mergedEntry[0]);
-        return isMergedTabAvailable(mergedEntry[1].tabs.find(tab => tab.id === tabId) || tabId);
-    }
-    if (!contentProgression.canOpen(tabId)) return false;
-    let gateKey = TAB_UNLOCK_GATES[tabId];
-    return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
-}
-
-// 루프 정산처럼 런타임 판정이 탭을 다시 잠그면 실행 버튼만 사라지고, 이미 열려 있던
-// 창/패널은 화면에 그대로 남는다. 그 화면은 updateStaticUI의 렌더 대상(getActiveUiTabId)에서도
-// 빠지므로 갱신이 멈춘 잔상이 닫을 방법도 없이 남아 "탭이 고장난" 것처럼 보인다.
-// 해금 판정 직후 이 함수가 잠긴 표면을 함께 닫는다.
-function closeRelockedTabSurfaces() {
-    Array.from(document.querySelectorAll('.tab-content:not(.merged-subtab-pane)')).forEach(el => {
-        if (!el.id || isTabSurfaceAvailable(el.id)) return;
-        let wasActive = el.classList.contains('active');
-        let windowOpen = el.classList.contains('ui-window-open') || el.classList.contains('ui-window-minimized');
-        if (!wasActive && !windowOpen) return;
-        el.classList.remove('active');
-        let btn = document.getElementById('btn-' + el.id);
-        if (btn) btn.classList.remove('active');
-        // ui-window-open은 창 관리자가 준비한 창에만 붙으므로, 이 조건에서만 closeWindow를 부른다.
-        if (windowOpen && typeof closeWindow === 'function') closeWindow(el.id);
-        if (lastActiveTabId === el.id) lastActiveTabId = null;
-        if (wasActive) pendingRelockedTabFallback = true;
-    });
-}
-
-function mountMergedTabGroup(groupKey) {
-    let group = MERGED_TAB_GROUPS[groupKey];
-    let root = group && document.getElementById(group.launcher);
+    let root = group && runtime.deps.document.getElementById(group.launcher);
     if (!root) return null;
-    let host = root.querySelector(':scope > .ui-window-body') || root;
-    let shell = host.querySelector(':scope > .merged-tab-shell');
+    let host = root.querySelector(":scope > .ui-window-body") || root;
+    let shell = host.querySelector(":scope > .merged-tab-shell");
     if (shell) return shell;
-
-    shell = document.createElement('div');
-    shell.className = 'merged-tab-shell';
-    let nav = document.createElement('div');
-    nav.className = 'subtab-row merged-tab-subtabs';
-    let panels = document.createElement('div');
-    panels.className = 'merged-tab-panels';
-    let hostPane = document.createElement('div');
-    hostPane.className = 'merged-subtab-pane';
+    shell = runtime.deps.document.createElement("div");
+    shell.className = "merged-tab-shell";
+    let nav = runtime.deps.document.createElement("div");
+    nav.className = "subtab-row merged-tab-subtabs";
+    let panels = runtime.deps.document.createElement("div");
+    panels.className = "merged-tab-panels";
+    let hostPane = runtime.deps.document.createElement("div");
+    hostPane.className = "merged-subtab-pane";
     hostPane.dataset.tabId = group.launcher;
-    Array.from(host.childNodes).forEach(node => hostPane.appendChild(node));
+    Array.from(host.childNodes).forEach((node) => hostPane.appendChild(node));
     panels.appendChild(hostPane);
-    group.tabs.filter(tab => tab.id !== group.launcher).forEach(tab => {
-        let source = document.getElementById(tab.id);
-        if (!source) return;
-        source.classList.add('merged-subtab-pane');
-        source.dataset.tabId = tab.id;
-        panels.appendChild(source);
+    group.tabs.filter((tab) => tab.id !== group.launcher).forEach((tab) => {
+      let source = runtime.deps.document.getElementById(tab.id);
+      if (!source) return;
+      source.classList.add("merged-subtab-pane");
+      source.dataset.tabId = tab.id;
+      panels.appendChild(source);
     });
     shell.append(nav, panels);
     host.replaceChildren(shell);
     return shell;
-}
-
-function renderMergedTabPanels(groupKey) {
+  }
+  function renderMergedTabPanels(runtime, groupKey) {
     let group = MERGED_TAB_GROUPS[groupKey];
-    let shell = mountMergedTabGroup(groupKey);
+    let shell = mountMergedTabGroup(runtime, groupKey);
     if (!group || !shell) return;
-    let selectedId = getSelectedMergedTabId(groupKey);
-    renderMergedTabStrip(groupKey);
-    shell.querySelectorAll('.merged-subtab-pane').forEach(pane => {
-        pane.classList.toggle('active', pane.dataset.tabId === selectedId);
+    let selectedId = getSelectedMergedTabId(runtime, groupKey);
+    renderMergedTabStrip(runtime, groupKey);
+    shell.querySelectorAll(".merged-subtab-pane").forEach((pane) => {
+      pane.classList.toggle("active", pane.dataset.tabId === selectedId);
     });
-}
-
-/** 탭에 붙는 표시: 쓸 포인트가 있으면 그 수, 없고 새 소식이 있으면 점. */
-function mergedTabMarkHtml(tab) {
-    let key = tab.id.replace(/^tab-/, ''), count = Math.max(0, Math.floor(Number(tab.count ? tab.count() : 0) || 0));
+  }
+  function mergedTabMarkHtml(runtime, tab) {
+    let key = tab.id.replace(/^tab-/, ""), count = Math.max(0, Math.floor(Number(tab.count ? tab.count(runtime.deps.game, runtime.deps.contentProgression) : 0) || 0));
     if (count > 0) return `<b class="window-tab-count">${count}</b>`;
-    return game.noti && game.noti[key] && isNotiEnabled(key) ? '<i class="window-tab-dot"></i>' : '';
-}
-
-/** 그 화면을 바로 여는 단축키(PC)의 작은 자판: 메뉴 단추가 하나로 합쳐져도 키는 화면마다 그대로다. */
-function mergedTabHotkeyHtml(tab) {
-    let source = document.getElementById('btn-' + tab.id);
-    return source && source.dataset.hotkey ? `<kbd class="window-tab-key"><span class="px-center">${escapeHTML(source.dataset.hotkey)}</span></kbd>` : '';
-}
-
-/** 묶음 창의 탭 하나: 그 화면의 그림과 이름, 표시(mergedTabMarkHtml), 단축키. */
-function mergedTabButtonHtml(groupKey, tab, selectedId) {
-    let icon = Number.isInteger(tab.icon) ? `<span class="window-tab-icon" style="--px-icon:${tab.icon}"></span>` : '';
+    return runtime.deps.game.noti && runtime.deps.game.noti[key] && isNotiEnabled(runtime, key) ? '<i class="window-tab-dot"></i>' : "";
+  }
+  function mergedTabHotkeyHtml(runtime, tab) {
+    let source = runtime.deps.document.getElementById("btn-" + tab.id);
+    return source && source.dataset.hotkey ? `<kbd class="window-tab-key"><span class="px-center">${(0, runtime.deps.escapeHTML)(source.dataset.hotkey)}</span></kbd>` : "";
+  }
+  function mergedTabButtonHtml(runtime, groupKey, tab, selectedId) {
+    let icon = Number.isInteger(tab.icon) ? `<span class="window-tab-icon" style="--px-icon:${tab.icon}"></span>` : "";
     let active = tab.id === selectedId;
-    return `<button type="button" class="subtab-btn window-tab${active ? ' active' : ''}" role="tab" aria-selected="${active}" data-tab-id="${tab.id}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')">${icon}<span class="window-tab-name">${_t(tab.label)}</span>${mergedTabMarkHtml(tab)}${mergedTabHotkeyHtml(tab)}</button>`;
-}
-
-/** PC의 창이면 창 머리(제목 줄) 안의 탭 자리, 창이 아니면(휴대폰) null. 창 머리는 화면 크기가 바뀔 때 다시 지어지므로 없으면 만든다. */
-function mergedTabTitleHost(root) {
-    let titlebar = root.querySelector(':scope > .ui-window-titlebar');
+    return `<button type="button" class="subtab-btn window-tab${active ? " active" : ""}" role="tab" aria-selected="${active}" data-tab-id="${tab.id}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')">${icon}<span class="window-tab-name">${(0, runtime.deps._t)(tab.label)}</span>${mergedTabMarkHtml(runtime, tab)}${mergedTabHotkeyHtml(runtime, tab)}</button>`;
+  }
+  function mergedTabTitleHost(runtime, root) {
+    let titlebar = root.querySelector(":scope > .ui-window-titlebar");
     if (!titlebar) return null;
-    let host = titlebar.querySelector(':scope > .ui-window-tabs');
-    if (host) return host;
-    host = document.createElement('div');
-    host.className = 'ui-window-tabs';
-    host.setAttribute('role', 'tablist');
-    // 창 머리를 두 번 누르면 창을 키운다: 탭을 잇달아 누른 것은 그 뜻이 아니다
-    host.addEventListener('dblclick', event => { if (event.target.closest('button')) event.stopPropagation(); });
-    titlebar.insertBefore(host, titlebar.querySelector(':scope > .ui-window-actions'));
+    let host = titlebar.querySelector(":scope > .ui-window-tabs");
+    if (!host) {
+      host = runtime.deps.document.createElement("div");
+      host.className = "ui-window-tabs";
+      host.setAttribute("role", "tablist");
+      titlebar.insertBefore(host, titlebar.querySelector(":scope > .ui-window-actions"));
+    }
+    bindMergedTabTitleHost(runtime, host);
     return host;
-}
-
-/** 묶음 창의 탭 줄을 그린다. PC의 창에서는 제목 대신 창 머리에 놓이고(본문의 높이를 쓰지 않는다), 휴대폰에서는 화면 맨 위의 줄이다.
- * 내용이 같으면 손대지 않는다(화면을 고칠 때마다 불린다: 쓸 포인트의 수와 새 소식의 점이 따라온다). */
-function renderMergedTabStrip(groupKey) {
-    let group = MERGED_TAB_GROUPS[groupKey], root = group && document.getElementById(group.launcher);
-    let nav = root && root.querySelector('.merged-tab-subtabs');
+  }
+  function bindMergedTabTitleHost(runtime, host) {
+    for (const previous of runtime.state.titleHosts) {
+      if (previous.isConnected) continue;
+      releaseViewTarget(runtime, previous);
+      runtime.state.titleHosts.delete(previous);
+    }
+    if (runtime.state.titleHosts.has(host)) return;
+    runtime.state.titleHosts.add(host);
+    listenView(runtime, host, "dblclick", (event) => {
+      if (event.target.closest("button")) event.stopPropagation();
+    });
+  }
+  function renderMergedTabStrip(runtime, groupKey) {
+    let group = MERGED_TAB_GROUPS[groupKey], root = group && runtime.deps.document.getElementById(group.launcher);
+    let nav = root && root.querySelector(".merged-tab-subtabs");
     if (!nav) return;
-    let selectedId = getSelectedMergedTabId(groupKey), visibleTabs = group.tabs.filter(isMergedTabAvailable), many = visibleTabs.length > 1;
-    let html = many ? visibleTabs.map(tab => mergedTabButtonHtml(groupKey, tab, selectedId)).join('') : '';
-    let titleHost = mergedTabTitleHost(root);
-    root.classList.toggle('ui-window-tabbed', !!titleHost && many);
-    nav.classList.add('window-tab-strip');
-    // 창 머리에 탭이 놓이면 본문의 줄은 비운다
-    setMergedTabStripHtml(titleHost, html, many);
-    setMergedTabStripHtml(nav, titleHost ? '' : html, many && !titleHost);
-}
-
-function setMergedTabStripHtml(host, html, shown) {
+    let selectedId = getSelectedMergedTabId(runtime, groupKey), visibleTabs = group.tabs.filter(runtime.handlers.isMergedTabAvailable), many = visibleTabs.length > 1;
+    let html = many ? visibleTabs.map((tab) => mergedTabButtonHtml(runtime, groupKey, tab, selectedId)).join("") : "";
+    let titleHost = mergedTabTitleHost(runtime, root);
+    root.classList.toggle("ui-window-tabbed", !!titleHost && many);
+    nav.classList.add("window-tab-strip");
+    setMergedTabStripHtml(runtime, titleHost, html, many);
+    setMergedTabStripHtml(runtime, nav, titleHost ? "" : html, many && !titleHost);
+  }
+  function setMergedTabStripHtml(runtime, host, html, shown) {
     if (!host) return;
     host.hidden = !shown;
-    if (host.dataset.rendered !== html) { host.innerHTML = html; host.dataset.rendered = html; }
-}
-
-/** 창이 열리거나 창 안의 화면이 바뀌어 그 화면에 들어섰다: 장비 화면이면 첫 탭(장비)으로 돌리고 세팅 분석을 돌린다. */
-function enterShownTab(tabId) {
-    if (tabId !== 'tab-items') return;
-    if (game.noti) game.noti.items = false;
-    if (window.equipmentTriage) window.equipmentTriage.onOpen();
-    switchItemSubtab('item-tab-equip');
-}
-
-/** switchTab이 지금부터 보일 화면을 정한다. 묶음의 문을 여는 탭을 이름으로 부르면(단축키, 안내, "장비 열기" 같은 단추) 마지막에 보던
- * 화면이 아니라 그 탭 자신의 화면을 고른다(단추와 창 머리의 탭은 switchMergedTabSubtab으로 고른 화면을 그대로 연다).
- * @returns {{id: string, changed: boolean}} 보일 화면과, 같은 묶음 창에서 방금까지 다른 화면이 보였는지 */
-function resolveShownTab(tabId, mergedEntry) {
+    if (host.dataset.rendered !== html) {
+      host.innerHTML = html;
+      host.dataset.rendered = html;
+    }
+  }
+  function enterShownTab(runtime, tabId) {
+    if (tabId !== "tab-items") return;
+    if (runtime.deps.game.noti) runtime.deps.game.noti.items = false;
+    if (runtime.deps.window.equipmentTriage) runtime.deps.window.equipmentTriage.onOpen();
+    runtime.handlers.switchItemSubtab("item-tab-equip");
+  }
+  function resolveShownTab(runtime, tabId, mergedEntry) {
     if (!mergedEntry) return { id: tabId, changed: false };
-    let groupKey = mergedEntry[0], own = mergedEntry[1].tabs.find(tab => tab.id === tabId);
-    if (!mergedTabSwitching && isMergedTabAvailable(own)) game.settings.mergedTabSelection[groupKey] = tabId;
-    let id = resolveRenderedTabId(tabId), changed = mergedPaneShown.get(groupKey) !== id;
-    mergedPaneShown.set(groupKey, id);
+    let groupKey = mergedEntry[0], own = mergedEntry[1].tabs.find((tab) => tab.id === tabId);
+    if (!runtime.state.mergedTabSwitching && isMergedTabAvailable(runtime, own)) runtime.deps.game.settings.mergedTabSelection[groupKey] = tabId;
+    let id = resolveRenderedTabId(runtime, tabId), changed = runtime.state.mergedPaneShown.get(groupKey) !== id;
+    runtime.state.mergedPaneShown.set(groupKey, id);
     return { id, changed };
-}
-
-/** 이미 열려 있는 묶음 창을 다시 불렀다: 탭 줄을 맞추고, 화면이 바뀌었으면 그 화면에 들어서는 일을 한다. */
-function refreshShownMergedTab(mergedEntry, shown) {
+  }
+  function refreshShownMergedTab(runtime, mergedEntry, shown) {
     if (!mergedEntry) return;
-    renderMergedTabSubtabs(mergedEntry[0]);
-    if (shown.changed) enterShownTab(shown.id);
-    tutorialActionUi.followOpeningTab(shown.id);
-}
-
-function switchMergedTabSubtab(groupKey, tabId, options = {}) {
+    renderMergedTabSubtabs(runtime, mergedEntry[0]);
+    if (shown.changed) enterShownTab(runtime, shown.id);
+    runtime.deps.tutorialActionUi.followOpeningTab(shown.id);
+  }
+  function switchMergedTabSubtab(runtime, groupKey, tabId, options = {}) {
     let group = MERGED_TAB_GROUPS[groupKey];
-    let tab = group && group.tabs.find(entry => entry.id === tabId);
-    if (!tab || !isMergedTabAvailable(tab)) return;
-    game.settings = game.settings || {};
-    game.settings.mergedTabSelection = game.settings.mergedTabSelection || {};
-    game.settings.mergedTabSelection[groupKey] = tabId;
-    let wasCodexNotified = !!(game.noti && game.noti.codex);
-    if (game.noti) game.noti[tabId.replace(/^tab-/, '')] = false;
-    if (tabId === 'tab-codex' && wasCodexNotified) game.codexFocusNewOnOpen = true;
-    // 고른 화면 그대로 문을 여는 탭을 부른다(switchTab은 문을 여는 탭을 이름으로 부르면 그 탭 자신의 화면을 고른다)
-    mergedTabSwitching = true;
-    try { window.switchTab(group.launcher, { keepWindowOpen: options.keepWindowOpen !== false }); }
-    finally { mergedTabSwitching = false; }
-    updateStaticUI();
-}
-
-function syncMergedTabLauncherVisibility() {
-    contentUnlockUi.sync();
-    Object.values(MERGED_TAB_GROUPS).forEach(group => {
-        let launcher = document.getElementById('btn-' + group.launcher);
-        if (launcher) launcher.style.display = group.tabs.some(isMergedTabAvailable) ? 'flex' : 'none';
+    let tab = group && group.tabs.find((entry) => entry.id === tabId);
+    if (!tab || !isMergedTabAvailable(runtime, tab)) return;
+    rememberMergedTabSelection(runtime, groupKey, tabId);
+    runtime.state.mergedTabSwitching = true;
+    try {
+      runtime.deps.window.switchTab(group.launcher, { keepWindowOpen: options.keepWindowOpen !== false });
+    } finally {
+      runtime.state.mergedTabSwitching = false;
+    }
+    (0, runtime.deps.updateStaticUI)();
+  }
+  function rememberMergedTabSelection(runtime, groupKey, tabId) {
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    runtime.deps.game.settings.mergedTabSelection = runtime.deps.game.settings.mergedTabSelection || {};
+    runtime.deps.game.settings.mergedTabSelection[groupKey] = tabId;
+    let wasCodexNotified = !!(runtime.deps.game.noti && runtime.deps.game.noti.codex);
+    if (runtime.deps.game.noti) runtime.deps.game.noti[tabId.replace(/^tab-/, "")] = false;
+    if (tabId === "tab-codex" && wasCodexNotified) runtime.deps.game.codexFocusNewOnOpen = true;
+  }
+  function syncMergedTabLauncherVisibility(runtime) {
+    runtime.deps.contentUnlockUi.sync();
+    Object.values(MERGED_TAB_GROUPS).forEach((group) => {
+      let launcher = runtime.deps.document.getElementById("btn-" + group.launcher);
+      if (launcher) launcher.style.display = group.tabs.some(runtime.handlers.isMergedTabAvailable) ? "flex" : "none";
     });
-}
-
-function syncMergedTabLauncherState() {
-    Object.values(MERGED_TAB_GROUPS).forEach(group => {
-        let launcher = document.getElementById('btn-' + group.launcher);
-        if (!launcher) return;
-        let root = document.getElementById(group.launcher);
-        launcher.classList.toggle('active', !!(root && root.classList.contains('active')));
-        let sourceKeys = group.tabs.map(tab => tab.id.replace(/^tab-/, ''));
-        let dot = launcher.querySelector('.noti-dot');
-        if (dot) dot.style.display = sourceKeys.some(key => game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none';
-        // 열려 있는 묶음 창의 탭 줄(쓸 포인트의 수, 새 소식의 점)도 함께 맞춘다
-        if (root && (root.classList.contains('active') || root.classList.contains('ui-window-open'))) renderMergedTabStrip(getMergedTabGroup(group.launcher)[0]);
+  }
+  function syncMergedTabLauncherState(runtime) {
+    Object.values(MERGED_TAB_GROUPS).forEach((group) => {
+      let launcher = runtime.deps.document.getElementById("btn-" + group.launcher);
+      if (!launcher) return;
+      let root = runtime.deps.document.getElementById(group.launcher);
+      launcher.classList.toggle("active", !!(root && root.classList.contains("active")));
+      let sourceKeys = group.tabs.map((tab) => tab.id.replace(/^tab-/, ""));
+      let dot = launcher.querySelector(".noti-dot");
+      if (dot) dot.style.display = sourceKeys.some((key) => runtime.deps.game.noti[key] && isNotiEnabled(runtime, key)) ? "block" : "none";
+      if (root && (root.classList.contains("active") || root.classList.contains("ui-window-open"))) renderMergedTabStrip(runtime, getMergedTabGroup(runtime, group.launcher)[0]);
     });
-    // 휴대폰 하단의 전체 단추도 탭을 바꿀 때마다 맞춘다(알림 점이 바뀔 때만 맞추면 커뮤니티를 열어도 켜지지 않았다)
-    syncMobilePrimaryNavigationState();
-}
-
-function openMergedTabPicker(event, groupKey) {
-    if (event) { event.preventDefault(); event.stopPropagation(); }
+    syncMobilePrimaryNavigationState(runtime);
+  }
+  function openMergedTabPicker(runtime, event, groupKey) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    const firstGear = groupKey === 'gear' && contentProgression.opening.applies(game)
-        && game.tutorialHistory.some(row => row.key === 'tutorial_first_gear' && row.status === 'unread');
-    let selectedTabId = firstGear ? 'tab-items' : getSelectedMergedTabId(groupKey);
+    const firstGear = groupKey === "gear" && runtime.deps.contentProgression.opening.applies(runtime.deps.game) && runtime.deps.game.tutorialHistory.some((row) => row.key === "tutorial_first_gear" && row.status === "unread");
+    let selectedTabId = firstGear ? "tab-items" : getSelectedMergedTabId(runtime, groupKey);
     if (!selectedTabId) return;
-    switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
-}
-
-// 특정 탭을 "그 탭이 실제로 보이는 상태"로 연다.
-// tab-char처럼 병합 그룹의 런처인 탭은 switchTab만으로는 창만 열리고 안쪽 화면은
-// 마지막에 보던 탭(직업전직 등)이 그대로여서, 누른 것과 다른 화면이 뜬다.
-function openTabPane(tabId) {
-    let mergedEntry = getMergedTabGroup(tabId);
+    switchMergedTabSubtab(runtime, groupKey, selectedTabId, { keepWindowOpen: false });
+  }
+  function openTabPane(runtime, tabId) {
+    let mergedEntry = getMergedTabGroup(runtime, tabId);
     if (mergedEntry) {
-        switchMergedTabSubtab(mergedEntry[0], tabId);
-        return;
+      switchMergedTabSubtab(runtime, mergedEntry[0], tabId);
+      return;
     }
-    switchTab(tabId);
-}
-
-function renderMergedTabSubtabs(tabId) {
-    renderMergedTabPanels(tabId);
-}
-
-/** 휴대폰: 메뉴 띠가 옆으로 넘칠 때만 고른 단추를 가운데로 굴린다. 화면을 그린 뒤에 재므로 탭 전환이 강제 레이아웃을
- * 기다리지 않는다(전환마다 부르던 scrollIntoView가 CPU 4배 감속 휴대폰에서 한 번에 약 40ms였다 — 지금 하단 메뉴는 넘치지 않는다). */
-function revealActiveTabButton(button) {
-    requestAnimationFrame(() => setTimeout(() => {
-        const bar = button.parentElement;
-        if (bar && bar.scrollWidth > bar.clientWidth + 1) button.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    }, 0));
-}
-
-exposeFileGlobals({ isMobilePrimaryNavigationEnabled, setMobileTabDrawerOpen, renderTabOrderSettings, onTabGroupDragStart, onTabGroupDrop, getTabGroupForId, isTabGroupingActive, getActiveTabGroup, selectTabGroup, applyTabGroupFilter, renderTabCategoryBar, commitMobileDockOrder, applyTabHeaderOrder, scheduleTabHeaderViewportSync, updateTabNotificationDots, syncTabUnlockButton, updateTabUnlockButtons, hideOutOfGroupTabButtons, refreshTabHeaderUiIfNeeded, isNotiEnabled, getMergedTabGroup, getSelectedMergedTabId, getActiveTopLevelTabElement, getActiveUiTabId, getRenderingUiTabIds, renderVisibleManagementPanels, isTabSurfaceAvailable, closeRelockedTabSurfaces, resolveShownTab, refreshShownMergedTab, switchMergedTabSubtab, syncMergedTabLauncherVisibility, syncMergedTabLauncherState, openMergedTabPicker, openTabPane, renderMergedTabSubtabs, revealActiveTabButton });
-})();
-
-safeExposeGlobals({ isTabSurfaceAvailable, closeRelockedTabSurfaces, openMergedTabPicker, switchMergedTabSubtab, openTabPane });
-
-if (typeof window !== 'undefined') {
-    window.addEventListener('resize', scheduleTabHeaderViewportSync);
-    window.addEventListener('orientationchange', scheduleTabHeaderViewportSync);
-    window.addEventListener('game:languagechange', () => {
-        playerStatCache.invalidate();
-        cachedTooltipStats = null;
-        gemTooltipCache = null;
-        if (document.getElementById('info-tooltip')) hideInfoTooltip();
-        const pip = document.getElementById('mobile-battle-pip');
-        if (pip) setMobileBattlePipCollapsed(pip, pip.classList.contains('is-collapsed'));
-        scheduleTabHeaderViewportSync();
+    (0, runtime.deps.switchTab)(tabId);
+  }
+  function renderMergedTabSubtabs(runtime, tabId) {
+    renderMergedTabPanels(runtime, tabId);
+  }
+  function revealActiveTabButton(runtime, button) {
+    runtime.state.revealButton = button;
+    if (runtime.state.revealPending) return;
+    runtime.state.revealPending = true;
+    const owner = runtime.deps.game;
+    scheduleViewFrame(runtime, () => {
+      runtime.state.revealTimer = runtime.deps.setTimeout(() => {
+        runtime.state.revealTimer = null;
+        runtime.state.revealPending = false;
+        const target = runtime.state.revealButton;
+        runtime.state.revealButton = null;
+        if (!runtime.active || runtime.deps.game !== owner || !target?.isConnected) return;
+        const bar = target.parentElement;
+        if (bar && bar.scrollWidth > bar.clientWidth + 1) target.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+      }, 0);
     });
-}
+  }
+
+  // modules/ui/tab-header-layout.mjs
+  function getTabButtonFromTarget(runtime, target) {
+    return target && target.closest ? target.closest(".tab-header .tab-btn") : null;
+  }
+  function getTabHeaders(runtime) {
+    return Array.from(runtime.deps.document.querySelectorAll(".tab-header"));
+  }
+  function getTabHeaderOrderSnapshot(runtime, headers) {
+    return (headers || getTabHeaders(runtime)).flatMap((header) => Array.from(header.querySelectorAll(".tab-btn")).map((el) => el.id).filter(Boolean));
+  }
+  function getTabHeaderUnderPoint(runtime, clientX, clientY) {
+    let hit = runtime.deps.document.elementFromPoint ? runtime.deps.document.elementFromPoint(clientX, clientY) : null;
+    let hitHeader = hit && hit.closest ? hit.closest(".tab-header") : null;
+    if (hitHeader) return hitHeader;
+    return getTabHeaders(runtime).find((header) => {
+      let rect = header.getBoundingClientRect();
+      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    }) || null;
+  }
+  function updateTabDragGhost(runtime, state, clientX, clientY) {
+    if (!state || !state.ghost) return;
+    let offsetX = Number.isFinite(state.grabOffsetX) ? state.grabOffsetX : 0;
+    let offsetY = Number.isFinite(state.grabOffsetY) ? state.grabOffsetY : 0;
+    state.ghost.style.left = `${(clientX - offsetX) / runtime.deps.uiDisplay.factor}px`;
+    state.ghost.style.top = `${(clientY - offsetY) / runtime.deps.uiDisplay.factor}px`;
+  }
+  function beginTabHeaderDrag(runtime, state) {
+    if (!runtime.active || !state || state.dragging || state !== runtime.state.tabHeaderDragState || state.owner !== runtime.deps.game || !state.button.isConnected) return;
+    state.dragging = true;
+    let rect = state.button.getBoundingClientRect();
+    state.grabOffsetX = (0, runtime.deps.clampNumber)(state.lastX - rect.left, 0, rect.width);
+    state.grabOffsetY = (0, runtime.deps.clampNumber)(state.lastY - rect.top, 0, rect.height);
+    state.ghost = runtime.deps.document.createElement("div");
+    state.ghost.className = "tab-drag-ghost";
+    state.ghost.setAttribute("aria-hidden", "true");
+    state.ghost.innerHTML = state.button.innerHTML;
+    state.ghost.style.width = `${Math.max(1, rect.width / runtime.deps.uiDisplay.factor)}px`;
+    state.ghost.style.height = `${Math.max(1, rect.height / runtime.deps.uiDisplay.factor)}px`;
+    runtime.deps.document.body.appendChild(state.ghost);
+    updateTabDragGhost(runtime, state, state.lastX, state.lastY);
+    state.button.classList.add("dragging");
+    runtime.deps.document.body.classList.add("tab-drag-active");
+  }
+  function isMobileDockDrag(runtime) {
+    return runtime.deps.document.body.classList.contains("mobile-primary-navigation");
+  }
+  function moveDraggedTabToPoint(runtime, state, clientX, clientY) {
+    let header = isMobileDockDrag(runtime) ? state.header : getTabHeaderUnderPoint(runtime, clientX, clientY);
+    header = header || state.button.parentElement;
+    if (!header) return;
+    if (state.button.parentElement !== header) header.appendChild(state.button);
+    let siblings = Array.from(header.querySelectorAll(".tab-btn")).filter((el) => el !== state.button);
+    let before = siblings.find((el) => {
+      let rect = el.getBoundingClientRect();
+      return clientX < rect.left + rect.width / 2;
+    });
+    header.insertBefore(state.button, before || header.querySelector(":scope > #btn-mobile-nav-more"));
+  }
+  function commitMobileDockOrder(runtime) {
+    const layout = runtime.deps.tabLayoutUi.current();
+    const dock = Array.from(runtime.deps.document.querySelectorAll("#tab-header-bottom > .tab-btn")).map((button) => button.id);
+    dock.forEach((id) => {
+      layout.tabPlacement[id] = "top";
+    });
+    layout.tabOrder = [...dock, ...layout.tabOrder.filter((id) => !dock.includes(id))];
+  }
+  function commitTabHeaderDragOrder(runtime) {
+    if (isMobileDockDrag(runtime)) {
+      commitMobileDockOrder(runtime);
+      return;
+    }
+    let headers = getTabHeaders(runtime);
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    runtime.deps.tabLayoutUi.current().tabPlacement = runtime.deps.tabLayoutUi.current().tabPlacement || {};
+    headers.forEach((header) => {
+      let placement = header.id === "tab-header-bottom" ? "bottom" : "top";
+      Array.from(header.querySelectorAll(".tab-btn")).forEach((btn) => {
+        runtime.deps.tabLayoutUi.current().tabPlacement[btn.id] = placement;
+      });
+    });
+    runtime.deps.tabLayoutUi.current().tabOrder = getTabHeaderOrderSnapshot(runtime, headers);
+  }
+  function activateTabButtonFromDrag(runtime, button) {
+    if (!button || !button.id || typeof runtime.deps.switchTab !== "function" || isMobileDockDrag(runtime)) return;
+    if (!button.id.startsWith("btn-tab-")) return;
+    (0, runtime.deps.switchTab)(button.id.replace(/^btn-/, ""));
+  }
+  function clearTabHeaderDragState(runtime, saveOrder) {
+    let state = runtime.state.tabHeaderDragState;
+    runtime.state.tabHeaderDragState = null;
+    if (!state) return;
+    (0, runtime.deps.clearTimeout)(state.longPressTimer);
+    if (state.ghost) state.ghost.remove();
+    state.button.classList.remove("dragging");
+    runtime.deps.document.body.classList.remove("tab-drag-active");
+    const commit = saveOrder && state.owner === runtime.deps.game;
+    releaseTabDragPointer(state, commit);
+    if (commit && state.dragging) {
+      commitTabHeaderDragOrder(runtime);
+      runtime.state.tabHeaderSuppressClickUntil = runtime.deps.Date.now() + 450;
+      applyTabHeaderOrder(runtime, true);
+      (0, runtime.deps.queueImportantSave)(300);
+      activateTabButtonFromDrag(runtime, state.button);
+    }
+  }
+  function releaseTabDragPointer(state, commit) {
+    if (state.button.hasPointerCapture?.(state.pointerId)) state.button.releasePointerCapture(state.pointerId);
+    if (commit || !state.dragging || !state.originalParent.isConnected) return;
+    const next = state.originalNext?.parentElement === state.originalParent ? state.originalNext : null;
+    state.originalParent.insertBefore(state.button, next);
+  }
+  function tabDragPressMs(runtime, button) {
+    const classes = runtime.deps.document.body.classList;
+    if (classes.contains("desktop-windowed-ui")) return 0;
+    if (!classes.contains("mobile-primary-navigation")) return runtime.state.TAB_DRAG_LONG_PRESS_MS;
+    return button.closest("#tab-header-bottom") ? runtime.state.MOBILE_DOCK_LONG_PRESS_MS : 0;
+  }
+  function onTabHeaderPointerDown(runtime, event) {
+    if (runtime.state.tabHeaderDragState) return;
+    let button = getTabButtonFromTarget(runtime, event.target);
+    let pressMs = button ? tabDragPressMs(runtime, button) : 0;
+    if (!pressMs || event.pointerType === "mouse" && event.button !== 0) return;
+    let header = button.closest ? button.closest(".tab-header") : null;
+    runtime.state.tabHeaderDragState = {
+      button,
+      header,
+      owner: runtime.deps.game,
+      originalParent: button.parentElement,
+      originalNext: button.nextSibling,
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      startScrollLeft: header ? header.scrollLeft : 0,
+      grabOffsetX: 0,
+      grabOffsetY: 0,
+      ghost: null,
+      dragging: false,
+      scrolling: false,
+      longPressTimer: null
+    };
+    const state = runtime.state.tabHeaderDragState;
+    state.longPressTimer = runtime.deps.setTimeout(() => beginTabHeaderDrag(runtime, state), pressMs);
+    if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
+  }
+  function onTabHeaderPointerMove(runtime, event) {
+    let state = runtime.state.tabHeaderDragState;
+    if (!state || event.pointerId !== state.pointerId) return;
+    state.lastX = event.clientX;
+    state.lastY = event.clientY;
+    if (scrollTabHeaderGesture(runtime, state, event)) return;
+    let dx = Math.abs(event.clientX - state.startX);
+    let dy = Math.abs(event.clientY - state.startY);
+    let cancelPx = state.pointerType === "touch" ? 16 : runtime.state.TAB_DRAG_CANCEL_PX;
+    if (!state.dragging && dx + dy > cancelPx) {
+      clearTabHeaderDragState(runtime, false);
+      return;
+    }
+    if (!state.dragging) return;
+    event.preventDefault();
+    updateTabDragGhost(runtime, state, event.clientX, event.clientY);
+    moveDraggedTabToPoint(runtime, state, event.clientX, event.clientY);
+  }
+  function scrollTabHeaderGesture(runtime, state, event) {
+    if (state.scrolling) {
+      if (state.header) state.header.scrollLeft = state.startScrollLeft - (event.clientX - state.startX);
+      event.preventDefault();
+      return true;
+    }
+    if (state.dragging || state.pointerType !== "touch") return false;
+    const dx = Math.abs(event.clientX - state.startX), dy = Math.abs(event.clientY - state.startY);
+    if (dy > dx && dy > runtime.state.TAB_DRAG_CANCEL_PX) {
+      clearTabHeaderDragState(runtime, false);
+      return true;
+    }
+    if (!(dx > dy && dx > runtime.state.TAB_DRAG_CANCEL_PX)) return false;
+    return beginTabHeaderSwipe(runtime, state, event);
+  }
+  function beginTabHeaderSwipe(runtime, state, event) {
+    if (!state.header || state.header.scrollWidth <= state.header.clientWidth + 1) return false;
+    state.scrolling = true;
+    (0, runtime.deps.clearTimeout)(state.longPressTimer);
+    state.header.scrollLeft = state.startScrollLeft - (event.clientX - state.startX);
+    event.preventDefault();
+    return true;
+  }
+  function onTabHeaderPointerEnd(runtime, event) {
+    let state = runtime.state.tabHeaderDragState;
+    if (!state || event.pointerId !== state.pointerId) return;
+    if (state.scrolling) {
+      if (Math.abs(state.lastX - state.startX) > 6) runtime.state.tabHeaderSuppressClickUntil = runtime.deps.Date.now() + 350;
+      clearTabHeaderDragState(runtime, false);
+      return;
+    }
+    clearTabHeaderDragState(runtime, true);
+  }
+  function onTabHeaderClickCapture(runtime, event) {
+    if (runtime.deps.Date.now() <= runtime.state.tabHeaderSuppressClickUntil && getTabButtonFromTarget(runtime, event.target)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    returnToBattleFromOpenTab(runtime, event);
+  }
+  function returnToBattleFromOpenTab(runtime, event) {
+    const button = event.target.closest && event.target.closest("#tab-header-bottom > .tab-btn.active");
+    if (!button || button.id === "btn-tab-battle" || !runtime.deps.document.body.classList.contains("mobile-primary-navigation")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    (0, runtime.deps.switchTab)("tab-battle");
+  }
+  function installTabHeaderDragReorder(runtime) {
+    if (runtime.state.tabHeaderDragBound) return;
+    runtime.state.tabHeaderDragBound = true;
+    listenView(runtime, runtime.deps.document, "pointerdown", runtime.handlers.onTabHeaderPointerDown, true);
+    listenView(runtime, runtime.deps.document, "pointermove", runtime.handlers.onTabHeaderPointerMove, { capture: true, passive: false });
+    listenView(runtime, runtime.deps.document, "pointerup", runtime.handlers.onTabHeaderPointerEnd, true);
+    listenView(runtime, runtime.deps.document, "pointercancel", () => clearTabHeaderDragState(runtime, false), true);
+    listenView(runtime, runtime.deps.document, "click", runtime.handlers.onTabHeaderClickCapture, true);
+  }
+  function applyTabHeaderOrder(runtime, shouldRenderSettings) {
+    const focused = runtime.deps.document.activeElement;
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    runtime.deps.tabLayoutUi.current().tabPlacement = runtime.deps.tabLayoutUi.current().tabPlacement || {};
+    let headers = Array.from(runtime.deps.document.querySelectorAll(".tab-header"));
+    let topHeader = headers.find((header) => header.id !== "tab-header-bottom");
+    let bottomHeader = runtime.deps.document.getElementById("tab-header-bottom");
+    if (runtime.deps.document.body.classList.contains("desktop-windowed-ui")) {
+      teardownMobilePrimaryNavigation(runtime, topHeader, bottomHeader);
+      if (typeof runtime.deps.syncDesktopRailGroups === "function") (0, runtime.deps.syncDesktopRailGroups)();
+      refreshOrderSettings(runtime, shouldRenderSettings);
+      return;
+    }
+    if (!topHeader) return;
+    let mobilePrimary = isMobilePrimaryNavigationEnabled(runtime);
+    if (!mobilePrimary) teardownMobilePrimaryNavigation(runtime, topHeader, bottomHeader);
+    else ensureMobilePrimaryNavigation(runtime, topHeader, bottomHeader);
+    installTabHeaderDragReorder(runtime);
+    placeTabHeaderButtons(runtime, headers, topHeader, bottomHeader, mobilePrimary);
+    syncBottomHeader(runtime, bottomHeader);
+    if (mobilePrimary) renderMobileMenuGroups(runtime, topHeader);
+    syncMobilePrimaryNavigationState(runtime);
+    restoreMobileMenuFocus(runtime, focused);
+    refreshOrderSettings(runtime, shouldRenderSettings);
+  }
+  function syncBottomHeader(runtime, bottomHeader) {
+    if (!bottomHeader) return;
+    let more = runtime.deps.document.getElementById("btn-mobile-nav-more");
+    if (more) bottomHeader.appendChild(more);
+    let hasBottomTabs = bottomHeader.children.length > 0;
+    bottomHeader.style.display = hasBottomTabs ? "flex" : "none";
+    runtime.deps.document.body.classList.toggle("has-bottom-tabs", hasBottomTabs);
+    updateBottomTabSpacing(runtime);
+  }
+  function refreshOrderSettings(runtime, force) {
+    const settings = runtime.deps.document.getElementById("tab-settings");
+    if (force || settings?.classList.contains("active")) renderTabOrderSettings(runtime);
+  }
+  function placeTabHeaderButtons(runtime, headers, topHeader, bottomHeader, mobilePrimary) {
+    const primaryIds = new Set(runtime.deps.tabLayoutUi.mobilePrimaryIds());
+    let allTabButtons = headers.flatMap((header) => Array.from(header.querySelectorAll(".tab-btn")));
+    let ids = allTabButtons.map((el) => el.id);
+    let order = Array.from(/* @__PURE__ */ new Set(["btn-tab-battle", ...runtime.deps.tabLayoutUi.current().tabOrder, ...runtime.deps.tabLayoutUi.defaultOrder]));
+    let map = {};
+    allTabButtons.forEach((el) => map[el.id] = el);
+    order.forEach((id) => {
+      if (!map[id]) return;
+      let target = mobilePrimary ? primaryIds.has(id) ? bottomHeader : topHeader : runtime.deps.game.settings.twoRowTabs && runtime.deps.tabLayoutUi.current().tabPlacement[id] === "bottom" && bottomHeader ? bottomHeader : topHeader;
+      target.appendChild(map[id]);
+    });
+    ids.forEach((id) => {
+      if (order.includes(id) || !map[id]) return;
+      let target = mobilePrimary && primaryIds.has(id) ? bottomHeader : topHeader;
+      target.appendChild(map[id]);
+    });
+    if (mobilePrimary) primaryIds.forEach((id) => {
+      if (map[id]) bottomHeader.appendChild(map[id]);
+    });
+  }
+  function updateBottomTabSpacing(runtime) {
+    let bottomHeader = runtime.deps.document.getElementById("tab-header-bottom");
+    let visible = bottomHeader && runtime.deps.document.body.classList.contains("has-bottom-tabs") && runtime.deps.window.getComputedStyle(bottomHeader).display !== "none";
+    let height = visible ? Math.ceil(bottomHeader.getBoundingClientRect().height) : 0;
+    if (runtime.deps.document.body.style.getPropertyValue("--bottom-tab-height") !== height + "px") runtime.deps.document.body.style.setProperty("--bottom-tab-height", height + "px");
+  }
+
+  // modules/ui/tab-header-status.mjs
+  function moveTabGroupBefore(runtime, sourceKey, targetKey) {
+    if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+    let groups = getOrderedTabGroups(runtime);
+    let sourceIdx = groups.findIndex((group) => group.key === sourceKey);
+    let targetIdx = groups.findIndex((group) => group.key === targetKey);
+    if (sourceIdx < 0 || targetIdx < 0) return;
+    let moved = groups.slice();
+    let source = moved.splice(sourceIdx, 1)[0];
+    let insertIdx = moved.findIndex((group) => group.key === targetKey);
+    moved.splice(Math.max(0, insertIdx), 0, source);
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    runtime.deps.tabLayoutUi.current().tabGroupOrder = moved.map((group) => group.key);
+    runtime.state.lastTabHeaderUiSignature = null;
+    renderTabCategoryBar(runtime);
+    if (typeof runtime.deps.syncDesktopRailGroups === "function" && runtime.deps.document.body.classList.contains("desktop-windowed-ui")) (0, runtime.deps.syncDesktopRailGroups)();
+    renderTabOrderSettings(runtime);
+    (0, runtime.deps.queueImportantSave)(300);
+  }
+  function onTabGroupDragStart(runtime, event, groupKey) {
+    if (!event || !event.dataTransfer) return;
+    runtime.state.draggedGroup = { key: groupKey, owner: runtime.deps.game };
+    event.dataTransfer.setData("text/plain", groupKey);
+    event.dataTransfer.effectAllowed = "move";
+  }
+  function onTabGroupDrop(runtime, event, targetKey) {
+    if (!event || !event.dataTransfer) return;
+    event.preventDefault();
+    const source = runtime.state.draggedGroup;
+    runtime.state.draggedGroup = null;
+    if (!source || source.owner !== runtime.deps.game || source.key !== event.dataTransfer.getData("text/plain")) return;
+    moveTabGroupBefore(runtime, source.key, targetKey);
+  }
+  function selectTabGroup(runtime, groupKey) {
+    if (!runtime.state.TAB_GROUPS.some((g) => g.key === groupKey)) return;
+    runtime.deps.game.settings = runtime.deps.game.settings || {};
+    runtime.deps.game.settings.activeTabGroup = groupKey;
+    let activeInGroup = runtime.state.lastActiveTabId && getTabGroupForId(runtime, runtime.state.lastActiveTabId) === groupKey;
+    applyTabGroupFilter(runtime);
+    if (!activeInGroup) {
+      let group = getOrderedTabGroups(runtime).find((g) => g.key === groupKey);
+      let firstVisible = group.tabs.find((id) => {
+        let btn = runtime.deps.document.getElementById("btn-" + id);
+        return btn && btn.style.display !== "none" && !btn.dataset.groupHidden;
+      });
+      if (firstVisible) (0, runtime.deps.switchTab)(firstVisible);
+    }
+    renderTabCategoryBar(runtime);
+  }
+  function applyTabGroupFilter(runtime) {
+    updateTabUnlockButtons(runtime);
+  }
+  function ensureTabCategoryBarPlacement(runtime, bar) {
+    let header = runtime.deps.document.querySelector(".tab-header");
+    if (bar && header && header.parentElement && bar.nextElementSibling !== header) {
+      header.parentElement.insertBefore(bar, header);
+    }
+  }
+  function renderTabCategoryBar(runtime) {
+    let bar = runtime.deps.document.getElementById("tab-category-bar");
+    if (!bar) return;
+    ensureTabCategoryBarPlacement(runtime, bar);
+    if (!isTabGroupingActive(runtime)) {
+      bar.style.display = "none";
+      (0, runtime.deps.syncMapCompleteActionQuickControl)();
+      return;
+    }
+    bar.style.display = "inline-flex";
+    let active = getActiveTabGroup(runtime);
+    bar.innerHTML = getOrderedTabGroups(runtime).map((group) => {
+      let hasNoti = group.key !== active && group.tabs.some((id) => {
+        let key = id.replace("tab-", "");
+        let gate = typeof runtime.deps.TAB_UNLOCK_GATES !== "undefined" ? runtime.deps.TAB_UNLOCK_GATES[id] : null;
+        if (gate && !(runtime.deps.game.unlocks && runtime.deps.game.unlocks[gate])) return false;
+        return runtime.deps.game.noti && runtime.deps.game.noti[key] && isNotiEnabled(runtime, key);
+      });
+      return `<button class="tab-category-btn${group.key === active ? " active" : ""}" draggable="true" ondragstart="onTabGroupDragStart(event,'${group.key}')" ondragover="event.preventDefault()" ondrop="onTabGroupDrop(event,'${group.key}')" onclick="selectTabGroup('${group.key}')">${(0, runtime.deps._t)(group.label)}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ""}</button>`;
+    }).join("");
+    (0, runtime.deps.syncMapCompleteActionQuickControl)();
+  }
+  function scheduleTabHeaderViewportSync(runtime) {
+    clearTabHeaderDragState(runtime, false);
+    if (runtime.state.viewportPending) return;
+    runtime.state.viewportPending = true;
+    scheduleViewFrame(runtime, () => {
+      runtime.state.viewportPending = false;
+      updateBottomTabSpacing(runtime);
+      runtime.state.lastTabHeaderUiSignature = null;
+      refreshTabHeaderUiIfNeeded(runtime);
+    });
+  }
+  function updateTabNotificationDots(runtime) {
+    if (typeof runtime.deps.isSocialTabActive === "function" && (0, runtime.deps.isSocialTabActive)()) runtime.deps.game.noti.social = false;
+    TAB_HEADER_NOTI_KEYS.forEach((key) => {
+      if (runtime.state.lastActiveTabId === "tab-" + key) runtime.deps.game.noti[key] = false;
+      let el = runtime.deps.document.getElementById("noti-" + key);
+      if (el) el.style.display = runtime.deps.game.noti[key] && isNotiEnabled(runtime, key) ? "block" : "none";
+    });
+    let dockDot = runtime.deps.document.getElementById("noti-social-dock");
+    if (dockDot) dockDot.style.display = runtime.deps.game.noti.social && isNotiEnabled(runtime, "social") ? "block" : "none";
+    syncMergedTabLauncherState(runtime);
+    let itemsTabButton = runtime.deps.document.getElementById("btn-tab-items");
+    if (itemsTabButton) itemsTabButton.classList.toggle("starter-equip-tutorial-pending", !!(0, runtime.deps.getStarterWeaponTutorialTarget)());
+  }
+  function syncTabUnlockButton(runtime, key) {
+    let button = runtime.deps.document.getElementById("btn-tab-" + key);
+    let reserved = key === "map" && !runtime.deps.game.unlocks.map && isMobilePrimaryNavigationEnabled(runtime) && !runtime.deps.contentProgression.opening.applies(runtime.deps.game) && runtime.deps.game.settings.tabLayouts.mobile.tabPlacement["btn-tab-map"] !== "bottom";
+    button.classList.toggle("nav-locked", reserved);
+    if (reserved) button.setAttribute("aria-disabled", "true");
+    else button.removeAttribute("aria-disabled");
+    button.style.display = runtime.deps.game.unlocks[key] || reserved ? "flex" : "none";
+  }
+  function updateTabUnlockButtons(runtime) {
+    TAB_UNLOCK_BUTTON_KEYS.forEach(runtime.handlers.syncTabUnlockButton);
+    let battleBtn = runtime.deps.document.getElementById("btn-tab-battle");
+    if (battleBtn) battleBtn.style.display = isMobilePrimaryNavigationEnabled(runtime) ? "flex" : "none";
+    syncMergedTabLauncherVisibility(runtime);
+    Object.entries(MERGED_TAB_GROUPS).forEach(([groupKey, group]) => {
+      let root = runtime.deps.document.getElementById(group.launcher);
+      if (root && root.classList.contains("active")) renderMergedTabPanels(runtime, groupKey);
+    });
+    closeRelockedTabSurfaces(runtime);
+    hideOutOfGroupTabButtons(runtime);
+    if (typeof runtime.deps.syncDesktopRailGroups === "function" && runtime.deps.document.body.classList.contains("desktop-windowed-ui")) (0, runtime.deps.syncDesktopRailGroups)();
+  }
+  function isUngatedPersistentTabButton(runtime, btn) {
+    return btn && (btn.id === "btn-tab-settings" || btn.id === "btn-tab-character");
+  }
+  function hideOutOfGroupTabButtons(runtime) {
+    let grouping = isTabGroupingActive(runtime);
+    let active = getActiveTabGroup(runtime);
+    Array.from(runtime.deps.document.querySelectorAll(".tab-header .tab-btn")).forEach((btn) => {
+      if (!grouping) {
+        delete btn.dataset.groupHidden;
+        if (isUngatedPersistentTabButton(runtime, btn)) btn.style.display = "flex";
+        return;
+      }
+      if (getTabGroupForId(runtime, btn.id) !== active) {
+        btn.dataset.groupHidden = "1";
+        btn.style.display = "none";
+        return;
+      }
+      delete btn.dataset.groupHidden;
+      if (isUngatedPersistentTabButton(runtime, btn)) btn.style.display = "flex";
+    });
+  }
+  function applyStandingTabNotices(runtime) {
+    const standing = { char: runtime.deps.game.passivePoints > 0, traits: !!runtime.deps.game.unlocks.traits && (runtime.deps.game.ascendPoints > 0 || runtime.deps.game.ascendKeystonePoints > 0), season: runtime.deps.worldTreeBark.barkHasFreePoints(runtime.deps.game) };
+    Object.entries(standing).forEach(([key, on]) => {
+      if (on && runtime.state.lastActiveTabId !== "tab-" + key) runtime.deps.game.noti[key] = true;
+    });
+  }
+  function refreshTabHeaderUiIfNeeded(runtime) {
+    applyStandingTabNotices(runtime);
+    let signature = getTabHeaderUiSignature(runtime);
+    if (signature === runtime.state.lastTabHeaderUiSignature) {
+      if (getTabNotiSignature(runtime) === runtime.state.lastTabNotiSignature) return false;
+      updateTabNotificationDots(runtime);
+      if (isTabGroupingActive(runtime)) renderTabCategoryBar(runtime);
+      runtime.state.lastTabNotiSignature = getTabNotiSignature(runtime);
+      return false;
+    }
+    runtime.state.lastTabHeaderUiSignature = signature;
+    updateTabUnlockButtons(runtime);
+    applyTabHeaderOrder(runtime);
+    updateTabNotificationDots(runtime);
+    applyTabGroupFilter(runtime);
+    renderTabCategoryBar(runtime);
+    runtime.state.lastTabNotiSignature = getTabNotiSignature(runtime);
+    return true;
+  }
+
+  // modules/ui/tab-activation.mjs
+  function switchTab2(runtime, tabId) {
+    const target = prepareTabDestination(runtime, tabId);
+    if (!target) return;
+    const { deps } = runtime, { mergedEntry, shown } = target;
+    setMobileTabDrawerOpen(runtime, false);
+    if (shown.id === "tab-items" && deps.game.noti) deps.game.noti.items = false;
+    const tab = deps.document.getElementById(tabId);
+    if (runtime.state.lastActiveTabId === tabId && tab && tab.classList.contains("active")) {
+      refreshShownMergedTab(runtime, mergedEntry, shown);
+      updateTabNotificationDots(runtime);
+      return;
+    }
+    activateTabSurface(runtime, tabId, shown.id, mergedEntry);
+    selectActivatedTabGroup(runtime, tabId);
+    acknowledgeActivatedTab(runtime, tabId, shown.id);
+    renderActivatedTab(runtime, tabId, shown.id);
+  }
+  function prepareTabDestination(runtime, tabId) {
+    const { deps } = runtime;
+    if (deps.playerGuideUi?.allowsTab(tabId, true) === false) return;
+    (0, deps.hideInfoTooltip)();
+    (0, deps.hideItemTooltip)();
+    if (typeof deps.hidePassiveNodeTooltip === "function") (0, deps.hidePassiveNodeTooltip)();
+    const mergedEntry = getMergedTabGroup(runtime, tabId);
+    if (mergedEntry && mergedEntry[1].launcher !== tabId) {
+      switchMergedTabSubtab(runtime, mergedEntry[0], tabId);
+      return;
+    }
+    if (mergedEntry && !getSelectedMergedTabId(runtime, mergedEntry[0])) return;
+    if (!isTabSurfaceAvailable(runtime, tabId)) {
+      runtime.handlers.notifyLockedTab(tabId);
+      return;
+    }
+    return { mergedEntry, shown: resolveShownTab(runtime, tabId, mergedEntry) };
+  }
+  function activateTabSurface(runtime, tabId, shownId, mergedEntry) {
+    const { deps } = runtime;
+    deps.document.querySelectorAll(".tab-content:not(.merged-subtab-pane), .tab-btn").forEach((el) => el.classList.remove("active"));
+    deps.document.getElementById(tabId).classList.add("active");
+    runtime.handlers.runWindowOpenHooks(tabId, shownId);
+    runtime.state.pendingRelockedTabFallback = false;
+    const button = deps.document.getElementById("btn-" + tabId);
+    button.classList.add("active");
+    if (mergedEntry) renderMergedTabSubtabs(runtime, mergedEntry[0]);
+    syncMergedTabLauncherState(runtime);
+    if (button && button.scrollIntoView && deps.uiDisplay.matches("(max-width: 1080px)")) revealActiveTabButton(runtime, button);
+  }
+  function selectActivatedTabGroup(runtime, tabId) {
+    if (!isTabGroupingActive(runtime)) return;
+    const { game } = runtime.deps;
+    game.settings = game.settings || {};
+    const group = getTabGroupForId(runtime, tabId);
+    if (game.settings.activeTabGroup !== group) {
+      game.settings.activeTabGroup = group;
+      applyTabGroupFilter(runtime);
+    }
+    renderTabCategoryBar(runtime);
+  }
+  function acknowledgeActivatedTab(runtime, tabId, shownId) {
+    const { deps } = runtime, game = deps.game;
+    if (tabId === "tab-codex" && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
+    if (tabId === "tab-map") (0, deps.focusMapAlarmSourceSubtab)();
+    TAB_HEADER_NOTI_KEYS.forEach((key) => {
+      if (shownId === "tab-" + key) game.noti[key] = false;
+    });
+    if (tabId === "tab-map") (0, deps.acknowledgeMapMainAlarm)();
+    if (runtime.state.lastActiveTabId === "tab-codex" && tabId !== "tab-codex") game.codexNewlyRegistered = {};
+    runtime.state.lastActiveTabId = tabId;
+  }
+  function renderActivatedTab(runtime, tabId, shownId) {
+    const { deps } = runtime;
+    if (typeof deps.syncSocialChatPolling === "function") (0, deps.syncSocialChatPolling)();
+    if (tabId === "tab-talent") deps.talentUi.render();
+    if (shownId === "tab-items") runtime.handlers.switchItemSubtab("item-tab-equip");
+    (0, deps.updateMobileBattlePipVisibility)();
+    if ((0, deps.isMobileBattlePipVisible)()) scheduleViewFrame(runtime, () => (0, deps.refreshMobileBattlePip)());
+    (0, deps.updateStaticUI)();
+    if (tabId === "tab-char") scheduleTabLayout(runtime, () => {
+      (0, deps.fitPassiveCameraToBounds)(false);
+      (0, deps.resizePassiveTreeCanvas)(true);
+      (0, deps.drawPassiveTree)();
+      (0, deps.resizeCanvas)();
+    });
+    else if (tabId === "tab-battle") {
+      (0, deps.startBattleAssetLoadNow)();
+      scheduleTabLayout(runtime, () => {
+        (0, deps.syncBattleTabLayout)(false);
+        (0, deps.scheduleStableResize)();
+      });
+    } else if (tabId === "tab-settings") deps.settingsUi.sync();
+  }
+  function scheduleTabLayout(runtime, callback) {
+    const owner = runtime.deps.game;
+    const handle = runtime.deps.setTimeout(() => {
+      runtime.state.activationTimers.delete(handle);
+      if (runtime.active && runtime.deps.game === owner) callback();
+    }, 40);
+    runtime.state.activationTimers.add(handle);
+  }
+
+  // modules/ui/tab-subpanels.mjs
+  var tab_subpanels_exports = {};
+  __export(tab_subpanels_exports, {
+    craftSelectInventoryItemById: () => craftSelectInventoryItemById,
+    isSelectedSubtab: () => isSelectedSubtab,
+    notifyLockedTab: () => notifyLockedTab,
+    runWindowOpenHooks: () => runWindowOpenHooks,
+    switchItemSubtab: () => switchItemSubtab,
+    switchMapSubtab: () => switchMapSubtab,
+    switchSkillSubtab: () => switchSkillSubtab,
+    syncSingleSubtabRows: () => syncSingleSubtabRows
+  });
+
+  // modules/state/navigation-selection.mjs
+  function selectSubtab(owner, field, subtabId) {
+    owner[field] = subtabId;
+  }
+  function acknowledgeEquipmentTab(owner, subtabId) {
+    if (subtabId === "item-tab-equip" && owner.noti) owner.noti.items = false;
+  }
+
+  // modules/ui/tab-subpanels.mjs
+  function runWindowOpenHooks(runtime, tabId, shownId) {
+    const { deps } = runtime;
+    if (shownId === "tab-items" && deps.equipmentTriage) deps.equipmentTriage.onOpen();
+    if (tabId === "tab-trade" && deps.marketUi.section === "hall") deps.loadPlayerExchange();
+    deps.tutorialActionUi.followOpeningTab(shownId);
+  }
+  function craftSelectInventoryItemById(runtime, itemId) {
+    const { deps } = runtime, owner = deps.game;
+    if (!deps.contentProgression.canOpen("item-tab-craft")) return;
+    const id = Number(itemId);
+    if (!Number.isFinite(id) || !(owner.inventory || []).some((item) => item && item.id === id)) return;
+    openCraftingTab(runtime);
+    deps.selectForCrafting(id, false);
+    scheduleCraftingScroll(runtime, owner);
+  }
+  function openCraftingTab(runtime) {
+    const { deps } = runtime;
+    if (typeof deps.hideItemTooltip === "function") deps.hideItemTooltip();
+    if (typeof deps.hideInfoTooltip === "function") deps.hideInfoTooltip();
+    if (typeof deps.switchTab === "function") deps.switchTab("tab-items");
+    if (deps.document.body.classList.contains("desktop-windowed-ui") && typeof deps.openWindow === "function") deps.openWindow("tab-items");
+    runtime.handlers.switchItemSubtab("item-tab-craft");
+  }
+  function scheduleCraftingScroll(runtime, owner) {
+    const loop = owner.loopCount, season = owner.season;
+    const timer = runtime.deps.setTimeout(() => {
+      runtime.state.activationTimers.delete(timer);
+      if (!runtime.active || runtime.deps.game !== owner || owner.loopCount !== loop || owner.season !== season) return;
+      const el = runtime.deps.document.getElementById("forge-item-display");
+      if (el && el.scrollIntoView) {
+        try {
+          el.scrollIntoView({ block: "start", behavior: "smooth" });
+        } catch (error) {
+          runtime.deps.console.warn("crafting scroll fallback:", error);
+          el.scrollIntoView();
+        }
+      }
+    }, 60);
+    runtime.state.activationTimers.add(timer);
+  }
+  function isSelectedSubtab(runtime, subtabId) {
+    const panel = runtime.deps.document.getElementById(subtabId);
+    const button = runtime.deps.document.getElementById("btn-" + subtabId);
+    return !!(panel && button && panel.classList.contains("active") && button.classList.contains("active"));
+  }
+  function switchItemSubtab(runtime, subtabId) {
+    const { deps } = runtime, owner = deps.game;
+    if (subtabId === "item-tab-fossil") subtabId = "item-tab-craft";
+    if (redirectTradeTab(runtime, subtabId)) return;
+    if (subtabId !== owner.itemSubtab) deps.craftingWorkspaceUi.stopAuto("");
+    if (!deps.contentProgression.canOpen(subtabId)) return;
+    acknowledgeEquipmentTab(owner, subtabId);
+    if (subtabId === owner.itemSubtab && isSelectedSubtab(runtime, subtabId)) return;
+    selectSubtab(owner, "itemSubtab", subtabId);
+    if (subtabId === "item-tab-equip" && deps.equipmentTriage) deps.equipmentTriage.onOpen();
+    showItemSubtabPanel(runtime, subtabId);
+    deps.systemTutorialUi.visit(subtabId);
+    deps.updateStaticUI();
+  }
+  function redirectTradeTab(runtime, subtabId) {
+    if (!["item-tab-market", "item-tab-hall"].includes(subtabId)) return false;
+    const market = runtime.deps.marketUi;
+    market.open(subtabId === "item-tab-hall" ? "hall" : market.section);
+    return true;
+  }
+  function showItemSubtabPanel(runtime, subtabId) {
+    const { deps } = runtime;
+    clearSubtabPanels(runtime, "#tab-items .subtab-content", "#tab-items .subtab-btn");
+    deps.document.getElementById(subtabId).classList.add("active");
+    deps.document.getElementById("btn-" + subtabId).classList.add("active");
+    if (typeof deps.refitDockedWindows === "function") deps.refitDockedWindows();
+  }
+  function clearSubtabPanels(runtime, panels, buttons) {
+    runtime.deps.document.querySelectorAll(panels).forEach((el) => el.classList.remove("active"));
+    runtime.deps.document.querySelectorAll(buttons).forEach((el) => el.classList.remove("active"));
+  }
+  function activateSubtab(runtime, subtabId) {
+    const panel = runtime.deps.document.getElementById(subtabId);
+    const button = runtime.deps.document.getElementById("btn-" + subtabId);
+    if (panel) panel.classList.add("active");
+    if (button) button.classList.add("active");
+  }
+  function switchSkillSubtab(runtime, subtabId) {
+    const { deps } = runtime, owner = deps.game;
+    if (!deps.contentProgression.canOpen(subtabId)) return;
+    if (subtabId === owner.skillSubtab && isSelectedSubtab(runtime, subtabId)) return;
+    selectSubtab(owner, "skillSubtab", subtabId);
+    clearSubtabPanels(runtime, "#tab-skills .subtab-content", "#tab-skills .subtab-btn");
+    activateSubtab(runtime, subtabId);
+    deps.systemTutorialUi.visit(subtabId);
+  }
+  function switchMapSubtab(runtime, subtabId) {
+    const { deps } = runtime, owner = deps.game;
+    if (!deps.contentProgression.canOpen(subtabId)) return;
+    if (!deps.isMapPrimaryContentUnlocked(owner, subtabId)) subtabId = "map-tab-zones";
+    if (subtabId === owner.mapSubtab && isSelectedSubtab(runtime, subtabId)) {
+      reopenMapExplore(runtime, subtabId);
+      if (subtabId === "map-tab-cosmos") deps.cosmosAtlasView?.renderCosmosAtlas();
+      return;
+    }
+    selectSubtab(owner, "mapSubtab", subtabId);
+    clearSubtabPanels(runtime, "#tab-map .subtab-content", "#tab-map .map-primary-tabs .subtab-btn");
+    activateSubtab(runtime, subtabId);
+    reopenMapExplore(runtime, subtabId);
+    renderMapRegion(runtime, subtabId);
+    deps.renderMobileMapNavigation();
+    deps.explorationAtlasUi.syncLocation();
+  }
+  function reopenMapExplore(runtime, subtabId) {
+    if (subtabId === "map-tab-zones") runtime.deps.switchMapExploreSubtab(runtime.deps.game.mapExploreSubtab || "map-explore-atlas");
+  }
+  function renderMapRegion(runtime, subtabId) {
+    const { deps } = runtime;
+    if (subtabId === "map-tab-pvp" && typeof deps.renderGhostArena === "function") deps.renderGhostArena();
+    const render = {
+      "map-tab-underworld": () => deps.renderUnderworldMapPanel(),
+      "map-tab-ocean": () => deps.oceanDiveUi.render(),
+      "map-tab-fishing": () => deps.fishingUi.render(),
+      "map-tab-cosmos": () => deps.cosmosAtlasView?.renderCosmosAtlas()
+    };
+    render[subtabId]?.();
+  }
+  function syncSingleSubtabRows(runtime) {
+    runtime.deps.document.querySelectorAll(".tab-content .subtab-row:not(.merged-tab-subtabs)").forEach((row) => {
+      const open = [...row.children].filter((button) => !button.hasAttribute("data-content-locked") && !button.hidden && button.style.display !== "none");
+      row.hidden = open.length < 2;
+      const count = String(open.length);
+      if (row.style.getPropertyValue("--subtab-count") !== count) row.style.setProperty("--subtab-count", count);
+    });
+  }
+  function notifyLockedTab(runtime, tabId) {
+    const reserved = !!runtime.deps.document.getElementById("btn-" + tabId)?.classList.contains("nav-locked");
+    runtime.deps.addLog(getLockedTabMessage(runtime, tabId), "attack-monster", { toast: reserved });
+  }
+  function getLockedTabMessage(runtime, tabId) {
+    if (tabId === "tab-char") return runtime.deps._t("루프 2부터 해금 탭에서 스킬트리를 열 수 있습니다.");
+    const messages = {
+      "tab-season": "루프 1을 클리어하면 루프 탭이 열립니다.",
+      "tab-items": "장비나 제작 재화를 얻으면 장비 탭이 열립니다.",
+      "tab-skills": "새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.",
+      "tab-codex": "첫 고유 아이템을 획득하면 도감 탭이 열립니다.",
+      "tab-map": "액트 1을 마치면 지도가 열립니다.",
+      "tab-traits": "전직 시련을 통과하면 전직 탭이 열립니다.",
+      "tab-talent": "재능 개화 시련을 클리어하면 재능 탭이 열립니다."
+    };
+    return messages[tabId] || "아직 해금되지 않은 탭입니다.";
+  }
+
+  // modules/ui/tab-navigation-view.mjs
+  function createTabNavigationView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, listeners: [], frames: /* @__PURE__ */ new Set() };
+    initialize(runtime);
+    runtime.state.owner = deps.game;
+    runtime.state.titleHosts = /* @__PURE__ */ new Set();
+    for (const [name, handler] of Object.entries({ ...navigationHandlers(), ...tab_subpanels_exports })) {
+      runtime.handlers[name] = (...args) => {
+        if (!runtime.active) return;
+        syncNavigationOwner(runtime);
+        return handler(runtime, ...args);
+      };
+    }
+    runtime.api = navigationApi(runtime);
+    installNavigationEvents(runtime);
+    return runtime.api;
+  }
+  function navigationHandlers() {
+    return { switchTab: switchTab2, toggleMobileTabDrawer, handleMobileMenuKey, handleMobileTabActivation, onTabHeaderPointerDown, onTabHeaderPointerMove, onTabHeaderPointerEnd, onTabHeaderClickCapture, syncTabUnlockButton, isMergedTabAvailable, isMobilePrimaryNavigationEnabled, setMobileTabDrawerOpen, renderTabOrderSettings, onTabGroupDragStart, onTabGroupDrop, getTabGroupForId, isTabGroupingActive, getActiveTabGroup, selectTabGroup, applyTabGroupFilter, renderTabCategoryBar, commitMobileDockOrder, applyTabHeaderOrder, scheduleTabHeaderViewportSync, updateTabNotificationDots, updateTabUnlockButtons, hideOutOfGroupTabButtons, refreshTabHeaderUiIfNeeded, isNotiEnabled, getMergedTabGroup, getSelectedMergedTabId, getActiveTopLevelTabElement, getActiveUiTabId, getRenderingUiTabIds, renderVisibleManagementPanels, isTabSurfaceAvailable, closeRelockedTabSurfaces, resolveShownTab, refreshShownMergedTab, switchMergedTabSubtab, syncMergedTabLauncherVisibility, syncMergedTabLauncherState, openMergedTabPicker, openTabPane, renderMergedTabSubtabs, revealActiveTabButton };
+  }
+  function navigationApi(runtime) {
+    const names = ["switchTab", "isMobilePrimaryNavigationEnabled", "setMobileTabDrawerOpen", "renderTabOrderSettings", "onTabGroupDragStart", "onTabGroupDrop", "getTabGroupForId", "isTabGroupingActive", "getActiveTabGroup", "selectTabGroup", "applyTabGroupFilter", "renderTabCategoryBar", "commitMobileDockOrder", "applyTabHeaderOrder", "scheduleTabHeaderViewportSync", "updateTabNotificationDots", "syncTabUnlockButton", "updateTabUnlockButtons", "hideOutOfGroupTabButtons", "refreshTabHeaderUiIfNeeded", "isNotiEnabled", "getMergedTabGroup", "getSelectedMergedTabId", "getActiveTopLevelTabElement", "getActiveUiTabId", "getRenderingUiTabIds", "renderVisibleManagementPanels", "isTabSurfaceAvailable", "closeRelockedTabSurfaces", "resolveShownTab", "refreshShownMergedTab", "switchMergedTabSubtab", "syncMergedTabLauncherVisibility", "syncMergedTabLauncherState", "openMergedTabPicker", "openTabPane", "renderMergedTabSubtabs", "revealActiveTabButton"];
+    const api = Object.fromEntries([...names, ...Object.keys(tab_subpanels_exports)].map((name) => [name, runtime.handlers[name]]));
+    api.lastActiveTab = () => {
+      syncNavigationOwner(runtime);
+      return runtime.state.lastActiveTabId;
+    };
+    api.needsFallback = () => {
+      syncNavigationOwner(runtime);
+      return runtime.state.pendingRelockedTabFallback;
+    };
+    api.clearFallback = () => {
+      syncNavigationOwner(runtime);
+      runtime.state.pendingRelockedTabFallback = false;
+    };
+    api.dispose = () => disposeNavigation(runtime);
+    return Object.freeze(api);
+  }
+  function syncNavigationOwner(runtime) {
+    if (runtime.state.owner === runtime.deps.game) return;
+    runtime.state.owner = runtime.deps.game;
+    runtime.state.lastActiveTabId = null;
+    runtime.state.pendingRelockedTabFallback = false;
+    clearNavigationWork(runtime);
+    runtime.state.tabHeaderSuppressClickUntil = 0;
+    runtime.state.lastTabHeaderUiSignature = "";
+    runtime.state.lastTabNotiSignature = "";
+    runtime.state.mergedPaneShown.clear();
+    runtime.state.mergedTabSwitching = false;
+    setMobileTabDrawerOpen(runtime, false);
+  }
+  function clearNavigationWork(runtime) {
+    cancelViewFrames(runtime);
+    for (const handle of runtime.state.activationTimers) runtime.deps.clearTimeout(handle);
+    runtime.state.activationTimers.clear();
+    clearTabHeaderDragState(runtime, false);
+    if (runtime.state.revealTimer != null) runtime.deps.clearTimeout(runtime.state.revealTimer);
+    runtime.state.revealTimer = null;
+    runtime.state.revealButton = null;
+    runtime.state.revealPending = false;
+    runtime.state.viewportPending = false;
+    runtime.state.draggedGroup = null;
+  }
+  function installNavigationEvents(runtime) {
+    if (!runtime.deps.window) return;
+    listenView(runtime, runtime.deps.window, "resize", runtime.handlers.scheduleTabHeaderViewportSync);
+    listenView(runtime, runtime.deps.window, "orientationchange", runtime.handlers.scheduleTabHeaderViewportSync);
+    listenView(runtime, runtime.deps.window, "game:languagechange", () => {
+      syncNavigationOwner(runtime);
+      runtime.deps.playerStatCache.invalidate();
+      runtime.deps.cachedTooltipStats = null;
+      runtime.deps.clearGemTooltipCache();
+      if (runtime.deps.document.getElementById("info-tooltip")) runtime.deps.hideInfoTooltip();
+      const pip = runtime.deps.document.getElementById("mobile-battle-pip");
+      if (pip) runtime.deps.setMobileBattlePipCollapsed(pip, pip.classList.contains("is-collapsed"));
+      scheduleTabHeaderViewportSync(runtime);
+    });
+  }
+  function disposeNavigation(runtime) {
+    if (!runtime.active) return;
+    releaseViewEvents(runtime);
+    clearNavigationWork(runtime);
+    const document2 = runtime.deps.document;
+    if (document2?.body) teardownMobilePrimaryNavigation(
+      runtime,
+      document2.getElementById("tab-header-main"),
+      document2.getElementById("tab-header-bottom")
+    );
+    runtime.state.titleHosts.clear();
+    runtime.state.mergedPaneShown.clear();
+  }
+  function initialize(runtime) {
+    runtime.state.lastActiveTabId = null;
+    runtime.state.activationTimers = /* @__PURE__ */ new Set();
+    runtime.state.pendingRelockedTabFallback = false;
+    runtime.state.mobileNavigationKeyBound = false;
+    runtime.state.TAB_DRAG_LONG_PRESS_MS = 180;
+    runtime.state.MOBILE_DOCK_LONG_PRESS_MS = 450;
+    runtime.state.TAB_DRAG_CANCEL_PX = 8;
+    runtime.state.tabHeaderDragState = null;
+    runtime.state.tabHeaderSuppressClickUntil = 0;
+    runtime.state.lastTabHeaderUiSignature = "";
+    runtime.state.TAB_GROUPS = [
+      { key: "character", label: "캐릭터", icon: "👤", tabs: ["tab-character"] },
+      { key: "growth", label: "성장", icon: "📈", tabs: ["tab-char", "tab-traits", "tab-talent", "tab-unlocks", "tab-season", "tab-stump", "tab-skills"] },
+      { key: "content", label: "콘텐츠", icon: "🗺️", tabs: ["tab-map", "tab-codex", "tab-journal", "tab-guide", "tab-records"] },
+      { key: "gear", label: "장비", icon: "⚔️", tabs: ["tab-items", "tab-trade"] },
+      { key: "etc", label: "기타", icon: "⚙️", tabs: ["tab-settings", "tab-battle"] }
+    ];
+    runtime.state.lastTabNotiSignature = "";
+    runtime.state.mergedPaneShown = /* @__PURE__ */ new Map();
+    runtime.state.mergedTabSwitching = false;
+    runtime.state.tabHeaderDragBound = false;
+  }
+
+  // modules/tab-navigation-ui-classic.mjs
+  var tabNavigationView = createTabNavigationView({
+    get cosmosAtlasView() {
+      return window.GameModules.cosmosAtlas?.view;
+    },
+    get hideItemTooltip() {
+      return hideItemTooltip;
+    },
+    get equipmentTriage() {
+      return window.equipmentTriage;
+    },
+    get marketUi() {
+      return marketUi;
+    },
+    get loadPlayerExchange() {
+      return loadPlayerExchange;
+    },
+    get craftingWorkspaceUi() {
+      return craftingWorkspaceUi;
+    },
+    get systemTutorialUi() {
+      return systemTutorialUi;
+    },
+    get openWindow() {
+      return typeof openWindow === "undefined" ? void 0 : openWindow;
+    },
+    get refitDockedWindows() {
+      return typeof refitDockedWindows === "undefined" ? void 0 : refitDockedWindows;
+    },
+    get selectForCrafting() {
+      return selectForCrafting;
+    },
+    get console() {
+      return console;
+    },
+    get isMapPrimaryContentUnlocked() {
+      return isMapPrimaryContentUnlocked;
+    },
+    get switchMapExploreSubtab() {
+      return switchMapExploreSubtab;
+    },
+    get renderGhostArena() {
+      return typeof renderGhostArena === "undefined" ? void 0 : renderGhostArena;
+    },
+    get renderUnderworldMapPanel() {
+      return renderUnderworldMapPanel;
+    },
+    get oceanDiveUi() {
+      return oceanDiveUi;
+    },
+    get fishingUi() {
+      return fishingUi;
+    },
+    get renderMobileMapNavigation() {
+      return renderMobileMapNavigation;
+    },
+    get explorationAtlasUi() {
+      return explorationAtlasUi;
+    },
+    get addLog() {
+      return addLog;
+    },
+    get focusMapAlarmSourceSubtab() {
+      return focusMapAlarmSourceSubtab;
+    },
+    get acknowledgeMapMainAlarm() {
+      return acknowledgeMapMainAlarm;
+    },
+    get updateMobileBattlePipVisibility() {
+      return updateMobileBattlePipVisibility;
+    },
+    get isMobileBattlePipVisible() {
+      return isMobileBattlePipVisible;
+    },
+    get refreshMobileBattlePip() {
+      return refreshMobileBattlePip;
+    },
+    get fitPassiveCameraToBounds() {
+      return fitPassiveCameraToBounds;
+    },
+    get resizePassiveTreeCanvas() {
+      return resizePassiveTreeCanvas;
+    },
+    get drawPassiveTree() {
+      return drawPassiveTree;
+    },
+    get resizeCanvas() {
+      return resizeCanvas;
+    },
+    get startBattleAssetLoadNow() {
+      return startBattleAssetLoadNow;
+    },
+    get syncBattleTabLayout() {
+      return syncBattleTabLayout;
+    },
+    get scheduleStableResize() {
+      return scheduleStableResize;
+    },
+    get settingsUi() {
+      return settingsUi;
+    },
+    get playerGuideUi() {
+      return window.playerGuideUi;
+    },
+    get hidePassiveNodeTooltip() {
+      return window.hidePassiveNodeTooltip;
+    },
+    get syncSocialChatPolling() {
+      return typeof syncSocialChatPolling === "undefined" ? void 0 : syncSocialChatPolling;
+    },
+    get window() {
+      return typeof window === "undefined" ? void 0 : window;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get uiDisplay() {
+      return uiDisplay;
+    },
+    get toggleGoalDrawer() {
+      return typeof toggleGoalDrawer === "undefined" ? void 0 : toggleGoalDrawer;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get _t() {
+      return _t;
+    },
+    get getComputedStyle() {
+      return windowGetComputedStyle;
+    },
+    get tabLayoutUi() {
+      return tabLayoutUi;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get syncDesktopRailGroups() {
+      return typeof syncDesktopRailGroups === "undefined" ? void 0 : syncDesktopRailGroups;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    },
+    get switchTab() {
+      return typeof switchTab === "undefined" ? void 0 : switchTab;
+    },
+    get syncMapCompleteActionQuickControl() {
+      return syncMapCompleteActionQuickControl;
+    },
+    get TAB_UNLOCK_GATES() {
+      return typeof TAB_UNLOCK_GATES === "undefined" ? void 0 : TAB_UNLOCK_GATES;
+    },
+    get clampNumber() {
+      return clampNumber;
+    },
+    get clearTimeout() {
+      return windowClearTimeout;
+    },
+    get Date() {
+      return Date;
+    },
+    get setTimeout() {
+      return windowSetTimeout;
+    },
+    get requestAnimationFrame() {
+      return windowRequestAnimationFrame;
+    },
+    get cancelAnimationFrame() {
+      return windowCancelAnimationFrame;
+    },
+    get MOBILE_BATTLE_BREAKPOINT() {
+      return MOBILE_BATTLE_BREAKPOINT;
+    },
+    get contentProgression() {
+      return contentProgression;
+    },
+    get isSocialTabActive() {
+      return typeof isSocialTabActive === "undefined" ? void 0 : isSocialTabActive;
+    },
+    get getStarterWeaponTutorialTarget() {
+      return getStarterWeaponTutorialTarget;
+    },
+    get worldTreeBark() {
+      return worldTreeBark;
+    },
+    get isJournalTabUnlockReady() {
+      return isJournalTabUnlockReady;
+    },
+    get talentUi() {
+      return talentUi;
+    },
+    get stumpBoxUi() {
+      return stumpBoxUi;
+    },
+    get renderMarketUI() {
+      return renderMarketUI;
+    },
+    get refreshBlackMarket() {
+      return refreshBlackMarket;
+    },
+    get closeWindow() {
+      return typeof closeWindow === "undefined" ? void 0 : closeWindow;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get tutorialActionUi() {
+      return tutorialActionUi;
+    },
+    get updateStaticUI() {
+      return updateStaticUI;
+    },
+    get contentUnlockUi() {
+      return contentUnlockUi;
+    },
+    get playerStatCache() {
+      return playerStatCache;
+    },
+    get cachedTooltipStats() {
+      return window.GameModules.uiRuntime.stats.snapshot();
+    },
+    set cachedTooltipStats(value) {
+      window.GameModules.uiRuntime.stats.store(value);
+    },
+    clearGemTooltipCache: () => window.GameModules.tooltipView.clearGemCache(),
+    get hideInfoTooltip() {
+      return hideInfoTooltip;
+    },
+    get setMobileBattlePipCollapsed() {
+      return setMobileBattlePipCollapsed;
+    }
+  });
+  window.GameModules.tabNavigationView = tabNavigationView;
+  safeExposeGlobals({
+    runWindowOpenHooks: tabNavigationView.runWindowOpenHooks,
+    craftSelectInventoryItemById: tabNavigationView.craftSelectInventoryItemById,
+    isSelectedSubtab: tabNavigationView.isSelectedSubtab,
+    switchItemSubtab: tabNavigationView.switchItemSubtab,
+    switchSkillSubtab: tabNavigationView.switchSkillSubtab,
+    switchMapSubtab: tabNavigationView.switchMapSubtab,
+    syncSingleSubtabRows: tabNavigationView.syncSingleSubtabRows,
+    notifyLockedTab: tabNavigationView.notifyLockedTab,
+    switchTab: tabNavigationView.switchTab,
+    isMobilePrimaryNavigationEnabled: tabNavigationView.isMobilePrimaryNavigationEnabled,
+    setMobileTabDrawerOpen: tabNavigationView.setMobileTabDrawerOpen,
+    renderTabOrderSettings: tabNavigationView.renderTabOrderSettings,
+    onTabGroupDragStart: tabNavigationView.onTabGroupDragStart,
+    onTabGroupDrop: tabNavigationView.onTabGroupDrop,
+    getTabGroupForId: tabNavigationView.getTabGroupForId,
+    isTabGroupingActive: tabNavigationView.isTabGroupingActive,
+    getActiveTabGroup: tabNavigationView.getActiveTabGroup,
+    selectTabGroup: tabNavigationView.selectTabGroup,
+    applyTabGroupFilter: tabNavigationView.applyTabGroupFilter,
+    renderTabCategoryBar: tabNavigationView.renderTabCategoryBar,
+    commitMobileDockOrder: tabNavigationView.commitMobileDockOrder,
+    applyTabHeaderOrder: tabNavigationView.applyTabHeaderOrder,
+    scheduleTabHeaderViewportSync: tabNavigationView.scheduleTabHeaderViewportSync,
+    updateTabNotificationDots: tabNavigationView.updateTabNotificationDots,
+    syncTabUnlockButton: tabNavigationView.syncTabUnlockButton,
+    updateTabUnlockButtons: tabNavigationView.updateTabUnlockButtons,
+    hideOutOfGroupTabButtons: tabNavigationView.hideOutOfGroupTabButtons,
+    refreshTabHeaderUiIfNeeded: tabNavigationView.refreshTabHeaderUiIfNeeded,
+    isNotiEnabled: tabNavigationView.isNotiEnabled,
+    getMergedTabGroup: tabNavigationView.getMergedTabGroup,
+    getSelectedMergedTabId: tabNavigationView.getSelectedMergedTabId,
+    getActiveTopLevelTabElement: tabNavigationView.getActiveTopLevelTabElement,
+    getActiveUiTabId: tabNavigationView.getActiveUiTabId,
+    getRenderingUiTabIds: tabNavigationView.getRenderingUiTabIds,
+    renderVisibleManagementPanels: tabNavigationView.renderVisibleManagementPanels,
+    isTabSurfaceAvailable: tabNavigationView.isTabSurfaceAvailable,
+    closeRelockedTabSurfaces: tabNavigationView.closeRelockedTabSurfaces,
+    resolveShownTab: tabNavigationView.resolveShownTab,
+    refreshShownMergedTab: tabNavigationView.refreshShownMergedTab,
+    switchMergedTabSubtab: tabNavigationView.switchMergedTabSubtab,
+    syncMergedTabLauncherVisibility: tabNavigationView.syncMergedTabLauncherVisibility,
+    syncMergedTabLauncherState: tabNavigationView.syncMergedTabLauncherState,
+    openMergedTabPicker: tabNavigationView.openMergedTabPicker,
+    openTabPane: tabNavigationView.openTabPane,
+    renderMergedTabSubtabs: tabNavigationView.renderMergedTabSubtabs,
+    revealActiveTabButton: tabNavigationView.revealActiveTabButton
+  });
+})();

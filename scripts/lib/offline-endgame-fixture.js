@@ -21,7 +21,7 @@ module.exports = function configureOfflineEndgameFixture() {
         const baseSlot = slot.replace(/[123]$/, '');
         const base = BASE_ITEM_DB.filter(row => row.slot === baseSlot).at(-1);
         if (!base) continue;
-        const item = { id: ++itemIdCounter, slot: baseSlot, baseId: base.id,
+        const item = { id: ++window.GameModules.state.session.itemIdCounter, slot: baseSlot, baseId: base.id,
             baseName: base.name, name: base.name, rarity: 'rare', itemTier: 80,
             hiddenTier: 80, quality: 20, baseStats: rollBaseStats(base, 80), stats: [] };
         rerollExplicitMods(item, 'rare', 80);

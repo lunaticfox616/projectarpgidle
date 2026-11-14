@@ -1,597 +1,948 @@
-/** 해금 탭(2026-11-02 사용자: 선행 조건 2~3개에서 갈래로 뻗어, 다음 해금만 고민하게. 한눈에 보이고 가로 스크롤로. 분류로 나누지 말 것).
- * 세 뿌리(장비 제련, 보조스킬룬, 루프 패시브)에서 뻗는 한 나무: 가로축은 루프, 줄은 unlockBoard가 채운다. 위에 해금 포인트, 해금 가능, 판 전체 지도, 아래에 고른 해금의 설명.
- * 규칙과 장부는 contentProgression, 사고 받는 일은 contentUnlockUi의 것이다. 칸에 NPC 그림은 넣지 않는다. */
-// minPitch: 줄 간격은 판 높이에 맞춰 24px까지 줄어든다(2026-11-08 사용자: 해금 탭에 세로 스크롤이 생겨 보기 불편했다. 30px에 묶여 있어
-// 12줄이면 판 자리가 384px보다 낮은 창에서 넘쳤다). 24px에서도 칸(20px)에 그림과 이름 한 줄이 들어간다.
-const UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 24, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
-// side: 가지가 먼저 뻗는 쪽(위 -1, 아래 1), at: 뿌리가 놓이는 높이(줄 수에 대한 몫). 독립 해금도 대응하는 갈래의 빛깔을 쓴다.
-const UNLOCK_FAMILIES = Object.freeze([
-    { id: 'gear', root: 'craft', side: -1, at: 0.22 },
-    { id: 'rune', root: 'support', side: 1, at: 0.56 },
-    { id: 'growth', root: 'loopTree', side: 1, at: 0.84 }
-]);
-const UNLOCK_LOOSE_FAMILY = Object.freeze({ passiveTree: 'growth', deepChaos: 'rune' });
-// 칸의 ! (2026-11-06 사용자: 한 번도 확인 안 해본 해금 항목에 ! 표시): 살 수 있거나 점수만 모자란 칸, 열린 칸 가운데 고른 적 없는 칸.
-const UNLOCK_UNSEEN_STATES = Object.freeze(new Set(['ready', 'short', 'owned']));
+// GENERATED from modules/unlock-tab-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
+    }
+    runtime.listeners = retained;
+  }
 
-/** 판의 자리: 시간을 따라 앞에서부터 빈 줄을 찾아 채운다. 끝난 가지의 줄은 다음 가지가 쓰고, 그 많은 칸을 담는 가장 적은 줄 수를 고른다. 게임 상태를 읽지 않으니 한 번만 잰다. */
-const unlockBoard = (() => {
-    const SIZE = UNLOCK_BOARD_SIZE, byId = new Map(CONTENT_UNLOCK_CATALOG.map(def => [def.id, def]));
-    const rows = CONTENT_UNLOCK_CATALOG.filter(def => def.minLoop > 1);
-    const isStep = def => !!def.rail && byId.get(def.after)?.rail === def.rail;
-    /** 줄기를 따라 뿌리까지 올라간 뿌리의 빛깔. */
-    function familyOf(def) {
-        let row = def;
-        while (row.after && !UNLOCK_LOOSE_FAMILY[row.id]) row = byId.get(row.after);
-        return UNLOCK_LOOSE_FAMILY[row.id] || UNLOCK_FAMILIES.find(family => family.root === row.id).id;
-    }
-    const slotKey = (loop, sub) => loop + sub / 10;
-    let base = null;
-    /** 칸 글의 폭: 갈무리 12px에서 한글은 12, 나머지는 8을 넘지 않는다. 글꼴이 늦게 와도 자리가 흔들리지 않게 글자로 센다. */
-    const textWidth = text => [...String(text)].reduce((sum, letter) => sum + (letter.charCodeAt(0) > 0x2000 ? 12 : 8), 0);
-    /** 카드 너비: 아이콘과, 이름과 얻는 글 중 긴 쪽이 한 줄에 들어가는 만큼(2026-11-02 사용자: 박스 크기를 글에 맞춘다). 칸이 낮으면 얻는 글은 안 보인다. */
-    function cardWidth(def, height) {
-        const texts = [unlockTabUi.cardName(def), ...(height >= SIZE.gainFrom ? [unlockTabUi.cardGain(def)] : [])];
-        return height - 2 + 5 + Math.max(SIZE.minCardText, ...texts.map(textWidth)) + 8;
-    }
-    const pipWidth = def => Math.max(SIZE.pip, textWidth(unlockTabUi.upgradeEffect(def.series, def.rank)) + 10);
-    const cellWidth = (def, height) => (isStep(def) ? pipWidth(def) : cardWidth(def, height));
-
-    /** 앞 해금이 먼저 오는 차례. */
-    function treeOrder() {
-        const done = new Set(), order = [];
-        while (order.length < rows.length) {
-            const before = order.length;
-            for (const def of rows) {
-                if (done.has(def.id) || !contentProgression.parents(def).every(id => done.has(id))) continue;
-                done.add(def.id);
-                order.push(def);
-            }
-            if (order.length === before) throw new Error('unlock board: a cycle in the prerequisites');
-        }
-        return order;
-    }
-    function readTree() {
-        const sorted = treeOrder(), loopOf = new Map(), depthOf = new Map(), kids = new Map(), sizes = new Map();
-        for (const def of sorted) {
-            const earlier = contentProgression.parents(def);
-            const at = Math.max(def.minLoop, ...earlier.map(id => loopOf.get(id)));
-            loopOf.set(def.id, at);
-            depthOf.set(def.id, earlier.filter(id => loopOf.get(id) === at).reduce((best, id) => Math.max(best, depthOf.get(id) + 1), 0));
-            if (def.after) kids.set(def.after, [...(kids.get(def.after) || []), def]);
-        }
-        for (const def of [...sorted].reverse()) sizes.set(def.id, 1 + (kids.get(def.id) || []).reduce((sum, kid) => sum + sizes.get(kid.id), 0));
-        const familyRank = def => UNLOCK_FAMILIES.findIndex(row => row.id === familyOf(def));
-        const order = rows.map((def, index) => ({ def, index, loop: loopOf.get(def.id), depth: depthOf.get(def.id), family: familyRank(def) }))
-            .sort((p, q) => p.loop - q.loop || p.depth - q.depth || p.family - q.family || p.index - q.index).map(row => row.def);
-        // 줄기: 부모의 줄을 그대로 잇는 자식. 강화 줄의 다음 단계가 먼저, 그다음 딸린 칸이 가장 많은 자식.
-        const stems = new Map();
-        kids.forEach((list, id) => stems.set(id, (list.find(isStep) || list.reduce((best, kid) => (sizes.get(kid.id) > sizes.get(best.id) ? kid : best))).id));
-        return { loopOf, order, stems };
-    }
-    const free = (plan, row, from, to) => row >= 0 && row < plan.count && !plan.rows[row].some(([a, b, owner]) => owner !== plan.me && a < to && b > from);
-    function nearRows(plan, start, side) {
-        const list = [];
-        for (let step = 1; step < plan.count; step++) list.push(start + side * step, start - side * step);
-        return list;
-    }
-    /** 칸을 놓고, 줄기 자식이 올 때까지 그 줄을 맡아 둔다(강화 줄과 긴 가지가 끊기지 않게). from: 선이 이 줄에 들어오는 자리. */
-    function putCell(plan, def, spot, from) {
-        const here = slotKey(spot.loop, spot.sub), stem = plan.tree.stems.get(def.id);
-        plan.rows[spot.row].push([from === null ? here - 0.01 : from, here + 0.01, '']);
-        plan.spots.set(def.id, { def, ...spot });
-        if (stem && plan.tree.loopOf.get(stem) > spot.loop) plan.rows[spot.row].push([here + 0.01, slotKey(plan.tree.loopOf.get(stem), 0) + 0.01, stem]);
-        return true;
-    }
-    function placeRoot(plan, def) {
-        const loop = plan.tree.loopOf.get(def.id), family = UNLOCK_FAMILIES.find(row => row.id === familyOf(def));
-        const start = Math.round((plan.count - 1) * family.at), spot = slotKey(loop, 0);
-        const row = [start, ...nearRows(plan, start, family.side)].find(value => free(plan, value, spot - 0.01, spot + 0.01));
-        return row !== undefined && putCell(plan, def, { loop, sub: 0, row }, null);
-    }
-    function placeStep(plan, def, parent) {
-        const loop = plan.tree.loopOf.get(def.id), from = slotKey(parent.loop, parent.sub) + 0.01;
-        let sub = parent.loop === loop ? parent.sub + 1 : 0;
-        while (sub < 9 && !free(plan, parent.row, slotKey(loop, sub) - 0.01, slotKey(loop, sub) + 0.01)) sub++;
-        return free(plan, parent.row, from, slotKey(loop, sub) + 0.01) && putCell(plan, def, { loop, sub, row: parent.row }, from);
-    }
-    /** 부모가 맡아 둔 줄 또는 가까운 빈 줄에서, 부모부터 이 칸까지 비어 있는 곳을 찾는다. */
-    function placeAlong(plan, def, parent, firstSub, withParentRow) {
-        const loop = plan.tree.loopOf.get(def.id), side = UNLOCK_FAMILIES.find(row => row.id === familyOf(def)).side, parentKey = slotKey(parent.loop, parent.sub);
-        const candidates = [...(withParentRow ? [parent.row] : []), ...nearRows(plan, parent.row, side)];
-        const fromOf = row => parentKey + (row === parent.row ? 0.01 : 0.05);
-        for (let sub = firstSub; sub < 9; sub++) {
-            const row = candidates.find(value => free(plan, value, fromOf(value), slotKey(loop, sub) + 0.01));
-            if (row !== undefined) return putCell(plan, def, { loop, sub, row }, fromOf(row));
-        }
-        return false;
-    }
-    /** 같은 루프의 이어짐: 바로 위아래에 쌓고, 자리가 없으면 칸을 나눈다. */
-    function placeStacked(plan, def, parent) {
-        const side = UNLOCK_FAMILIES.find(row => row.id === familyOf(def)).side, here = slotKey(parent.loop, parent.sub);
-        const row = [parent.row + side, parent.row - side].find(value => free(plan, value, here - 0.01, here + 0.01));
-        return row !== undefined ? putCell(plan, def, { loop: parent.loop, sub: parent.sub, row }, null) : placeAlong(plan, def, parent, parent.sub + 1, true);
-    }
-    function placeRow(plan, def) {
-        const parent = def.after ? plan.spots.get(def.after) : null;
-        if (!parent) return placeRoot(plan, def);
-        if (isStep(def)) return placeStep(plan, def, parent);
-        if (plan.tree.loopOf.get(def.id) === parent.loop) return placeStacked(plan, def, parent);
-        return placeAlong(plan, def, parent, 0, plan.tree.stems.get(parent.def.id) === def.id);
-    }
-    function tryCount(count, tree) {
-        const plan = { count, tree, rows: Array.from({ length: count }, () => []), spots: new Map(), me: '' };
-        for (const def of tree.order) {
-            plan.me = def.id;
-            if (!placeRow(plan, def)) return null;
-        }
-        return plan.spots;
-    }
-    /** 칸마다 가로 자리: 그 칸에 놓인 가장 넓은 칸만큼. 같은 루프의 칸들을 한 눈금으로 묶는다. */
-    function measureColumns(spots) {
-        const slots = new Map();
-        spots.forEach(spot => {
-            const name = `${spot.loop}.${spot.sub}`, slot = slots.get(name) || { loop: spot.loop, sub: spot.sub, w: 0 };
-            slot.w = Math.max(slot.w, cellWidth(spot.def, SIZE.maxCard) + SIZE.cardGap);
-            slots.set(name, slot);
-        });
-        let x = SIZE.left;
-        const columns = [...slots.values()].sort((a, b) => a.loop - b.loop || a.sub - b.sub), loops = [];
-        columns.forEach(slot => {
-            slot.x = x;
-            x += slot.w;
-            const last = loops[loops.length - 1];
-            if (last && last.loop === slot.loop) last.w += slot.w;
-            else loops.push({ loop: slot.loop, x: slot.x, w: slot.w });
-        });
-        spots.forEach(spot => { spot.col = slots.get(`${spot.loop}.${spot.sub}`); });
-        return { loops, width: x + 40 };
-    }
-    function buildBase() {
-        const tree = readTree();
-        for (let count = SIZE.minRows; count <= SIZE.maxRows; count++) {
-            const spots = tryCount(count, tree);
-            if (spots) return { spots, count, ...measureColumns(spots) };
-        }
-        throw new Error('unlock board: no row count fits the tree');
-    }
-    const built = () => {
-        if (!base || base.language !== i18n.language) base = { ...buildBase(), language: i18n.language };
-        return base;
+  // modules/ui/unlock-tree-lifetime.mjs
+  function initializeUnlockSelection(runtime) {
+    Object.assign(runtime.state, {
+      owner: runtime.deps.game,
+      view_selectedId: "",
+      view_shownKey: "",
+      view_centerNow: true,
+      view_revealId: "",
+      view_jump: 0,
+      view_shownOwned: null,
+      view_shownOpenParents: null,
+      view_layoutNow: null,
+      view_plannedPath: /* @__PURE__ */ new Set(),
+      view_shownSeason: void 0
+    });
+  }
+  function syncUnlockOwner(runtime) {
+    if (runtime.state.owner === runtime.deps.game) return false;
+    runtime.state.stopGesture?.();
+    initializeUnlockSelection(runtime);
+    return true;
+  }
+  function releaseUnlockPanel(runtime) {
+    runtime.state.stopGesture?.();
+    runtime.state.observer?.disconnect();
+    if (runtime.state.panel) releaseViewTarget(runtime, runtime.state.panel);
+    runtime.state.panel = runtime.state.observer = null;
+    runtime.state.view_shownKey = "";
+  }
+  function beginUnlockGesture(runtime, event, scroller, apply) {
+    runtime.state.stopGesture?.();
+    const owner = runtime.deps.game, panel = runtime.state.panel;
+    const move = (next) => {
+      if (next.pointerId !== event.pointerId) return;
+      if (!runtime.active || runtime.deps.game !== owner || !panel?.isConnected || !scroller.isConnected) {
+        stop();
+        return;
+      }
+      apply(next);
     };
-    /** 판 높이에 맞춘 칸의 자리. */
-    function layout(height) {
-        const board = built(), pitch = Math.max(SIZE.minPitch, Math.min(SIZE.maxPitch, Math.floor((height - SIZE.ruler) / board.count)));
-        const cardH = Math.min(pitch - 4, SIZE.maxCard), pos = new Map();
-        board.spots.forEach((spot, id) => {
-            const step = isStep(spot.def), rowTop = SIZE.ruler + spot.row * pitch, y = rowTop + Math.floor(pitch / 2);
-            const w = cellWidth(spot.def, cardH), h = step ? SIZE.pipH : cardH, left = spot.col.x + Math.floor((spot.col.w - w) / 2);
-            pos.set(id, { def: spot.def, step, row: spot.row, loop: spot.loop, left, right: left + w, y, top: y - Math.floor(h / 2), w, h, cx: left + Math.floor(w / 2), rowTop, rowBottom: rowTop + pitch, col: spot.col });
-        });
-        return { board, pos, pitch, cardH, height, fullHeight: Math.max(height, SIZE.ruler + board.count * pitch) };
+    const release = (next) => {
+      if (next.pointerId === event.pointerId) stop();
+    };
+    const stop = () => {
+      runtime.deps.window.removeEventListener("pointermove", move);
+      runtime.deps.window.removeEventListener("pointerup", release);
+      runtime.deps.window.removeEventListener("pointercancel", release);
+      scroller.classList.remove("is-panning");
+      if (runtime.state.stopGesture === stop) runtime.state.stopGesture = null;
+    };
+    runtime.state.stopGesture = stop;
+    runtime.deps.window.addEventListener("pointermove", move);
+    runtime.deps.window.addEventListener("pointerup", release);
+    runtime.deps.window.addEventListener("pointercancel", release);
+  }
+
+  // modules/ui/unlock-tree-labels.mjs
+  function upgradeEffect(runtime, series, rank) {
+    const spec = runtime.deps.CONTENT_UNLOCK_SERIES.find((row) => row.series === series);
+    if (series === "offlineHours") return (0, runtime.deps._t)("{value}시간", { value: runtime.deps.OFFLINE_PROGRESS_RECOGNITION_HOURS[rank] });
+    if (series === "offlineRate") return `${Math.round(runtime.deps.OFFLINE_PROGRESS_EFFICIENCY_RATES[rank] * 100)}%`;
+    if (series === "bagPage") return (0, runtime.deps._t)("{value}페이지", { value: 1 + rank });
+    if (series === "stumpSeal") return (0, runtime.deps._t)("{rank}칸", { rank });
+    if (series === "stumpQuality") return `${130 + rank * 10}%`;
+    if (series === "stumpNurseryRate") return `${Math.round((runtime.deps.STUMP_BOX_NURSERY.rate + rank * runtime.deps.STUMP_BOX_NURSERY.ratePerRank) * 100)}%`;
+    return `+${rank * spec.storage}`;
+  }
+  function gainOf(runtime, def) {
+    if (!def.series) return (0, runtime.deps._t)(def.gain || "");
+    const after = upgradeEffect(runtime, def.series, def.rank);
+    if (def.series === "stumpSeal") return (0, runtime.deps._t)("봉인 칸 {after}", { after });
+    if (def.series === "stumpQuality") return def.rank > 1 ? (0, runtime.deps._t)("품질 상한 {after}, 접붙이기 {value}단계", { after, value: def.rank + 4 }) : (0, runtime.deps._t)("품질 상한 {after}", { after });
+    if (def.series === "stumpStorage") return (0, runtime.deps._t)("보관함 {after}칸", { after });
+    return `${upgradeEffect(runtime, def.series, def.rank - 1)} → ${after}`;
+  }
+  function cardGain(runtime, def) {
+    return gainOf(runtime, def) || (def.cost ? "" : (0, runtime.deps._t)("자동"));
+  }
+  function view_cardName(runtime, def) {
+    return (0, runtime.deps._t)(def.rail ? runtime.deps.CONTENT_UNLOCK_RAILS.find((row) => row.rail === def.rail).name : def.name);
+  }
+
+  // modules/ui/unlock-tree-metrics.mjs
+  function boardFamilyOf(runtime, def) {
+    let row = def;
+    while (row.after && !runtime.state.UNLOCK_LOOSE_FAMILY[row.id]) row = runtime.state.boardById.get(row.after);
+    return runtime.state.UNLOCK_LOOSE_FAMILY[row.id] || runtime.state.UNLOCK_FAMILIES.find((family) => family.root === row.id).id;
+  }
+  function boardCardWidth(runtime, def, height) {
+    const texts = [view_cardName(runtime, def), ...height >= runtime.state.boardSIZE.gainFrom ? [cardGain(runtime, def)] : []];
+    return height - 2 + 5 + Math.max(runtime.state.boardSIZE.minCardText, ...texts.map(runtime.handlers.boardTextWidth)) + 8;
+  }
+  function boardTreeOrder(runtime) {
+    const done = /* @__PURE__ */ new Set(), order = [];
+    while (order.length < runtime.state.boardRows.length) {
+      const before = order.length;
+      for (const def of runtime.state.boardRows) {
+        if (done.has(def.id) || !runtime.deps.contentProgression.parents(def).every((id) => done.has(id))) continue;
+        done.add(def.id);
+        order.push(def);
+      }
+      if (order.length === before) throw new Error("unlock board: a cycle in the prerequisites");
     }
-    const clearRun = (L, y, from, to, skip) => ![...L.pos.values()].some(row => !skip.includes(row.def.id) && row.y === y && row.left < to && row.right > from);
-    /** 선: 줄기 선은 부모 칸을 나서자 꺾어 자식 줄을 따라간다(배치가 그 길을 비워 두었다). 다른 선행은 비어 있는 길을 찾고, 없으면 줄 사이 틈으로 간다. */
-    function edgePoints(L, from, to) {
-        const p = L.pos.get(from), c = L.pos.get(to), skip = [from, to], out = p.col.x + p.col.w, inn = c.col.x;
-        if (p.col === c.col) return c.y > p.y ? [[p.cx, p.top + p.h], [p.cx, c.top]] : [[p.cx, p.top], [p.cx, c.top + c.h]];
-        const toward = (x, y) => [[p.right, p.y], [x, p.y], [x, y], [c.left, c.y]];
-        if (byId.get(to).after === from) return p.y === c.y ? [[p.right, p.y], [c.left, c.y]] : toward(out, c.y);
-        if (clearRun(L, p.y, p.right, inn, skip)) return toward(inn, c.y);
-        if (clearRun(L, c.y, out, c.left, skip)) return toward(out, c.y);
-        const gap = c.y < p.y ? p.rowTop : p.rowBottom;
-        return [[p.right, p.y], [out, p.y], [out, gap], [inn, gap], [inn, c.y], [c.left, c.y]];
+    return order;
+  }
+  function boardReadTree(runtime) {
+    const sorted = boardTreeOrder(runtime), loopOf = /* @__PURE__ */ new Map(), depthOf = /* @__PURE__ */ new Map(), kids = /* @__PURE__ */ new Map(), sizes = /* @__PURE__ */ new Map();
+    for (const def of sorted) {
+      const earlier = runtime.deps.contentProgression.parents(def);
+      const at = Math.max(def.minLoop, ...earlier.map((id) => loopOf.get(id)));
+      loopOf.set(def.id, at);
+      depthOf.set(def.id, earlier.filter((id) => loopOf.get(id) === at).reduce((best, id) => Math.max(best, depthOf.get(id) + 1), 0));
+      if (def.after) kids.set(def.after, [...kids.get(def.after) || [], def]);
     }
-    return Object.freeze({ rows, built, layout, edgePoints, familyOf, isStep, has: id => rows.some(def => def.id === id) });
-})();
+    for (const def of [...sorted].reverse()) sizes.set(def.id, 1 + (kids.get(def.id) || []).reduce((sum, kid) => sum + sizes.get(kid.id), 0));
+    const familyRank = (def) => runtime.state.UNLOCK_FAMILIES.findIndex((row) => row.id === boardFamilyOf(runtime, def));
+    const order = runtime.state.boardRows.map((def, index) => ({ def, index, loop: loopOf.get(def.id), depth: depthOf.get(def.id), family: familyRank(def) })).sort((p, q) => p.loop - q.loop || p.depth - q.depth || p.family - q.family || p.index - q.index).map((row) => row.def);
+    const stems = /* @__PURE__ */ new Map();
+    kids.forEach((list, id) => stems.set(id, (list.find(runtime.handlers.boardIsStep) || list.reduce((best, kid) => sizes.get(kid.id) > sizes.get(best.id) ? kid : best)).id));
+    return { loopOf, order, stems };
+  }
+  function boardIsStep(runtime, def) {
+    return !!def.rail && runtime.state.boardById.get(def.after)?.rail === def.rail;
+  }
+  function boardSlotKey(runtime, loop, sub) {
+    return loop + sub / 10;
+  }
+  function boardTextWidth(runtime, text) {
+    return [...String(text)].reduce((sum, letter) => sum + (letter.charCodeAt(0) > 8192 ? 12 : 8), 0);
+  }
+  function boardPipWidth(runtime, def) {
+    return Math.max(runtime.state.boardSIZE.pip, boardTextWidth(runtime, upgradeEffect(runtime, def.series, def.rank)) + 10);
+  }
+  function boardCellWidth(runtime, def, height) {
+    return boardIsStep(runtime, def) ? boardPipWidth(runtime, def) : boardCardWidth(runtime, def, height);
+  }
 
-const unlockTabUi = {
-    selectedId: '',
-    shownKey: '',
-    centerNow: true,
-    revealId: '',
-    jump: 0,
-    shownOwned: null,
-    shownOpenParents: null,
-    layoutNow: null,
-    plannedPath: new Set(),
+  // modules/ui/unlock-tree-layout.mjs
+  function boardNearRows(runtime, plan, start, side) {
+    const list = [];
+    for (let step = 1; step < plan.count; step++) list.push(start + side * step, start - side * step);
+    return list;
+  }
+  function boardPutCell(runtime, plan, def, spot, from) {
+    const here = boardSlotKey(runtime, spot.loop, spot.sub), stem = plan.tree.stems.get(def.id);
+    plan.rows[spot.row].push([from === null ? here - 0.01 : from, here + 0.01, ""]);
+    plan.spots.set(def.id, { def, ...spot });
+    if (stem && plan.tree.loopOf.get(stem) > spot.loop) plan.rows[spot.row].push([here + 0.01, boardSlotKey(runtime, plan.tree.loopOf.get(stem), 0) + 0.01, stem]);
+    return true;
+  }
+  function boardPlaceRoot(runtime, plan, def) {
+    const loop = plan.tree.loopOf.get(def.id), family = runtime.state.UNLOCK_FAMILIES.find((row2) => row2.id === boardFamilyOf(runtime, def));
+    const start = Math.round((plan.count - 1) * family.at), spot = boardSlotKey(runtime, loop, 0);
+    const row = [start, ...boardNearRows(runtime, plan, start, family.side)].find((value) => boardFree(runtime, plan, value, spot - 0.01, spot + 0.01));
+    return row !== void 0 && boardPutCell(runtime, plan, def, { loop, sub: 0, row }, null);
+  }
+  function boardPlaceStep(runtime, plan, def, parent) {
+    const loop = plan.tree.loopOf.get(def.id), from = boardSlotKey(runtime, parent.loop, parent.sub) + 0.01;
+    let sub = parent.loop === loop ? parent.sub + 1 : 0;
+    while (sub < 9 && !boardFree(runtime, plan, parent.row, boardSlotKey(runtime, loop, sub) - 0.01, boardSlotKey(runtime, loop, sub) + 0.01)) sub++;
+    return boardFree(runtime, plan, parent.row, from, boardSlotKey(runtime, loop, sub) + 0.01) && boardPutCell(runtime, plan, def, { loop, sub, row: parent.row }, from);
+  }
+  function createBoardPlaceAlong(runtime) {
+    return function boardPlaceAlong(plan, def, parent, firstSub, withParentRow) {
+      const loop = plan.tree.loopOf.get(def.id), side = runtime.state.UNLOCK_FAMILIES.find((row) => row.id === boardFamilyOf(runtime, def)).side, parentKey = boardSlotKey(runtime, parent.loop, parent.sub);
+      const candidates = [...withParentRow ? [parent.row] : [], ...boardNearRows(runtime, plan, parent.row, side)];
+      const fromOf = (row) => parentKey + (row === parent.row ? 0.01 : 0.05);
+      for (let sub = firstSub; sub < 9; sub++) {
+        const row = candidates.find((value) => boardFree(runtime, plan, value, fromOf(value), boardSlotKey(runtime, loop, sub) + 0.01));
+        if (row !== void 0) return boardPutCell(runtime, plan, def, { loop, sub, row }, fromOf(row));
+      }
+      return false;
+    };
+  }
+  function boardPlaceStacked(runtime, plan, def, parent) {
+    const side = runtime.state.UNLOCK_FAMILIES.find((row2) => row2.id === boardFamilyOf(runtime, def)).side, here = boardSlotKey(runtime, parent.loop, parent.sub);
+    const row = [parent.row + side, parent.row - side].find((value) => boardFree(runtime, plan, value, here - 0.01, here + 0.01));
+    return row !== void 0 ? boardPutCell(runtime, plan, def, { loop: parent.loop, sub: parent.sub, row }, null) : runtime.handlers.boardPlaceAlong(plan, def, parent, parent.sub + 1, true);
+  }
+  function boardPlaceRow(runtime, plan, def) {
+    const parent = def.after ? plan.spots.get(def.after) : null;
+    if (!parent) return boardPlaceRoot(runtime, plan, def);
+    if (boardIsStep(runtime, def)) return boardPlaceStep(runtime, plan, def, parent);
+    if (plan.tree.loopOf.get(def.id) === parent.loop) return boardPlaceStacked(runtime, plan, def, parent);
+    return runtime.handlers.boardPlaceAlong(plan, def, parent, 0, plan.tree.stems.get(parent.def.id) === def.id);
+  }
+  function boardTryCount(runtime, count, tree) {
+    const plan = { count, tree, rows: Array.from({ length: count }, () => []), spots: /* @__PURE__ */ new Map(), me: "" };
+    for (const def of tree.order) {
+      plan.me = def.id;
+      if (!boardPlaceRow(runtime, plan, def)) return null;
+    }
+    return plan.spots;
+  }
+  function boardMeasureColumns(runtime, spots) {
+    const slots = /* @__PURE__ */ new Map();
+    spots.forEach((spot) => {
+      const name = `${spot.loop}.${spot.sub}`, slot = slots.get(name) || { loop: spot.loop, sub: spot.sub, w: 0 };
+      slot.w = Math.max(slot.w, boardCellWidth(runtime, spot.def, runtime.state.boardSIZE.maxCard) + runtime.state.boardSIZE.cardGap);
+      slots.set(name, slot);
+    });
+    let x = runtime.state.boardSIZE.left;
+    const columns = [...slots.values()].sort((a, b) => a.loop - b.loop || a.sub - b.sub), loops = [];
+    columns.forEach((slot) => {
+      slot.x = x;
+      x += slot.w;
+      const last = loops[loops.length - 1];
+      if (last && last.loop === slot.loop) last.w += slot.w;
+      else loops.push({ loop: slot.loop, x: slot.x, w: slot.w });
+    });
+    spots.forEach((spot) => {
+      spot.col = slots.get(`${spot.loop}.${spot.sub}`);
+    });
+    return { loops, width: x + 40 };
+  }
+  function boardBuildBase(runtime) {
+    const tree = boardReadTree(runtime);
+    for (let count = runtime.state.boardSIZE.minRows; count <= runtime.state.boardSIZE.maxRows; count++) {
+      const spots = boardTryCount(runtime, count, tree);
+      if (spots) return { spots, count, ...boardMeasureColumns(runtime, spots) };
+    }
+    throw new Error("unlock board: no row count fits the tree");
+  }
+  function boardLayout(runtime, height) {
+    const board = boardBuilt(runtime), pitch = Math.max(runtime.state.boardSIZE.minPitch, Math.min(runtime.state.boardSIZE.maxPitch, Math.floor((height - runtime.state.boardSIZE.ruler) / board.count)));
+    const cardH = Math.min(pitch - 4, runtime.state.boardSIZE.maxCard), pos = /* @__PURE__ */ new Map();
+    board.spots.forEach((spot, id) => {
+      const step = boardIsStep(runtime, spot.def), rowTop = runtime.state.boardSIZE.ruler + spot.row * pitch, y = rowTop + Math.floor(pitch / 2);
+      const w = boardCellWidth(runtime, spot.def, cardH), h = step ? runtime.state.boardSIZE.pipH : cardH, left = spot.col.x + Math.floor((spot.col.w - w) / 2);
+      pos.set(id, { def: spot.def, step, row: spot.row, loop: spot.loop, left, right: left + w, y, top: y - Math.floor(h / 2), w, h, cx: left + Math.floor(w / 2), rowTop, rowBottom: rowTop + pitch, col: spot.col });
+    });
+    return { board, pos, pitch, cardH, height, fullHeight: Math.max(height, runtime.state.boardSIZE.ruler + board.count * pitch) };
+  }
+  function boardEdgePoints(runtime, L, from, to) {
+    const p = L.pos.get(from), c = L.pos.get(to), skip = [from, to], out = p.col.x + p.col.w, inn = c.col.x;
+    if (p.col === c.col) return c.y > p.y ? [[p.cx, p.top + p.h], [p.cx, c.top]] : [[p.cx, p.top], [p.cx, c.top + c.h]];
+    const toward = (x, y) => [[p.right, p.y], [x, p.y], [x, y], [c.left, c.y]];
+    if (runtime.state.boardById.get(to).after === from) return p.y === c.y ? [[p.right, p.y], [c.left, c.y]] : toward(out, c.y);
+    if (runtime.handlers.boardClearRun(L, p.y, p.right, inn, skip)) return toward(inn, c.y);
+    if (runtime.handlers.boardClearRun(L, c.y, out, c.left, skip)) return toward(out, c.y);
+    const gap = c.y < p.y ? p.rowTop : p.rowBottom;
+    return [[p.right, p.y], [out, p.y], [out, gap], [inn, gap], [inn, c.y], [c.left, c.y]];
+  }
+  function boardFree(runtime, plan, row, from, to) {
+    return row >= 0 && row < plan.count && !plan.rows[row].some(([a, b, owner]) => owner !== plan.me && a < to && b > from);
+  }
+  function boardBuilt(runtime) {
+    if (!runtime.state.boardBase || runtime.state.boardBase.language !== runtime.deps.i18n.language) runtime.state.boardBase = { ...boardBuildBase(runtime), language: runtime.deps.i18n.language };
+    return runtime.state.boardBase;
+  }
+  function createBoardClearRun() {
+    return function boardClearRun(L, y, from, to, skip) {
+      return ![...L.pos.values()].some((row) => !skip.includes(row.def.id) && row.y === y && row.left < to && row.right > from);
+    };
+  }
 
-    // ---------------------------------------------------------------- 칸의 상태
-    /** owned 열림, ready 지금 가능, short 포인트 모자람, soon 앞 해금은 열렸고 루프나 조건을 기다림, far 앞 해금이 아직. */
-    stateOf(def) {
-        const status = contentProgression.status(def.id);
-        if (status.unlocked) return 'owned';
-        if (status.available) return 'ready';
-        if (!this.parentsOpen(def)) return 'far';
-        return contentProgression.requirements(def.id).every(row => row.met) ? 'short' : 'soon';
-    },
-    parentsOpen: def => contentProgression.parents(def).every(id => contentProgression.isUnlocked(id)),
-    readyRows() {
-        return unlockBoard.rows.filter(def => contentProgression.kind(def) === 'paid' && contentProgression.status(def.id).available);
-    },
-    openCount: () => unlockBoard.rows.filter(def => contentProgression.isUnlocked(def.id)).length,
-    /** 강화 단계에서 되는 값: 칸에 그대로 적는다. rank 0은 강화 전. */
-    upgradeEffect(series, rank) {
-        const spec = CONTENT_UNLOCK_SERIES.find(row => row.series === series);
-        if (series === 'offlineHours') return _t('{value}시간', { value: OFFLINE_PROGRESS_RECOGNITION_HOURS[rank] });
-        if (series === 'offlineRate') return `${Math.round(OFFLINE_PROGRESS_EFFICIENCY_RATES[rank] * 100)}%`;
-        if (series === 'bagPage') return _t('{value}페이지', { value: 1 + rank });
-        if (series === 'stumpSeal') return _t('{rank}칸', { rank });
-        if (series === 'stumpQuality') return `${130 + rank * 10}%`;
-        if (series === 'stumpNurseryRate') return `${Math.round((STUMP_BOX_NURSERY.rate + rank * STUMP_BOX_NURSERY.ratePerRank) * 100)}%`;
-        return `+${rank * spec.storage}`;
-    },
-    gainOf(def) {
-        if (!def.series) return _t(def.gain || '');
-        const after = this.upgradeEffect(def.series, def.rank);
-        if (def.series === 'stumpSeal') return _t('봉인 칸 {after}', { after });
-        if (def.series === 'stumpQuality') return def.rank > 1 ? _t('품질 상한 {after}, 접붙이기 {value}단계', { after, value: def.rank + 4 }) : _t('품질 상한 {after}', { after });
-        if (def.series === 'stumpStorage') return _t('보관함 {after}칸', { after });
-        return `${this.upgradeEffect(def.series, def.rank - 1)} → ${after}`;
-    },
-    cardName: def => _t(def.rail ? CONTENT_UNLOCK_RAILS.find(row => row.rail === def.rail).name : def.name),
-    cardGain(def) { return this.gainOf(def) || (def.cost ? '' : _t('자동')); },
-    /** 칸을 잠시 가리키면 나오는 설명: 칸에 보이지 않는 효과. 강화 단계는 칸에 값만 있어 이름과 값도 적는다. */
-    tipOf(def, step) {
-        const lines = step ? [`${_t(def.name)}, ${def.cost}P`, this.gainOf(def), _t(def.description)] : [this.gainOf(def), _t(def.description)];
-        return escapeHTML(lines.filter(Boolean).join('\n'));
-    },
+  // modules/ui/unlock-tree-markup.mjs
+  function stateOf(runtime, def) {
+    const status = runtime.deps.contentProgression.status(def.id);
+    if (status.unlocked) return "owned";
+    if (status.available) return "ready";
+    if (!view_parentsOpen(runtime, def)) return "far";
+    return runtime.deps.contentProgression.requirements(def.id).every((row) => row.met) ? "short" : "soon";
+  }
+  function readyRows(runtime) {
+    return runtime.state.unlockBoard.rows.filter((def) => runtime.deps.contentProgression.kind(def) === "paid" && runtime.deps.contentProgression.status(def.id).available);
+  }
+  function tipOf(runtime, def, step) {
+    const lines = step ? [`${(0, runtime.deps._t)(def.name)}, ${def.cost}P`, gainOf(runtime, def), (0, runtime.deps._t)(def.description)] : [gainOf(runtime, def), (0, runtime.deps._t)(def.description)];
+    return (0, runtime.deps.escapeHTML)(lines.filter(Boolean).join("\n"));
+  }
+  function nodeClass(runtime, def, state, marks) {
+    const lit = marks.lit.has(def.id) ? " is-lit" : "", fresh = marks.fresh.has(def.id) ? " is-fresh" : "", chosen = runtime.state.view_selectedId === def.id ? " is-chosen" : "";
+    const plan = runtime.state.view_plannedPath.has(def.id) ? " is-planned" : "", goal = runtime.deps.game.contentProgression.plannedUnlockId === def.id ? " is-goal" : "";
+    return `fam-${runtime.state.unlockBoard.familyOf(def)} kind-${runtime.deps.contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}${plan}${goal}${marks.unseen.has(def.id) ? " is-unseen" : ""}`;
+  }
+  function unseenIds(runtime) {
+    const seen = new Set(runtime.deps.game.seenUnlocks || []);
+    return new Set(runtime.state.unlockBoard.rows.filter((def) => !seen.has(def.id) && runtime.state.UNLOCK_UNSEEN_STATES.has(stateOf(runtime, def))).map((def) => def.id));
+  }
+  function nodeHtml(runtime, def, L, marks) {
+    const at = L.pos.get(def.id), state = stateOf(runtime, def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(def.name));
+    if (at.step) return `<button type="button" class="unlock-pip ${nodeClass(runtime, def, state, marks)}" data-unlock-select="${def.id}" data-tip="${tipOf(runtime, def, true)}" aria-label="${name}" style="${style}">${(0, runtime.deps.escapeHTML)(upgradeEffect(runtime, def.series, def.rank))}${view_unseenHtml(runtime, def, marks)}</button>`;
+    const chip = state !== "owned" && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : "";
+    const second = L.cardH >= runtime.state.UNLOCK_BOARD_SIZE.gainFrom ? `<small class="unlock-card-gain">${(0, runtime.deps.escapeHTML)(cardGain(runtime, def))}</small>` : "";
+    return `<button type="button" class="unlock-card ${nodeClass(runtime, def, state, marks)}" data-unlock-select="${def.id}" data-tip="${tipOf(runtime, def, false)}" aria-label="${name}" style="${style};--icon:${at.h - 2}px">
+            <span class="unlock-ic"><img src="${runtime.deps.contentUnlockUi.art(def)}" alt="" draggable="false" loading="lazy">${chip}</span><span class="unlock-card-text"><b>${(0, runtime.deps.escapeHTML)(view_cardName(runtime, def))}</b>${second}</span>${view_unseenHtml(runtime, def, marks)}</button>`;
+  }
+  function edgesHtml(runtime, L, marks) {
+    const rank = { "is-dim": 0, "is-next": 1, "is-lit": 2 }, edges = [];
+    runtime.state.unlockBoard.rows.forEach((def) => runtime.deps.contentProgression.parents(def).forEach((from) => {
+      const points = runtime.state.unlockBoard.edgePoints(L, from, def.id), long = Math.abs(points[points.length - 1][0] - points[0][0]) > 300;
+      const state = runtime.deps.contentProgression.isUnlocked(def.id) ? "is-lit" : runtime.deps.contentProgression.isUnlocked(from) ? "is-next" : "is-dim";
+      edges.push({ from, to: def.id, points, long, state, side: def.after !== from, fresh: marks.lit.has(from) && marks.fresh.has(def.id) });
+    }));
+    return edges.sort((a, b) => rank[a.state] - rank[b.state]).map((edge) => {
+      const planned = runtime.state.view_plannedPath.has(edge.from) && runtime.state.view_plannedPath.has(edge.to) ? " is-planned" : "";
+      const name = `fam-${runtime.state.unlockBoard.familyOf(runtime.deps.CONTENT_UNLOCK_CATALOG.find((row) => row.id === edge.from))} ${edge.state}${planned}${edge.fresh ? " is-new" : ""}${edge.long ? " is-long" : ""}${edge.side ? " is-side" : ""}`;
+      return `<polyline class="${name}"${edge.fresh ? ' pathLength="1"' : ""} data-from="${edge.from}" data-to="${edge.to}" points="${edge.points.map((point) => point.join(",")).join(" ")}"/>`;
+    }).join("");
+  }
+  function nowEntry(runtime, board) {
+    return board.loops.filter((row) => row.loop <= runtime.deps.game.season).pop() || board.loops[0];
+  }
+  function nowLeft(runtime, scroller) {
+    const now = nowEntry(runtime, runtime.state.view_layoutNow.board);
+    return Math.max(0, now.x + now.w - scroller.clientWidth * 0.72);
+  }
+  function railLabelsHtml(runtime, L) {
+    const rails = /* @__PURE__ */ new Map();
+    runtime.state.unlockBoard.rows.filter((def) => def.rail).forEach((def) => {
+      const at = L.pos.get(def.id), span = rails.get(def.rail) || { left: at.left, right: at.right, first: at.right, y: at.y, def };
+      span.right = Math.max(span.right, at.right);
+      rails.set(def.rail, span);
+    });
+    return [...rails.values()].map((span) => `<div class="unlock-rail fam-${runtime.state.unlockBoard.familyOf(span.def)}" data-card-end="${span.first}" style="left:${span.left}px;width:${span.right - span.left}px;top:${span.y - 24}px"><span>${(0, runtime.deps.escapeHTML)(view_cardName(runtime, span.def))}</span></div>`).join("");
+  }
+  function canvasHtml(runtime, L, marks, height) {
+    const board = L.board, now = nowEntry(runtime, board);
+    const ticks = board.loops.map((row) => `<span class="unlock-tick${row === now ? " is-now" : ""}${row.loop < now.loop ? " is-past" : ""}${row.loop % 5 === 0 ? " is-major" : ""}" style="left:${row.x}px;width:${row.w}px">${row.loop}</span>`).join("");
+    const bands = board.loops.map((row) => `<span class="unlock-col${Math.floor(row.loop / 5) % 2 ? " is-alt" : ""}" style="left:${row.x}px;width:${row.w}px"></span>`).join("");
+    return `${bands}<div class="unlock-past" style="width:${now.x}px"></div><div class="unlock-now" style="left:${now.x}px;width:${now.w}px"></div><div class="unlock-ruler">${ticks}</div>
+            <svg class="unlock-lines" width="${board.width}" height="${height}" aria-hidden="true">${edgesHtml(runtime, L, marks)}</svg>${railLabelsHtml(runtime, L)}${runtime.state.unlockBoard.rows.map((def) => nodeHtml(runtime, def, L, marks)).join("")}`;
+  }
+  function overviewHtml(runtime, L) {
+    const total = L.board.width, step = 38 / L.board.count;
+    const ticks = runtime.state.unlockBoard.rows.map((def) => {
+      const at = L.pos.get(def.id);
+      return `<i class="fam-${runtime.state.unlockBoard.familyOf(def)} is-${stateOf(runtime, def)}" style="left:${(at.cx / total * 100).toFixed(2)}%;top:${Math.round(at.row * step) + 1}px"></i>`;
+    }).join("");
+    const now = nowEntry(runtime, L.board);
+    return `<div class="unlock-over" data-unlock-over="1">${ticks}<span class="unlock-over-now" style="left:${((now.x + now.w / 2) / total * 100).toFixed(2)}%"></span><span class="unlock-over-win"></span></div>`;
+  }
+  function pointsHtml(runtime) {
+    const points = runtime.deps.contentProgression.points();
+    if (points.complete) return `<div class="unlock-stat is-points" data-tip="${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)("넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다."))}"><strong class="is-done">${(0, runtime.deps._t)("전체 해금 완료")}</strong></div>`;
+    const tip = points.balance === points.remaining ? (0, runtime.deps._t)("남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.") : (0, runtime.deps._t)("루프마다 {perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수가 됩니다.", { perLoop: runtime.deps.CONTENT_UNLOCK_POINT_AWARDS.perLoop });
+    return `<div class="unlock-stat is-points" data-tip="${(0, runtime.deps.escapeHTML)(tip)}"><span>${(0, runtime.deps._t)("해금 포인트")}</span><strong>${points.balance}<small>P</small></strong></div>`;
+  }
+  function headHtml(runtime) {
+    const ready = readyRows(runtime).length;
+    return `<header class="unlocks-head">${pointsHtml(runtime)}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? "" : " disabled"}><span>${(0, runtime.deps._t)("해금 가능")}</span><strong>${ready}</strong></button>
+            <div class="unlock-over-slot"></div><div class="unlock-stat is-total"><span>${(0, runtime.deps._t)("전체")}</span><strong>${view_openCount(runtime)}<small>/${runtime.state.unlockBoard.rows.length}</small></strong></div></header>`;
+  }
+  function view_parentsOpen(runtime, def) {
+    return runtime.deps.contentProgression.parents(def).every((id) => runtime.deps.contentProgression.isUnlocked(id));
+  }
+  function view_openCount(runtime) {
+    return runtime.state.unlockBoard.rows.filter((def) => runtime.deps.contentProgression.isUnlocked(def.id)).length;
+  }
+  function view_unseenHtml(runtime, def, marks) {
+    return marks.unseen.has(def.id) ? '<i class="unlock-unseen" aria-hidden="true">!</i>' : "";
+  }
 
-    // ---------------------------------------------------------------- 판
-    nodeClass(def, state, marks) {
-        const lit = marks.lit.has(def.id) ? ' is-lit' : '', fresh = marks.fresh.has(def.id) ? ' is-fresh' : '', chosen = this.selectedId === def.id ? ' is-chosen' : '';
-        const plan = this.plannedPath.has(def.id) ? ' is-planned' : '', goal = game.contentProgression.plannedUnlockId === def.id ? ' is-goal' : '';
-        return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}${plan}${goal}${marks.unseen.has(def.id) ? ' is-unseen' : ''}`;
-    },
-    unseenHtml: (def, marks) => (marks.unseen.has(def.id) ? '<i class="unlock-unseen" aria-hidden="true">!</i>' : ''),
-    /** 고른 적 없는 칸(UNLOCK_UNSEEN_STATES). 칸을 누르거나 다른 창에서 불러 고르면 본 것이 된다(select). 창을 열 때 저절로 고른 칸은 아니다. */
-    unseenIds() {
-        const seen = new Set(game.seenUnlocks || []);
-        return new Set(unlockBoard.rows.filter(def => !seen.has(def.id) && UNLOCK_UNSEEN_STATES.has(this.stateOf(def))).map(def => def.id));
-    },
-    nodeHtml(def, L, marks) {
-        const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(_t(def.name));
-        if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, true)}" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}${this.unseenHtml(def, marks)}</button>`;
-        const chip = state !== 'owned' && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : '';
-        const second = L.cardH >= UNLOCK_BOARD_SIZE.gainFrom ? `<small class="unlock-card-gain">${escapeHTML(this.cardGain(def))}</small>` : '';
-        return `<button type="button" class="unlock-card ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, false)}" aria-label="${name}" style="${style};--icon:${at.h - 2}px">
-            <span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt="" draggable="false" loading="lazy">${chip}</span><span class="unlock-card-text"><b>${escapeHTML(this.cardName(def))}</b>${second}</span>${this.unseenHtml(def, marks)}</button>`;
-    },
-    edgesHtml(L, marks) {
-        const rank = { 'is-dim': 0, 'is-next': 1, 'is-lit': 2 }, edges = [];
-        unlockBoard.rows.forEach(def => contentProgression.parents(def).forEach(from => {
-            const points = unlockBoard.edgePoints(L, from, def.id), long = Math.abs(points[points.length - 1][0] - points[0][0]) > 300;
-            const state = contentProgression.isUnlocked(def.id) ? 'is-lit' : contentProgression.isUnlocked(from) ? 'is-next' : 'is-dim';
-            edges.push({ from, to: def.id, points, long, state, side: def.after !== from, fresh: marks.lit.has(from) && marks.fresh.has(def.id) });
-        }));
-        return edges.sort((a, b) => rank[a.state] - rank[b.state]).map(edge => {
-            const planned = this.plannedPath.has(edge.from) && this.plannedPath.has(edge.to) ? ' is-planned' : '';
-            const name = `fam-${unlockBoard.familyOf(CONTENT_UNLOCK_CATALOG.find(row => row.id === edge.from))} ${edge.state}${planned}${edge.fresh ? ' is-new' : ''}${edge.long ? ' is-long' : ''}${edge.side ? ' is-side' : ''}`;
-            return `<polyline class="${name}"${edge.fresh ? ' pathLength="1"' : ''} data-from="${edge.from}" data-to="${edge.to}" points="${edge.points.map(point => point.join(',')).join(' ')}"/>`;
-        }).join('');
-    },
-    nowEntry(board) {
-        return board.loops.filter(row => row.loop <= game.season).pop() || board.loops[0];
-    },
-    /** 고를 수 있는 칸은 늘 지금 루프나 그 왼쪽에 있다: 지금 칸을 오른쪽에 두어 왼쪽을 넓게 보여 준다. */
-    nowLeft(scroller) {
-        const now = this.nowEntry(this.layoutNow.board);
-        return Math.max(0, now.x + now.w - scroller.clientWidth * 0.72);
-    },
-    railLabelsHtml(L) {
-        const rails = new Map();
-        unlockBoard.rows.filter(def => def.rail).forEach(def => {
-            const at = L.pos.get(def.id), span = rails.get(def.rail) || { left: at.left, right: at.right, first: at.right, y: at.y, def };
-            span.right = Math.max(span.right, at.right);
-            rails.set(def.rail, span);
-        });
-        return [...rails.values()].map(span => `<div class="unlock-rail fam-${unlockBoard.familyOf(span.def)}" data-card-end="${span.first}" style="left:${span.left}px;width:${span.right - span.left}px;top:${span.y - 24}px"><span>${escapeHTML(this.cardName(span.def))}</span></div>`).join('');
-    },
-    canvasHtml(L, marks, height) {
-        const board = L.board, now = this.nowEntry(board);
-        const ticks = board.loops.map(row => `<span class="unlock-tick${row === now ? ' is-now' : ''}${row.loop < now.loop ? ' is-past' : ''}${row.loop % 5 === 0 ? ' is-major' : ''}" style="left:${row.x}px;width:${row.w}px">${row.loop}</span>`).join('');
-        const bands = board.loops.map(row => `<span class="unlock-col${Math.floor(row.loop / 5) % 2 ? ' is-alt' : ''}" style="left:${row.x}px;width:${row.w}px"></span>`).join('');
-        return `${bands}<div class="unlock-past" style="width:${now.x}px"></div><div class="unlock-now" style="left:${now.x}px;width:${now.w}px"></div><div class="unlock-ruler">${ticks}</div>
-            <svg class="unlock-lines" width="${board.width}" height="${height}" aria-hidden="true">${this.edgesHtml(L, marks)}</svg>${this.railLabelsHtml(L)}${unlockBoard.rows.map(def => this.nodeHtml(def, L, marks)).join('')}`;
-    },
-    /** 판 전체 지도: 칸 하나가 점 하나. 눌러 옮기고 끌어서 훑는다. */
-    overviewHtml(L) {
-        const total = L.board.width, step = 38 / L.board.count;
-        const ticks = unlockBoard.rows.map(def => {
-            const at = L.pos.get(def.id);
-            return `<i class="fam-${unlockBoard.familyOf(def)} is-${this.stateOf(def)}" style="left:${(at.cx / total * 100).toFixed(2)}%;top:${Math.round(at.row * step) + 1}px"></i>`;
-        }).join('');
-        const now = this.nowEntry(L.board);
-        return `<div class="unlock-over" data-unlock-over="1">${ticks}<span class="unlock-over-now" style="left:${((now.x + now.w / 2) / total * 100).toFixed(2)}%"></span><span class="unlock-over-win"></span></div>`;
-    },
+  // modules/ui/unlock-tree-detail.mjs
+  function goalHtml(runtime, plan) {
+    if (!plan?.valid) return "";
+    const def = runtime.deps.CONTENT_UNLOCK_CATALOG.find((row) => row.id === plan.id);
+    const status = plan.complete ? (0, runtime.deps._t)("목표 달성 · 다음 목표를 골라 보세요") : (0, runtime.deps._t)("남은 경로 {cost}P · 부족 {deficit}P", { cost: plan.totalCost, deficit: plan.deficit });
+    return `<div class="unlock-goal${plan.complete ? " is-complete" : ""}" aria-label="${(0, runtime.deps._t)("고정한 해금 목표")}"><button type="button" data-unlock-select="${def.id}"><b>${(0, runtime.deps._t)("목표")} · ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(def.name))}</b><span>${status}</span></button>
+            <button type="button" data-unlock-goal-clear="1" aria-label="${(0, runtime.deps._t)("해금 목표 해제")}">${(0, runtime.deps._t)("해제")}</button></div>`;
+  }
+  function planStepsHtml(runtime, plan) {
+    const steps = plan.remainingIds.map((id) => runtime.deps.CONTENT_UNLOCK_CATALOG.find((row) => row.id === id));
+    return steps.length ? `<ol class="unlock-plan-steps">${steps.map((def) => `<li><button type="button" data-unlock-select="${def.id}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(def.name))}</button><span>${runtime.deps.contentProgression.holds(def.id) ? (0, runtime.deps._t)("구매 완료") : def.cost ? `${def.cost}P` : (0, runtime.deps._t)("자동")}</span></li>`).join("")}</ol>` : `<p>${(0, runtime.deps._t)("필요한 해금을 모두 열었습니다.")}</p>`;
+  }
+  function planHtml(runtime, def, plan) {
+    if (!plan.valid) return `<p class="unlock-plan-error">${(0, runtime.deps._t)("해금 경로를 확인할 수 없습니다.")}</p>`;
+    if (plan.complete) return `<p class="unlock-plan-complete">${(0, runtime.deps._t)("선택한 해금은 이미 열려 있습니다.")}</p>`;
+    const pointAt = plan.pointLoop === null ? (0, runtime.deps._t)("계산할 수 없음") : plan.pointLoop === runtime.deps.game.season ? (0, runtime.deps._t)("현재 충족") : (0, runtime.deps._t)("루프 {minLoop}", { minLoop: plan.pointLoop });
+    const unmet = plan.world.filter((row) => !row.met).length;
+    const world = plan.world.map((row) => `<li class="${row.met ? "is-met" : ""}"><b>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name))}</b> ${row.met ? "✓" : "○"} ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.label))}</li>`).join("");
+    return `<div class="unlock-plan-stats"><strong>${(0, runtime.deps._t)("남은 경로 {cost}P", { cost: plan.totalCost })}</strong><span>${(0, runtime.deps._t)("보유 {balance}P · 부족 {deficit}P", { balance: plan.balance, deficit: plan.deficit })}</span>
+            <span>${(0, runtime.deps._t)("포인트 충족: {loop}", { loop: pointAt })}</span><span class="${runtime.deps.game.season >= plan.minLoop ? "is-met" : ""}">${(0, runtime.deps._t)("루프 조건: {loop} 이상", { loop: plan.minLoop })}</span></div>
+            <details class="unlock-plan-details" id="unlock-plan-${def.id}"><summary>${(0, runtime.deps._t)("남은 해금 {count}개 · 세계 조건 미충족 {unmet}개", { count: plan.remainingIds.length, unmet })}</summary><div class="unlock-plan-body"><h5>${(0, runtime.deps._t)("목표까지 필요한 해금")}</h5>${planStepsHtml(runtime, plan)}
+            <h5>${(0, runtime.deps._t)("별도로 달성할 세계 조건")}</h5>${world ? `<ul class="unlock-plan-world">${world}</ul>` : `<p>${(0, runtime.deps._t)("추가 세계 조건 없음")}</p>`}<p class="unlock-plan-note">${(0, runtime.deps._t)("포인트 예상은 다른 해금에 쓰지 않을 때 기준입니다. 세계 진행 조건은 별도로 달성해야 합니다.")}</p></div></details>`;
+  }
+  function lifecycleSummaryHtml(runtime, def) {
+    const life = def.lifecycle;
+    return `<div class="unlock-lifecycle-summary" aria-label="${(0, runtime.deps._t)("다음 루프에 남는 것")}"><p><b>${(0, runtime.deps._t)("유지")}</b>${(0, runtime.deps._t)("기능 해금")}${life?.kept ? ` · ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(life.kept))}` : ""}</p>
+            ${life?.reset ? `<p><b>${(0, runtime.deps._t)("초기화")}</b>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(life.reset))}</p>` : ""}</div>`;
+  }
+  function pinHtml(runtime, def) {
+    const pinned = runtime.deps.game.contentProgression.plannedUnlockId === def.id;
+    return `<button type="button" class="unlock-pin" data-unlock-goal="${def.id}" aria-pressed="${pinned}">${(0, runtime.deps._t)(pinned ? "목표 고정 해제" : "이 해금을 목표로 고정")}</button>`;
+  }
+  function lifecycleHtml(runtime, def) {
+    const life = def.lifecycle;
+    if (!life) return `<p class="unlock-lifetime-note">${(0, runtime.deps._t)("기능 해금은 다음 루프에도 유지됩니다.")}</p>`;
+    return `<div class="unlock-lifetime"><h5>${(0, runtime.deps._t)("루프 전환 시, {label}", { label: (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(life.label)) })}</h5><p class="unlock-lifetime-note">${(0, runtime.deps._t)("기능 해금은 영구 유지")}</p>
+            ${life.kept ? `<p><b>${(0, runtime.deps._t)("유지")}</b>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(life.kept))}</p>` : ""}${life.reset ? `<p><b>${(0, runtime.deps._t)("초기화")}</b>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(life.reset))}</p>` : ""}</div>`;
+  }
+  function relatedHtml(runtime, def) {
+    if (!def.features) return "";
+    return `<div class="unlock-related"><h5>${(0, runtime.deps._t)("포함된 성장 요소")}</h5>${def.features.map((row) => `<p><strong>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name))}</strong>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.description))}</p>`).join("")}</div>`;
+  }
+  function loreHtml(runtime, id) {
+    const lore = runtime.deps.STORY_LOOP_MILESTONES[id];
+    if (!lore) return "";
+    return `<blockquote class="story-scene-quote"><p>${lore.narration.map((line) => (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(line))).join(" ")}</p><p>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(lore.quote))} - ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)((0, runtime.deps.speakerShortName)(lore.speaker)))}</p></blockquote>`;
+  }
+  function moreHtml(runtime, def) {
+    return `<details class="unlock-more" id="unlock-more-${def.id}"><summary>${(0, runtime.deps._t)("자세히")}</summary><div class="unlock-more-body">${loreHtml(runtime, def.id)}${lifecycleHtml(runtime, def)}${relatedHtml(runtime, def)}</div></details>`;
+  }
+  function nextHtml(runtime, def) {
+    const kids = runtime.state.unlockBoard.rows.filter((row) => runtime.deps.contentProgression.parents(row).includes(def.id));
+    if (!kids.length) return '<div class="unlock-next"></div>';
+    return `<div class="unlock-next"><h5>${(0, runtime.deps._t)("이어지는 해금")}</h5><div>${kids.map((kid) => `<button type="button" class="unlock-next-chip fam-${runtime.state.unlockBoard.familyOf(kid)}" data-unlock-select="${kid.id}">
+            <span class="unlock-ic"><img src="${runtime.deps.contentUnlockUi.art(kid)}" alt="" loading="lazy"></span><span>${(0, runtime.deps.escapeHTML)(runtime.state.unlockBoard.isStep(kid) ? (0, runtime.deps._t)(kid.name) : view_cardName(runtime, kid))}</span></button>`).join("")}</div></div>`;
+  }
+  function actionHtml(runtime, def, status) {
+    if (status.unlocked) return runtime.deps.contentUnlockUi.routeAction(def) ? `<button type="button" class="unlock-act" data-open-content="${def.id}">${(0, runtime.deps._t)("바로 사용하기")}</button>` : `<button type="button" class="unlock-act" disabled>${(0, runtime.deps._t)("해금 완료")}</button>`;
+    if (runtime.deps.contentProgression.kind(def) === "auto") return `<button type="button" class="unlock-act" disabled>${(0, runtime.deps.escapeHTML)(status.reason)}</button>`;
+    return status.available ? `<button type="button" class="unlock-act is-go" data-unlock-content="${def.id}">${(0, runtime.deps._t)("{cost}P 해금", { cost: def.cost })}</button>` : `<button type="button" class="unlock-act" disabled>${(0, runtime.deps.escapeHTML)(status.reason)}</button>`;
+  }
+  function requirementsHtml(runtime, def) {
+    return runtime.deps.contentProgression.requirements(def.id).map((row) => {
+      const follow = row.met ? "" : runtime.deps.contentUnlockUi.progressButton(row.route, (0, runtime.deps._t)("{label} 보기", { label: (0, runtime.deps._t)(row.label) }));
+      return follow || `<span class="${row.met ? "is-met" : ""}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.label))}</span>`;
+    }).join("");
+  }
+  function detailDescriptionHtml(runtime, def, unlocked) {
+    const route = def.action?.guide || def.routes?.[0];
+    const path = runtime.deps.contentUnlockUi.journeyPath(route);
+    const journey = runtime.deps.EXPLORATION_REGIONS.guides[route];
+    const description = unlocked && journey?.entry ? (0, runtime.deps._t)("입장 조건 · {condition}", { condition: (0, runtime.deps._t)(journey.entry) }) : (0, runtime.deps._t)(def.description);
+    return `<p class="unlock-desc">${(0, runtime.deps.escapeHTML)(description)}</p>${path ? `<p class="unlock-desc">${(0, runtime.deps.escapeHTML)(path)}</p>` : ""}`;
+  }
+  function detailHtml(runtime, def, plan) {
+    const status = runtime.deps.contentProgression.status(def.id), kind = runtime.deps.contentProgression.kind(def), kindName = kind === "auto" ? "자동 개방" : def.rail ? "강화" : "포인트 해금";
+    const gain = gainOf(runtime, def);
+    return `<div class="unlock-detail-art fam-${runtime.state.unlockBoard.familyOf(def)} kind-${kind} is-${stateOf(runtime, def)}"><span class="unlock-ic"><img src="${runtime.deps.contentUnlockUi.art(def)}" alt=""></span></div>
+            <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${runtime.state.unlockBoard.familyOf(def)}">${def.rail ? (0, runtime.deps._t)(kindName) : `${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(def.group))}, ${(0, runtime.deps._t)(kindName)}`}</span><h4>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(def.name))}${gain ? `<em>${(0, runtime.deps.escapeHTML)(gain)}</em>` : ""}</h4>
+            ${detailDescriptionHtml(runtime, def, status.unlocked)}<div class="unlock-reqs">${status.unlocked ? "" : requirementsHtml(runtime, def)}</div>${planHtml(runtime, def, plan)}</div>
+            ${nextHtml(runtime, def)}<div class="unlock-detail-action">${runtime.deps.contentUnlockUi.entryReward(def, status)}${actionHtml(runtime, def, status)}${lifecycleSummaryHtml(runtime, def)}${pinHtml(runtime, def)}${moreHtml(runtime, def)}</div>`;
+  }
 
-    // ---------------------------------------------------------------- 머리와 설명
-    pointsHtml() {
-        const points = contentProgression.points();
-        if (points.complete) return `<div class="unlock-stat is-points" data-tip="${escapeHTML(_t('넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다.'))}"><strong class="is-done">${_t('전체 해금 완료')}</strong></div>`;
-        const tip = points.balance === points.remaining ? _t('남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.')
-            : _t('루프마다 {perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수가 됩니다.', { perLoop: CONTENT_UNLOCK_POINT_AWARDS.perLoop });
-        return `<div class="unlock-stat is-points" data-tip="${escapeHTML(tip)}"><span>${_t('해금 포인트')}</span><strong>${points.balance}<small>P</small></strong></div>`;
-    },
-    headHtml() {
-        const ready = this.readyRows().length;
-        return `<header class="unlocks-head">${this.pointsHtml()}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? '' : ' disabled'}><span>${_t('해금 가능')}</span><strong>${ready}</strong></button>
-            <div class="unlock-over-slot"></div><div class="unlock-stat is-total"><span>${_t('전체')}</span><strong>${this.openCount()}<small>/${unlockBoard.rows.length}</small></strong></div></header>`;
-    },
-    goalHtml(plan) {
-        if (!plan?.valid) return '';
-        const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === plan.id);
-        const status = plan.complete ? _t('목표 달성 · 다음 목표를 골라 보세요') : _t('남은 경로 {cost}P · 부족 {deficit}P', { cost: plan.totalCost, deficit: plan.deficit });
-        return `<div class="unlock-goal${plan.complete ? ' is-complete' : ''}" aria-label="${_t('고정한 해금 목표')}"><button type="button" data-unlock-select="${def.id}"><b>${_t('목표')} · ${escapeHTML(_t(def.name))}</b><span>${status}</span></button>
-            <button type="button" data-unlock-goal-clear="1" aria-label="${_t('해금 목표 해제')}">${_t('해제')}</button></div>`;
-    },
-    planStepsHtml(plan) {
-        const steps = plan.remainingIds.map(id => CONTENT_UNLOCK_CATALOG.find(row => row.id === id));
-        return steps.length ? `<ol class="unlock-plan-steps">${steps.map(def => `<li><button type="button" data-unlock-select="${def.id}">${escapeHTML(_t(def.name))}</button><span>${contentProgression.holds(def.id) ? _t('구매 완료') : def.cost ? `${def.cost}P` : _t('자동')}</span></li>`).join('')}</ol>` : `<p>${_t('필요한 해금을 모두 열었습니다.')}</p>`;
-    },
-    planHtml(def, plan) {
-        if (!plan.valid) return `<p class="unlock-plan-error">${_t('해금 경로를 확인할 수 없습니다.')}</p>`;
-        if (plan.complete) return `<p class="unlock-plan-complete">${_t('선택한 해금은 이미 열려 있습니다.')}</p>`;
-        const pointAt = plan.pointLoop === null ? _t('계산할 수 없음') : plan.pointLoop === game.season ? _t('현재 충족') : _t('루프 {minLoop}', { minLoop: plan.pointLoop });
-        const unmet = plan.world.filter(row => !row.met).length;
-        const world = plan.world.map(row => `<li class="${row.met ? 'is-met' : ''}"><b>${escapeHTML(_t(row.name))}</b> ${row.met ? '✓' : '○'} ${escapeHTML(_t(row.label))}</li>`).join('');
-        return `<div class="unlock-plan-stats"><strong>${_t('남은 경로 {cost}P', { cost: plan.totalCost })}</strong><span>${_t('보유 {balance}P · 부족 {deficit}P', { balance: plan.balance, deficit: plan.deficit })}</span>
-            <span>${_t('포인트 충족: {loop}', { loop: pointAt })}</span><span class="${game.season >= plan.minLoop ? 'is-met' : ''}">${_t('루프 조건: {loop} 이상', { loop: plan.minLoop })}</span></div>
-            <details class="unlock-plan-details" id="unlock-plan-${def.id}"><summary>${_t('남은 해금 {count}개 · 세계 조건 미충족 {unmet}개', { count: plan.remainingIds.length, unmet })}</summary><div class="unlock-plan-body"><h5>${_t('목표까지 필요한 해금')}</h5>${this.planStepsHtml(plan)}
-            <h5>${_t('별도로 달성할 세계 조건')}</h5>${world ? `<ul class="unlock-plan-world">${world}</ul>` : `<p>${_t('추가 세계 조건 없음')}</p>`}<p class="unlock-plan-note">${_t('포인트 예상은 다른 해금에 쓰지 않을 때 기준입니다. 세계 진행 조건은 별도로 달성해야 합니다.')}</p></div></details>`;
-    },
-    lifecycleSummaryHtml(def) {
-        const life = def.lifecycle;
-        return `<div class="unlock-lifecycle-summary" aria-label="${_t('다음 루프에 남는 것')}"><p><b>${_t('유지')}</b>${_t('기능 해금')}${life?.kept ? ` · ${escapeHTML(_t(life.kept))}` : ''}</p>
-            ${life?.reset ? `<p><b>${_t('초기화')}</b>${escapeHTML(_t(life.reset))}</p>` : ''}</div>`;
-    },
-    pinHtml(def) {
-        const pinned = game.contentProgression.plannedUnlockId === def.id;
-        return `<button type="button" class="unlock-pin" data-unlock-goal="${def.id}" aria-pressed="${pinned}">${_t(pinned ? '목표 고정 해제' : '이 해금을 목표로 고정')}</button>`;
-    },
-    lifecycleHtml(def) {
-        const life = def.lifecycle;
-        if (!life) return `<p class="unlock-lifetime-note">${_t('기능 해금은 다음 루프에도 유지됩니다.')}</p>`;
-        return `<div class="unlock-lifetime"><h5>${_t('루프 전환 시, {label}', { label: escapeHTML(_t(life.label)) })}</h5><p class="unlock-lifetime-note">${_t('기능 해금은 영구 유지')}</p>
-            ${life.kept ? `<p><b>${_t('유지')}</b>${escapeHTML(_t(life.kept))}</p>` : ''}${life.reset ? `<p><b>${_t('초기화')}</b>${escapeHTML(_t(life.reset))}</p>` : ''}</div>`;
-    },
-    relatedHtml(def) {
-        if (!def.features) return '';
-        return `<div class="unlock-related"><h5>${_t('포함된 성장 요소')}</h5>${def.features.map(row => `<p><strong>${escapeHTML(_t(row.name))}</strong>${escapeHTML(_t(row.description))}</p>`).join('')}</div>`;
-    },
-    /** 이 해금을 두고 누가 한 말(data/story-journal.js STORY_LOOP_MILESTONES). 글만 보인다. */
-    loreHtml(id) {
-        const lore = STORY_LOOP_MILESTONES[id];
-        if (!lore) return '';
-        return `<blockquote class="story-scene-quote"><p>${lore.narration.map(line => escapeHTML(_t(line))).join(' ')}</p><p>${escapeHTML(_t(lore.quote))} - ${escapeHTML(_t(speakerShortName(lore.speaker)))}</p></blockquote>`;
-    },
-    moreHtml(def) {
-        return `<details class="unlock-more" id="unlock-more-${def.id}"><summary>${_t('자세히')}</summary><div class="unlock-more-body">${this.loreHtml(def.id)}${this.lifecycleHtml(def)}${this.relatedHtml(def)}</div></details>`;
-    },
-    nextHtml(def) {
-        const kids = unlockBoard.rows.filter(row => contentProgression.parents(row).includes(def.id));
-        if (!kids.length) return '<div class="unlock-next"></div>';
-        return `<div class="unlock-next"><h5>${_t('이어지는 해금')}</h5><div>${kids.map(kid => `<button type="button" class="unlock-next-chip fam-${unlockBoard.familyOf(kid)}" data-unlock-select="${kid.id}">
-            <span class="unlock-ic"><img src="${contentUnlockUi.art(kid)}" alt="" loading="lazy"></span><span>${escapeHTML(unlockBoard.isStep(kid) ? _t(kid.name) : this.cardName(kid))}</span></button>`).join('')}</div></div>`;
-    },
-    actionHtml(def, status) {
-        if (status.unlocked) return contentUnlockUi.routeAction(def) ? `<button type="button" class="unlock-act" data-open-content="${def.id}">${_t('바로 사용하기')}</button>` : `<button type="button" class="unlock-act" disabled>${_t('해금 완료')}</button>`;
-        if (contentProgression.kind(def) === 'auto') return `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
-        return status.available ? `<button type="button" class="unlock-act is-go" data-unlock-content="${def.id}">${_t('{cost}P 해금', { cost: def.cost })}</button>` : `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
-    },
-    requirementsHtml(def) {
-        return contentProgression.requirements(def.id).map(row => {
-            const follow = row.met ? '' : contentUnlockUi.progressButton(row.route, _t('{label} 보기', { label: _t(row.label) }));
-            return follow || `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(_t(row.label))}</span>`;
-        }).join('');
-    },
-    detailDescriptionHtml(def, unlocked) {
-        const route = def.action?.guide || def.routes?.[0];
-        const path = contentUnlockUi.journeyPath(route);
-        const journey = EXPLORATION_REGIONS.guides[route];
-        const description = unlocked && journey?.entry ? _t('입장 조건 · {condition}', { condition: _t(journey.entry) }) : _t(def.description);
-        return `<p class="unlock-desc">${escapeHTML(description)}</p>${path ? `<p class="unlock-desc">${escapeHTML(path)}</p>` : ''}`;
-    },
-    detailHtml(def, plan) {
-        const status = contentProgression.status(def.id), kind = contentProgression.kind(def), kindName = kind === 'auto' ? '자동 개방' : def.rail ? '강화' : '포인트 해금';
-        const gain = this.gainOf(def);
-        return `<div class="unlock-detail-art fam-${unlockBoard.familyOf(def)} kind-${kind} is-${this.stateOf(def)}"><span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt=""></span></div>
-            <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? _t(kindName) : `${escapeHTML(_t(def.group))}, ${_t(kindName)}`}</span><h4>${escapeHTML(_t(def.name))}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
-            ${this.detailDescriptionHtml(def, status.unlocked)}<div class="unlock-reqs">${status.unlocked ? '' : this.requirementsHtml(def)}</div>${this.planHtml(def, plan)}</div>
-            ${this.nextHtml(def)}<div class="unlock-detail-action">${contentUnlockUi.entryReward(def, status)}${this.actionHtml(def, status)}${this.lifecycleSummaryHtml(def)}${this.pinHtml(def)}${this.moreHtml(def)}</div>`;
-    },
-
-    // ---------------------------------------------------------------- 그리기
-    /** 고른 칸: 다른 창이 고른 칸, 없으면 지금 살 수 있는 첫 칸, 그것도 없으면 첫 뿌리. */
-    settleSelection() {
-        if (!unlockBoard.has(this.selectedId)) {
-            const ready = this.readyRows();
-            this.selectedId = (ready.find(def => !def.rail) || ready[0] || unlockBoard.rows.find(def => def.id === UNLOCK_FAMILIES[0].root)).id;
-        }
-        return CONTENT_UNLOCK_CATALOG.find(def => def.id === this.selectedId);
-    },
-    /** 지난번 그림과 달라진 칸: 방금 열린 칸은 번쩍이고, 앞 해금이 막 열린 칸은 튀어나온다. 처음 그릴 때는 소식이 아니다. */
-    readMarks() {
-        const owned = new Set(unlockBoard.rows.filter(def => contentProgression.isUnlocked(def.id)).map(def => def.id));
-        const open = new Set(unlockBoard.rows.filter(def => this.parentsOpen(def)).map(def => def.id));
-        const marks = { lit: new Set(), fresh: new Set(), unseen: this.unseenIds() };
-        if (this.shownOwned) {
-            owned.forEach(id => { if (!this.shownOwned.has(id)) marks.lit.add(id); });
-            open.forEach(id => { if (!this.shownOpenParents.has(id) && !owned.has(id)) marks.fresh.add(id); });
-        }
-        this.shownOwned = owned;
-        this.shownOpenParents = open;
-        return marks;
-    },
-    readPlans(id) {
-        const goalId = game.contentProgression.plannedUnlockId;
-        const goal = goalId ? window.GameModules.unlockPlan.read(goalId) : null;
-        this.plannedPath = new Set(goal?.valid ? goal.ids : []);
-        return { plan: window.GameModules.unlockPlan.read(id), goal };
-    },
-    render() {
-        const root = document.getElementById('content-unlock-panel');
-        if (!root || !game.contentProgression) return;
-        const selected = this.settleSelection(), { plan, goal } = this.readPlans(selected.id);
-        const states = unlockBoard.rows.map(def => this.stateOf(def)).join();
-        const key = JSON.stringify([i18n.language, game.season, contentProgression.balance(), states, this.selectedId, plan, goal, (game.seenUnlocks || []).length, root.clientHeight, root.clientWidth]);
-        if (this.shownKey === key && root.childNodes.length) return;
-        this.shownKey = key;
-        this.bindPanel(root);
-        const keep = root.querySelector('.unlocks-scroll')?.scrollLeft || 0, keepTop = root.querySelector('.unlocks-scroll')?.scrollTop || 0;
-        captureUiDisclosureState(root);
-        root.innerHTML = `${this.headHtml()}${this.goalHtml(goal)}<div class="unlocks-view"><div class="unlocks-scroll"><div class="unlocks-canvas"></div></div>
-            <div class="unlock-fade is-left"></div><div class="unlock-fade is-right"></div><div class="unlock-corner">${_t('루프')}</div>
+  // modules/ui/unlock-tree-render.mjs
+  function settleSelection(runtime) {
+    if (!runtime.state.unlockBoard.has(runtime.state.view_selectedId)) {
+      const ready = readyRows(runtime);
+      runtime.state.view_selectedId = (ready.find((def) => !def.rail) || ready[0] || runtime.state.unlockBoard.rows.find((def) => def.id === runtime.state.UNLOCK_FAMILIES[0].root)).id;
+    }
+    return runtime.deps.CONTENT_UNLOCK_CATALOG.find((def) => def.id === runtime.state.view_selectedId);
+  }
+  function readMarks(runtime) {
+    const owned = new Set(runtime.state.unlockBoard.rows.filter((def) => runtime.deps.contentProgression.isUnlocked(def.id)).map((def) => def.id));
+    const open = new Set(runtime.state.unlockBoard.rows.filter((def) => view_parentsOpen(runtime, def)).map((def) => def.id));
+    const marks = { lit: /* @__PURE__ */ new Set(), fresh: /* @__PURE__ */ new Set(), unseen: unseenIds(runtime) };
+    if (runtime.state.view_shownOwned) {
+      owned.forEach((id) => {
+        if (!runtime.state.view_shownOwned.has(id)) marks.lit.add(id);
+      });
+      open.forEach((id) => {
+        if (!runtime.state.view_shownOpenParents.has(id) && !owned.has(id)) marks.fresh.add(id);
+      });
+    }
+    runtime.state.view_shownOwned = owned;
+    runtime.state.view_shownOpenParents = open;
+    return marks;
+  }
+  function readPlans(runtime, id) {
+    const goalId = runtime.deps.game.contentProgression.plannedUnlockId;
+    const goal = goalId ? runtime.deps.window.GameModules.unlockPlan.read(goalId) : null;
+    runtime.state.view_plannedPath = new Set(goal?.valid ? goal.ids : []);
+    return { plan: runtime.deps.window.GameModules.unlockPlan.read(id), goal };
+  }
+  function render(runtime) {
+    syncUnlockOwner(runtime);
+    const root = runtime.deps.document.getElementById("content-unlock-panel");
+    if (!root || !runtime.deps.game.contentProgression) return;
+    bindPanel(runtime, root);
+    const selected = settleSelection(runtime), { plan, goal } = readPlans(runtime, selected.id);
+    const states = runtime.state.unlockBoard.rows.map((def) => stateOf(runtime, def)).join();
+    const key = JSON.stringify([runtime.deps.i18n.language, runtime.deps.game.season, runtime.deps.contentProgression.balance(), states, runtime.state.view_selectedId, plan, goal, (runtime.deps.game.seenUnlocks || []).length, root.clientHeight, root.clientWidth]);
+    if (runtime.state.view_shownKey === key && root.childNodes.length) return;
+    runtime.state.view_shownKey = key;
+    const keep = root.querySelector(".unlocks-scroll")?.scrollLeft || 0, keepTop = root.querySelector(".unlocks-scroll")?.scrollTop || 0;
+    (0, runtime.deps.captureUiDisclosureState)(root);
+    root.innerHTML = `${headHtml(runtime)}${goalHtml(runtime, goal)}<div class="unlocks-view"><div class="unlocks-scroll"><div class="unlocks-canvas"></div></div>
+            <div class="unlock-fade is-left"></div><div class="unlock-fade is-right"></div><div class="unlock-corner">${(0, runtime.deps._t)("루프")}</div>
             <button type="button" class="unlock-edge is-left" data-unlock-edge="-1"></button><button type="button" class="unlock-edge is-right" data-unlock-edge="1"></button>
-            <button type="button" class="unlock-to-now" data-unlock-now="1">${_t('지금으로')}</button></div><aside class="unlock-detail" aria-label="${_t('고른 해금')}">${this.detailHtml(selected, plan)}</aside>`;
-        restoreUiDisclosureState(root);
-        this.fillBoard(root, keep, keepTop);
-    },
-    fillBoard(root, keep, keepTop) {
-        const view = root.querySelector('.unlocks-view'), height = view.clientHeight;
-        if (!height) return; // 창이 닫혀 있다: 열려서 크기가 생기면 다시 그린다(bindPanel).
-        const L = this.layoutNow = unlockBoard.layout(height), marks = this.readMarks();
-        const canvas = root.querySelector('.unlocks-canvas'), scroller = root.querySelector('.unlocks-scroll');
-        canvas.style.width = `${L.board.width}px`;
-        canvas.style.height = `${L.fullHeight}px`;   // 창이 낮으면 판이 더 높다: 끌어서 위아래로 본다(startPan)
-        canvas.innerHTML = this.canvasHtml(L, marks, L.fullHeight);
-        root.querySelector('.unlock-over-slot').innerHTML = this.overviewHtml(L);
-        scroller.scrollLeft = this.centerNow || this.shownSeason !== game.season ? this.nowLeft(scroller) : keep;
-        scroller.scrollTop = keepTop;
-        if (scroller.clientWidth) { this.centerNow = false; this.shownSeason = game.season; }
-        this.syncOverlays(root);
-        if (this.revealId) this.scrollToNode(root, this.revealId);
-        this.revealId = '';
-    },
-    /** 지도 창과 화면 밖의 고를 거리: 스크롤마다 다시 그리지 않고 값만 옮긴다. */
-    syncOverlays(root) {
-        const scroller = root.querySelector('.unlocks-scroll'), win = root.querySelector('.unlock-over-win');
-        if (!scroller || !win || !this.layoutNow) return;
-        const total = this.layoutNow.board.width, left = scroller.scrollLeft, width = scroller.clientWidth;
-        win.style.left = `${(left / total * 100).toFixed(2)}%`;
-        win.style.width = `${(width / total * 100).toFixed(2)}%`;
-        const spots = this.readyRows().map(def => this.layoutNow.pos.get(def.id));
-        const paint = (selector, count, label) => {
-            const el = root.querySelector(selector);
-            el.textContent = label(count);
-            el.classList.toggle('is-on', count > 0);
-        };
-        paint('.unlock-edge.is-left', spots.filter(at => at.left < left).length, count => _t('◀ 가능 {count}', { count }));
-        paint('.unlock-edge.is-right', spots.filter(at => at.right > left + width).length, count => _t('가능 {count} ▶', { count }));
-        root.querySelectorAll('.unlock-rail').forEach(el => el.classList.toggle('is-stuck', Number(el.dataset.cardEnd) < left));
-        root.querySelector('.unlock-fade.is-left').classList.toggle('is-on', left > 2);
-        root.querySelector('.unlock-fade.is-right').classList.toggle('is-on', left + width < total - 2);
-    },
-    scrollToNode(root, id) {
-        const scroller = root.querySelector('.unlocks-scroll'), at = this.layoutNow?.pos.get(id);
-        if (at && scroller) scroller.scrollTo({ left: at.cx - scroller.clientWidth / 2, top: at.y - scroller.clientHeight / 2, behavior: 'smooth' });
-    },
-    /** 고르기: 다른 창에서 불러도 된다. 판 밖의 줄(루프 1에 열리는 전술, 저널 들)은 고르지 않는다. */
-    select(id) {
-        if (!unlockBoard.has(id)) return;
-        this.selectedId = id;
-        if (!Array.isArray(game.seenUnlocks)) game.seenUnlocks = [];
-        if (!game.seenUnlocks.includes(id)) game.seenUnlocks.push(id);
-        this.revealId = id;
-        this.render();
-    },
-
-    // ---------------------------------------------------------------- 손놀림
-    jumpOffscreen(root, direction) {
-        const scroller = root.querySelector('.unlocks-scroll'), seenFrom = scroller.scrollLeft, seenTo = seenFrom + scroller.clientWidth;
-        const list = this.readyRows().map(def => this.layoutNow.pos.get(def.id)).filter(at => (direction < 0 ? at.left < seenFrom : at.right > seenTo)).sort((a, b) => a.left - b.left);
-        if (list.length) this.select((direction < 0 ? list[list.length - 1] : list[0]).def.id);
-    },
-    cycleReady() {
-        const list = this.readyRows().sort((a, b) => this.layoutNow.pos.get(a.id).left - this.layoutNow.pos.get(b.id).left);
-        if (!list.length) return;
-        this.jump = (this.jump + 1) % list.length;
-        this.select(list[this.jump].id);
-    },
-    pin(id) {
-        const target = game.contentProgression.plannedUnlockId === id ? '' : id;
-        const keepFocus = document.activeElement?.matches?.('[data-unlock-goal], [data-unlock-goal-clear]');
-        if (!contentProgression.planTarget(target)) return;
-        this.render();
-        if (keepFocus) document.querySelector('#content-unlock-panel .unlock-pin')?.focus({ preventScroll: true });
-        saveGame({ skipCloudSync: false });
-    },
-    handleClick(event) {
-        const control = event.target.closest?.('#content-unlock-panel button');
-        if (!control) return;
-        const root = document.getElementById('content-unlock-panel'), data = control.dataset;
-        if (data.unlockGoal) { this.pin(data.unlockGoal); return; }
-        if (data.unlockGoalClear) { this.pin(game.contentProgression.plannedUnlockId); return; }
-        if (data.unlockSelect) { this.select(data.unlockSelect); return; }
-        if (data.unlockNext) { this.cycleReady(); return; }
-        if (data.unlockEdge) { this.jumpOffscreen(root, Number(data.unlockEdge)); return; }
-        if (data.unlockNow) { const scroller = root.querySelector('.unlocks-scroll'); scroller.scrollTo({ left: this.nowLeft(scroller), behavior: 'smooth' }); }
-    },
-    /** 칸 위에 마우스를 올리면 뿌리까지의 선행이 밝아진다(다시 그리지 않고 표시만 옮긴다). */
-    markPath(root, id) {
-        root.querySelectorAll('.is-path').forEach(el => el.classList.remove('is-path'));
-        if (!id) return;
-        const path = new Set(), waiting = [id];
-        while (waiting.length) {
-            const step = waiting.pop();
-            path.add(step);
-            waiting.push(...contentProgression.parents(CONTENT_UNLOCK_CATALOG.find(def => def.id === step)));
-        }
-        root.querySelectorAll('.unlocks-canvas [data-unlock-select]').forEach(el => { if (path.has(el.dataset.unlockSelect)) el.classList.add('is-path'); });
-        root.querySelectorAll('polyline[data-to]').forEach(el => {
-            if (!path.has(el.dataset.to) || !path.has(el.dataset.from)) return;
-            el.classList.add('is-path');
-            el.parentNode.appendChild(el);
-        });
-    },
-    /** 마우스로 판의 빈 곳을 끌면 판이 움직인다(스킬트리처럼). 손가락은 그대로 스크롤한다. */
-    startPan(event, root) {
-        if (event.pointerType !== 'mouse' || event.target.closest('button')) return;
-        const scroller = root.querySelector('.unlocks-scroll'), scale = uiDisplay.factor || 1, from = { x: event.clientX, y: event.clientY, left: scroller.scrollLeft, top: scroller.scrollTop };
-        const pan = move => {
-            scroller.scrollLeft = from.left - (move.clientX - from.x) / scale;
-            scroller.scrollTop = from.top - (move.clientY - from.y) / scale;
-        };
-        const release = () => { window.removeEventListener('pointermove', pan); scroller.classList.remove('is-panning'); };
-        scroller.classList.add('is-panning');
-        window.addEventListener('pointermove', pan);
-        window.addEventListener('pointerup', release, { once: true });
-    },
-    startOverview(event, root) {
-        const box = root.querySelector('.unlock-over'), scroller = root.querySelector('.unlocks-scroll');
-        const go = move => {
-            const rect = box.getBoundingClientRect();
-            scroller.scrollLeft = (move.clientX - rect.left) / rect.width * this.layoutNow.board.width - scroller.clientWidth / 2;
-        };
-        go(event);
-        window.addEventListener('pointermove', go);
-        window.addEventListener('pointerup', () => window.removeEventListener('pointermove', go), { once: true });
-    },
-    onPointerDown(event, root) {
-        if (event.button) return;
-        if (event.target.closest?.('.unlock-over')) { this.startOverview(event, root); return; }
-        if (event.target.closest?.('.unlocks-scroll')) this.startPan(event, root);
-    },
-    /** 세로 휠은 판을 가로로 민다. */
-    onWheel(event, root) {
-        if (!event.target.closest?.('.unlocks-view')) return;
-        event.preventDefault();
-        root.querySelector('.unlocks-scroll').scrollLeft += event.deltaY || event.deltaX;
-    },
-    bindPanel(root) {
-        if (root.dataset.unlockBound) return;
-        root.dataset.unlockBound = '1';
-        root.addEventListener('pointerover', event => {
-            const node = event.target.closest?.('.unlocks-canvas [data-unlock-select]');
-            this.markPath(root, node ? node.dataset.unlockSelect : '');
-        });
-        root.addEventListener('pointerleave', () => this.markPath(root, ''));
-        root.addEventListener('pointerdown', event => this.onPointerDown(event, root));
-        root.addEventListener('wheel', event => this.onWheel(event, root), { passive: false });
-        root.addEventListener('scroll', () => this.syncOverlays(root), true);
-        new ResizeObserver(() => { if (root.clientWidth) this.render(); }).observe(root);
+            <button type="button" class="unlock-to-now" data-unlock-now="1">${(0, runtime.deps._t)("지금으로")}</button></div><aside class="unlock-detail" aria-label="${(0, runtime.deps._t)("고른 해금")}">${detailHtml(runtime, selected, plan)}</aside>`;
+    (0, runtime.deps.restoreUiDisclosureState)(root);
+    fillBoard(runtime, root, keep, keepTop);
+  }
+  function fillBoard(runtime, root, keep, keepTop) {
+    runtime.state.stopGesture?.();
+    const view = root.querySelector(".unlocks-view"), height = view.clientHeight;
+    if (!height) return;
+    const L = runtime.state.view_layoutNow = runtime.state.unlockBoard.layout(height), marks = readMarks(runtime);
+    const canvas = root.querySelector(".unlocks-canvas"), scroller = root.querySelector(".unlocks-scroll");
+    canvas.style.width = `${L.board.width}px`;
+    canvas.style.height = `${L.fullHeight}px`;
+    canvas.innerHTML = canvasHtml(runtime, L, marks, L.fullHeight);
+    root.querySelector(".unlock-over-slot").innerHTML = overviewHtml(runtime, L);
+    scroller.scrollLeft = runtime.state.view_centerNow || runtime.state.view_shownSeason !== runtime.deps.game.season ? nowLeft(runtime, scroller) : keep;
+    scroller.scrollTop = keepTop;
+    if (scroller.clientWidth) {
+      runtime.state.view_centerNow = false;
+      runtime.state.view_shownSeason = runtime.deps.game.season;
     }
-};
-document.addEventListener('click', event => unlockTabUi.handleClick(event));
-window.addEventListener('game:languagechange', () => unlockTabUi.render());
-safeExposeGlobals({ unlockTabUi, unlockBoard });
+    syncOverlays(runtime, root);
+    if (runtime.state.view_revealId) scrollToNode(runtime, root, runtime.state.view_revealId);
+    runtime.state.view_revealId = "";
+  }
+  function syncOverlays(runtime, root) {
+    const scroller = root.querySelector(".unlocks-scroll"), win = root.querySelector(".unlock-over-win");
+    if (!scroller || !win || !runtime.state.view_layoutNow) return;
+    const total = runtime.state.view_layoutNow.board.width, left = scroller.scrollLeft, width = scroller.clientWidth;
+    win.style.left = `${(left / total * 100).toFixed(2)}%`;
+    win.style.width = `${(width / total * 100).toFixed(2)}%`;
+    const spots = readyRows(runtime).map((def) => runtime.state.view_layoutNow.pos.get(def.id));
+    const paint = (selector, count, label) => {
+      const el = root.querySelector(selector);
+      el.textContent = label(count);
+      el.classList.toggle("is-on", count > 0);
+    };
+    paint(".unlock-edge.is-left", spots.filter((at) => at.left < left).length, (count) => (0, runtime.deps._t)("◀ 가능 {count}", { count }));
+    paint(".unlock-edge.is-right", spots.filter((at) => at.right > left + width).length, (count) => (0, runtime.deps._t)("가능 {count} ▶", { count }));
+    root.querySelectorAll(".unlock-rail").forEach((el) => el.classList.toggle("is-stuck", Number(el.dataset.cardEnd) < left));
+    root.querySelector(".unlock-fade.is-left").classList.toggle("is-on", left > 2);
+    root.querySelector(".unlock-fade.is-right").classList.toggle("is-on", left + width < total - 2);
+  }
+  function scrollToNode(runtime, root, id) {
+    const scroller = root.querySelector(".unlocks-scroll"), at = runtime.state.view_layoutNow?.pos.get(id);
+    if (at && scroller) scroller.scrollTo({ left: at.cx - scroller.clientWidth / 2, top: at.y - scroller.clientHeight / 2, behavior: "smooth" });
+  }
+  function select(runtime, id) {
+    syncUnlockOwner(runtime);
+    if (!runtime.state.unlockBoard.has(id)) return;
+    runtime.state.view_selectedId = id;
+    if (!Array.isArray(runtime.deps.game.seenUnlocks)) runtime.deps.game.seenUnlocks = [];
+    if (!runtime.deps.game.seenUnlocks.includes(id)) runtime.deps.game.seenUnlocks.push(id);
+    runtime.state.view_revealId = id;
+    render(runtime);
+  }
+  function jumpOffscreen(runtime, root, direction) {
+    const scroller = root.querySelector(".unlocks-scroll"), seenFrom = scroller.scrollLeft, seenTo = seenFrom + scroller.clientWidth;
+    const list = readyRows(runtime).map((def) => runtime.state.view_layoutNow.pos.get(def.id)).filter((at) => direction < 0 ? at.left < seenFrom : at.right > seenTo).sort((a, b) => a.left - b.left);
+    if (list.length) select(runtime, (direction < 0 ? list[list.length - 1] : list[0]).def.id);
+  }
+  function cycleReady(runtime) {
+    const list = readyRows(runtime).sort((a, b) => runtime.state.view_layoutNow.pos.get(a.id).left - runtime.state.view_layoutNow.pos.get(b.id).left);
+    if (!list.length) return;
+    runtime.state.view_jump = (runtime.state.view_jump + 1) % list.length;
+    select(runtime, list[runtime.state.view_jump].id);
+  }
+  function pin(runtime, id) {
+    const target = runtime.deps.game.contentProgression.plannedUnlockId === id ? "" : id;
+    const keepFocus = runtime.deps.document.activeElement?.matches?.("[data-unlock-goal], [data-unlock-goal-clear]");
+    if (!runtime.deps.contentProgression.planTarget(target)) return;
+    render(runtime);
+    if (keepFocus) runtime.deps.document.querySelector("#content-unlock-panel .unlock-pin")?.focus({ preventScroll: true });
+    (0, runtime.deps.saveGame)({ skipCloudSync: false });
+  }
+  function markPath(runtime, root, id) {
+    root.querySelectorAll(".is-path").forEach((el) => el.classList.remove("is-path"));
+    if (!id) return;
+    const path = /* @__PURE__ */ new Set(), waiting = [id];
+    while (waiting.length) {
+      const step = waiting.pop();
+      path.add(step);
+      waiting.push(...runtime.deps.contentProgression.parents(runtime.deps.CONTENT_UNLOCK_CATALOG.find((def) => def.id === step)));
+    }
+    root.querySelectorAll(".unlocks-canvas [data-unlock-select]").forEach((el) => {
+      if (path.has(el.dataset.unlockSelect)) el.classList.add("is-path");
+    });
+    root.querySelectorAll("polyline[data-to]").forEach((el) => {
+      if (!path.has(el.dataset.to) || !path.has(el.dataset.from)) return;
+      el.classList.add("is-path");
+      el.parentNode.appendChild(el);
+    });
+  }
+  function handleClick(runtime, event) {
+    const control = event.target.closest?.("#content-unlock-panel button");
+    if (!control) return;
+    if (syncUnlockOwner(runtime)) {
+      render(runtime);
+      return;
+    }
+    const root = runtime.deps.document.getElementById("content-unlock-panel"), data = control.dataset;
+    if (data.unlockGoal) {
+      pin(runtime, data.unlockGoal);
+      return;
+    }
+    if (data.unlockGoalClear) {
+      pin(runtime, runtime.deps.game.contentProgression.plannedUnlockId);
+      return;
+    }
+    if (data.unlockSelect) {
+      select(runtime, data.unlockSelect);
+      return;
+    }
+    if (data.unlockNext) {
+      cycleReady(runtime);
+      return;
+    }
+    if (data.unlockEdge) {
+      jumpOffscreen(runtime, root, Number(data.unlockEdge));
+      return;
+    }
+    if (data.unlockNow) {
+      const scroller = root.querySelector(".unlocks-scroll");
+      scroller.scrollTo({ left: nowLeft(runtime, scroller), behavior: "smooth" });
+    }
+  }
+  function startPan(runtime, event, root) {
+    if (event.pointerType !== "mouse" || event.target.closest("button")) return;
+    const scroller = root.querySelector(".unlocks-scroll"), scale = runtime.deps.uiDisplay.factor || 1, from = { x: event.clientX, y: event.clientY, left: scroller.scrollLeft, top: scroller.scrollTop };
+    const pan = (move) => {
+      scroller.scrollLeft = from.left - (move.clientX - from.x) / scale;
+      scroller.scrollTop = from.top - (move.clientY - from.y) / scale;
+    };
+    beginUnlockGesture(runtime, event, scroller, pan);
+    scroller.classList.add("is-panning");
+  }
+  function startOverview(runtime, event, root) {
+    const box = root.querySelector(".unlock-over"), scroller = root.querySelector(".unlocks-scroll");
+    const go = (move) => {
+      const rect = box.getBoundingClientRect();
+      scroller.scrollLeft = (move.clientX - rect.left) / rect.width * runtime.state.view_layoutNow.board.width - scroller.clientWidth / 2;
+    };
+    go(event);
+    beginUnlockGesture(runtime, event, scroller, go);
+  }
+  function onPointerDown(runtime, event, root) {
+    if (syncUnlockOwner(runtime)) {
+      render(runtime);
+      return;
+    }
+    if (event.button) return;
+    if (event.target.closest?.(".unlock-over")) {
+      startOverview(runtime, event, root);
+      return;
+    }
+    if (event.target.closest?.(".unlocks-scroll")) startPan(runtime, event, root);
+  }
+  function onWheel(runtime, event, root) {
+    if (!event.target.closest?.(".unlocks-view")) return;
+    event.preventDefault();
+    root.querySelector(".unlocks-scroll").scrollLeft += event.deltaY || event.deltaX;
+  }
+  function bindPanel(runtime, root) {
+    if (runtime.state.panel === root) return;
+    releaseUnlockPanel(runtime);
+    runtime.state.panel = root;
+    listenView(runtime, root, "pointerover", (event) => {
+      const node = event.target.closest?.(".unlocks-canvas [data-unlock-select]");
+      markPath(runtime, root, node ? node.dataset.unlockSelect : "");
+    });
+    listenView(runtime, root, "pointerleave", () => markPath(runtime, root, ""));
+    listenView(runtime, root, "pointerdown", (event) => runtime.handlers.onPointerDown(event, root));
+    listenView(runtime, root, "wheel", (event) => onWheel(runtime, event, root), { passive: false });
+    listenView(runtime, root, "scroll", () => syncOverlays(runtime, root), true);
+    runtime.state.observer = new runtime.deps.ResizeObserver(() => {
+      if (runtime.active && runtime.state.panel === root && root.clientWidth) runtime.handlers.render();
+    });
+    runtime.state.observer.observe(root);
+  }
+
+  // modules/ui/unlock-tree-view.mjs
+  function createUnlockTreeView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, listeners: [], frames: /* @__PURE__ */ new Set() };
+    const handlers = { boardTextWidth, boardIsStep, boardBuilt, boardLayout, boardEdgePoints, boardFamilyOf, stateOf, readyRows, upgradeEffect, gainOf, cardGain, tipOf, nodeClass, unseenIds, nodeHtml, edgesHtml, nowEntry, nowLeft, railLabelsHtml, canvasHtml, overviewHtml, pointsHtml, headHtml, goalHtml, planStepsHtml, planHtml, lifecycleSummaryHtml, pinHtml, lifecycleHtml, relatedHtml, loreHtml, moreHtml, nextHtml, actionHtml, requirementsHtml, detailDescriptionHtml, detailHtml, settleSelection, readMarks, readPlans, render, fillBoard, syncOverlays, scrollToNode, select, jumpOffscreen, cycleReady, pin, handleClick, markPath, startPan, startOverview, onPointerDown, onWheel, bindPanel, view_parentsOpen, view_openCount, view_cardName, view_unseenHtml };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = (...args) => runtime.active ? handler(runtime, ...args) : void 0;
+    initialize(runtime);
+    runtime.handlers.boardPlaceAlong = createBoardPlaceAlong(runtime);
+    runtime.handlers.boardClearRun = createBoardClearRun();
+    runtime.api = UnlockTreeViewApi(runtime);
+    installUnlockTreeViewEvents(runtime);
+    return runtime.api;
+  }
+  function initialize(runtime) {
+    runtime.state.UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 24, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
+    runtime.state.UNLOCK_FAMILIES = Object.freeze([
+      { id: "gear", root: "craft", side: -1, at: 0.22 },
+      { id: "rune", root: "support", side: 1, at: 0.56 },
+      { id: "growth", root: "loopTree", side: 1, at: 0.84 }
+    ]);
+    runtime.state.UNLOCK_LOOSE_FAMILY = Object.freeze({ passiveTree: "growth", deepChaos: "rune" });
+    runtime.state.UNLOCK_UNSEEN_STATES = Object.freeze(/* @__PURE__ */ new Set(["ready", "short", "owned"]));
+    runtime.state.boardSIZE = runtime.state.UNLOCK_BOARD_SIZE;
+    runtime.state.boardById = new Map(runtime.deps.CONTENT_UNLOCK_CATALOG.map((def) => [def.id, def]));
+    runtime.state.boardRows = runtime.deps.CONTENT_UNLOCK_CATALOG.filter((def) => def.minLoop > 1);
+    runtime.state.boardBase = null;
+    runtime.state.unlockBoard = Object.freeze({ rows: runtime.state.boardRows, built: runtime.handlers.boardBuilt, layout: runtime.handlers.boardLayout, edgePoints: runtime.handlers.boardEdgePoints, familyOf: runtime.handlers.boardFamilyOf, isStep: runtime.handlers.boardIsStep, has: (id) => runtime.state.boardRows.some((def) => def.id === id) });
+    initializeUnlockSelection(runtime);
+  }
+  function UnlockTreeViewApi(runtime) {
+    const names = [
+      "stateOf",
+      "readyRows",
+      "upgradeEffect",
+      "gainOf",
+      "cardGain",
+      "tipOf",
+      "nodeClass",
+      "unseenIds",
+      "nodeHtml",
+      "edgesHtml",
+      "nowEntry",
+      "nowLeft",
+      "railLabelsHtml",
+      "canvasHtml",
+      "overviewHtml",
+      "pointsHtml",
+      "headHtml",
+      "goalHtml",
+      "planStepsHtml",
+      "planHtml",
+      "lifecycleSummaryHtml",
+      "pinHtml",
+      "lifecycleHtml",
+      "relatedHtml",
+      "loreHtml",
+      "moreHtml",
+      "nextHtml",
+      "actionHtml",
+      "requirementsHtml",
+      "detailDescriptionHtml",
+      "detailHtml",
+      "settleSelection",
+      "readMarks",
+      "readPlans",
+      "render",
+      "fillBoard",
+      "syncOverlays",
+      "scrollToNode",
+      "select",
+      "jumpOffscreen",
+      "cycleReady",
+      "pin",
+      "handleClick",
+      "markPath",
+      "startPan",
+      "startOverview",
+      "onPointerDown",
+      "onWheel",
+      "bindPanel"
+    ];
+    const api = Object.fromEntries(names.map((name) => [name, runtime.handlers[name]]));
+    api.unlockBoard = runtime.state.unlockBoard;
+    Object.defineProperties(api, Object.getOwnPropertyDescriptors(UnlockTreeViewFields(runtime)));
+    Object.defineProperties(api, Object.getOwnPropertyDescriptors(UnlockTreeLayoutFields(runtime)));
+    api.dispose = () => disposeUnlockTreeView(runtime);
+    return api;
+  }
+  function UnlockTreeViewFields(runtime) {
+    return {
+      get selectedId() {
+        return runtime.state.view_selectedId;
+      },
+      set selectedId(value) {
+        runtime.state.view_selectedId = value;
+      },
+      get shownKey() {
+        return runtime.state.view_shownKey;
+      },
+      set shownKey(value) {
+        runtime.state.view_shownKey = value;
+      },
+      get centerNow() {
+        return runtime.state.view_centerNow;
+      },
+      set centerNow(value) {
+        runtime.state.view_centerNow = value;
+      },
+      get revealId() {
+        return runtime.state.view_revealId;
+      },
+      set revealId(value) {
+        runtime.state.view_revealId = value;
+      },
+      get jump() {
+        return runtime.state.view_jump;
+      },
+      set jump(value) {
+        runtime.state.view_jump = value;
+      },
+      get shownOwned() {
+        return runtime.state.view_shownOwned;
+      },
+      set shownOwned(value) {
+        runtime.state.view_shownOwned = value;
+      },
+      get shownOpenParents() {
+        return runtime.state.view_shownOpenParents;
+      },
+      set shownOpenParents(value) {
+        runtime.state.view_shownOpenParents = value;
+      }
+    };
+  }
+  function UnlockTreeLayoutFields(runtime) {
+    return {
+      get layoutNow() {
+        return runtime.state.view_layoutNow;
+      },
+      set layoutNow(value) {
+        runtime.state.view_layoutNow = value;
+      },
+      get plannedPath() {
+        return runtime.state.view_plannedPath;
+      },
+      set plannedPath(value) {
+        runtime.state.view_plannedPath = value;
+      },
+      get parentsOpen() {
+        return runtime.handlers.view_parentsOpen;
+      },
+      set parentsOpen(value) {
+        runtime.handlers.view_parentsOpen = value;
+      },
+      get openCount() {
+        return runtime.handlers.view_openCount;
+      },
+      set openCount(value) {
+        runtime.handlers.view_openCount = value;
+      },
+      get cardName() {
+        return runtime.handlers.view_cardName;
+      },
+      set cardName(value) {
+        runtime.handlers.view_cardName = value;
+      },
+      get unseenHtml() {
+        return runtime.handlers.view_unseenHtml;
+      },
+      set unseenHtml(value) {
+        runtime.handlers.view_unseenHtml = value;
+      },
+      get shownSeason() {
+        return runtime.state.view_shownSeason;
+      },
+      set shownSeason(value) {
+        runtime.state.view_shownSeason = value;
+      }
+    };
+  }
+  function installUnlockTreeViewEvents(runtime) {
+    listenView(runtime, runtime.deps.document, "click", (event) => runtime.api.handleClick(event));
+    listenView(runtime, runtime.deps.window, "game:languagechange", () => runtime.api.render());
+  }
+  function disposeUnlockTreeView(runtime) {
+    if (!runtime.active) return;
+    releaseUnlockPanel(runtime);
+    releaseViewEvents(runtime);
+  }
+
+  // modules/unlock-tab-ui-classic.mjs
+  var unlockTabUi = createUnlockTreeView({
+    get contentProgression() {
+      return contentProgression;
+    },
+    get CONTENT_UNLOCK_SERIES() {
+      return CONTENT_UNLOCK_SERIES;
+    },
+    get _t() {
+      return _t;
+    },
+    get OFFLINE_PROGRESS_RECOGNITION_HOURS() {
+      return OFFLINE_PROGRESS_RECOGNITION_HOURS;
+    },
+    get OFFLINE_PROGRESS_EFFICIENCY_RATES() {
+      return OFFLINE_PROGRESS_EFFICIENCY_RATES;
+    },
+    get STUMP_BOX_NURSERY() {
+      return STUMP_BOX_NURSERY;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get contentUnlockUi() {
+      return contentUnlockUi;
+    },
+    get CONTENT_UNLOCK_CATALOG() {
+      return CONTENT_UNLOCK_CATALOG;
+    },
+    get CONTENT_UNLOCK_POINT_AWARDS() {
+      return CONTENT_UNLOCK_POINT_AWARDS;
+    },
+    get STORY_LOOP_MILESTONES() {
+      return STORY_LOOP_MILESTONES;
+    },
+    get speakerShortName() {
+      return speakerShortName;
+    },
+    get EXPLORATION_REGIONS() {
+      return EXPLORATION_REGIONS;
+    },
+    get window() {
+      return window;
+    },
+    get document() {
+      return document;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get captureUiDisclosureState() {
+      return captureUiDisclosureState;
+    },
+    get restoreUiDisclosureState() {
+      return restoreUiDisclosureState;
+    },
+    get saveGame() {
+      return saveGame;
+    },
+    get uiDisplay() {
+      return uiDisplay;
+    },
+    get ResizeObserver() {
+      return ResizeObserver;
+    },
+    get CONTENT_UNLOCK_RAILS() {
+      return CONTENT_UNLOCK_RAILS;
+    }
+  });
+  var unlockBoard = unlockTabUi.unlockBoard;
+  safeExposeGlobals({ unlockTabUi, unlockBoard });
+})();

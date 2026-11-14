@@ -25,7 +25,7 @@ async function capture(browser, variant, mobile) {
     await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
     await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     const result = await page.evaluate(() => {
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);

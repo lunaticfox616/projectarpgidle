@@ -240,7 +240,7 @@
         <div class="tutorial-title" id="tutorial-title" data-i18n>알림</div>
         <div class="tutorial-body" id="tutorial-body"></div>
         <div class="tutorial-actions">
-            <label id="tutorial-journal-preference" class="cfg-toggle" hidden><input type="checkbox" id="chk-hide-act-journal" onchange="storyJournalUi.setAutoShow(!this.checked)"><span class="cfg-label" data-i18n>다음부터 표시하지 않기</span></label>
+            <label id="tutorial-journal-preference" class="cfg-toggle" hidden><input type="checkbox" id="chk-hide-act-journal"><span class="cfg-label" data-i18n>다음부터 표시하지 않기</span></label>
             <button id="tutorial-dismiss-btn" class="tutorial-secondary" onclick="dismissTutorial(false)" data-i18n>확인</button>
             <button id="tutorial-open-btn" onclick="advanceTutorial()" data-i18n>화면 열기</button>
         </div>
@@ -263,7 +263,7 @@
         <div class="reward-grid" id="reward-grid"></div>
         <div class="tutorial-actions">
             <span class="reward-next" id="reward-next"></span>
-            <button class="tutorial-secondary" onclick="closeRewardOverlay()" data-i18n>나중에</button>
+            <button class="tutorial-secondary" data-reward-dismiss data-i18n>나중에</button>
         </div>
     </div>
 </div>
@@ -275,11 +275,11 @@
             <div class="tutorial-body" id="loop-hero-select-body" data-i18n>이번 루프에서 사용할 직업을 선택하세요.</div>
             <div id="loop-hero-select-grid" class="reward-grid"></div>
         </div>
-        <!-- 휴대폰 배치(1080px 이하)만 보인다: 첫 누름은 고르기, 정하기는 여기서 (js/passives.js pressLoopHeroChoice) -->
+        <!-- 휴대폰 배치(1080px 이하)만 보인다: 첫 누름은 고르기, 정하기는 여기서 (modules/ui/hero-selection-choice.mjs) -->
         <div class="hero-choice-confirm">
             <div id="loop-hero-select-detail" class="hero-choice-detail" aria-live="polite"></div>
             <p class="hero-choice-hint" data-i18n>직업을 눌러 기초 스킬과 전직을 확인하세요.</p>
-            <button type="button" id="loop-hero-select-start" class="hero-choice-start" disabled onclick="chooseLoopHero(this.value)" data-i18n>이 직업으로 시작</button>
+            <button type="button" id="loop-hero-select-start" class="hero-choice-start" disabled data-i18n>이 직업으로 시작</button>
         </div>
     </div>
 </div>
@@ -303,7 +303,7 @@
         </div>
     </div>
 </div>
-<dialog id="death-overlay" class="tutorial-overlay" aria-labelledby="deathlog-title" oncancel="event.preventDefault(); closeDeathOverlay()" onkeydown="event.stopPropagation()">
+<dialog id="death-overlay" class="tutorial-overlay" aria-labelledby="deathlog-title">
     <div class="tutorial-card deathlog-card">
         <div class="tutorial-kicker" data-i18n>사망 기록</div>
         <div class="tutorial-title" id="deathlog-title" data-i18n>사망 보고서</div>
@@ -318,23 +318,23 @@
             <div class="deathlog-list" id="deathlog-damage-list"></div>
         </div>
         <label class="deathlog-setting" data-i18n>
-            <input type="checkbox" id="chk-death-notice-inline" onchange="toggleDeathNoticeSetting(this.checked)">
+            <input type="checkbox" id="chk-death-notice-inline">
             사망 시 알림 표시
         </label>
         <div class="tutorial-actions">
-            <button autofocus onclick="closeDeathOverlay()" data-i18n>확인</button>
+            <button autofocus data-death-close data-i18n>확인</button>
         </div>
     </div>
 </dialog>
-<dialog id="ring-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="ring-slot-overlay-heading" oncancel="event.preventDefault();closeRingSlotOverlay()" onkeydown="event.stopPropagation()">
+<dialog id="ring-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="ring-slot-overlay-heading">
     <div class="game-dialog-card">
         <div class="game-dialog-kicker" data-i18n>반지 장착</div>
         <div class="game-dialog-title" id="ring-slot-overlay-heading" data-i18n>교체할 슬롯 선택</div>
         <div class="game-dialog-body"><div class="game-dialog-message" data-i18n>두 반지 슬롯이 모두 사용 중입니다. 교체할 반지 슬롯을 선택하세요.</div></div>
         <div class="game-dialog-actions">
-            <button type="button" class="game-dialog-btn" onclick="selectRingSlotFromOverlay('반지1')" data-i18n>왼쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn" onclick="selectRingSlotFromOverlay('반지2')" data-i18n>오른쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeRingSlotOverlay()" data-i18n>취소</button>
+            <button type="button" class="game-dialog-btn" data-equipment-slot="반지1" data-i18n>왼쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn" data-equipment-slot="반지2" data-i18n>오른쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" data-equipment-cancel data-i18n>취소</button>
         </div>
     </div>
 </dialog>
@@ -1073,14 +1073,11 @@
                 <div id="ui-fishing-collection"></div>
             </details>
             <section id="fishing-workshop" data-recipe-group="supply">
-            <div class="fishing-workshop-heading"><h3 class="ocean-gift-heading" data-i18n>심해 제작 (바다의 선물)</h3><div id="fishing-battle-preview"></div></div>
-            <label class="sea-gift-group-picker" data-i18n>무엇을 만들까요?
-                <select aria-label="바다의 선물 제작 종류" onchange="fishingUi.selectGroup(this.value)" data-i18n-attr="aria-label">
-                    <option value="supply" data-i18n>재화 만들기</option>
-                    <option value="forge" data-i18n>수치 다듬기</option>
-                    <option value="chase" data-i18n>옵션 추가와 변경</option>
-                </select>
-            </label>
+            <div class="fishing-workshop-heading"><h3 class="ocean-gift-heading" data-i18n>심해 제작</h3><div id="fishing-battle-preview"></div></div>
+            <nav class="sea-gift-group-picker" aria-label="심해 제작 종류" data-i18n-attr="aria-label">
+                <button type="button" data-sea-group="supply" aria-pressed="true" onclick="fishingUi.selectGroup('supply')" data-i18n>재화 제작</button>
+                <button type="button" data-sea-group="equipment" aria-pressed="false" onclick="fishingUi.selectGroup('equipment')" data-i18n>장비 가공</button>
+            </nav>
             <div id="ui-sea-gift-panel" class="ocean-panel-shell"></div>
             </section>
         </div>
@@ -1181,8 +1178,8 @@
             <h3 data-i18n>조건부 규칙</h3>
             <div id="ui-skill-rules-panel" class="condition-gem-rule-list"></div>
             <div class="condition-gem-actions">
-                <button id="btn-condition-rule-add" onclick="addSkillAutoRule()" data-i18n>+ 규칙 추가</button>
-                <button id="btn-condition-rule-sort" onclick="sortSkillAutoRules()" data-i18n>우선순위 정렬</button>
+                <button id="btn-condition-rule-add" data-condition-action="add" data-i18n>+ 규칙 추가</button>
+                <button id="btn-condition-rule-sort" data-condition-action="sort" data-i18n>우선순위 정렬</button>
             </div>
         </div>
 
@@ -1227,15 +1224,15 @@
              오른쪽은 분류 한 장에 묶음별 한 줄 항목(이름과 짧은 설명, 오른쪽 끝에 조절). 저장과 동작은 js/settings-ui.js. -->
         <div class="settings-workspace">
             <nav class="settings-sections" aria-label="설정 분류" data-i18n-attr="aria-label">
-                <button type="button" data-settings-section="display" aria-pressed="true" onclick="settingsUi.select('display')"><b data-i18n>화면과 소리</b></button>
-                <button type="button" data-settings-section="combat" aria-pressed="false" onclick="settingsUi.select('combat')"><b data-i18n>전투</b></button>
-                <button type="button" data-settings-section="progress" aria-pressed="false" onclick="settingsUi.select('progress')"><b data-i18n>자동 진행</b></button>
-                <button type="button" data-settings-section="items" aria-pressed="false" onclick="settingsUi.select('items')"><b data-i18n>아이템 필터</b></button>
-                <button type="button" data-settings-section="notifications" aria-pressed="false" onclick="settingsUi.select('notifications')"><b data-i18n>알림과 채팅</b></button>
-                <button type="button" data-settings-section="layout" aria-pressed="false" onclick="settingsUi.select('layout')"><b data-i18n>조작</b></button>
-                <button type="button" data-settings-section="data" aria-pressed="false" onclick="settingsUi.select('data')"><b data-i18n>저장과 계정</b></button>
+                <button type="button" data-settings-section="display" aria-pressed="true"><b data-i18n>화면과 소리</b></button>
+                <button type="button" data-settings-section="combat" aria-pressed="false"><b data-i18n>전투</b></button>
+                <button type="button" data-settings-section="progress" aria-pressed="false"><b data-i18n>자동 진행</b></button>
+                <button type="button" data-settings-section="items" aria-pressed="false"><b data-i18n>아이템 필터</b></button>
+                <button type="button" data-settings-section="notifications" aria-pressed="false"><b data-i18n>알림과 채팅</b></button>
+                <button type="button" data-settings-section="layout" aria-pressed="false"><b data-i18n>조작</b></button>
+                <button type="button" data-settings-section="data" aria-pressed="false"><b data-i18n>저장과 계정</b></button>
                 <!-- 로그인 화면의 톱니로 열었을 때만 보인다(휴대폰의 설정 화면에는 닫는 단추가 없다) -->
-                <button type="button" class="settings-startup-close" onclick="settingsUi.closeStartupSettings()"><b data-i18n>로그인 화면으로</b></button>
+                <button type="button" class="settings-startup-close" data-settings-startup-close><b data-i18n>로그인 화면으로</b></button>
                 <p class="settings-note" data-i18n>바꾸면 바로 적용되고 저장됩니다.</p>
             </nav>
             <div class="settings-content">
@@ -1305,14 +1302,14 @@
                         <h3 class="cfg-block-title" data-i18n>캐릭터 외형</h3>
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="sel-hero-appearance-mode" data-i18n>외형 방식</label></div>
-                            <select id="sel-hero-appearance-mode" class="cfg-select" onchange="onHeroAppearanceModeChanged()">
+                            <select id="sel-hero-appearance-mode" class="cfg-select">
                                 <option value="fixed" data-i18n>외형 고정</option>
                                 <option value="loop" data-i18n>현재 직업 외형 사용</option>
                             </select>
                         </div>
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="sel-active-hero" data-i18n>고정 외형</label></div>
-                            <select id="sel-active-hero" class="cfg-select" onchange="onHeroSelectionChanged()">
+                            <select id="sel-active-hero" class="cfg-select">
                             </select>
                         </div>
                         <div id="ui-hero-talent-summary" class="cfg-note">
@@ -1457,7 +1454,7 @@
                         </div>
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="chk-act-journal" data-i18n>이야기 저널 자동 표시</label></div>
-                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-act-journal" onchange="storyJournalUi.setAutoShow(this.checked)">
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-act-journal">
                         </div>
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="chk-death-notice" data-i18n>사망 알림 표시</label></div>
@@ -1580,28 +1577,28 @@
     </div>
 </div>
 
-<dialog id="glove-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="glove-slot-overlay-heading" oncancel="event.preventDefault();closeGloveSlotOverlay()" onkeydown="event.stopPropagation()">
+<dialog id="glove-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="glove-slot-overlay-heading">
     <div class="game-dialog-card">
         <div class="game-dialog-kicker" data-i18n>장갑 장착</div>
         <div class="game-dialog-title" id="glove-slot-overlay-heading" data-i18n>교체할 장갑 슬롯 선택</div>
         <div class="game-dialog-body"><div class="game-dialog-message" data-i18n>두 장갑 슬롯이 모두 사용 중입니다. 교체할 장갑 슬롯을 선택하세요.</div></div>
         <div class="game-dialog-actions">
-            <button type="button" class="game-dialog-btn" onclick="selectGloveSlotFromOverlay('장갑1')" data-i18n>왼쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn" onclick="selectGloveSlotFromOverlay('장갑2')" data-i18n>오른쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeGloveSlotOverlay()" data-i18n>취소</button>
+            <button type="button" class="game-dialog-btn" data-equipment-slot="장갑1" data-i18n>왼쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn" data-equipment-slot="장갑2" data-i18n>오른쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" data-equipment-cancel data-i18n>취소</button>
         </div>
     </div>
 </dialog>
 
-<dialog id="weapon-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="weapon-slot-overlay-heading" oncancel="event.preventDefault();closeWeaponSlotOverlay()" onkeydown="event.stopPropagation()">
+<dialog id="weapon-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="weapon-slot-overlay-heading">
     <div class="game-dialog-card">
         <div class="game-dialog-kicker" data-i18n>쌍수 훈련</div>
         <div class="game-dialog-title" id="weapon-slot-overlay-heading" data-i18n>무기를 장착할 슬롯 선택</div>
         <div class="game-dialog-body"><div class="game-dialog-message" data-i18n>주 무기 슬롯 또는 완갑 슬롯 중 교체할 위치를 선택하세요.</div></div>
         <div class="game-dialog-actions">
-            <button type="button" class="game-dialog-btn" onclick="selectWeaponSlotFromOverlay('무기')" data-i18n>주 무기 슬롯</button>
-            <button type="button" class="game-dialog-btn" onclick="selectWeaponSlotFromOverlay('방패')" data-i18n>완갑 슬롯</button>
-            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeWeaponSlotOverlay()" data-i18n>취소</button>
+            <button type="button" class="game-dialog-btn" data-equipment-slot="무기" data-i18n>주 무기 슬롯</button>
+            <button type="button" class="game-dialog-btn" data-equipment-slot="방패" data-i18n>완갑 슬롯</button>
+            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" data-equipment-cancel data-i18n>취소</button>
         </div>
     </div>
 </dialog>
@@ -1726,6 +1723,7 @@
 <script defer src="js/item-appraisal.js"></script>
 <script defer src="js/player-stall.js"></script>
 <script defer src="js/level-progression.js"></script>
+<script defer src="js/gem-progression.js"></script>
 <script defer src="js/state.js"></script>
 <script defer src="js/tutorial-history.js"></script>
 <script defer src="js/combat-loot-receipts.js"></script>
@@ -1750,13 +1748,16 @@
 <script defer src="js/item-tooltip-rules.js"></script>
 <script defer src="js/passive-routing.js"></script>
 <script defer src="js/guest-save-check.js"></script>
+<script defer src="js/passive-selection-ui.js"></script>
+<script defer src="js/play-feedback-ui.js"></script>
+<script defer src="js/battle-visual-runtime.js"></script>
 <script defer src="js/passives.js"></script>
-<script defer src="js/battle-assets.js"></script>
+<script defer src="js/canvas-battle-assets.js"></script>
+<script defer src="js/craft-currency.js"></script>
 <script defer src="js/item-rolls.js"></script>
 <script defer src="js/currency-exchange.js"></script>
 <script defer src="js/item-save-slim.js"></script>
 <script defer src="js/loot.js"></script>
-<script defer src="js/battle-asset-loading.js"></script>
 <script defer src="js/background-build-cache.js"></script>
 <script defer src="js/equipment-stat-resolution.js"></script>
 <script defer src="js/gem-core-forge.js"></script>
@@ -1813,6 +1814,7 @@
 <script defer src="js/combat-tick.js"></script>
 <script defer src="js/ascendancy-node-rules.js"></script>
 <script defer src="js/player-stats.js"></script>
+<script defer src="js/combat-resources.js"></script>
 <script defer src="js/combat-enemy-build.js"></script>
 <script defer src="js/combat-skill-effects.js"></script>
 <script defer src="js/combat-encounters.js"></script>
@@ -1852,12 +1854,8 @@
 <script defer src="js/canvas-trial-traps.js"></script>
 
     <script defer src="js/canvas-skill-signatures.js"></script>
-<script defer src="js/canvas-redrawn-skill-art.js"></script>
-<script defer src="js/canvas-redrawn-skill-art-extra.js"></script>
-<script defer src="js/canvas-redrawn-skill-art-moves.js"></script>
 <script defer src="js/canvas-fx-remake.js"></script>
 <script defer src="js/canvas-redrawn-skill-fx.js"></script>
-<script defer src="js/canvas-redrawn-skill-fx-extra.js"></script>
 <script defer src="js/canvas-wisp-summon-fx.js"></script>
 <script defer src="js/canvas-world-tree-native.js"></script>
 <script defer src="js/canvas-stage-skill-vfx.js"></script>
@@ -1917,17 +1915,14 @@
 <script defer src="js/canvas-battle-draw-list.js"></script>
 <script defer src="js/canvas-battlefield.js"></script>
 <script defer src="js/canvas-attack-fx.js"></script>
-<script defer src="js/canvas-passive-tree-art.js"></script>
 <script defer src="js/canvas-passive-tree.js"></script>
 <script defer src="js/click-pairs-ui.js"></script>
 <script defer src="js/equipment-inventory-grid-ui.js"></script>
 <script defer src="js/equipment-inspection-ui.js"></script>
-<script defer src="js/crafting-result-ui.js"></script>
 <script defer src="js/loop-ui.js"></script>
 <script defer src="js/loop-mutation-ui.js"></script>
 <script defer src="js/loop-automation-ui.js"></script>
 <script defer src="js/world-tree-bark-ui.js"></script>
-<script defer src="js/passive-selection-ui.js"></script>
 <script defer src="js/endgame-progression-ui.js"></script>
     <script defer src="legal/policies-content.js"></script>
 <script defer src="js/system-tutorials-ui.js"></script>
@@ -1939,11 +1934,9 @@
 <script defer src="js/ui-panel-markup.js"></script>
 <script defer src="js/underworld-rune-ui.js"></script>
 <script defer src="js/tab-layout-ui.js"></script>
-    <script defer src="js/fossil-workbench-ui.js"></script>
     <script defer src="js/chaos-infuser-ui.js"></script>
     <script defer src="js/core-items-ui.js"></script>
     <script defer src="js/fishing-ui.js"></script>
-    <script defer src="js/ocean-dive-ui.js"></script>
 <script defer src="js/level-progression-ui.js"></script>
 <script defer src="js/crafting-goal-options.js"></script>
 <script defer src="js/ember-corruption-ui.js"></script>
@@ -1953,12 +1946,12 @@
 <script defer src="js/garden-oils-ui.js"></script>
 <script defer src="js/weapon-mastery-ui.js"></script>
 <script defer src="js/chronicle-ui.js"></script>
-<script defer src="js/crafting-catalog-ui.js"></script>
-<script defer src="js/crafting-stash-ui.js"></script>
 <script defer src="js/crafting-workspace-ui.js"></script>
-<script defer src="js/ui.js"></script>
+<script defer src="js/ui-runtime-ui.js"></script>
 <script defer src="js/map-cards-ui.js"></script>
 <script defer src="js/tab-navigation-ui.js"></script>
+<script defer src="js/map-discovery-ui.js"></script>
+<script defer src="js/realm-entry-ui.js"></script>
 <script defer src="js/realm-content-ui.js"></script>
 <script defer src="js/gem-cards-ui.js"></script>
 <script defer src="js/combat-log-ui.js"></script>
@@ -2013,16 +2006,12 @@
 <script defer src="js/social.js"></script>
 <script defer src="js/chat-item-picker-ui.js"></script>
 <script defer src="js/ghost-duel-stage-ui.js"></script>
-<script defer src="js/ghost-pvp.js"></script>
+<script defer src="js/ghost-arena-ui.js"></script>
 <script defer src="js/player-exchange.js"></script>
 <script defer src="js/message-frames-ui.js"></script>
     <script defer src="js/ui-window-manager.js"></script>
     <script defer src="js/hotkeys-ui.js"></script>
-<script defer src="js/ui-game-shell.js"></script>
-<script defer src="js/scroll-top.js"></script>
-<script defer src="js/plain-tip-ui.js"></script>
 <script defer src="js/psd-skin-ui.js"></script>
-<script defer src="js/void-craft-ui.js"></script>
 <script defer src="js/content-unlock-guide.js"></script>
     <script defer src="js/goal-system.js"></script>
 <script defer src="js/knitting.js"></script>
@@ -2051,7 +2040,6 @@
 <script defer src="js/save-migrations.js"></script>
     <script defer src="js/build-feedback-ui.js"></script>
 <script defer src="js/combat-replay.js"></script>
-<script defer src="js/combat-replay-projection.js"></script>
 <script defer src="js/android-app-ui.js"></script>
 <script defer src="js/dev-test-panel-ui.js"></script>
 <script defer src="js/settings-ui.js"></script>

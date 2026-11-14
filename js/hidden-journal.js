@@ -1,90 +1,120 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/hidden-journal*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function isHiddenJournalEndgameBoss(zone) {
+  // modules/domain/hidden-journal-rules.mjs
+  function hiddenIsHiddenJournalEndgameBoss(zone) {
     if (!zone) return false;
-    return !!zone.milestonePinnacle || zone.type === 'seasonBoss' || zone.type === 'outsideChaos';
-}
-
-function isHiddenJournalPinnacleBoss(zone) {
+    return !!zone.milestonePinnacle || zone.type === "seasonBoss" || zone.type === "outsideChaos";
+  }
+  function hiddenIsHiddenJournalPinnacleBoss(zone) {
     return !!(zone && zone.milestonePinnacle);
-}
-
-function getHiddenJournalActiveRun(enemy) {
-    let run = game.hiddenJournalBossRun;
+  }
+  function hiddenGetHiddenJournalActiveRun(enemy, owner) {
+    let run = owner.hiddenJournalBossRun;
     if (!run || !enemy || run.enemyId !== enemy.id) return null;
     return run;
-}
-
-/** @param {{id:number,isBoss:boolean}} enemy @param {object} zone */
-function startHiddenJournalBossRun(enemy, zone) {
-    if (!enemy || !enemy.isBoss || !isHiddenJournalEndgameBoss(zone)) return false;
-    let active = getHiddenJournalActiveRun(enemy);
+  }
+  function hiddenStartHiddenJournalBossRun(enemy, zone, owner) {
+    if (!enemy || !enemy.isBoss || !hiddenIsHiddenJournalEndgameBoss(zone)) return false;
+    let active = hiddenGetHiddenJournalActiveRun(enemy, owner);
     if (active) return false;
-    game.hiddenJournalBossRun = {
-        enemyId: enemy.id,
-        zoneId: zone.id,
-        hpDamageTaken: 0,
-        ailments: []
+    owner.hiddenJournalBossRun = {
+      enemyId: enemy.id,
+      zoneId: zone.id,
+      hpDamageTaken: 0,
+      ailments: []
     };
     return true;
-}
-
-/** A wide map's boss is created with its room and waits there: the no-hit count starts again when it wakes. */
-function restartHiddenJournalBossRun(enemy, zone) {
+  }
+  function hiddenRestartHiddenJournalBossRun(enemy, zone, owner) {
     if (!enemy || !enemy.isBoss) return false;
-    game.hiddenJournalBossRun = null;
-    return startHiddenJournalBossRun(enemy, zone);
-}
-
-function trackHiddenJournalPlayerDamage(amount) {
-    let run = game.hiddenJournalBossRun;
+    owner.hiddenJournalBossRun = null;
+    return hiddenStartHiddenJournalBossRun(enemy, zone, owner);
+  }
+  function hiddenTrackHiddenJournalPlayerDamage(amount, owner) {
+    let run = owner.hiddenJournalBossRun;
     let damage = Math.max(0, Math.floor(Number(amount) || 0));
     if (!run || damage <= 0) return;
     run.hpDamageTaken = Math.max(0, Math.floor(run.hpDamageTaken || 0)) + damage;
-}
-
-function trackHiddenJournalAilment(type, enemy) {
-    let run = getHiddenJournalActiveRun(enemy);
-    if (!run || !HIDDEN_JOURNAL_AILMENTS.has(type)) return;
+  }
+  function hiddenTrackHiddenJournalAilment(env, type, enemy, owner) {
+    let run = hiddenGetHiddenJournalActiveRun(enemy, owner);
+    if (!run || !env.HIDDEN_JOURNAL_AILMENTS.has(type)) return;
     let ailments = new Set(Array.isArray(run.ailments) ? run.ailments : []);
     ailments.add(type);
     run.ailments = Array.from(ailments);
-}
-
-function unlockHiddenJournalRunEntries(run, zone, playerStats) {
-    let hp = Math.max(0, Number(game.playerHp) || 0);
+  }
+  function hiddenAtLastBreath(owner, playerStats) {
+    let hp = Math.max(0, Number(owner.playerHp) || 0);
     let maxHp = Math.max(1, Number(playerStats && playerStats.maxHp) || hp || 1);
-    if (hp > 0 && (hp / maxHp) <= 0.05) unlockJournalEntry('hidden_last_breath');
-    if (isHiddenJournalPinnacleBoss(zone) && (run.hpDamageTaken || 0) <= 0) unlockJournalEntry('hidden_unscarred');
-    if ((run.ailments || []).length >= 4) unlockJournalEntry('hidden_fourfold_affliction');
-}
-
-function completeHiddenJournalBossRun(enemy, zone, playerStats) {
-    let run = getHiddenJournalActiveRun(enemy);
-    if (!run || !isHiddenJournalEndgameBoss(zone)) return false;
-    unlockHiddenJournalRunEntries(run, zone, playerStats);
-    game.hiddenJournalBossRun = null;
+    return hp > 0 && hp / maxHp <= 0.05;
+  }
+  function* hiddenUnlockHiddenJournalRunEntries(run, zone, playerStats, owner) {
+    if (hiddenAtLastBreath(owner, playerStats)) yield { kind: "unlockHiddenEntry", args: ["hidden_last_breath"] };
+    if (hiddenIsHiddenJournalPinnacleBoss(zone) && (run.hpDamageTaken || 0) <= 0) yield { kind: "unlockHiddenEntry", args: ["hidden_unscarred"] };
+    if ((run.ailments || []).length >= 4) yield { kind: "unlockHiddenEntry", args: ["hidden_fourfold_affliction"] };
+  }
+  function* hiddenCompleteHiddenJournalBossRun(enemy, zone, playerStats, owner) {
+    let run = hiddenGetHiddenJournalActiveRun(enemy, owner);
+    if (!run || !hiddenIsHiddenJournalEndgameBoss(zone)) return false;
+    yield* hiddenUnlockHiddenJournalRunEntries(run, zone, playerStats, owner);
+    owner.hiddenJournalBossRun = null;
     return true;
-}
+  }
+  function hiddenResetHiddenJournalBossRun(owner) {
+    owner.hiddenJournalBossRun = null;
+  }
 
-function resetHiddenJournalBossRun() {
-    game.hiddenJournalBossRun = null;
-}
+  // modules/domain/hidden-journal.mjs
+  function createHiddenJournal() {
+    const env = {};
+    env.HIDDEN_JOURNAL_AILMENTS = /* @__PURE__ */ new Set(["ignite", "chill", "freeze", "shock", "poison", "bleed"]);
+    return Object.freeze({
+      startHiddenJournalBossRun: hiddenStartHiddenJournalBossRun,
+      restartHiddenJournalBossRun: hiddenRestartHiddenJournalBossRun,
+      trackHiddenJournalPlayerDamage: hiddenTrackHiddenJournalPlayerDamage,
+      trackHiddenJournalAilment: (...args) => hiddenTrackHiddenJournalAilment(env, ...args),
+      completeHiddenJournalBossRun: hiddenCompleteHiddenJournalBossRun,
+      resetHiddenJournalBossRun: hiddenResetHiddenJournalBossRun,
+      HIDDEN_JOURNAL_AILMENTS: env.HIDDEN_JOURNAL_AILMENTS
+    });
+  }
 
-exposeFileGlobals({ startHiddenJournalBossRun, restartHiddenJournalBossRun, trackHiddenJournalPlayerDamage, trackHiddenJournalAilment, completeHiddenJournalBossRun, resetHiddenJournalBossRun });
-})();
-'use strict';
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects2) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects2[step.value.kind](...step.value.args));
+    return step.value;
+  }
 
-if (typeof safeExposeGlobals !== 'function') throw new Error('js/utils.js must load before js/hidden-journal.js');
-
-const HIDDEN_JOURNAL_AILMENTS = new Set(['ignite', 'chill', 'freeze', 'shock', 'poison', 'bleed']);
-
-
-safeExposeGlobals({
+  // modules/hidden-journal-classic.mjs
+  var rules = createHiddenJournal();
+  var HIDDEN_JOURNAL_AILMENTS = rules.HIDDEN_JOURNAL_AILMENTS;
+  var effects = { unlockHiddenEntry: (key) => unlockJournalEntry(key) };
+  function startHiddenJournalBossRun(enemy, zone) {
+    return rules.startHiddenJournalBossRun(enemy, zone, game);
+  }
+  function restartHiddenJournalBossRun(enemy, zone) {
+    return rules.restartHiddenJournalBossRun(enemy, zone, game);
+  }
+  function trackHiddenJournalPlayerDamage(amount) {
+    return rules.trackHiddenJournalPlayerDamage(amount, game);
+  }
+  function trackHiddenJournalAilment(type, enemy) {
+    return rules.trackHiddenJournalAilment(type, enemy, game);
+  }
+  function completeHiddenJournalBossRun(enemy, zone, playerStats) {
+    return consumeDomainCommands(rules.completeHiddenJournalBossRun(enemy, zone, playerStats, game), effects);
+  }
+  function resetHiddenJournalBossRun() {
+    return rules.resetHiddenJournalBossRun(game);
+  }
+  safeExposeGlobals({
     startHiddenJournalBossRun,
     restartHiddenJournalBossRun,
     trackHiddenJournalPlayerDamage,
     trackHiddenJournalAilment,
     completeHiddenJournalBossRun,
-    resetHiddenJournalBossRun
-});
+    resetHiddenJournalBossRun,
+    HIDDEN_JOURNAL_AILMENTS
+  });
+})();

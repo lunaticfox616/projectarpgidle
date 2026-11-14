@@ -1,0 +1,35 @@
+import { windowQueueMicrotask, windowStructuredClone } from './browser/window-methods.mjs';
+import { createPlayerGuideView } from './ui/player-guide-view.mjs';
+const playerGuideUi = createPlayerGuideView({
+    get _t() { return _t; },
+    get document() { return document; },
+    get writeHtmlIfChanged() { return writeHtmlIfChanged; },
+    get contentProgression() { return contentProgression; },
+    get game() { return window.GameModules.state.game; },
+    set game(value) { window.GameModules.state.game = value; },
+    get createClassStarterWeapon() { return createClassStarterWeapon; },
+    get systemTutorialUi() { return systemTutorialUi; },
+    get generateEquipmentDrop() { return generateEquipmentDrop; },
+    get getZone() { return getZone; },
+    get stumpBox() { return stumpBox; },
+    get yieldTutorialCardToResult() { return yieldTutorialCardToResult; },
+    get tutorialActionUi() { return tutorialActionUi; },
+    get cloneDefaultGame() { return cloneDefaultGame; },
+    get structuredClone() { return windowStructuredClone; },
+    get window() { return window; },
+    get console() { return console; },
+    get showGameToast() { return showGameToast; },
+    get beginGuideWindowLayout() { return beginGuideWindowLayout; },
+    get stumpBoxUi() { return stumpBoxUi; },
+    get playerStatCache() { return playerStatCache; },
+    get calculateReachableNodes() { return calculateReachableNodes; },
+    get updateStaticUI() { return updateStaticUI; },
+    get queueMicrotask() { return windowQueueMicrotask; },
+    get gemSelectionUi() { return gemSelectionUi; },
+    get passiveSelectionUi() { return passiveSelectionUi; },
+    get equipmentInventoryInteraction() { return equipmentInventoryInteraction; },
+    get openTabPane() { return openTabPane; },
+    get getMergedTabGroup() { return getMergedTabGroup; },
+    get escapeHTML() { return escapeHTML; }
+});
+safeExposeGlobals({ playerGuideUi });

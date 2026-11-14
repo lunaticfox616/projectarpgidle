@@ -1,0 +1,52 @@
+import { createStumpBox } from './domain/stump-box.mjs';
+import { runRuntimeEventCommands } from './ui/runtime-event-commands.mjs';
+
+const rules = createStumpBox({
+    get STUMP_BOX_GROWTH() { return STUMP_BOX_GROWTH; },
+    get STUMP_BOX_YIELDS() { return STUMP_BOX_YIELDS; },
+    get STUMP_BOX_ROLL_LIMIT() { return STUMP_BOX_ROLL_LIMIT; },
+    get STUMP_BOX_RIPENING() { return STUMP_BOX_RIPENING; },
+    get _t() { return _t; },
+    get STUMP_BOX_SCAR() { return STUMP_BOX_SCAR; },
+    get STUMP_BOX_COLORS() { return STUMP_BOX_COLORS; },
+    get STUMP_BOX_STAGES() { return STUMP_BOX_STAGES; },
+    get getStatName() { return getStatName; },
+    get STUMP_CUBE_MERGE() { return STUMP_CUBE_MERGE; },
+    get contentProgression() { return contentProgression; },
+    get STUMP_BOX_NURSERY() { return STUMP_BOX_NURSERY; },
+    get STUMP_BOX_GRAFT() { return STUMP_BOX_GRAFT; },
+    get STUMP_BOX_UNLOCKS() { return STUMP_BOX_UNLOCKS; },
+    get STUMP_BOX_STORAGE_BASE() { return STUMP_BOX_STORAGE_BASE; },
+    get talismans() { return talismans; },
+    get STUMP_BOX_OPENING() { return STUMP_BOX_OPENING; },
+    get STUMP_BOX_CELL_ORDER() { return STUMP_BOX_CELL_ORDER; },
+    get STUMP_BOX_SIZE() { return STUMP_BOX_SIZE; },
+    get STUMP_BOX_SYNERGY() { return STUMP_BOX_SYNERGY; },
+    get STUMP_BOX_OVERCOMES() { return STUMP_BOX_OVERCOMES; },
+    get addStatToBucket() { return addStatToBucket; },
+    get STUMP_BOX_ANCIENT() { return STUMP_BOX_ANCIENT; },
+    get STUMP_BOX_EXTRA_LINES() { return STUMP_BOX_EXTRA_LINES; },
+    get STUMP_BOX_COMPOST() { return STUMP_BOX_COMPOST; },
+    get STUMP_BOX_BULK_COMPOST() { return STUMP_BOX_BULK_COMPOST; },
+    get STUMP_BOX_DROPS() { return STUMP_BOX_DROPS; },
+    get actExplorationState() { return typeof actExplorationState === 'undefined' ? undefined : actExplorationState; },
+    get ABYSS_START_ZONE_ID() { return ABYSS_START_ZONE_ID; },
+    get SKILL_DB() { return SKILL_DB; },
+    get STUMP_BOX_BREEDING() { return STUMP_BOX_BREEDING; },
+    get STUMP_BOX_SEED_POUCH() { return STUMP_BOX_SEED_POUCH; },
+    get STUMP_BOX_TALISMAN_CODEX() { return STUMP_BOX_TALISMAN_CODEX; },
+    get STUMP_BOX_HARVEST() { return STUMP_BOX_HARVEST; },
+    get STUMP_BOX_KINDS() { return STUMP_BOX_KINDS; },
+    get STUMP_BOX_FEEDS() { return STUMP_BOX_FEEDS; },
+    get TALISMAN_UNIQUE_DB() { return TALISMAN_UNIQUE_DB; },
+    get TALISMAN_WILD_UNIQUE_DB() { return TALISMAN_WILD_UNIQUE_DB; },
+    get CONTENT_UNLOCK_SERIES() { return CONTENT_UNLOCK_SERIES; }
+});
+const stumpBox = { ...rules,
+    compostGrowth: (item, state = game) => rules.compostGrowth(item, state),
+    feedAsh: (...args) => runRuntimeEventCommands(rules.feedAsh(...args), dispatchRuntimeEvent),
+    onEnemyKilled: (...args) => runRuntimeEventCommands(rules.onEnemyKilled(...args), dispatchRuntimeEvent),
+    rollScarDrop: (...args) => runRuntimeEventCommands(rules.rollScarDrop(...args), dispatchRuntimeEvent),
+    regress: (...args) => runRuntimeEventCommands(rules.regress(...args), dispatchRuntimeEvent)
+};
+safeExposeGlobals({ stumpBox });

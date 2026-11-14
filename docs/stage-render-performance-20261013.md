@@ -5,6 +5,91 @@
 
 이 문서는 무엇을 바꿨는지와 어떻게 쟀는지를 적는다. 수치는 모두 잰 값이고, 재지 못한 범위는 맨 끝에 따로 적었다.
 
+## 모듈 전환 중인 현재 원본 (2026-11-13)
+
+그림 캐시 원본은 `modules/rendering/stage-cache.mjs`, 도트 확대 원본은 `modules/rendering/stage-dots.mjs`다.
+`js/canvas-stage-cache.js`와 `js/canvas-stage-dots.js`는 `npm run build:modules`로 생성한다.
+아래의 메모리 상한·재사용·확대 규칙은 유지하며, 확대 작업면과 캐시는 `createStageDots`로 만든 단일 렌더러가 소유한다.
+브라우저 Canvas·시계·이미지 타입·화면 배율은 클래식 연결부에서 공급하고 도메인 상태는 읽거나 바꾸지 않는다.
+모듈 빌드와 구조 검사는 통과했으나, 이번 전환의 실제 픽셀·메모리·프레임 비교는 사용자 요청에 따라 마지막 통합 검사에서 한다.
+아래 수치들은 전환 전 측정 이력이며 이번 전환으로 성능이 좋아졌다는 근거가 아니다.
+
+방 배경·소품의 원본도 `modules/rendering/stage-region.mjs`로 옮겼다. 조각 묶음은 그림과 캐시를 소유하는
+`stage-scene-assets.mjs`, 현재 방의 소품·문·표식을 배치하는 `stage-scene.mjs`, 준비 작업과 결과를 소유하는
+`stage-room-pictures.mjs`로 나눴다. 대응하는 `js/canvas-stage-{region,scene,room-pictures}.js`는 생성 출력이다.
+실행 순서는 그대로 두고, 배치가 준비 여부를 읽고 준비 큐가 그림 준비 API만 호출하도록 의존성을 분리했다.
+클래식 연결부의 `stageScene.preparation`은 `ready`, `paintRoom`, `fitJobs`만 제공하며 배치 함수로 돌아가는 경로가 없다.
+현재 게임 상태는 연결부가 배치·물체 그리기의 인자로 전달한다. 모듈은 게임·저장 상태를 변경하지 않는다.
+준비 예산 4ms, 실패 후 재시도 3초, 현재 방·다음 방 캐시와 배율별 무효화 규칙은 유지한다.
+모듈 빌드·구조 검사와 기존 함수 67개·초기값 55개의 정적 대조를 통과했다. 정적 대조는 픽셀이나 실제 실행 결과 검증을
+대신하지 않으며, 방 이동·그림 실패 복구·화면 배율 변경·심해 조명·보스 연출 비교는 마지막 통합 검사에 포함한다.
+
+현재 방의 카메라·그림 배치·페이드 원본은 `stage-rooms.mjs`, 고정 전장 원본은 `stage-board.mjs`,
+심해 표현 원본은 `stage-ocean.mjs`, 문 봉인·표시·클릭 판정 원본은 `stage-door-marks.mjs`다(모두 `modules/rendering/`).
+기존 `js/canvas-stage-*.js` 위치에 생성하며 `index.html` 순서는 바꾸지 않는다. 현재 게임 상태는 클래식 연결부에서
+해당 렌더러의 인자로 전달한다. 문 잠금은 탐험 도메인이 결정하고, 렌더러는 개방 동작·가림·표시 위치만 기억한다.
+심해 표현은 다음 수심 구역의 이름을 반환하고 연결부가 `stageRegion.warm`을 호출한다. 지역·문 그림에 공급하는
+`stageOcean.lighting`은 빛줄기·그늘·밝은 바닥 판정만 가지며 지역 준비를 호출하지 않는다.
+방 전환의 시각 효과 비우기는 `stage-room-effects.mjs`가 기존 효과 관리자 순서로 처리하며, 전투 큐나 저장은 변경하지 않는다.
+이 묶음까지 함수 148개·초기값 99개를 정적으로 대조하고 빌드·구조 검사를 통과했다. 심해 준비 요청 분리는
+원래 요청하던 지역과 순서를 유지하도록 구현했으며, 실제 요청·그림·클릭 결과는 최종 통합 검증에서 확인한다.
+
+그림의 비동기 디코딩·재시도·해제 원본은 `modules/browser/stage-pictures.mjs`, 걷는 거리·자리 보간은
+`modules/rendering/stage-stride.mjs`다. 닫은 뒤 도착한 비트맵의 해제와 기존 Image 대체 로딩을 유지한다.
+주인공의 자세·공격 타이밍·잔상·그림 유지 범위는 `stage-actors.mjs`, 화면 크기에 따른 배치와 방향 기억은
+`stage-view.mjs`가 소유한다. 화면 배치는 게임 전체 대신 설정을 입력받는다. `js/canvas-stage-actors.js`도 생성 출력이다.
+파동 타격과 걷기 표현은 `modules/common/step-interpolation.mjs`의 같은 식을 사용하며 타격 판정이 렌더러를 호출하지 않는다.
+현재 연결부에서 무대/헤드리스 모드를 골라 기존 검사 환경의 지수 보간도 유지한다. 이 선택은 최종 부팅 조립에서 명시한다.
+로컬 시험판 주소의 저장 격리 조건, 무기별 자세·시전 순간·일어나는 동작의 기준 시각은 바꾸지 않는다.
+방·그림·주인공 묶음의 함수 212개와 초기값 132개를 정적으로 대조했다. 빌드·구조 검사는 통과했으며,
+실제 시트 재생·공격 동기화·기기별 픽셀/메모리/프레임·로컬 시험판 저장 보호는 마지막 통합 검증에서 확인한다.
+
+몬스터·위습 원본은 `stage-roster.mjs`, `monster-actors.mjs`, `wisp-actors.mjs`, 미리 준비하는 원본은
+`stage-warmup.mjs`다. 시트 그리기가 몬스터 그리기를 되부르던 프레임 계산은 `monster-motion.mjs`로 분리했다.
+이 읽기 전용 타이밍 객체는 그림을 그리지 않는다. 현재 상태는 호출 인자로 전달하며, 그림 캐시·유지 목록은 렌더러가 소유한다.
+발밑 고리·상자/항아리·이야기 구조물 원본은 `stage-rings.mjs`, `stage-objects.mjs`, `stage-story.mjs`다.
+지역·이야기 구조물의 그림·윤곽·높이 조회에는 제한된 `objects` API만 공급한다.
+
+카메라·안개·배경 조립 원본은 `act-exploration.mjs`, 화면 안 적 목록과 클릭 판정은 `battle-draw-list.mjs`,
+선택 화살표는 `target-marks.mjs`다(위 원본 모두 `modules/rendering/`). 최근 그린 목록의 500ms 만료,
+카메라 이동에 따른 피해 숫자·잔상 좌표 보정, 방 전체 시야에서 안개를 만들지 않는 조건은 유지한다.
+시야 판정은 목록 렌더러가 탐험 도메인을 직접 조회하며, 탐험 화면의 방·조각·이야기 표현에는 현재 상태를 전달한다.
+상자·파괴물 그림은 `modules/rendering/exploration-objects.mjs`, 버튼·포인터·로그는
+`modules/ui/exploration-objects.mjs`가 소유한다. 화면 갱신 중에는 클릭 영역만 수집하고 프레임 끝에서 DOM을 갱신한다.
+입력 리스너는 중복 설치하지 않으며 종료 시 제거한다. 버튼을 만들 때 게임을 캡처하지 않고 클릭 시점에 동작을 연결한다.
+이야기 큐와 NPC 만남 상태는 `modules/ui/act-title-card.mjs`, NPC 시트·클릭 좌표는 `stage-npcs.mjs`,
+제목·대사 그리기는 `story-text.mjs`가 소유한다(렌더러는 `modules/rendering/`). 입장 대사는 일반 대사 상태를
+바꾸지 않고 별도의 입력으로 그린다. NPC 표식 조회를 같은 프레임의 그림 작업 전으로 옮겼으며 1초 캐시는 유지한다.
+보스 입장·베일라 각성은 `boss-entrance.mjs`, `observer-entrance.mjs`로 분리하고 `entrance-timing.mjs`의 완화식을 공유한다.
+시야 도메인의 기존 연결과 공유 전투 시각 상태는 후속 전환 대상이다.
+보스 예고·공격 효과와 부활·기습·사건·적 투사체도 `modules/rendering/` 원본에서 생성한다. 보스 타이밍은
+`boss-attack-timing.mjs`와 `boss-move-timing.mjs`, 베일라 전장·장면 조회는 `observer-arena.mjs`와
+`observer-scene.mjs`로 분리했다. HUD 가림 상태와 DOM 반영은 `modules/ui/observer-hud.mjs`가 소유한다.
+스킬 효과의 재생 큐·시계는 `stage-skill-vfx.mjs`, 이미지 준비·색 변환·캐시는 `stage-skill-sheets.mjs`가 소유한다.
+준비 예산 3ms, 간격 16ms, 원본 해제 대기 3초, 동시 재생 상한 120개는 유지한다. 방을 떠날 때는 재생만 비우며,
+전체 종료의 `dispose`는 타이머와 캐시를 정리한다. 종료 연결은 6단계에서 조립한다.
+룬 정의 조회는 `stage-skill-catalog.mjs`, 도트 배율은 `modules/common/stage-art-scale.mjs`를 사용해
+효과 재생기와 주인공 렌더러의 상호 호출을 줄였다. 색 변환 실패 시 기존 원색 대체는 유지하고 경고를 남긴다.
+코드 이펙트 원본은 `stage-skill-draws.mjs`, `stage-projectile-bodies.mjs`, `stage-skill-strokes.mjs`와
+`stage-skill-spells-{elemental,celestial,glass}.mjs`다. 작업면·캐시는 `stage-skill-brush.mjs`, 기존 시각 난수와
+정수 선은 `pixel-effect-math.mjs`가 소유한다. 그리기 콜백의 수신자가 바뀌어도 렌더러 참조는 캡처해 유지한다.
+시전 마법진·가호·앞뒤 보강은 `stage-skill-sigil.mjs`, `stage-blessing.mjs`, `stage-skill-polish.mjs`로 옮겼다.
+가호의 1초 조회 캐시, 해제 페이드, 보강 효과 16개·시전당 3개 상한과 강화 오라 간격은 유지한다.
+전투 도메인 조회기는 조립부가 공급하며, 캐릭터를 따라가는 연결은 룬별 규칙/최종 조립 전환에서 정리한다.
+룬 사건 연결은 `stage-skill-runes.mjs`, `stage-skill-casts.mjs`, `stage-skill-rules.mjs`로 옮겼다.
+공중 자세는 `stage-rune-air.mjs`, 위습 그림·발사는 `stage-wisp-casts.mjs`, 장판·낙하·여진은
+`stage-skill-areas.mjs`가 소유한다. 위습과 시전의 중복 방지 집합은 분리 복제하지 않고 같은 인스턴스를 공유한다.
+부싯돌 휘두름과 서리 안개 콜백에도 현재 상태 인자를 전달한다. 재생기의 화염 부패 감시, 적 객체 확인,
+반복 공격의 140ms 간격과 기존 클립 선택·타이밍은 유지한다. 지연 위치 조회와 전체 종료 연결은 최종 조립 대상이다.
+룬 확장과 고딕 효과는 각 액션의 상태를 나누되 원본 띠·회전 그림 캐시는 묶음별 하나만 공유한다.
+석화 감시는 현재 프레임의 판 상태를 재생기에서 받는다. 시트 읽기 실패 시 기존 효과 생략을 유지하고 경고를 남긴다.
+`world-tree-skill-fx.mjs`, `fx-remake.mjs`, `wisp-summon-fx.mjs`, `woodsman-view.mjs`는 기존 필드·이동·위습·거대 보스 표현을 소유한다.
+PixelLab 수식·준비·그리기 표는 `world-tree-native.mjs`와 `world-tree-effect-*.mjs`가 직접 import하고,
+사건 복제 함수만 조립부에서 받는다. 원본의 48개 그리기 상한, 사건·시간을 포함한 출력, 지연 꼬리 128개 상한은 유지한다.
+이 묶음까지 함수 1,338개·초기값 765개, 별도 PixelLab 선언 47개·클래스 메서드 4개를 정적으로 대조하고
+모듈 빌드·import 누락·순환 검사를 통과했다. 구조 검사 결과와 최종 통합 여부는 README의 현재 전환 기록을 따른다.
+실제 화면·행동·메모리·프레임 비교를 했다는 뜻은 아니며, 기존 측정 수치는 아래 이력 그대로 구분한다.
+
 ## 1. 시야 방식 (js/act-exploration-sight.js)
 
 탐험 지도에서 무엇이 보이는가는 두 방식 가운데 하나이고, `actExplorationSight.sightMode(run)` 한곳에서만 정한다. 다른 파일은
@@ -107,7 +192,7 @@
 ## 6. 성능을 재는 수 (js/battle-frame-stats.js, js/playtest-telemetry.js)
 
 - 화면이 프레임을 부르는 횟수(requestAnimationFrame)와 전장이 실제로 그려진 횟수는 다른 수다. 전장은 정해진 박자로만 그린다
-  (js/ui.js `renderBattlefieldThrottled`: PC의 탐험은 초당 60번, 그 밖의 전투는 22ms 박자, 휴대폰은 30번, 20초 동안 입력이 없으면
+  (`modules/application/battle-presentation-loop.mjs`의 `throttle`: PC의 탐험은 초당 60번, 그 밖의 전투는 22ms 박자, 휴대폰은 30번, 20초 동안 입력이 없으면
   쉬는 박자로 PC 30번, 휴대폰 20번, 창이 초점을 잃으면 20번).
 - `renderBattlefield`는 끝까지 그렸을 때만 true를 돌려준다(가려진 캔버스, 그림을 불러오는 중에는 일찍 돌아간다). 프레임 루프는 그런
   그리기만 `battleFrameStats.noteBattleDraw`에 적는다: 시작과 끝의 시각, 그때의 박자.

@@ -1,633 +1,833 @@
-// Loot domain: drop rates, rewards and codex bonuses. No DOM or renderer dependencies.
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/loot*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function getUniqueCodexProgress() {
-    let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-    let stored = Object.keys(codex).filter(key => !!codex[key] && UNIQUE_CODEX_KEYS.has(key)).length;
-    return { stored: stored, total: UNIQUE_CODEX_KEYS.size };
-}
+  // modules/common/numbers.mjs
+  function clampNumber(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+  function getAdditiveDropBonusMultiplier(codexBonusPct, challengeBonusPct) {
+    let codexRatio = Math.max(0, Number(codexBonusPct) || 0) / 100;
+    let challengeRatio = Math.max(0, Number(challengeBonusPct) || 0) / 100;
+    return 1 + codexRatio + challengeRatio;
+  }
 
-function getCodexBonusPctFromCount(storedCount) {
-    let count = Math.max(0, Math.floor(Number(storedCount) || 0));
-    let preSoftCap = Math.min(50, count) * 0.2;
-    let postSoftCap = Math.max(0, count - 50) * 0.1;
-    return preSoftCap + postSoftCap;
-}
-
-function getWildTalismanBaseDropChance(enemy) {
-    if (enemy && enemy.isBoss) return TALISMAN_WILD_DROPS.chance.boss;
-    return enemy && enemy.isElite ? TALISMAN_WILD_DROPS.chance.elite : TALISMAN_WILD_DROPS.chance.normal;
-}
-
-function getEquipmentBaseDropChance(enemy) {
-    if (enemy && enemy.isBoss) return EQUIPMENT_BASE_DROP_CHANCES.boss;
-    return enemy && enemy.isElite ? EQUIPMENT_BASE_DROP_CHANCES.elite : EQUIPMENT_BASE_DROP_CHANCES.regular;
-}
-
-function isFirstActBossEquipmentDropThisLoop(zone, enemy) {
-    if (!zone || zone.type !== 'act' || !enemy || !enemy.isBoss) return false;
-    return String(zone.id) === String(Math.max(0, Math.floor(Number(game.maxZoneId) || 0)));
-}
-
-function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMultiplier) {
-    let currentFloor = Math.max(1, Math.floor(Number(floor) || 1));
-    let commonMul = Math.max(0, Number(fossilDropMultiplier) || 0);
-    // 깊은 층(data/items.js LABYRINTH_DEEP_FOSSIL): 원시와 고대가 상한에 닿은 뒤로는 심연 화석이 층마다 더 자주 나온다.
-    let deepMul = 1 + Math.max(0, currentFloor - LABYRINTH_DEEP_FOSSIL.fromFloor) * LABYRINTH_DEEP_FOSSIL.abyssalPerFloor;
-    let rareMul = Math.max(0, Number(fossilRareMultiplier) || 0) * deepMul;
-    return {
-        base: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
-        typed: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
-        primal: Math.min(0.45, (0.10 + currentFloor * 0.003) * commonMul) * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
-        ancient: Math.min(0.14, (0.025 + currentFloor * 0.001) * commonMul) * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
-        abyssal: 0.03 * rareMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER
-    };
-}
-
-/** One capped multiplier for equipment, wild talismans and bonus currency rolls. */
-function getEnemyLootDropMultiplier(zone, enemy) {
-    let progression = getAdditiveDropBonusMultiplier(getCodexBonusPct());
-    let raw = progression * getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1) * (Number(enemy.greedDropMul) || 1);   // greedDropMul: 탐욕의 광기(js/combat-kill-rewards.js rollLootForEnemy)
-    return capEndlessContentDropMultiplier(zone, raw) * getContentDropRateMultiplier(zone);
-}
-
-/** Independent base chances share bonuses without deriving talisman drops from equipment. */
-function getEquipmentDropChances(zone, enemy) {
-    let multiplier = getEnemyLootDropMultiplier(zone, enemy);
-    if (zone.type === 'labyrinth') {
+  // modules/domain/loot-rules.mjs
+  var LootRules = class {
+    constructor(tables2, deps2) {
+      this.tables = tables2;
+      this.deps = deps2;
+      this.codexKeys = new Set(tables2.UNIQUE_DB.filter((entry) => !entry.realmCodexOnly).map((entry) => `${entry.slots[0]}|${entry.name}`));
+    }
+    getCodexBonusPct(state) {
+      if (!this.deps.isUnlocked("codex", state)) return 0;
+      return this.getCodexBonusPctFromCount(this.getUniqueCodexProgress(state).stored);
+    }
+    getUniqueCodexProgress(state) {
+      let codex = state.uniqueCodex && typeof state.uniqueCodex === "object" ? state.uniqueCodex : {};
+      let stored = Object.keys(codex).filter((key) => !!codex[key] && this.codexKeys.has(key)).length;
+      return { stored, total: this.codexKeys.size };
+    }
+    claimCodexCompletion(state) {
+      const progress = this.getUniqueCodexProgress(state);
+      if (progress.total <= 0 || progress.stored < progress.total || state.uniqueCodexCompletedRewardClaimed) return false;
+      state.uniqueCodexCompletedRewardClaimed = true;
+      return true;
+    }
+    /** Called once by loop settlement, after the carried inventory has been restored. */
+    grantCodexStarter(state) {
+      if (!state.uniqueCodexCompletedRewardClaimed) return null;
+      const pool = this.tables.UNIQUE_DB.filter((entry) => (entry.reqTier || 1) <= 1 && !entry.ultraRare && !entry.dropOnly);
+      if (!pool.length) return null;
+      const pick = this.deps.rndChoice(pool);
+      const item = this.deps.generateUniqueItem(1, null, pick.name, {});
+      if (!this.deps.canStoreEquipmentItems([item], state)) return null;
+      state.inventory.push(this.deps.normalizeItem(item));
+      return { item, pick };
+    }
+    getCodexBonusPctFromCount(storedCount) {
+      let count = Math.max(0, Math.floor(Number(storedCount) || 0));
+      let preSoftCap = Math.min(50, count) * 0.2;
+      let postSoftCap = Math.max(0, count - 50) * 0.1;
+      return preSoftCap + postSoftCap;
+    }
+    getWildTalismanBaseDropChance(enemy) {
+      if (enemy && enemy.isBoss) return this.tables.TALISMAN_WILD_DROPS.chance.boss;
+      return enemy && enemy.isElite ? this.tables.TALISMAN_WILD_DROPS.chance.elite : this.tables.TALISMAN_WILD_DROPS.chance.normal;
+    }
+    getEquipmentBaseDropChance(enemy) {
+      if (enemy && enemy.isBoss) return this.tables.EQUIPMENT_BASE_DROP_CHANCES.boss;
+      return enemy && enemy.isElite ? this.tables.EQUIPMENT_BASE_DROP_CHANCES.elite : this.tables.EQUIPMENT_BASE_DROP_CHANCES.regular;
+    }
+    isFirstActBossEquipmentDropThisLoop(state, zone, enemy) {
+      if (!zone || zone.type !== "act" || !enemy || !enemy.isBoss) return false;
+      return String(zone.id) === String(Math.max(0, Math.floor(Number(state.maxZoneId) || 0)));
+    }
+    getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMultiplier) {
+      let currentFloor = Math.max(1, Math.floor(Number(floor) || 1));
+      let commonMul = Math.max(0, Number(fossilDropMultiplier) || 0);
+      let deepMul = 1 + Math.max(0, currentFloor - this.tables.LABYRINTH_DEEP_FOSSIL.fromFloor) * this.tables.LABYRINTH_DEEP_FOSSIL.abyssalPerFloor;
+      let rareMul = Math.max(0, Number(fossilRareMultiplier) || 0) * deepMul;
+      return {
+        base: 0.5 * commonMul * this.tables.LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        typed: 0.5 * commonMul * this.tables.LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        primal: Math.min(0.45, (0.1 + currentFloor * 3e-3) * commonMul) * this.tables.LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        ancient: Math.min(0.14, (0.025 + currentFloor * 1e-3) * commonMul) * this.tables.LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        abyssal: 0.03 * rareMul * this.tables.LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER
+      };
+    }
+    getEnemyLootDropMultiplier(state, zone, enemy) {
+      let progression = getAdditiveDropBonusMultiplier(this.getCodexBonusPct(state));
+      let raw = progression * this.deps.getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1) * (Number(enemy.greedDropMul) || 1);
+      return this.deps.capEndlessContentDropMultiplier(zone, raw) * this.deps.getContentDropRateMultiplier(zone);
+    }
+    getEquipmentDropChances(state, zone, enemy) {
+      let multiplier = this.getEnemyLootDropMultiplier(state, zone, enemy);
+      if (zone.type === "labyrinth") {
         let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
         let progress = Math.min(1, Math.max(0, (floor - 30) / 170));
         multiplier *= 1 - 0.7 * progress;
+      }
+      return {
+        equipment: this.isFirstActBossEquipmentDropThisLoop(state, zone, enemy) ? 1 : this.getEquipmentBaseDropChance(enemy) * multiplier * this.deps.levelProgression.rewardMultiplier(zone, enemy, state.level, "equipment") * (Number(enemy.equipmentDropMul) || 1),
+        talisman: this.getWildTalismanBaseDropChance(enemy) * multiplier * this.deps.levelProgression.rewardMultiplier(zone, enemy, state.level)
+      };
     }
-    return {
-        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment')
-            * (Number(enemy.equipmentDropMul) || 1),
-        talisman: getWildTalismanBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level)
-    };
-}
+    rollEquipmentDrop(state, zone, enemy, chance) {
+      let rank = enemy.isBoss ? "boss" : enemy.isElite ? "elite" : "regular";
+      let progress = state.equipmentDropProgress + this.tables.EQUIPMENT_DROUGHT_RULES.credit[rank] * this.deps.getContentDropRateMultiplier(zone) * this.deps.levelProgression.rewardMultiplier(zone, enemy, state.level, "equipment");
+      let guaranteed = progress >= this.tables.EQUIPMENT_DROUGHT_RULES.threshold;
+      const expected = Math.max(0, Number(chance) || 0), whole = Math.floor(expected);
+      const count = Math.max(guaranteed ? 1 : 0, whole + Number(this.deps.random() < expected - whole));
+      let minimumRarity = guaranteed ? "rare" : null;
+      return { dropped: count > 0, count, guaranteed, minimumRarity, nextProgress: count > 0 ? 0 : progress };
+    }
+    getEquipmentDropRarity(enemy, roll) {
+      let rank = enemy.isBoss ? "boss" : enemy.isElite ? "elite" : "regular";
+      let thresholds = this.tables.EQUIPMENT_DROP_RARITY_THRESHOLDS[rank];
+      let scaled = roll / Math.max(1, Number(enemy.lootRarityMul) || 1);
+      if (scaled < thresholds.unique * Math.max(1, Number(enemy.uniqueChanceMul) || 1)) return "unique";
+      return ["rare", "magic"].find((rarity) => scaled < thresholds[rarity]) || "normal";
+    }
+    generateRealmBossUniqueDrop(state, zone, enemy) {
+      const baseChance = enemy.isBoss ? this.tables.REALM_BOSS_UNIQUE_DROP_RULES.chance[zone.type] : 0;
+      if (!baseChance) return null;
+      const chance = baseChance * this.deps.levelProgression.rewardMultiplier(zone, enemy, state.level);
+      if (this.deps.random() >= chance) return null;
+      const itemLevel = this.deps.levelProgression.itemLevel(zone, enemy);
+      const cap = Math.min(this.deps.getRealmEquipmentHiddenTierCap(zone), this.deps.levelProgression.maxDropTier(itemLevel));
+      const eligible = this.tables.UNIQUE_DB.filter((unique) => unique.dropOnly?.type === zone.type && this.deps.uniqueDropsInZone(unique, zone) && cap >= (unique.dropOnly.minTier || unique.reqTier || 1));
+      const chase = eligible.filter((unique) => unique.ultraRare);
+      const useChase = chase.length > 0 && this.deps.random() < this.tables.REALM_BOSS_UNIQUE_DROP_RULES.ultraRareShare;
+      const pool = useChase ? chase : eligible.filter((unique) => !unique.ultraRare);
+      if (!pool.length) return null;
+      const item = this.deps.generateUniqueItem(cap, null, this.deps.rndChoice(pool).name, zone);
+      return this.deps.levelProgression.stampItem(item, itemLevel);
+    }
+    getMappingTicketDrops(state, enemy, zone, mappingOpened) {
+      let drops = [];
+      if (!mappingOpened || !zone || ["trial", "seasonBoss"].includes(zone.type)) return drops;
+      let contentDropMul = this.deps.getContentDropRateMultiplier(zone);
+      const key = this.mappingBossKey(state, enemy, contentDropMul);
+      if (key) drops.push([key, 1]);
+      if (!this.highTrialUnlocked(state)) return drops;
+      let trialKeyChance = enemy.isBoss ? 0.015 : enemy.isElite ? 1e-3 : 0;
+      if (trialKeyChance > 0 && this.deps.random() < trialKeyChance) drops.push(["trialKey3", 1]);
+      return drops;
+    }
+    mappingBossKey(state, enemy, multiplier) {
+      if ((state.season || 1) < 2) return null;
+      const keys = ["bossKeyFlame", "bossKeyFrost", "bossKeyStorm"];
+      if (enemy.isBoss && this.deps.random() < 0.044 * multiplier) return this.deps.rndChoice(keys);
+      if (enemy.isElite && this.deps.random() < 0.01 * multiplier) return this.deps.rndChoice(keys);
+      return null;
+    }
+    highTrialUnlocked(state) {
+      return ["trial_3", "trial_4"].some((key) => (state.unlockedTrials || []).includes(key) || (state.completedTrials || []).includes(key));
+    }
+    getUnderworldResourceDropChances(enemy) {
+      if (enemy && enemy.isBoss) {
+        return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, core: 0.01, ...this.tables.UNDERWORLD_ORE_DROP_CHANCES };
+      }
+      if (enemy && enemy.isElite) {
+        return { fossil: 0.0125, typedFossil: 3e-3, tool: 25e-4, rune: 8e-3, core: 5e-4, ...this.tables.UNDERWORLD_ORE_DROP_CHANCES };
+      }
+      return { fossil: 25e-4, typedFossil: 6e-4, tool: 5e-4, rune: 15e-4, core: 5e-5, ...this.tables.UNDERWORLD_ORE_DROP_CHANCES };
+    }
+  };
+  var createLootRules = (tables2, deps2) => new LootRules(tables2, deps2);
 
-/**
- * @param {{type:string}} zone
- * @param {{isBoss?:boolean,isElite?:boolean}} enemy
- * @param {number} chance Expected equipment count of the kill: the whole part drops for sure, the fraction is one more roll.
- * @returns {{dropped:boolean,count:number,guaranteed:boolean,minimumRarity:string|null,nextProgress:number}}
- * Read-only planning; commit after generation and the inventory's pickup/salvage policy finish. minimumRarity applies to the
- * first item only (the drought guarantee).
- */
-function rollEquipmentDrop(zone, enemy, chance) {
-    let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
-    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment');
-    let guaranteed = progress >= EQUIPMENT_DROUGHT_RULES.threshold;
-    const expected = Math.max(0, Number(chance) || 0), whole = Math.floor(expected);
-    const count = Math.max(guaranteed ? 1 : 0, whole + Number(Math.random() < expected - whole));
-    let minimumRarity = guaranteed ? 'rare' : null;
-    return { dropped: count > 0, count, guaranteed, minimumRarity, nextProgress: count > 0 ? 0 : progress };
-}
-
-/** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. An atlas map's item rarity
- * (enemy.lootRarityMul, js/atlas-maps.js) scales the roll down, so every rarer outcome grows by the same factor; the map's
- * 고유의 메아리 omen (enemy.uniqueChanceMul, js/loot-omens.js) widens the unique band alone. */
-function getEquipmentDropRarity(enemy, roll) {
-    let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
-    let thresholds = EQUIPMENT_DROP_RARITY_THRESHOLDS[rank];
-    let scaled = roll / Math.max(1, Number(enemy.lootRarityMul) || 1);
-    if (scaled < thresholds.unique * Math.max(1, Number(enemy.uniqueChanceMul) || 1)) return 'unique';
-    return ['rare', 'magic'].find(rarity => scaled < thresholds[rarity]) || 'normal';
-}
-
-/** Extra content-boss reward: a boss of a realm (혼돈계, 지하계, 우주계) or of 창공의 탑, 벌집 or 군락지 can drop a unique only that
- * content has (dropOnly.type), at the content's chance (data/items.js REALM_BOSS_UNIQUE_DROP_RULES). Generate only; combat commits
- * pickup, codex and visual feedback. */
-function generateRealmBossUniqueDrop(zone, enemy) {
-    const baseChance = enemy.isBoss ? REALM_BOSS_UNIQUE_DROP_RULES.chance[zone.type] : 0;
-    if (!baseChance) return null;
-    const chance = baseChance * levelProgression.rewardMultiplier(zone, enemy, game.level);
-    if (Math.random() >= chance) return null;
-    const itemLevel = levelProgression.itemLevel(zone, enemy);
-    const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
-    const eligible = UNIQUE_DB.filter(unique => unique.dropOnly?.type === zone.type && uniqueDropsInZone(unique, zone)
-        && cap >= (unique.dropOnly.minTier || unique.reqTier || 1));
-    const chase = eligible.filter(unique => unique.ultraRare);
-    const useChase = chase.length > 0 && Math.random() < REALM_BOSS_UNIQUE_DROP_RULES.ultraRareShare;
-    const pool = useChase ? chase : eligible.filter(unique => !unique.ultraRare);
-    if (!pool.length) return null;
-    const item = generateUniqueItem(cap, null, rndChoice(pool).name, zone);
-    return levelProgression.stampItem(item, itemLevel);
-}
-
-function getMappingTicketDrops(enemy, zone, mappingOpened) {
-    let drops = [];
-    if (!mappingOpened || !zone || zone.type === 'trial' || zone.type === 'seasonBoss') return drops;
-    let contentDropMul = getContentDropRateMultiplier(zone);
-    if ((game.season || 1) >= 2) {
-        if (enemy.isBoss && Math.random() < 0.044 * contentDropMul) {
-            drops.push([rndChoice(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm']), 1]);
-        } else if (enemy.isElite && Math.random() < 0.01 * contentDropMul) {
-            drops.push([rndChoice(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm']), 1]);
+  // modules/domain/loot-currency.mjs
+  var CurrencyDropRules = class {
+    constructor(tables2, deps2, rules2) {
+      this.tables = tables2;
+      this.deps = deps2;
+      this.rules = rules2;
+      this.loopRules = Object.freeze([
+        [4, (enemy) => enemy.isSky, () => 0.35, "skyEssence", 1],
+        [5, (enemy) => enemy.isBoss, (mul) => 0.16 * mul, "emberBranch", 1],
+        [5, (enemy) => enemy.isBoss, (mul) => 0.03 * mul, "jewelShard", 3],
+        [5, (enemy) => enemy.isElite, (mul) => 8e-3 * mul, "jewelShard", 1],
+        [6, (enemy, zone) => zone.type === "labyrinth", () => 0.018, "sealShard", 1],
+        [6, (enemy, zone) => zone.type === "labyrinth", () => 5e-3, "strongSealShard", 1],
+        [6, (enemy, zone) => zone.type === "labyrinth" && Math.floor(zone.floor || 0) >= 30, () => 52e-5, "radiantSealShard", 1],
+        [6, (enemy) => enemy.isBoss, (mul) => 0.018 * mul, "blessing", 1],
+        [6, (enemy) => enemy.isElite, (mul) => 4e-3 * mul, "blessing", 1],
+        [6, (enemy, zone) => enemy.isBoss && zone.type === "abyss" && Number(zone.id) >= 19, () => 0.0125, "beastKeyCerberus", 1],
+        // 버려진 날붙이 도전권 (루프 31+): 심층 콘텐츠 보스가 드랍한다. 루프당 결투 6회(다섯 날 + 완성작)를 노린 넉넉한 확률.
+        [31, (enemy, zone) => enemy.isBoss && this.isDeepRivalKeyZone(zone), (mul) => 0.1 * mul, "rivalKey", 1],
+        // 잔향체 아스트라 도전권 (루프 31+): 우주계 은하 보스(planet-45~49)가 드랍한다.
+        [31, (enemy, zone) => enemy.isBoss && zone.type === "cosmos", () => 0.15, "cosmosSovereignKey", 1]
+      ]);
+      this.underworldRules = Object.freeze([
+        { chance: (rc, enemy) => enemy.isBoss ? 0.015 : enemy.isElite ? 3e-3 : 6e-4, drop: () => ["coreKey", 1] },
+        { chance: (rc) => rc.fossil, drop: () => ["fossil", 1] },
+        { chance: (rc) => rc.typedFossil, drop: () => [this.deps.rndChoice(["fossilBulwark", "fossilWedge", "fossilOld", "fossilRift"]), 1] },
+        { chance: (rc) => rc.tool, drop: () => [this.deps.rndChoice(["deepWhetstone", "rootIron", "jewelPolish"]), 1] },
+        { when: (enemy, floor) => floor >= 10, chance: (rc) => rc.rune, drop: (enemy) => ["runeShard", enemy.isBoss ? 2 : 1] },
+        { when: (enemy, floor, state) => this.deps.coreItems.canDrop(state), chance: (rc) => rc.core, drop: () => ["core", 1] },
+        { chance: (rc) => rc.copper, drop: () => ["underCopper", 1] },
+        { chance: (rc) => rc.silver, drop: () => ["underSilver", 1] },
+        { chance: (rc) => rc.gold, drop: () => ["underGold", 1] },
+        { when: (enemy) => enemy.isBoss, chance: () => 25e-4, drop: () => [this.deps.rndChoice(["uberRootTicketFlame", "uberRootTicketFrost", "uberRootTicketStorm", "uberRootTicketChaos"]), 1] }
+      ]);
+    }
+    getBasicCurrencyDrops(enemy, bonusRoll) {
+      if (enemy.isBoss) return Object.entries(this.tables.BASIC_CURRENCY_DROP_CHANCES.boss).filter(([, chance]) => bonusRoll(chance)).map(([key]) => [key, 1]);
+      let drops = [];
+      if (enemy.isElite) {
+        if (bonusRoll(this.tables.BASIC_CURRENCY_DROP_CHANCES.elite.mixed)) {
+          drops.push([this.deps.random() < 0.9 ? "magicBud" : "formlessDew", 1]);
         }
+        if (bonusRoll(this.tables.BASIC_CURRENCY_DROP_CHANCES.elite.sapBud)) drops.push(["sapBud", 1]);
+        if (bonusRoll(this.tables.BASIC_CURRENCY_DROP_CHANCES.elite.formlessDew)) drops.push(["formlessDew", 1]);
+      } else if (bonusRoll(this.tables.BASIC_CURRENCY_DROP_CHANCES.regular.mixed)) {
+        drops.push([["magicBud", "magicBud", "magicBud", "magicBud", "blightSpore"][Math.floor(this.deps.random() * 5)], 1]);
+      }
+      return drops;
     }
-    let highTrialUnlocked = (game.unlockedTrials || []).includes('trial_3')
-        || (game.unlockedTrials || []).includes('trial_4')
-        || (game.completedTrials || []).includes('trial_3')
-        || (game.completedTrials || []).includes('trial_4');
-    if (!highTrialUnlocked) return drops;
-    let trialKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.001 : 0);
-    // Retry access uses a fixed chance, independent of the underworld loot reduction.
-    if (trialKeyChance > 0 && Math.random() < trialKeyChance) drops.push(['trialKey3', 1]);
-    return drops;
-}
-
-function getUnderworldResourceDropChances(enemy) {
-    if (enemy && enemy.isBoss) {
-        return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, core: 0.01, ...UNDERWORLD_ORE_DROP_CHANCES };
+    getContentKillCurrencyDrops(state, zone, enemy, abyssScale) {
+      const embers = this.deps.emberDrops(enemy);
+      const catalysts = this.deps.sapDrops(enemy);
+      const oils = this.deps.oilDrops(enemy);
+      return [...embers, ...catalysts, ...oils, ...this.getContentBossCurrencyDrops(state, zone, enemy, abyssScale)];
     }
-    if (enemy && enemy.isElite) {
-        return { fossil: 0.0125, typedFossil: 0.003, tool: 0.0025, rune: 0.008, core: 0.0005, ...UNDERWORLD_ORE_DROP_CHANCES };
+    getContentBossCurrencyDrops(state, zone, enemy, abyssScale) {
+      const drops = [];
+      if (enemy.isBoss && zone.type === "abyss" && this.deps.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(["jewelShard", 2]);
+      if ((state.season || 1) >= 2 && zone.type === "seasonBoss" && enemy.isBoss && this.deps.random() < 0.22) drops.push(["bossCore", 1]);
+      return drops;
     }
-    return { fossil: 0.0025, typedFossil: 0.0006, tool: 0.0005, rune: 0.0015, core: 0.00005, ...UNDERWORLD_ORE_DROP_CHANCES };
-}
-
-exposeFileGlobals({ getUniqueCodexProgress, getCodexBonusPctFromCount, getLabyrinthFossilDropChances, getEnemyLootDropMultiplier, getEquipmentDropChances, rollEquipmentDrop, getEquipmentDropRarity, generateRealmBossUniqueDrop, getMappingTicketDrops, getUnderworldResourceDropChances });
-})();
-const UNIQUE_CODEX_KEYS = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly)
-    .map(entry => `${entry.slots[0]}|${entry.name}`));
-
-
-function getCodexBonusPct() {
-    if (!contentProgression.isUnlocked('codex')) return 0;
-    return getCodexBonusPctFromCount(getUniqueCodexProgress().stored);
-}
-
-
-// Classic-script consumers: combat owns committing rewards; this module owns their rules.
-safeExposeGlobals({ getEnemyLootDropMultiplier, getEquipmentDropChances, rollEquipmentDrop, getEquipmentDropRarity });
-
-
-(function () {
-'use strict';
-
-/**
- * @param {{isBoss?:boolean,isElite?:boolean}} enemy
- * @param {(chance:number) => boolean} bonusRoll Currency roll including enemy/content bonuses.
- * @returns {Array<[string,number]>} Common crafting rewards; no guaranteed boss payout.
- */
-function getBasicCurrencyDrops(enemy, bonusRoll) {
-    if (enemy.isBoss) return Object.entries(BASIC_CURRENCY_DROP_CHANCES.boss)
-        .filter(([, chance]) => bonusRoll(chance)).map(([key]) => [key, 1]);
-    let drops = [];
-    if (enemy.isElite) {
-        if (bonusRoll(BASIC_CURRENCY_DROP_CHANCES.elite.mixed)) {
-            drops.push([Math.random() < 0.9 ? 'magicBud' : 'formlessDew', 1]);
-        }
-        if (bonusRoll(BASIC_CURRENCY_DROP_CHANCES.elite.sapBud)) drops.push(['sapBud', 1]);
-        if (bonusRoll(BASIC_CURRENCY_DROP_CHANCES.elite.formlessDew)) drops.push(['formlessDew', 1]);
-    } else if (bonusRoll(BASIC_CURRENCY_DROP_CHANCES.regular.mixed)) {
-        drops.push([[ 'magicBud', 'magicBud', 'magicBud', 'magicBud', 'blightSpore' ][Math.floor(Math.random() * 5)], 1]);
+    getCurrencyDrops(state, enemy) {
+      let zone = this.deps.getZone(state.currentZoneId) || this.deps.getZone(0);
+      let abyssScale = this.deps.getAbyssMonsterScales(zone);
+      let contentDropMul = this.deps.getContentDropRateMultiplier(zone);
+      let dropMultiplier = this.rules.getEnemyLootDropMultiplier(state, zone, enemy);
+      let bonusRoll = (chance) => this.deps.random() < Math.min(0.95, chance * dropMultiplier);
+      let drops = this.getBasicCurrencyDrops(enemy, bonusRoll);
+      drops.push(...this.getRareOrbDrops(state, enemy, zone, bonusRoll));
+      let mappingOpened = (state.maxZoneId || 0) >= this.tables.ABYSS_START_ZONE_ID;
+      drops.push(...this.rules.getMappingTicketDrops(state, enemy, zone, mappingOpened));
+      drops.push(...this.getCosmosCurrencyDrops(enemy, zone, bonusRoll));
+      drops.push(...this.getLoopCurrencyDrops(state, enemy, zone, contentDropMul));
+      if (zone.type === "chaosRealm") {
+        let chaosKeyChance = enemy.isBoss ? 0.012 : enemy.isElite ? 3e-3 : 6e-4;
+        if (this.deps.random() < chaosKeyChance) drops.push(["chaosKey", 1]);
+      }
+      if (zone.type === "underworld") drops.push(...this.getUnderworldCurrencyDrops(state, enemy, zone));
+      drops.push(...this.getContentKillCurrencyDrops(state, zone, enemy, abyssScale));
+      return this.deps.levelProgression.filterCurrencyDrops(drops, this.deps.levelProgression.rewardMultiplier(zone, enemy, state.level)).filter(([key]) => this.deps.canDropCurrency(key, state));
     }
-    return drops;
-}
-
-/** Content kills: the ember pack's branches (잿불 터, js/ember-corruption.js), the sap pack's catalysts (수액 상처, js/sap-catalysts.js),
- * the withered pack's oils (시든 정원, js/garden-oils.js), then the content bosses' extras. */
-function getContentKillCurrencyDrops(zone, enemy, abyssScale) {
-    const embers = typeof emberCorruption === 'object' ? emberCorruption.killDrops(enemy) : [];
-    const catalysts = typeof sapCatalysts === 'object' ? sapCatalysts.killDrops(enemy) : [];
-    const oils = typeof gardenOils === 'object' ? gardenOils.killDrops(enemy) : [];
-    return [...embers, ...catalysts, ...oils, ...getContentBossCurrencyDrops(zone, enemy, abyssScale)];
-}
-
-/** A deep abyss boss's jewel shards and a season boss's core. */
-function getContentBossCurrencyDrops(zone, enemy, abyssScale) {
-    const drops = [];
-    if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
-    if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
-    return drops;
-}
-
-/** A kill's currency drops in order: basic orbs, rare orbs, map tickets, cosmos drops, LOOP_CURRENCY_DROP_RULES, the chaos realm key,
- * the underworld drops, content kills; then the level and content filters. Split on 2026-10-18, same draws in the same order. */
-function getCurrencyDrops(enemy) {
-    let zone = getZone(game.currentZoneId) || getZone(0);
-    let abyssScale = getAbyssMonsterScales(zone);
-    let contentDropMul = getContentDropRateMultiplier(zone);
-    let dropMultiplier = getEnemyLootDropMultiplier(zone, enemy);
-    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * dropMultiplier);
-    let drops = getBasicCurrencyDrops(enemy, bonusRoll);
-    drops.push(...getRareOrbDrops(enemy, zone, bonusRoll));
-    let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
-    drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
-    drops.push(...getCosmosCurrencyDrops(enemy, zone, bonusRoll));
-    drops.push(...getLoopCurrencyDrops(enemy, zone, contentDropMul));
-    if (zone.type === 'chaosRealm') {
-        let chaosKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
-        if (Math.random() < chaosKeyChance) drops.push(['chaosKey', 1]);
+    getRareOrbDrops(state, enemy, zone, bonusRoll) {
+      const drops = [];
+      let divineChance = enemy.isBoss ? 6e-3 : enemy.isElite ? 4e-4 : 7e-5;
+      if (bonusRoll(divineChance)) drops.push(["goldenRule", 1]);
+      if (bonusRoll(divineChance / 20)) drops.push(["fairyRing", 1]);
+      if (bonusRoll(divineChance * 2)) drops.push(["sapBud", 1]);
+      let ouroborosChance = divineChance / 1200 * (this.isRepeatMasterworkBoss(state, enemy, zone) ? 2.5 : 1);
+      if (bonusRoll(ouroborosChance)) drops.push(["ouroboros", 1]);
+      return drops;
     }
-    if (zone.type === 'underworld') drops.push(...getUnderworldCurrencyDrops(enemy, zone));
-    drops.push(...getContentKillCurrencyDrops(zone, enemy, abyssScale));
-    return levelProgression.filterCurrencyDrops(drops, levelProgression.rewardMultiplier(zone, enemy, game.level))
-        .filter(([key]) => contentProgression.canDropCurrency(key));
-}
-
-/** 황금률: 일반 0.007% / 정예 0.04% / 보스 0.6%. 수액눈은 황금률의 2배다. Then the fairy ring and the ouroboros (x2.5 from a cleared
- * masterwork). */
-function getRareOrbDrops(enemy, zone, bonusRoll) {
-    const drops = [];
-    let divineChance = enemy.isBoss ? 0.006 : (enemy.isElite ? 0.0004 : 0.00007);
-    if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
-    if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
-    if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);
-    let ouroborosChance = (divineChance / 1200) * (isRepeatMasterworkBoss(enemy, zone) ? 2.5 : 1);
-    if (bonusRoll(ouroborosChance)) drops.push(['ouroboros', 1]);
-    return drops;
-}
-function isRepeatMasterworkBoss(enemy, zone) {
-    return enemy.isBoss && zone.id === 'rival_masterwork'
-        && Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
-}
-
-/** A cosmos kill's pruning shears and a cosmos boss's catalyst. */
-function getCosmosCurrencyDrops(enemy, zone, bonusRoll) {
-    const drops = [];
-    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['pruningShears', 1]);
-    if (zone.type === 'cosmos' && enemy.isBoss && bonusRoll(0.012)) drops.push(['abyssCatalyst', 1]);
-    return drops;
-}
-
-/** The drops that open with the loop, each rolled when its loop and kill match. */
-function getLoopCurrencyDrops(enemy, zone, contentDropMul) {
-    const loop = game.season || 1, drops = [];
-    LOOP_CURRENCY_DROP_RULES.forEach(([fromLoop, when, chance, key, amount]) => {
-        if (loop >= fromLoop && when(enemy, zone) && Math.random() < chance(contentDropMul)) drops.push([key, amount]);
-    });
-    return drops;
-}
-/** Deep content for the 버려진 날붙이 key: chaos realm, underworld, sky tower, chaos depth 21 and below. */
-function isDeepRivalKeyZone(zone) {
-    return zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'skyTower'
-        || (zone.type === 'abyss' && Math.floor(getAbyssDepthFromZoneId(Number(zone.id)) || 0) >= 21);
-}
-/** Loop-gated drops in their order: [from loop, when (enemy, zone), chance (the content drop multiplier), currency, amount]. */
-const LOOP_CURRENCY_DROP_RULES = Object.freeze([
-    [4, enemy => enemy.isSky, () => 0.35, 'skyEssence', 1],
-    [5, enemy => enemy.isBoss, mul => 0.16 * mul, 'emberBranch', 1],
-    [5, enemy => enemy.isBoss, mul => 0.03 * mul, 'jewelShard', 3],
-    [5, enemy => enemy.isElite, mul => 0.008 * mul, 'jewelShard', 1],
-    [6, (enemy, zone) => zone.type === 'labyrinth', () => 0.018, 'sealShard', 1],
-    [6, (enemy, zone) => zone.type === 'labyrinth', () => 0.005, 'strongSealShard', 1],
-    [6, (enemy, zone) => zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30, () => 0.00052, 'radiantSealShard', 1],
-    [6, enemy => enemy.isBoss, mul => 0.018 * mul, 'blessing', 1],
-    [6, enemy => enemy.isElite, mul => 0.004 * mul, 'blessing', 1],
-    [6, (enemy, zone) => enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19, () => 0.0125, 'beastKeyCerberus', 1],
-    // 버려진 날붙이 도전권 (루프 31+): 심층 콘텐츠 보스가 드랍한다. 루프당 결투 6회(다섯 날 + 완성작)를 노린 넉넉한 확률.
-    [31, (enemy, zone) => enemy.isBoss && isDeepRivalKeyZone(zone), mul => 0.10 * mul, 'rivalKey', 1],
-    // 잔향체 아스트라 도전권 (루프 31+): 우주계 은하 보스(planet-45~49)가 드랍한다.
-    [31, (enemy, zone) => enemy.isBoss && zone.type === 'cosmos', () => 0.15, 'cosmosSovereignKey', 1]
-]);
-
-/** An underworld kill's drops, each rolled in UNDERWORLD_CURRENCY_DROP_RULES order. */
-function getUnderworldCurrencyDrops(enemy, zone) {
-    let underFloor = Math.max(1, Math.floor(zone.floor || 1));
-    let resourceChance = getUnderworldResourceDropChances(enemy);
-    const drops = [];
-    UNDERWORLD_CURRENCY_DROP_RULES.forEach(rule => {
-        if ((!rule.when || rule.when(enemy, underFloor)) && Math.random() < rule.chance(resourceChance, enemy)) drops.push(rule.drop(enemy));
-    });
-    return drops;
-}
-/** Underworld drops in their order: when (enemy, floor), chance (the resource chances, enemy), the drop. Core keys and shadow root
- * tickets are exempt from the underworld loot reduction. */
-const UNDERWORLD_CURRENCY_DROP_RULES = Object.freeze([
-    { chance: (rc, enemy) => (enemy.isBoss ? 0.015 : (enemy.isElite ? 0.003 : 0.0006)), drop: () => ['coreKey', 1] },
-    { chance: rc => rc.fossil, drop: () => ['fossil', 1] },
-    { chance: rc => rc.typedFossil, drop: () => [rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1] },
-    { chance: rc => rc.tool, drop: () => [rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1] },
-    { when: (enemy, floor) => floor >= 10, chance: rc => rc.rune, drop: enemy => ['runeShard', enemy.isBoss ? 2 : 1] },
-    { when: () => coreItems.canDrop(), chance: rc => rc.core, drop: () => ['core', 1] },
-    { chance: rc => rc.copper, drop: () => ['underCopper', 1] },
-    { chance: rc => rc.silver, drop: () => ['underSilver', 1] },
-    { chance: rc => rc.gold, drop: () => ['underGold', 1] },
-    { when: enemy => enemy.isBoss, chance: () => 0.0025, drop: () => [rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1] }
-]);
-
-safeExposeGlobals({ getCurrencyDrops });
-})();
-
-(function () {
-    'use strict';
-
-    function statOptions() {
-        const ids = new Set(MOD_DB.flatMap(mod => [mod.statId || mod.id,
-            ...(mod.compound || []).map(stat => stat.statId || stat.id)]));
-        return [...ids].filter(Boolean).map(id => ({ id, name: getStatName(id) }))
-            .sort((a, b) => a.name.localeCompare(b.name, i18n.locale));
+    isRepeatMasterworkBoss(state, enemy, zone) {
+      return enemy.isBoss && zone.id === "rival_masterwork" && Array.isArray(state.clearedRootBosses) && state.clearedRootBosses.includes(zone.id);
     }
+    getCosmosCurrencyDrops(enemy, zone, bonusRoll) {
+      const drops = [];
+      if (zone.type === "cosmos" && bonusRoll(enemy.isBoss ? 0.025 : enemy.isElite ? 6e-3 : 15e-4)) drops.push(["pruningShears", 1]);
+      if (zone.type === "cosmos" && enemy.isBoss && bonusRoll(0.012)) drops.push(["abyssCatalyst", 1]);
+      return drops;
+    }
+    getLoopCurrencyDrops(state, enemy, zone, contentDropMul) {
+      const loop = state.season || 1, drops = [];
+      this.loopRules.forEach(([fromLoop, when, chance, key, amount]) => {
+        if (loop >= fromLoop && when(enemy, zone) && this.deps.random() < chance(contentDropMul)) drops.push([key, amount]);
+      });
+      return drops;
+    }
+    isDeepRivalKeyZone(zone) {
+      return zone.type === "chaosRealm" || zone.type === "underworld" || zone.type === "skyTower" || zone.type === "abyss" && Math.floor(this.deps.getAbyssDepthFromZoneId(Number(zone.id)) || 0) >= 21;
+    }
+    getUnderworldCurrencyDrops(state, enemy, zone) {
+      let underFloor = Math.max(1, Math.floor(zone.floor || 1));
+      let resourceChance = this.rules.getUnderworldResourceDropChances(enemy);
+      const drops = [];
+      this.underworldRules.forEach((rule) => {
+        if ((!rule.when || rule.when(enemy, underFloor, state)) && this.deps.random() < rule.chance(resourceChance, enemy)) drops.push(rule.drop(enemy));
+      });
+      return drops;
+    }
+  };
+  var createCurrencyDropRules = (tables2, deps2, rules2) => new CurrencyDropRules(tables2, deps2, rules2);
 
-    /** Affix tags a rule can count (data/affix-tags.js), in table order. */
-    function tagOptions() {
-        return Object.entries(AFFIX_TAG_LABELS).map(([id, name]) => ({ id, name }));
+  // modules/domain/loot-policy.mjs
+  var boolMap = (keys, raw, fallback) => Object.fromEntries(keys.map((key) => [key, typeof (raw && raw[key]) === "boolean" ? raw[key] : fallback[key] !== false]));
+  var PICK_GROUPS = Object.freeze({
+    rarity: (settings) => settings.itemFilterRarities,
+    slot: (settings) => settings.itemFilterSlots,
+    weapon: (settings) => settings.itemFilterWeaponCategories,
+    always: (settings) => settings.itemFilterAlways,
+    beams: (settings) => settings.lootFx.beams,
+    notices: (settings) => settings.lootFx.notices
+  });
+  var EquipmentLootPolicy = class {
+    constructor(tables2, deps2) {
+      this.tables = tables2;
+      this.deps = deps2;
     }
+    statOptions() {
+      const ids = new Set(this.tables.MOD_DB.flatMap((mod) => [
+        mod.statId || mod.id,
+        ...(mod.compound || []).map((stat) => stat.statId || stat.id)
+      ]));
+      return [...ids].filter(Boolean).map((id) => ({ id, name: this.deps.getStatName(id) })).sort((a, b) => a.name.localeCompare(b.name, this.deps.i18n.locale));
+    }
+    tagOptions() {
+      return Object.entries(this.tables.AFFIX_TAG_LABELS).map(([id, name]) => ({ id, name }));
+    }
+    normalizeRule(rule, validIds) {
+      if (!rule || !Number.isFinite(rule.minTier)) return null;
+      const minTier = clampNumber(Math.floor(Number(rule.minTier)), 0, 20);
+      if (typeof rule.tag === "string") {
+        return this.tables.AFFIX_TAG_LABELS[rule.tag] && Number.isFinite(rule.minCount) ? { tag: rule.tag, minCount: clampNumber(Math.floor(Number(rule.minCount)), 1, 6), minTier } : null;
+      }
+      return validIds.has(rule.statId) && Number.isFinite(rule.minValue) ? { statId: rule.statId, minValue: Math.max(0, Number(rule.minValue)), minTier } : null;
+    }
+    ruleKey(rule) {
+      return rule.tag ? "tag:" + rule.tag : rule.statId;
+    }
+    normalizeTargets(input) {
+      const source = input && typeof input === "object" ? input : {};
+      const validIds = new Set(this.statOptions().map((stat) => stat.id));
+      const seen = /* @__PURE__ */ new Set();
+      const rules2 = (Array.isArray(source.rules) ? source.rules : []).map((rule) => this.normalizeRule(rule, validIds)).filter((rule) => {
+        if (!rule || seen.has(this.ruleKey(rule))) return false;
+        seen.add(this.ruleKey(rule));
+        return true;
+      }).slice(0, 6);
+      return {
+        enabled: source.enabled === true,
+        slot: this.tables.EQUIPMENT_DROP_SLOTS.includes(source.slot) ? source.slot : "any",
+        scope: source.scope === "all" ? "all" : "explicit",
+        minMatches: clampNumber(Math.floor(Number(source.minMatches) || 1), 1, Math.max(1, rules2.length)),
+        rules: rules2
+      };
+    }
+    normalizeSettings(settings) {
+      settings.autoSalvageEnabled = !!settings.autoSalvageEnabled;
+      settings.autoSalvageRarities = { ...this.deps.defaults.settings.autoSalvageRarities, ...settings.autoSalvageRarities };
+      settings.itemFilterRarities = { ...this.deps.defaults.settings.itemFilterRarities, ...settings.itemFilterRarities };
+      settings.itemFilterMinHiddenTier = clampNumber(Math.floor(Number(settings.itemFilterMinHiddenTier) || 1), 1, 20);
+      settings.itemFilterTierThreshold = clampNumber(Math.floor(Number(settings.itemFilterTierThreshold) || 10), 1, 20);
+      settings.itemFilterMinTierCount = clampNumber(Math.floor(Number(settings.itemFilterMinTierCount) || 0), 0, 6);
+      settings.equipmentTargets = this.normalizeTargets(settings.equipmentTargets);
+      this.normalizePickupDetail(settings);
+    }
+    normalizePickupDetail(settings) {
+      const defaults = this.deps.defaults.settings, rarities = Object.keys(this.tables.ITEM_RARITY_LABELS), tiers = settings.itemFilterMinTiers || {};
+      const legacy = rarities.every((key) => !(Number(tiers[key]) > 1)) ? settings.itemFilterMinHiddenTier : null;
+      settings.itemFilterMinTiers = Object.fromEntries(rarities.map((key) => [key, clampNumber(Math.floor(Number(legacy || tiers[key]) || 1), 1, 20)]));
+      settings.itemFilterMinHiddenTier = 1;
+      settings.itemFilterSlots = boolMap(this.tables.EQUIPMENT_DROP_SLOTS, settings.itemFilterSlots, defaults.itemFilterSlots);
+      settings.itemFilterWeaponCategories = boolMap(Object.keys(this.tables.WEAPON_CATEGORIES), settings.itemFilterWeaponCategories, defaults.itemFilterWeaponCategories);
+      settings.itemFilterAlways = boolMap(Object.keys(defaults.itemFilterAlways), settings.itemFilterAlways, defaults.itemFilterAlways);
+      const fx = settings.lootFx || {};
+      settings.lootFx = {
+        beams: boolMap(Object.keys(defaults.lootFx.beams), fx.beams, defaults.lootFx.beams),
+        notices: boolMap(Object.keys(defaults.lootFx.notices), fx.notices, defaults.lootFx.notices)
+      };
+    }
+    pickupPreset(key, zone) {
+      const preset = this.tables.ITEM_PICKUP_PRESETS[key];
+      if (!preset) return null;
+      const tierFloor = preset.tierBelowZoneCap ? Math.max(1, this.deps.getZoneEquipmentTierCap(zone) - preset.tierBelowZoneCap) : 1;
+      return {
+        itemFilterEnabled: true,
+        itemFilterRarities: { ...preset.rarities },
+        itemFilterMinHiddenTier: 1,
+        itemFilterMinTierCount: 0,
+        itemFilterMinTiers: { normal: tierFloor, magic: tierFloor, rare: tierFloor, unique: tierFloor },
+        itemFilterOnlyNewCodexUnique: !!preset.onlyNewCodexUnique
+      };
+    }
+    targetLines(item, scope) {
+      const stats = item.stats || [];
+      return (scope === "all" ? stats.concat(item.baseStats || [], item.underEnchant || []) : stats).filter(Boolean);
+    }
+    pickGroup(settings, group) {
+      return Object.hasOwn(PICK_GROUPS, group) ? PICK_GROUPS[group](settings) : null;
+    }
+    togglePick(settings, group, key) {
+      const map = this.pickGroup(settings, group);
+      if (!map || !Object.hasOwn(map, key)) return false;
+      map[key] = map[key] === false;
+      return true;
+    }
+    updatePickup(settings, input) {
+      const tiers = input.itemFilterMinTiers;
+      if (!Number.isFinite(input.itemFilterTierThreshold) || !Number.isFinite(input.itemFilterMinTierCount)) return false;
+      if (!tiers || Object.keys(this.tables.ITEM_RARITY_LABELS).some((key) => !Number.isFinite(tiers[key]))) return false;
+      const next = {
+        ...settings,
+        itemFilterEnabled: input.itemFilterEnabled === true,
+        itemFilterOnlyNewCodexUnique: input.itemFilterOnlyNewCodexUnique === true,
+        itemFilterMinTiers: { ...tiers },
+        itemFilterTierThreshold: clampNumber(Math.floor(input.itemFilterTierThreshold), 1, 20),
+        itemFilterMinTierCount: clampNumber(Math.floor(input.itemFilterMinTierCount), 0, 6)
+      };
+      this.normalizePickupDetail(next);
+      Object.assign(settings, next);
+      return true;
+    }
+    applyPreset(settings, key, zone) {
+      const patch = this.pickupPreset(key, zone);
+      if (!patch) return false;
+      const next = { ...settings, ...patch };
+      this.normalizeSettings(next);
+      Object.assign(settings, next);
+      return true;
+    }
+    updateTargets(settings, input) {
+      if (!Array.isArray(input.rules) || input.rules.some((rule) => !rule)) return false;
+      if (new Set(input.rules.map((rule) => this.ruleKey(rule))).size !== input.rules.length) return false;
+      settings.equipmentTargets = this.normalizeTargets(input);
+      return true;
+    }
+    addTarget(settings, kind) {
+      const filter = settings.equipmentTargets;
+      if (filter.rules.length >= 6 || !["stat", "tag"].includes(kind)) return false;
+      const field = kind === "tag" ? "tag" : "statId";
+      const options = kind === "tag" ? this.tagOptions() : this.statOptions();
+      const option = options.find((row) => !filter.rules.some((rule2) => rule2[field] === row.id));
+      if (!option) return false;
+      const rule = kind === "tag" ? { tag: option.id, minCount: 2, minTier: 0 } : { statId: option.id, minValue: 0, minTier: 0 };
+      filter.rules = [...filter.rules, rule];
+      return true;
+    }
+    removeTarget(settings, index) {
+      const filter = settings.equipmentTargets;
+      if (!Number.isInteger(index) || index < 0 || index >= filter.rules.length) return false;
+      settings.equipmentTargets = this.normalizeTargets({ ...filter, rules: filter.rules.filter((_, i) => i !== index) });
+      return true;
+    }
+    targetStats(lines) {
+      return lines.flatMap((stat) => [stat, ...(stat.extraStats || []).map((extra) => ({ ...extra, tier: stat.tier }))]);
+    }
+    lineMatchesRule(stat, rule) {
+      if (!stat || Number(stat.tier || 0) < rule.minTier) return false;
+      return rule.tag ? this.deps.getAffixTags(stat).includes(rule.tag) : stat.id === rule.statId && Number(stat.val) >= rule.minValue;
+    }
+    ruleMet(rule, lines, expanded) {
+      return rule.tag ? lines.filter((line) => this.lineMatchesRule(line, rule)).length >= rule.minCount : expanded.some((stat) => this.lineMatchesRule(stat, rule));
+    }
+    matches(item, targetGame) {
+      const filter = targetGame.settings && targetGame.settings.equipmentTargets;
+      if (!filter || !filter.enabled || !filter.rules.length || !item) return false;
+      if (filter.slot !== "any" && filter.slot !== item.slot) return false;
+      const lines = this.targetLines(item, filter.scope), expanded = this.targetStats(lines);
+      return filter.rules.filter((rule) => this.ruleMet(rule, lines, expanded)).length >= filter.minMatches;
+    }
+    highlight(item, targetGame) {
+      if (item.rarity === "unique" && (targetGame.uniqueHuntTargets || []).includes(this.deps.getUniqueCodexKeyByItem(item))) return { reason: this.deps.translate("목표 고유 획득"), color: "#7fffd2", priority: 3 };
+      if (this.matches(item, targetGame)) return { reason: this.deps.translate("목표 옵션 일치"), color: "#7fffd2", priority: 3 };
+      if (item.rarity === "unique") return { reason: this.deps.translate("고유 장비 획득"), color: "#ffbb69", priority: 2 };
+      if (item.exceptionalBase) return { reason: this.deps.translate("특출 베이스 발견"), color: "#f3d779", priority: 1 };
+      if (item.corrupted) return { reason: this.deps.translate("타락 장비 발견"), color: "#e7685c", priority: 1 };
+      return null;
+    }
+    ownedItems(state) {
+      const equipped = this.deps.getEquipmentLoadoutOwnedItems(state);
+      const stash = state.offlineProgress || {};
+      return [...new Set(equipped.concat(stash.stash || [], stash.protectedOverflow || []))];
+    }
+    collectHighlights(before, after) {
+      const beforeIds = new Set(this.ownedItems(before).map((item) => String(item.id)));
+      const seen = /* @__PURE__ */ new Set();
+      const rows = [];
+      for (const item of this.ownedItems(after)) {
+        const id = String(item.id);
+        if (beforeIds.has(id) || seen.has(id)) continue;
+        seen.add(id);
+        const info = this.highlight(item, before);
+        if (!info) continue;
+        const inStash = (after.offlineProgress?.stash || []).includes(item);
+        const worn = Object.values(after.equipment || {}).includes(item);
+        rows.push({ id: item.id, name: item.name, rarity: item.rarity, slot: item.slot, location: inStash ? "방치 보관함" : worn ? "자동 착용" : "장비창", ...info });
+      }
+      rows.sort((a, b) => b.priority - a.priority);
+      return { items: rows.slice(0, 5), total: rows.length };
+    }
+  };
+  var createEquipmentLootPolicy = (tables2, deps2) => new EquipmentLootPolicy(tables2, deps2);
 
-    /** One option line ({statId, minValue, minTier}) or a count of lines carrying a tag ({tag, minCount, minTier}). */
-    function normalizeRule(rule, validIds) {
-        if (!rule || !Number.isFinite(rule.minTier)) return null;
-        const minTier = clampNumber(Math.floor(Number(rule.minTier)), 0, 20);
-        if (typeof rule.tag === 'string') {
-            return AFFIX_TAG_LABELS[rule.tag] && Number.isFinite(rule.minCount)
-                ? { tag: rule.tag, minCount: clampNumber(Math.floor(Number(rule.minCount)), 1, 6), minTier } : null;
-        }
-        return validIds.has(rule.statId) && Number.isFinite(rule.minValue) ? { statId: rule.statId, minValue: Math.max(0, Number(rule.minValue)), minTier } : null;
+  // modules/domain/loot-variants.mjs
+  var EquipmentDropVariants = class {
+    constructor(tables2, deps2) {
+      this.tables = tables2;
+      this.deps = deps2;
     }
+    explicitLines(item) {
+      return (item.stats || []).filter((stat) => stat && !stat.fixedValue && Number(stat.val) > 0);
+    }
+    sameRange(range, stat) {
+      return Math.abs(range.min - Number(stat.valMin)) < 1e-9 && Math.abs(range.max - Number(stat.valMax)) < 1e-9;
+    }
+    lineMod(stat) {
+      if (stat.sourceModId) return this.tables.MOD_DB.find((mod) => mod.id === stat.sourceModId) || null;
+      return this.tables.MOD_DB.find((mod) => (mod.statId || mod.id) === stat.id && !mod.tierValues && [false, true].some((round) => this.sameRange(this.deps.getAffixTierRange(mod, stat.id, stat.tier, round), stat))) || null;
+    }
+    /** Raise on the original value step, never above the item's affix cap; tiny values cannot jump a large step. */
+    corruptedValue(item, stat, mod) {
+      const value = Number(stat.val), boost = this.tables.EQUIPMENT_DROP_VARIANTS.corruptedBoost;
+      const own = this.deps.getAffixTierRange(mod, stat.id, stat.tier), step = Number(stat.valueStep) || own.step;
+      const capTier = Math.max(Number(stat.tier) || 1, Math.floor(Number(item.affixTierCap) || 1));
+      const cap = Math.max(Number(stat.valMax) || value, this.deps.getAffixTierRange(mod, stat.id, capTier).max);
+      let next = Math.floor(value * boost / step + 1e-9) * step;
+      if (next <= value && step <= value * 0.3) next = value + step;
+      next = Number(Math.min(next, cap).toFixed(2));
+      return next > value ? next : value;
+    }
+    corruptionPlan(item) {
+      return this.explicitLines(item).flatMap((stat) => {
+        const mod = this.lineMod(stat);
+        if (!mod) return [];
+        const extras = (stat.extraStats || []).filter((extra) => Number(extra.val) > 0).map((extra) => {
+          const sub = (mod.compound || []).find((row) => (row.statId || row.id) === extra.id);
+          return sub ? [extra, this.corruptedValue(item, extra, sub)] : [extra, Number(extra.val)];
+        });
+        return [[stat, this.corruptedValue(item, stat, mod)], ...extras];
+      }).filter(([line, next]) => next > Number(line.val));
+    }
+    pick(state, item, roll, scale) {
+      const rules2 = this.tables.EQUIPMENT_DROP_VARIANTS;
+      if (!item || item.rarity === "unique" || item.corrupted || (Number(state.season) || 1) < rules2.fromLoop) return null;
+      let edge = 0;
+      const zone = this.deps.getZone(state.currentZoneId);
+      for (const [kind, chance] of rules2.odds) {
+        edge += chance * scale * this.deps.lootOmens.variantMul(zone, kind);
+        if (roll < edge) return kind === "corrupted" && !this.corruptionPlan(item).length ? null : kind;
+      }
+      return null;
+    }
+    corrupt(item) {
+      this.corruptionPlan(item).forEach(([line, next]) => {
+        line.val = next;
+      });
+      item.corrupted = true;
+      return [item];
+    }
+    duplicate(item) {
+      const copy = JSON.parse(JSON.stringify(item));
+      copy.id = this.deps.nextItemId();
+      return [item, copy];
+    }
+    /** Preserve base, rarity and level; each extra uses the actual item generator for its own affixes. */
+    bundle(item, rng) {
+      const base = this.tables.BASE_ITEM_DB.find((row) => row.id === item.baseId);
+      if (!base) return [item];
+      const { min, max } = this.tables.EQUIPMENT_DROP_VARIANTS.bundle;
+      const extra = min + Math.floor(rng() * (max - min + 1));
+      const origin = {
+        dropRealm: item.dropRealm,
+        affixTierCap: item.affixTierCap,
+        affixTierFloor: this.deps.getDroppedAffixTierRange(item.affixTierCap).min,
+        tierWeightFalloff: this.tables.DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
+      };
+      const extras = Array.from({ length: extra }, () => this.deps.levelProgression.stampItem(this.deps.createItemFromBase(base, item.rarity, item.itemTier, origin), item.itemLevel));
+      return [item, ...extras];
+    }
+    expand(state, item, options = {}) {
+      const rng = options.rng || this.deps.random;
+      const kind = this.pick(state, item, rng(), Math.max(0, Number(options.scale) || 1));
+      if (!kind) return { kind: null, items: [item] };
+      const items = kind === "corrupted" ? this.corrupt(item) : kind === "duplicate" ? this.duplicate(item) : this.bundle(item, rng);
+      return { kind, items };
+    }
+  };
+  var createEquipmentDropVariants = (tables2, deps2) => new EquipmentDropVariants(tables2, deps2);
 
-    function ruleKey(rule) {
-        return rule.tag ? 'tag:' + rule.tag : rule.statId;
+  // modules/domain/loot-moments.mjs
+  var TIERS = Object.freeze(["good", "great", "jackpot"]);
+  var momentRank = (tier) => TIERS.indexOf(tier) + 1;
+  var higherMoment = (a, b) => momentRank(a) >= momentRank(b) ? a : b;
+  var LootMoments = class {
+    constructor(tables2, deps2, policy2) {
+      this.tables = tables2;
+      this.deps = deps2;
+      this.policy = policy2;
+      this.byCurrency = new Map(TIERS.flatMap((tier) => tables2.LOOT_OMENS.moments[tier].map((key) => [key, tier])));
+      this.itemKinds = Object.freeze({
+        equipment: (item) => this.ofEquipment(item),
+        jewel: (item) => item.rarity === "unique" ? "great" : item.rarity === "rare" ? "good" : null,
+        talisman: (item) => item.rarity === "unique" ? "great" : null,
+        core: (item) => item.perfect ? "jackpot" : "good"
+        // 완전한 코어는 체이싱 티어(js/core-items.js)
+      });
     }
+    rank(tier) {
+      return momentRank(tier);
+    }
+    higher(a, b) {
+      return higherMoment(a, b);
+    }
+    ofCurrency(key) {
+      return this.byCurrency.get(this.deps.getCanonicalCurrencyKey(key)) || null;
+    }
+    ofRune(gem) {
+      return this.tables.SKILL_DB[typeof gem === "string" ? gem : gem.name]?.chase ? "jackpot" : null;
+    }
+    fineLines(item) {
+      const rules2 = this.tables.LOOT_OMENS.fineRare, cap = Number(item.affixTierCap) || 0, floor = cap - rules2.band + 1;
+      return cap >= rules2.minCap && Array.isArray(item.stats) ? item.stats.filter((stat) => Number(stat.tier) >= floor).length : 0;
+    }
+    ofRare(item) {
+      const lines = this.fineLines(item), rules2 = this.tables.LOOT_OMENS.fineRare;
+      return lines >= rules2.good ? "good" : null;
+    }
+    ofEquipment(item) {
+      if (item.rarity === "unique") return this.deps.isChaseUniqueItem(item) ? "jackpot" : "great";
+      if (item.exceptionalAllLines) return "great";
+      const base = item.exceptionalBase || item.corrupted || item.voidSocket ? "good" : null;
+      return item.rarity === "rare" ? higherMoment(base, this.ofRare(item)) : base;
+    }
+    ofItem(item, kind = "equipment") {
+      const judge = this.itemKinds[kind];
+      return item && judge ? judge(item) : null;
+    }
+    ofReceipt(state, receipt) {
+      if (receipt.currency) return this.ofCurrency(receipt.currency);
+      if (receipt.leaf) return this.deps.memoryLeaves.momentOf(state, receipt.leaf);
+      if (receipt.yarn) return "good";
+      if (receipt.gem) return this.ofRune(receipt.gem);
+      const tier = this.ofItem(receipt.item, receipt.itemKind || "equipment");
+      const hunted = receipt.highlight && (this.policy.highlight(receipt.item, state)?.priority || 0) >= 3;
+      return hunted ? higherMoment(tier, "great") : tier;
+    }
+    isNewUnique(item, state) {
+      if (!item || item.rarity !== "unique") return false;
+      const key = this.deps.getUniqueCodexKeyByItem(item), entry = key && state.uniqueCodex ? state.uniqueCodex[key] : null;
+      return !!key && !(entry && entry.baseName);
+    }
+  };
+  var createLootMoments = (tables2, deps2, policy2) => new LootMoments(tables2, deps2, policy2);
 
-    /** Normalize external save/UI input; invalid rows cannot become broad keep rules. */
-    function normalizeTargets(input) {
-        const source = input && typeof input === 'object' ? input : {};
-        const validIds = new Set(statOptions().map(stat => stat.id));
-        const seen = new Set();
-        const rules = (Array.isArray(source.rules) ? source.rules : []).map(rule => normalizeRule(rule, validIds)).filter(rule => {
-            if (!rule || seen.has(ruleKey(rule))) return false;
-            seen.add(ruleKey(rule));
-            return true;
-        }).slice(0, 6);
-        return { enabled: source.enabled === true, slot: EQUIPMENT_DROP_SLOTS.includes(source.slot) ? source.slot : 'any',
-            scope: source.scope === 'all' ? 'all' : 'explicit',
-            minMatches: clampNumber(Math.floor(Number(source.minMatches) || 1), 1, Math.max(1, rules.length)), rules };
+  // modules/loot-classic.mjs
+  var tables = {
+    get TALISMAN_WILD_DROPS() {
+      return TALISMAN_WILD_DROPS;
+    },
+    get EQUIPMENT_BASE_DROP_CHANCES() {
+      return EQUIPMENT_BASE_DROP_CHANCES;
+    },
+    get LABYRINTH_DEEP_FOSSIL() {
+      return LABYRINTH_DEEP_FOSSIL;
+    },
+    get LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER() {
+      return LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER;
+    },
+    get EQUIPMENT_DROUGHT_RULES() {
+      return EQUIPMENT_DROUGHT_RULES;
+    },
+    get EQUIPMENT_DROP_RARITY_THRESHOLDS() {
+      return EQUIPMENT_DROP_RARITY_THRESHOLDS;
+    },
+    get REALM_BOSS_UNIQUE_DROP_RULES() {
+      return REALM_BOSS_UNIQUE_DROP_RULES;
+    },
+    get UNDERWORLD_ORE_DROP_CHANCES() {
+      return UNDERWORLD_ORE_DROP_CHANCES;
+    },
+    get UNIQUE_DB() {
+      return UNIQUE_DB;
+    },
+    get BASIC_CURRENCY_DROP_CHANCES() {
+      return BASIC_CURRENCY_DROP_CHANCES;
+    },
+    get ABYSS_START_ZONE_ID() {
+      return ABYSS_START_ZONE_ID;
+    },
+    get MOD_DB() {
+      return MOD_DB;
+    },
+    get AFFIX_TAG_LABELS() {
+      return AFFIX_TAG_LABELS;
+    },
+    get EQUIPMENT_DROP_SLOTS() {
+      return EQUIPMENT_DROP_SLOTS;
+    },
+    get ITEM_RARITY_LABELS() {
+      return ITEM_RARITY_LABELS;
+    },
+    get WEAPON_CATEGORIES() {
+      return WEAPON_CATEGORIES;
+    },
+    get ITEM_PICKUP_PRESETS() {
+      return ITEM_PICKUP_PRESETS;
+    },
+    get BASE_ITEM_DB() {
+      return BASE_ITEM_DB;
+    },
+    get EQUIPMENT_DROP_VARIANTS() {
+      return EQUIPMENT_DROP_VARIANTS;
+    },
+    get DROPPED_AFFIX_TIER_WEIGHT_FALLOFF() {
+      return DROPPED_AFFIX_TIER_WEIGHT_FALLOFF;
+    },
+    get LOOT_OMENS() {
+      return LOOT_OMENS;
+    },
+    get SKILL_DB() {
+      return SKILL_DB;
     }
-
-    function normalizeSettings(settings) {
-        settings.autoSalvageEnabled = !!settings.autoSalvageEnabled;
-        settings.autoSalvageRarities = { ...defaultGame.settings.autoSalvageRarities, ...settings.autoSalvageRarities };
-        settings.itemFilterRarities = { ...defaultGame.settings.itemFilterRarities, ...settings.itemFilterRarities };
-        settings.itemFilterMinHiddenTier = clampNumber(Math.floor(Number(settings.itemFilterMinHiddenTier) || 1), 1, 20);
-        settings.itemFilterTierThreshold = clampNumber(Math.floor(Number(settings.itemFilterTierThreshold) || 10), 1, 20);
-        settings.itemFilterMinTierCount = clampNumber(Math.floor(Number(settings.itemFilterMinTierCount) || 0), 0, 6);
-        settings.equipmentTargets = normalizeTargets(settings.equipmentTargets);
-        normalizePickupDetail(settings);
+  };
+  var deps = {
+    get canStoreEquipmentItems() {
+      return canStoreEquipmentItems;
+    },
+    get normalizeItem() {
+      return normalizeItem;
+    },
+    get getAbyssMonsterScales() {
+      return getAbyssMonsterScales;
+    },
+    get getContentDropRateMultiplier() {
+      return getContentDropRateMultiplier;
+    },
+    get capEndlessContentDropMultiplier() {
+      return capEndlessContentDropMultiplier;
+    },
+    get levelProgression() {
+      return levelProgression;
+    },
+    get getRealmEquipmentHiddenTierCap() {
+      return getRealmEquipmentHiddenTierCap;
+    },
+    get uniqueDropsInZone() {
+      return uniqueDropsInZone;
+    },
+    get generateUniqueItem() {
+      return generateUniqueItem;
+    },
+    get rndChoice() {
+      return rndChoice;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get getAbyssDepthFromZoneId() {
+      return getAbyssDepthFromZoneId;
+    },
+    get getStatName() {
+      return getStatName;
+    },
+    get getZoneEquipmentTierCap() {
+      return getZoneEquipmentTierCap;
+    },
+    get getAffixTags() {
+      return getAffixTags;
+    },
+    get getUniqueCodexKeyByItem() {
+      return getUniqueCodexKeyByItem;
+    },
+    get getEquipmentLoadoutOwnedItems() {
+      return getEquipmentLoadoutOwnedItems;
+    },
+    get getAffixTierRange() {
+      return getAffixTierRange;
+    },
+    get getDroppedAffixTierRange() {
+      return getDroppedAffixTierRange;
+    },
+    get createItemFromBase() {
+      return createItemFromBase;
+    },
+    get lootOmens() {
+      return lootOmens;
+    },
+    get getCanonicalCurrencyKey() {
+      return getCanonicalCurrencyKey;
+    },
+    get isChaseUniqueItem() {
+      return isChaseUniqueItem;
+    },
+    random: () => Math.random(),
+    nextItemId: () => ++window.GameModules.state.session.itemIdCounter,
+    isUnlocked: (key, state) => contentProgression.isUnlocked(key, state),
+    canDropCurrency: (key, state) => contentProgression.canDropCurrency(key, state),
+    get coreItems() {
+      return coreItems;
+    },
+    get defaults() {
+      return defaultGame;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get memoryLeaves() {
+      return memoryLeaves;
+    },
+    translate: (...args) => _t(...args),
+    emberDrops: (enemy) => typeof emberCorruption === "object" ? emberCorruption.killDrops(enemy) : [],
+    sapDrops: (enemy) => typeof sapCatalysts === "object" ? sapCatalysts.killDrops(enemy) : [],
+    oilDrops: (enemy) => typeof gardenOils === "object" ? gardenOils.killDrops(enemy) : []
+  };
+  var rules = createLootRules(tables, deps);
+  var currencies = createCurrencyDropRules(tables, deps, rules);
+  window.GameModules.lootRules = rules;
+  var policy = createEquipmentLootPolicy(tables, deps);
+  var variants = createEquipmentDropVariants(tables, deps);
+  window.GameModules.equipmentLootPolicy = policy;
+  var moments = createLootMoments(tables, deps, policy);
+  var equipmentLootPolicy = Object.freeze({
+    ...Object.fromEntries(["statOptions", "tagOptions", "ruleKey", "normalizeTargets", "normalizeSettings", "pickupPreset", "lineMatchesRule", "collectHighlights"].map((name) => [name, policy[name].bind(policy)])),
+    matches: (item, state = game) => policy.matches(item, state),
+    highlight: (item, state = game) => policy.highlight(item, state)
+  });
+  var equipmentDropVariants = Object.freeze({
+    expand: (item, options = {}) => {
+      const result = variants.expand(game, item, options);
+      if (result.kind) dispatchRuntimeEvent("equipment-drop-variant", result);
+      return result;
     }
-
-    /** On or off per key; an unknown or missing key takes the default. */
-    const boolMap = (keys, raw, fallback) => Object.fromEntries(keys.map(key => [key, typeof (raw && raw[key]) === 'boolean' ? raw[key] : fallback[key] !== false]));
-    /** The finer pickup filter (2026-10-10): tiers per rarity (an old single tier floor moves into them once), slots, weapon kinds, the
-     * always-keep exceptions, and the floor's beams and notices (lootFx). */
-    function normalizePickupDetail(settings) {
-        const defaults = defaultGame.settings, rarities = Object.keys(ITEM_RARITY_LABELS), tiers = settings.itemFilterMinTiers || {};
-        const legacy = rarities.every(key => !(Number(tiers[key]) > 1)) ? settings.itemFilterMinHiddenTier : null;
-        settings.itemFilterMinTiers = Object.fromEntries(rarities.map(key => [key, clampNumber(Math.floor(Number(legacy || tiers[key]) || 1), 1, 20)]));
-        settings.itemFilterMinHiddenTier = 1;
-        settings.itemFilterSlots = boolMap(EQUIPMENT_DROP_SLOTS, settings.itemFilterSlots, defaults.itemFilterSlots);
-        settings.itemFilterWeaponCategories = boolMap(Object.keys(WEAPON_CATEGORIES), settings.itemFilterWeaponCategories, defaults.itemFilterWeaponCategories);
-        settings.itemFilterAlways = boolMap(Object.keys(defaults.itemFilterAlways), settings.itemFilterAlways, defaults.itemFilterAlways);
-        const fx = settings.lootFx || {};
-        settings.lootFx = { beams: boolMap(Object.keys(defaults.lootFx.beams), fx.beams, defaults.lootFx.beams),
-            notices: boolMap(Object.keys(defaults.lootFx.notices), fx.notices, defaults.lootFx.notices) };
-    }
-
-    /** The pickup settings a quick preset sets (data/items.js ITEM_PICKUP_PRESETS), the late one relative to the zone's tier cap. */
-    function pickupPreset(key, zone) {
-        const preset = ITEM_PICKUP_PRESETS[key];
-        if (!preset) return null;
-        const tierFloor = preset.tierBelowZoneCap ? Math.max(1, getZoneEquipmentTierCap(zone) - preset.tierBelowZoneCap) : 1;
-        return { itemFilterEnabled: true, itemFilterRarities: { ...preset.rarities }, itemFilterMinHiddenTier: 1, itemFilterMinTierCount: 0,
-            itemFilterMinTiers: { normal: tierFloor, magic: tierFloor, rare: tierFloor, unique: tierFloor },
-            itemFilterOnlyNewCodexUnique: !!preset.onlyNewCodexUnique };
-    }
-
-    function targetLines(item, scope) {
-        const stats = item.stats || [];
-        return (scope === 'all' ? stats.concat(item.baseStats || [], item.underEnchant || []) : stats).filter(Boolean);
-    }
-
-    /** Lines with their compound extras as their own entries (an extra keeps its line's tier). */
-    function targetStats(lines) {
-        return lines.flatMap(stat => [stat, ...(stat.extraStats || []).map(extra => ({ ...extra, tier: stat.tier }))]);
-    }
-
-    /** One line meets a rule at its tier: the option and value, or for a tag rule a line carrying the tag. */
-    function lineMatchesRule(stat, rule) {
-        if (!stat || Number(stat.tier || 0) < rule.minTier) return false;
-        return rule.tag ? getAffixTags(stat).includes(rule.tag) : stat.id === rule.statId && Number(stat.val) >= rule.minValue;
-    }
-
-    /** An option rule needs one line (compound extras included), never a sum of lines; a tag rule counts whole lines. */
-    function ruleMet(rule, lines, expanded) {
-        return rule.tag ? lines.filter(line => lineMatchesRule(line, rule)).length >= rule.minCount : expanded.some(stat => lineMatchesRule(stat, rule));
-    }
-
-    function matches(item, targetGame = game) {
-        const filter = targetGame.settings && targetGame.settings.equipmentTargets;
-        if (!filter || !filter.enabled || !filter.rules.length || !item) return false;
-        if (filter.slot !== 'any' && filter.slot !== item.slot) return false;
-        const lines = targetLines(item, filter.scope), expanded = targetStats(lines);
-        return filter.rules.filter(rule => ruleMet(rule, lines, expanded)).length >= filter.minMatches;
-    }
-
-    function highlight(item, targetGame = game) {
-        if (item.rarity === 'unique' && (targetGame.uniqueHuntTargets || []).includes(getUniqueCodexKeyByItem(item))) return { reason: _t('목표 고유 획득'), color: '#7fffd2', priority: 3 };
-        if (matches(item, targetGame)) return { reason: _t('목표 옵션 일치'), color: '#7fffd2', priority: 3 };
-        if (item.rarity === 'unique') return { reason: _t('고유 장비 획득'), color: '#ffbb69', priority: 2 };
-        if (item.exceptionalBase) return { reason: _t('특출 베이스 발견'), color: '#f3d779', priority: 1 };
-        if (item.corrupted) return { reason: _t('타락 장비 발견'), color: '#e7685c', priority: 1 };
-        return null;
-    }
-
-    function ownedItems(state) {
-        const equipped = getEquipmentLoadoutOwnedItems(state);
-        const stash = state.offlineProgress || {};
-        return [...new Set(equipped.concat(stash.stash || [], stash.protectedOverflow || []))];
-    }
-
-    /** Retained new items only, including equipped/stashed rewards; no invented score or new persistent log. */
-    function collectHighlights(before, after) {
-        const beforeIds = new Set(ownedItems(before).map(item => String(item.id)));
-        const seen = new Set();
-        const rows = [];
-        for (const item of ownedItems(after)) {
-            const id = String(item.id);
-            if (beforeIds.has(id) || seen.has(id)) continue;
-            seen.add(id);
-            const info = highlight(item, before);
-            if (!info) continue;
-            const inStash = (after.offlineProgress?.stash || []).includes(item);
-            const worn = Object.values(after.equipment || {}).includes(item); // 빈 칸에 자동으로 입었다(검토 6차)
-            rows.push({ id: item.id, name: item.name, rarity: item.rarity, slot: item.slot, location: inStash ? '방치 보관함' : worn ? '자동 착용' : '장비창', ...info });
-        }
-        rows.sort((a, b) => b.priority - a.priority);
-        return { items: rows.slice(0, 5), total: rows.length };
-    }
-
-    const equipmentLootPolicy = Object.freeze({ statOptions, tagOptions, ruleKey, normalizeTargets, normalizeSettings, pickupPreset, lineMatchesRule, matches,
-        highlight, collectHighlights });
-    safeExposeGlobals({ equipmentLootPolicy });
-})();
-
-// 장비 드랍 변형(2026-10-05 사용자 요청, data/items.js EQUIPMENT_DROP_VARIANTS): 떨어진 장비 한 개를 복제 · 같은 베이스 묶음 ·
-// 타락(제작 불가 대신 추가 옵션 강화) 목록으로 바꾼다. 몬스터 드랍(combat.js rollEquipmentLoot)과 탐험 상자가 같은 추첨을 쓴다.
-(function () {
-    'use strict';
-
-    function explicitLines(item) {
-        return (item.stats || []).filter(stat => stat && !stat.fixedValue && Number(stat.val) > 0);
-    }
-
-    function sameRange(range, stat) {
-        return Math.abs(range.min - Number(stat.valMin)) < 1e-9 && Math.abs(range.max - Number(stat.valMax)) < 1e-9;
-    }
-
-    /** The MOD_DB row (or compound sub-stat) a rolled line came from; null when it cannot be told apart. */
-    function lineMod(stat) {
-        if (stat.sourceModId) return MOD_DB.find(mod => mod.id === stat.sourceModId) || null;
-        return MOD_DB.find(mod => (mod.statId || mod.id) === stat.id && !mod.tierValues
-            && [false, true].some(round => sameRange(getAffixTierRange(mod, stat.id, stat.tier, round), stat))) || null;
-    }
-
-    /**
-     * The corrupted value of one line (2026-10-05 user decision A): × corruptedBoost on the line's own value step, at least one
-     * step when that step is at most 30% of the value (a gem level never jumps 1 → 2), and never above the line's maximum at the
-     * item's affix tier cap — a corrupted item may read like a higher tier, never like an item level it could not drop at.
-     * @returns {number} the new value; the old one when it cannot grow
-     */
-    function corruptedValue(item, stat, mod) {
-        const value = Number(stat.val), boost = EQUIPMENT_DROP_VARIANTS.corruptedBoost;
-        const own = getAffixTierRange(mod, stat.id, stat.tier), step = Number(stat.valueStep) || own.step;
-        const capTier = Math.max(Number(stat.tier) || 1, Math.floor(Number(item.affixTierCap) || 1));
-        const cap = Math.max(Number(stat.valMax) || value, getAffixTierRange(mod, stat.id, capTier).max);
-        let next = Math.floor(value * boost / step + 1e-9) * step;
-        if (next <= value && step <= value * 0.3) next = value + step;
-        next = Number(Math.min(next, cap).toFixed(2));
-        return next > value ? next : value;
-    }
-
-    /** Every [line, new value] a corruption would apply; empty when no line can grow. */
-    function corruptionPlan(item) {
-        return explicitLines(item).flatMap(stat => {
-            const mod = lineMod(stat);
-            if (!mod) return [];
-            const extras = (stat.extraStats || []).filter(extra => Number(extra.val) > 0).map(extra => {
-                const sub = (mod.compound || []).find(row => (row.statId || row.id) === extra.id);
-                return sub ? [extra, corruptedValue(item, extra, sub)] : [extra, Number(extra.val)];
-            });
-            return [[stat, corruptedValue(item, stat, mod)], ...extras];
-        }).filter(([line, next]) => next > Number(line.val));
-    }
-
-    /** One draw per dropped item. Null before fromLoop, for uniques and already corrupted items; a corrupted roll on an item
-     * whose explicit lines cannot grow (none, or all at the cap) drops as it is. scale multiplies every chance (better chests). */
-    function pick(item, roll, scale) {
-        const rules = EQUIPMENT_DROP_VARIANTS;
-        if (!item || item.rarity === 'unique' || item.corrupted || (Number(game.season) || 1) < rules.fromLoop) return null;
-        let edge = 0;
-        const zone = getZone(game.currentZoneId);
-        for (const [kind, chance] of rules.odds) {
-            edge += chance * scale * lootOmens.variantMul(zone, kind);
-            if (roll < edge) return kind === 'corrupted' && !corruptionPlan(item).length ? null : kind;
-        }
-        return null;
-    }
-
-    function corrupt(item) {
-        corruptionPlan(item).forEach(([line, next]) => { line.val = next; });
-        item.corrupted = true;
-        return [item];
-    }
-
-    function duplicate(item) {
-        const copy = JSON.parse(JSON.stringify(item));
-        copy.id = ++itemIdCounter;
-        return [item, copy];
-    }
-
-    /** Same base, same rarity and level; each extra rolls its own explicit lines. */
-    function bundle(item, rng) {
-        const base = BASE_ITEM_DB.find(row => row.id === item.baseId);
-        if (!base) return [item];
-        const { min, max } = EQUIPMENT_DROP_VARIANTS.bundle;
-        const extra = min + Math.floor(rng() * (max - min + 1));
-        const origin = { dropRealm: item.dropRealm, affixTierCap: item.affixTierCap,
-            affixTierFloor: getDroppedAffixTierRange(item.affixTierCap).min, tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF };
-        const extras = Array.from({ length: extra }, () => levelProgression.stampItem(createItemFromBase(base, item.rarity, item.itemTier, origin), item.itemLevel));
-        return [item, ...extras];
-    }
-
-    /**
-     * @param {object} item a freshly generated drop (corrupted in place when that variant is drawn)
-     * @param {{rng?: function(): number, scale?: number}} [options] rng in [0,1); scale multiplies the variant chances
-     * @returns {{kind: 'duplicate'|'bundle'|'corrupted'|null, items: object[]}} the original item first
-     */
-    function expand(item, options = {}) {
-        const rng = options.rng || Math.random;
-        const kind = pick(item, rng(), Math.max(0, Number(options.scale) || 1));
-        if (!kind) return { kind: null, items: [item] };
-        const items = kind === 'corrupted' ? corrupt(item) : kind === 'duplicate' ? duplicate(item) : bundle(item, rng);
-        // js/currency-acquisition-ui.js names the variant in the loot log.
-        dispatchRuntimeEvent('equipment-drop-variant', { kind, items });
-        return { kind, items };
-    }
-
-    const equipmentDropVariants = Object.freeze({ expand });
-    safeExposeGlobals({ equipmentDropVariants });
-})();
-
-// 발견 등급(2026-10-09, docs/endgame-loot-20261009.md, data/loot-omens.js moments): 바닥 빛기둥과 소리, 지도 결과, 드랍 시뮬레이터가
-// 같은 판정을 쓴다. 'jackpot' > 'great' > 'good' > null.
-(function () {
-    'use strict';
-    const TIERS = Object.freeze(['good', 'great', 'jackpot']);
-    const BY_CURRENCY = new Map(TIERS.flatMap(tier => LOOT_OMENS.moments[tier].map(key => [key, tier])));
-    const rank = tier => TIERS.indexOf(tier) + 1;
-    const higher = (a, b) => (rank(a) >= rank(b) ? a : b);
-
-    /** Lines of an item within the top fineRare.band tiers it could roll (its affixTierCap). */
-    function fineLines(item) {
-        const rules = LOOT_OMENS.fineRare, cap = Number(item.affixTierCap) || 0, floor = cap - rules.band + 1;
-        return cap >= rules.minCap && Array.isArray(item.stats) ? item.stats.filter(stat => Number(stat.tier) >= floor).length : 0;
-    }
-    /** A rare with several top-tier lines: good (a sparkle, never a beam: data/loot-omens.js fineRare). */
-    function ofRare(item) {
-        const lines = fineLines(item), rules = LOOT_OMENS.fineRare;
-        return lines >= rules.good ? 'good' : null;
-    }
-    function ofEquipment(item) {
-        if (item.rarity === 'unique') return isChaseUniqueItem(item) ? 'jackpot' : 'great';
-        if (item.exceptionalAllLines) return 'great';
-        const base = item.exceptionalBase || item.corrupted || item.voidSocket ? 'good' : null;
-        return item.rarity === 'rare' ? higher(base, ofRare(item)) : base;
-    }
-    const ITEM_KINDS = Object.freeze({
-        equipment: ofEquipment,
-        jewel: item => (item.rarity === 'unique' ? 'great' : item.rarity === 'rare' ? 'good' : null),
-        talisman: item => (item.rarity === 'unique' ? 'great' : null),
-        core: item => (item.perfect ? 'jackpot' : 'good') // 완전한 코어는 체이싱 티어(js/core-items.js)
-    });
-    /** @param {string} key a currency key @returns {'jackpot'|'great'|'good'|null} */
-    const ofCurrency = key => BY_CURRENCY.get(getCanonicalCurrencyKey(key)) || null;
-    /** @param {object} item @param {string} [kind] 'equipment' (default), 'jewel', 'talisman' or 'core' */
-    function ofItem(item, kind = 'equipment') {
-        const judge = ITEM_KINDS[kind];
-        return item && judge ? judge(item) : null;
-    }
-    /** A floor rune (a name, or a gem row's object): the chase runes (data/skills.js chase: 탐욕의 광기) are jackpot. */
-    const ofRune = gem => (SKILL_DB[typeof gem === 'string' ? gem : gem.name]?.chase ? 'jackpot' : null);
-    /** A ground loot receipt ({currency}, {leaf} or {item, itemKind, highlight}): a hunted drop (a hunted unique, a target-option match:
-     * equipmentLootPolicy.highlight priority 3) is at least great. A corrupted or exceptional-base rare stays as it is (no beam). */
-    function ofReceipt(receipt) {
-        if (receipt.currency) return ofCurrency(receipt.currency);
-        if (receipt.leaf) return memoryLeaves.momentOf(game, receipt.leaf);
-        if (receipt.yarn) return 'good';
-        if (receipt.gem) return ofRune(receipt.gem);
-        const tier = ofItem(receipt.item, receipt.itemKind || 'equipment');
-        const hunted = receipt.highlight && (equipmentLootPolicy.highlight(receipt.item, game)?.priority || 0) >= 3;
-        return hunted ? higher(tier, 'great') : tier;
-    }
-    /** Whether picking this unique up opens a new codex entry (js/item-rolls.js registerUniqueToCodexOnAcquire): the floor reveal and the
-     * map result mark it. */
-    function isNewUnique(item, state = game) {
-        if (!item || item.rarity !== 'unique') return false;
-        const key = getUniqueCodexKeyByItem(item), entry = key && state.uniqueCodex ? state.uniqueCodex[key] : null;
-        return !!key && !(entry && entry.baseName);
-    }
-    const lootMoments = Object.freeze({ ofCurrency, ofItem, ofReceipt, rank, higher, fineLines, isNewUnique });
-    safeExposeGlobals({ lootMoments });
+  });
+  var lootMoments = Object.freeze({
+    ...Object.fromEntries(["ofCurrency", "ofItem", "rank", "higher", "fineLines"].map((name) => [name, moments[name].bind(moments)])),
+    ofReceipt: (receipt) => moments.ofReceipt(game, receipt),
+    isNewUnique: (item, state = game) => moments.isNewUnique(item, state)
+  });
+  safeExposeGlobals({
+    UNIQUE_CODEX_KEYS: rules.codexKeys,
+    getUniqueCodexProgress: () => rules.getUniqueCodexProgress(game),
+    getCodexBonusPctFromCount: rules.getCodexBonusPctFromCount.bind(rules),
+    getCodexBonusPct: () => rules.getCodexBonusPct(game),
+    getLabyrinthFossilDropChances: rules.getLabyrinthFossilDropChances.bind(rules),
+    getEnemyLootDropMultiplier: (zone, enemy) => rules.getEnemyLootDropMultiplier(game, zone, enemy),
+    getEquipmentDropChances: (zone, enemy) => rules.getEquipmentDropChances(game, zone, enemy),
+    rollEquipmentDrop: (zone, enemy, chance) => rules.rollEquipmentDrop(game, zone, enemy, chance),
+    getEquipmentDropRarity: rules.getEquipmentDropRarity.bind(rules),
+    generateRealmBossUniqueDrop: (zone, enemy) => rules.generateRealmBossUniqueDrop(game, zone, enemy),
+    getMappingTicketDrops: (enemy, zone, opened) => rules.getMappingTicketDrops(game, enemy, zone, opened),
+    getUnderworldResourceDropChances: rules.getUnderworldResourceDropChances.bind(rules),
+    getCurrencyDrops: (enemy) => currencies.getCurrencyDrops(game, enemy),
+    equipmentLootPolicy,
+    equipmentDropVariants,
+    lootMoments
+  });
 })();

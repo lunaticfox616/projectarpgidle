@@ -1,188 +1,163 @@
-function safeExposeData(map) {
-  Object.keys(map || {}).forEach(function (key) {
-    if (typeof window[key] === "undefined") window[key] = map[key];
-  });
-}
-
-// Phase-1 extracted runtime constants (kept global for backward compatibility).
-const PASSIVE_LAYOUT_VERSION = 23;
-// 저장 키(2026-10-08 이름 바꿈): 예전 이름의 키(세 글자 앞말 + 'IdleSaveData_v숫자', 'IdleCloudSession_v1')는 처음 불러올 때
-// 읽고 그 뒤로는 아래 키에 쓴다(js/save.js getLegacySaveKeys, js/cloud-save-ui.js loadStoredCloudSession). 예전 키 이름은 꼴로만 알아본다.
-const LOCAL_SAVE_KEY = 'rigninSaveData_v9';
-const LEGACY_SAVE_KEY_PATTERN = /^[a-z]{3}IdleSaveData_v(\d+)$/;
-// 계정 저장 칸(2026-10-30): 계정마다 하나, 키 끝에 계정 id. 게스트 칸(LOCAL_SAVE_KEY)과는 다른 키라 서로 건드리지 않는다(js/save.js saveSlot).
-const ACCOUNT_SAVE_KEY_PREFIX = 'rigninAccountSave_v1_';
-const CLOUD_SESSION_STORAGE_KEY = 'rigninCloudSession_v1';
-const LEGACY_CLOUD_SESSION_KEY_PATTERN = /^[a-z]{3}IdleCloudSession_v1$/;
-const CLOUD_SYNC_MIN_INTERVAL_MS = 300000;
-// 브라우저는 keepalive 요청 본문을 64KiB까지만 보낸다. 나가는 순간 업로드가 이보다 크면 보통 요청으로 보낸다.
-const CLOUD_KEEPALIVE_BODY_LIMIT = 60 * 1024;
-// 주인공 크기: 칸에 비해 0.8배(2026-10-03 사용자 요청). Hana 주인공은 칸 하나에 20도트(효과 도트는 16), 대체 그림도 같은 배율.
-const HERO_SIZE_SCALE = 0.8;
-// 주인공 달리기 동작 배율의 상한(2026-10-04): 다리는 실제 이동(한 칸 시간)을 따라가되, 3배를 넘으면 동작이 깜빡이므로 거기서 멈춘다.
-// 장비, 전직, 부적, 인장을 다 쌓아도 이동 속도는 대체로 200% 남짓이라 실제 빌드는 이 안에 든다.
-const HERO_RUN_RATE_MAX = 3;
-// 똑바로 나는 투사체(창, 화살, 송곳니, 방패)는 주인공 손 높이로 난다(2026-10-04, "투사체 시작 지점이 이상해"): 칸 중심보다
-// 0.35칸 위로, 몸 앞 0.2칸(첫 구간 절반까지)에서 출발한다. 던지는 플라스크는 땅에 떨어지는 포물선이라 그대로 둔다.
-const PROJECTILE_FLIGHT_LIFT = 0.35;
-const PROJECTILE_HAND_REACH = 0.2;
-// 다시 그린 투사체 그림 배율: 0.8이면 주인공과 같은 도트 크기(칸에 20도트), 1이면 예전 크기(칸에 16도트).
-const PROJECTILE_SPRITE_SCALE = 0.8;
-// 나가는 순간 업로드는 마지막으로 올린 뒤 이만큼 지나야 다시 한다(앱을 자주 오가도 매번 올리지 않게).
-const CLOUD_EXIT_UPLOAD_MIN_GAP_MS = 60 * 1000;
-// 게스트 저장을 계정으로 옮기기 전의 간단한 조작 검사(js/guest-save-check.js, 2026-10-03). 정상 플레이로는 나올 수 없는 값만
-// 잡도록 넉넉하게 둔다. 화폐는 한 번에 1~20개씩 쌓여 천만에 닿지 않는다. 룬 레벨은 경험치로 20, 숙련 가공으로 30까지, 품질은 20까지다.
-// 장비 수치는 자기 굴림 범위 최댓값의 2배나 천만을 넘으면 걸린다. 패시브 포인트는 레벨 업마다 1에 일지, 액트 보상,
-// 창백한 푸른 점(공허 하나에 10)과 여유 5를 더한 만큼까지다. 저장에 남은 가장 늦은 시각이 지금보다 10분 넘게 앞서면 기기 시간이 걸린다.
-// 서버 검사(db/anti-cheat.sql의 전당 장비 수치, 클라우드 저장 감시)도 화폐, 장비 수치, 기기 시간에 같은 값을 쓴다. 바꾸면 함께 고친다.
-const GUEST_SAVE_CHECK = Object.freeze({
-    currencyMax: 10000000,
+// GENERATED from modules/data/constants.mjs. Edit the ESM source; run npm run build:modules.
+function safeExposeData(map) { Object.keys(map || {}).forEach(function (key) { if (typeof window[key] === "undefined") window[key] = map[key]; }); }
+(() => {
+  // modules/data/constants.mjs
+  var PASSIVE_LAYOUT_VERSION = 23;
+  var LOCAL_SAVE_KEY = "rigninSaveData_v9";
+  var LEGACY_SAVE_KEY_PATTERN = /^[a-z]{3}IdleSaveData_v(\d+)$/;
+  var ACCOUNT_SAVE_KEY_PREFIX = "rigninAccountSave_v1_";
+  var CLOUD_SESSION_STORAGE_KEY = "rigninCloudSession_v1";
+  var LEGACY_CLOUD_SESSION_KEY_PATTERN = /^[a-z]{3}IdleCloudSession_v1$/;
+  var CLOUD_SYNC_MIN_INTERVAL_MS = 3e5;
+  var CLOUD_KEEPALIVE_BODY_LIMIT = 60 * 1024;
+  var HERO_SIZE_SCALE = 0.8;
+  var HERO_RUN_RATE_MAX = 3;
+  var PROJECTILE_FLIGHT_LIFT = 0.35;
+  var PROJECTILE_HAND_REACH = 0.2;
+  var PROJECTILE_SPRITE_SCALE = 0.8;
+  var CLOUD_EXIT_UPLOAD_MIN_GAP_MS = 60 * 1e3;
+  var GUEST_SAVE_CHECK = Object.freeze({
+    currencyMax: 1e7,
     gemLevelMax: 30,
     gemQualityMax: 20,
     statRangeMul: 2,
-    statValueMax: 10000000,
+    statValueMax: 1e7,
     statTierMax: 20,
     statLinesMax: 12,
     // 고유 효과 값과 품질(db/anti-cheat.sql hall_item_params_out_of_range와 같은 기준, 2026-10-27): 배율·룬 레벨 보너스 10, 그 밖의 숫자 값 100000, 품질 30.
     uniqueMultiplierMax: 10,
-    uniqueParamMax: 100000,
+    uniqueParamMax: 1e5,
     itemQualityMax: 30,
     passivePerPaleVoid: 10,
     passiveSlack: 5,
-    clockSlackMs: 10 * 60 * 1000
-});
-const ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
-// Sprite rims so actors read on the dark maps (2026-10-02, the user picked coloured rims over dark ones): the hero a warm cream one
-// sprite dot wide, monsters red, elites their trait colour, bosses a stronger red (canvas px,
-// cached outline surfaces in js/passives.js).
-const BATTLE_SPRITE_OUTLINES = Object.freeze({
-    hero: Object.freeze({ color: '#f0dca6', alpha: 0.72 }),
+    clockSlackMs: 10 * 60 * 1e3
+  });
+  var ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
+  var BATTLE_SPRITE_OUTLINES = Object.freeze({
+    hero: Object.freeze({ color: "#f0dca6", alpha: 0.72 }),
     // 앞의 몬스터에 가려진 주인공(2026-10-07 사용자 요청): 몬스터 위로 굵은 테(dots: 칸 64px 미만 2, 이상 3)와 반투명 몸(fill)이 비친다.
-    heroOccluded: Object.freeze({ color: '#fff3c9', alpha: 0.95, fill: 0.32, dots: Object.freeze([2, 3]) }),
-    enemy: Object.freeze({ color: '#cf5444', alpha: 0.72, thickness: 2 }),
-    elite: Object.freeze({ color: '#e2b94f', alpha: 0.85, thickness: 2 }),
-    boss: Object.freeze({ color: '#e8493b', alpha: 0.85, thickness: 2 })
-});
-// 보스 그림 크기 배율(2026-10-07 사용자 "보스 몬스터는 좀 더 커도 돼"). 일반 몬스터 크기는 그대로다.
-const BOSS_DRAW_SCALE = 1.15;
-const EMPTY_TRAVEL_PROGRESS_MULTIPLIER = 2;
-/** 스토리 액트에서 살아 있는 적이 없을 때(방과 방 사이) 초당 회복하는 최대 생명 비율(%, 0.1초 틱마다 1/10).
- * 초반 사망은 거의 모두 앞 전투에서 깎인 생명으로 다음 무리를 맞는 소모전이었다(측정 2026-10-01). */
-const ACT_REST_RECOVERY_PCT_PER_SEC = 6;
-/** 자동 진행 중 스토리 액트에서 쓰러져 한 액트 물러났을 때, 이만큼 레벨이 오른 뒤 다시 앞 액트에 도전한다.
- * 새 캐릭터 20분 측정(6직업 × 2시드, 패시브 미투자): 사망 175 → 33회(휴식 회복과 함께). */
-const ACT_RETREAT_LEVELS = 2;
-/** 캠페인 패널티: 이 구역(액트 6, 혼돈 1)을 열 때마다 모든 원소 저항과 카오스 저항이 each만큼 낮아진다. */
-const CAMPAIGN_RESIST_PENALTY = Object.freeze({ zones: Object.freeze([5, 10]), each: 30 });
-const EQUIPMENT_INVENTORY_COLUMNS = 10;
-/** 쪽마다 10x10(2026-10-19 사용자: "인벤토리 칸수 10x10으로 줄이고"). 전에는 12줄이었고, 그때 저장된 칸 위치는
- * js/equipment-inventory-grid.js가 한 번 옮긴다(adoptPageRows). */
-const EQUIPMENT_INVENTORY_ROWS_PER_PAGE = 10;
-const EQUIPMENT_INVENTORY_MAX_PAGES = 12;
-const EQUIPMENT_INVENTORY_CELLS_PER_PAGE = EQUIPMENT_INVENTORY_COLUMNS * EQUIPMENT_INVENTORY_ROWS_PER_PAGE;
-const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
+    heroOccluded: Object.freeze({ color: "#fff3c9", alpha: 0.95, fill: 0.32, dots: Object.freeze([2, 3]) }),
+    enemy: Object.freeze({ color: "#cf5444", alpha: 0.72, thickness: 2 }),
+    elite: Object.freeze({ color: "#e2b94f", alpha: 0.85, thickness: 2 }),
+    boss: Object.freeze({ color: "#e8493b", alpha: 0.85, thickness: 2 })
+  });
+  var BOSS_DRAW_SCALE = 1.15;
+  var EMPTY_TRAVEL_PROGRESS_MULTIPLIER = 2;
+  var ACT_REST_RECOVERY_PCT_PER_SEC = 6;
+  var ACT_RETREAT_LEVELS = 2;
+  var CAMPAIGN_RESIST_PENALTY = Object.freeze({ zones: Object.freeze([5, 10]), each: 30 });
+  var EQUIPMENT_INVENTORY_COLUMNS = 10;
+  var EQUIPMENT_INVENTORY_ROWS_PER_PAGE = 10;
+  var EQUIPMENT_INVENTORY_MAX_PAGES = 12;
+  var EQUIPMENT_INVENTORY_CELLS_PER_PAGE = EQUIPMENT_INVENTORY_COLUMNS * EQUIPMENT_INVENTORY_ROWS_PER_PAGE;
+  var UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
     flatDamageThroughFloor: 100,
     mediumDamageThroughFloor: 200,
     deepDamageThroughFloor: 300,
-    mediumDamagePerFloor: 0.0025,
-    deepDamagePerFloor: 0.005,
+    mediumDamagePerFloor: 25e-4,
+    deepDamagePerFloor: 5e-3,
     tierGainPerFloorAfterDeep: 1,
     gravityActionLossPerFloorAfterDeep: 0.01
-});
-// 지하계 깊은 층 보상(2026-10-09, 루프 50 이후 레벨 디자인): 지하석 슬롯과 번호는 300층에서 끝난다. 그 아래로는 every층마다 지하석 강화
-// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 지하석 조각 70과 금 24, 400층 160과 60(js/combat-kill-rewards.js grantUnderworldFloorMilestone).
-const UNDERWORLD_DEEP_FLOOR_REWARD = Object.freeze({ fromFloor: 300, every: 10, runeShard: Object.freeze([60, 1]), underGold: Object.freeze([20, 0.4]) });
-// 지하계 장비 인챈트(js/ui.js applyUnderworldEnchant): 부위마다 [능력치, 최소, 최대, 세기] 가운데 한 줄이 무작위로 붙는다(이미 있던
-// 인챈트는 바뀐다). 세기가 그 줄의 비용을 정한다: 구리 세기×6(최소 4), 은 세기×3(최소 2), 금 세기−1(최소 1). 지하계 화면이 이 표로
-// 나올 수 있는 효과와 값을 보여 준다(2026-10-25 사용자: 지하계 인챈트가 어떤 효과인지 알 수 없음).
-const UNDERWORLD_ENCHANT_POOLS = Object.freeze({
-    '무기': [['pctDmg', 8, 24, 2], ['spellFlatPct', 6, 18, 2], ['projectileExtraChance', 50, 50, 3], ['resPen', 5, 14, 2], ['physIgnore', 5, 14, 2], ['flatDmg', 12, 38, 1]],
-    '갑옷': [['pctHp', 4, 12, 1], ['flatHp', 45, 140, 1], ['armorPct', 8, 24, 1], ['evasionPct', 8, 24, 1], ['energyShieldPct', 8, 24, 1], ['maxResF', 1, 2, 3], ['maxResC', 1, 2, 3], ['maxResL', 1, 2, 3], ['resChaos', 4, 10, 2]],
-    '투구': [['targetAny', 1, 1, 3], ['critDmg', 18, 25, 2], ['armor', 40, 120, 1], ['evasion', 40, 120, 1], ['energyShield', 35, 105, 1], ['crit', 2, 6, 2]]
-});
-// 한계돌파(js/ui.js attemptUnderworldLimitBreak): 퀄리티 quality%인 장비의 퀄리티가 −swing~+swing만큼 바뀌고(cap까지) 다시 바꿀 수 없다.
-// 비용 [구리, 은, 금]: 무기, 장신구(반지, 목걸이, 허리띠), 그 밖의 방어구.
-const UNDERWORLD_LIMIT_BREAK = Object.freeze({ quality: 20, swing: 10, cap: 30,
-    costs: Object.freeze({ weapon: Object.freeze([30, 16, 6]), accessory: Object.freeze([24, 12, 4]), armour: Object.freeze([28, 14, 5]) }) });
-const DAMAGE_ELEMENT_LABELS = {
-    phys: '물리',
-    fire: '화염',
-    cold: '냉기',
-    light: '번개',
-    chaos: '카오스',
-    other: '기타'
-};
-const DAMAGE_ELEMENT_ICONS = {
-    phys: '🩸',
-    fire: '🔥',
-    cold: '❄️',
-    light: '⚡',
-    chaos: '☠️',
-    other: '✦'
-};
-const DEATH_REASON_TEXT = {
-    fire: '불길을 이겨내지 못하고 사망하였습니다.',
-    cold: '서서히 얼어붙어 생을 마감했습니다.',
-    light: '순식간에 몸을 관통한 전류를 버티지 못했습니다.',
-    chaos: '혼돈이 끝내 당신의 정신을 집어삼켰습니다.',
-    phys: '극심한 충격 끝에 목숨을 잃었습니다.',
-    other: '예기치 못한 피해가 한꺼번에 몰아쳤습니다.'
-};
-
-// 9x8 직교 전장 그리드 설정. 첨부된 ACT 맵의 중앙 9x8 타일과 좌표·판정을 공유한다.
-// 좌표계: gx(0~8)는 오른쪽, gy(0~7)는 아래쪽. 이동은 상하좌우 4방향만 허용한다.
-const COMBAT_GRID_CONFIG = {
+  });
+  var UNDERWORLD_DEEP_FLOOR_REWARD = Object.freeze({ fromFloor: 300, every: 10, runeShard: Object.freeze([60, 1]), underGold: Object.freeze([20, 0.4]) });
+  var UNDERWORLD_ENCHANT_POOLS = Object.freeze({
+    "무기": [["pctDmg", 8, 24, 2], ["spellFlatPct", 6, 18, 2], ["projectileExtraChance", 50, 50, 3], ["resPen", 5, 14, 2], ["physIgnore", 5, 14, 2], ["flatDmg", 12, 38, 1]],
+    "갑옷": [["pctHp", 4, 12, 1], ["flatHp", 45, 140, 1], ["armorPct", 8, 24, 1], ["evasionPct", 8, 24, 1], ["energyShieldPct", 8, 24, 1], ["maxResF", 1, 2, 3], ["maxResC", 1, 2, 3], ["maxResL", 1, 2, 3], ["resChaos", 4, 10, 2]],
+    "투구": [["targetAny", 1, 1, 3], ["critDmg", 18, 25, 2], ["armor", 40, 120, 1], ["evasion", 40, 120, 1], ["energyShield", 35, 105, 1], ["crit", 2, 6, 2]]
+  });
+  var UNDERWORLD_LIMIT_BREAK = Object.freeze({
+    quality: 20,
+    swing: 10,
+    cap: 30,
+    costs: Object.freeze({ weapon: Object.freeze([30, 16, 6]), accessory: Object.freeze([24, 12, 4]), armour: Object.freeze([28, 14, 5]) })
+  });
+  var DAMAGE_ELEMENT_LABELS = {
+    phys: "물리",
+    fire: "화염",
+    cold: "냉기",
+    light: "번개",
+    chaos: "카오스",
+    other: "기타"
+  };
+  var DAMAGE_ELEMENT_ICONS = {
+    phys: "🩸",
+    fire: "🔥",
+    cold: "❄️",
+    light: "⚡",
+    chaos: "☠️",
+    other: "✦"
+  };
+  var DEATH_REASON_TEXT = {
+    fire: "불길을 이겨내지 못하고 사망하였습니다.",
+    cold: "서서히 얼어붙어 생을 마감했습니다.",
+    light: "순식간에 몸을 관통한 전류를 버티지 못했습니다.",
+    chaos: "혼돈이 끝내 당신의 정신을 집어삼켰습니다.",
+    phys: "극심한 충격 끝에 목숨을 잃었습니다.",
+    other: "예기치 못한 피해가 한꺼번에 몰아쳤습니다."
+  };
+  var COMBAT_GRID_CONFIG = {
     // 지속 장판: 시간은 전투 시계 ms. 같은 원소가 겹쳐도 한 번만 적용하며 최대 세 영역만 유지한다.
     ground: {
-        durationMs: 5000, tickMs: 500, maxAreas: 3,
-        fire: { name: '용암 지대', color: '#e59355', damageShare: 0.22 },
-        cold: { name: '빙결 지대', color: '#9cc8d2', ailment: 'chill' },
-        chaos: { name: '부식 지대', color: '#a7aa6c', damageShare: 0.18 },
-        light: { name: '감전 지대', color: '#c9b9ec', ailment: 'shock' }
+      durationMs: 5e3,
+      tickMs: 500,
+      maxAreas: 3,
+      fire: { name: "용암 지대", color: "#e59355", damageShare: 0.22 },
+      cold: { name: "빙결 지대", color: "#9cc8d2", ailment: "chill" },
+      chaos: { name: "부식 지대", color: "#a7aa6c", damageShare: 0.18 },
+      light: { name: "감전 지대", color: "#c9b9ec", ailment: "shock" }
     },
     columns: 9,
     rows: 8,
     playerSpawn: { gx: 1, gy: 4 },
     bossSpawn: { gx: 7, gy: 4 },
     bossFootprint: { columns: 2, rows: 2 },
-    meleeEnemyChance: 0.3,          // 일반/정예 스폰 시 근접형 확률(나머지는 원거리형)
-    meleeAttackRange: 1,            // 근접 공격 사거리(체비셰프 거리, 대각 포함)
-    rangedEnemyMinRange: 3,         // 원거리형 최소 사거리(칸)
-    rangedEnemyMaxRange: 5,         // 원거리형 최대 사거리(칸)
-    bossAttackRange: 99,            // 사거리 무한인 보스의 사거리(사실상 무제한). 보스마다의 거리는 data/bosses.js BOSS_REACH
-    enemyMoveIntervalSec: 0.5,      // 적이 1칸 이동하는 데 걸리는 기본 시간(초)
-    enemyGlideRate: 20,             // 걸음 뒤 그림이 새 칸으로 다가가는 비율(초당, js/canvas-battlefield.js). 파동 판정도 같은 값으로 그려진 위치를 셈
-    waveContactSampleMs: 10,        // 파동 판정이 두 전투 틱 사이를 훑는 간격(밀리초): 그 사이에 고리가 스친 몹도 맞는다
-    playerMoveIntervalSec: 0.6,     // 플레이어 기본 1칸 이동 시간(초, 이동 속도 100 기준 — 이속 스탯에 반비례)
+    meleeEnemyChance: 0.3,
+    // 일반/정예 스폰 시 근접형 확률(나머지는 원거리형)
+    meleeAttackRange: 1,
+    // 근접 공격 사거리(체비셰프 거리, 대각 포함)
+    rangedEnemyMinRange: 3,
+    // 원거리형 최소 사거리(칸)
+    rangedEnemyMaxRange: 5,
+    // 원거리형 최대 사거리(칸)
+    bossAttackRange: 99,
+    // 사거리 무한인 보스의 사거리(사실상 무제한). 보스마다의 거리는 data/bosses.js BOSS_REACH
+    enemyMoveIntervalSec: 0.5,
+    // 적이 1칸 이동하는 데 걸리는 기본 시간(초)
+    enemyGlideRate: 20,
+    // 걸음 뒤 그림이 새 칸으로 다가가는 비율(초당, js/canvas-battlefield.js). 파동 판정도 같은 값으로 그려진 위치를 셈
+    waveContactSampleMs: 10,
+    // 파동 판정이 두 전투 틱 사이를 훑는 간격(밀리초): 그 사이에 고리가 스친 몹도 맞는다
+    playerMoveIntervalSec: 0.6,
+    // 플레이어 기본 1칸 이동 시간(초, 이동 속도 100 기준 — 이속 스탯에 반비례)
     // 탐험 중 살아 있는 적이 없을 때 이 이동 속도(%) 이상이면 대각선으로도 한 걸음에 걷는다(같은 걸음 시간, 2026-11-04 사용자: 전투 밖에서만,
     // 전: 적이 없으면 누구나 0.75배 시간). 사용자 기준 150%는 쉽고 200%는 조금 신경 써야 하며 300% 이상은 특정 빌드만이라 200%로 둔다.
     explorationDiagonalMoveSpeed: 200,
     // 이 이동 속도(%) 이상이면 탐험 바닥 아이템을 둘레 8칸에서도 줍는다(2026-11-04 사용자, 그 아래는 그 칸을 밟아야).
     explorationWidePickupMoveSpeed: 150,
-    summonMoveIntervalSec: 0.4,     // 소환수 1칸 이동 시간(초)
-    chainJumpRange: 2,              // 연쇄 계열 스킬이 다음 적으로 튈 수 있는 최대 거리(칸)
-    bossPatternWarningMs: 1500,     // 기본 이속으로 두 칸을 벗어날 수 있는 최소 예고 시간
+    summonMoveIntervalSec: 0.4,
+    // 소환수 1칸 이동 시간(초)
+    chainJumpRange: 2,
+    // 연쇄 계열 스킬이 다음 적으로 튈 수 있는 최대 거리(칸)
+    bossPatternWarningMs: 1500,
+    // 기본 이속으로 두 칸을 벗어날 수 있는 최소 예고 시간
     bossPatternProfiles: {
-        impact: { kind: 'blast', range: 8, radius: 0 },
-        fan: { kind: 'fan', range: 8, rays: 3 },
-        ring: { kind: 'blast', range: 8, radius: 1, shape: 'circle' },
-        // 격앙 충격파와 후반 보스의 밑거름, 삼키기: 보스 둘레(nova)였을 때는 3칸 밖의 영웅에게 닿지 않아, 2단계부터(모든 공격이 충격파)
-        // 관문이나 방 구석에 가만히 선 영웅에게 맞지 않는 경고만 되풀이했다(2026-10-07 사용자 제보). 다른 특수기처럼 영웅 칸을 중심으로 터진다.
-        pulse: { kind: 'blast', range: 8, radius: 2, shape: 'diamond' },
-        lane: { kind: 'line', range: 8 },
-        wave: { kind: 'blast', range: 8, radius: 1, shape: 'cross' },
-        split: { kind: 'fan', range: 8, rays: 3 },
-        beam: { kind: 'line', range: 8 },
-        charge: { kind: 'line', range: 8 },
-        // 뿌리 절단자의 회전 톱날: 주인공 칸 둘레 3칸 네모를 여러 번 갈아 낸다(js/boss-moves.js grind)
-        grind: { kind: 'blast', range: 8, radius: 1, shape: 'square' }
+      impact: { kind: "blast", range: 8, radius: 0 },
+      fan: { kind: "fan", range: 8, rays: 3 },
+      ring: { kind: "blast", range: 8, radius: 1, shape: "circle" },
+      // 격앙 충격파와 후반 보스의 밑거름, 삼키기: 보스 둘레(nova)였을 때는 3칸 밖의 영웅에게 닿지 않아, 2단계부터(모든 공격이 충격파)
+      // 관문이나 방 구석에 가만히 선 영웅에게 맞지 않는 경고만 되풀이했다(2026-10-07 사용자 제보). 다른 특수기처럼 영웅 칸을 중심으로 터진다.
+      pulse: { kind: "blast", range: 8, radius: 2, shape: "diamond" },
+      lane: { kind: "line", range: 8 },
+      wave: { kind: "blast", range: 8, radius: 1, shape: "cross" },
+      split: { kind: "fan", range: 8, rays: 3 },
+      beam: { kind: "line", range: 8 },
+      charge: { kind: "line", range: 8 },
+      // 뿌리 절단자의 회전 톱날: 주인공 칸 둘레 3칸 네모를 여러 번 갈아 낸다(js/boss-moves.js grind)
+      grind: { kind: "blast", range: 8, radius: 1, shape: "square" }
     }
-};
+  };
 
-safeExposeData({
-  PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEY_PATTERN, ACCOUNT_SAVE_KEY_PREFIX, CLOUD_SESSION_STORAGE_KEY, LEGACY_CLOUD_SESSION_KEY_PATTERN,
-  CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_KEEPALIVE_BODY_LIMIT, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, HERO_SIZE_SCALE, HERO_RUN_RATE_MAX, PROJECTILE_FLIGHT_LIFT, PROJECTILE_HAND_REACH, PROJECTILE_SPRITE_SCALE, GUEST_SAVE_CHECK, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
-  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, BOSS_DRAW_SCALE, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, CAMPAIGN_RESIST_PENALTY, UNDERWORLD_DIFFICULTY_CONFIG, UNDERWORLD_DEEP_FLOOR_REWARD, UNDERWORLD_ENCHANT_POOLS, UNDERWORLD_LIMIT_BREAK,
-  EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES,
-  EQUIPMENT_INVENTORY_CELLS_PER_PAGE
-});
+  // modules/data/constants.mjs:classic
+  Object.assign(globalThis, { PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEY_PATTERN, ACCOUNT_SAVE_KEY_PREFIX, CLOUD_SESSION_STORAGE_KEY, LEGACY_CLOUD_SESSION_KEY_PATTERN, CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_KEEPALIVE_BODY_LIMIT, HERO_SIZE_SCALE, HERO_RUN_RATE_MAX, PROJECTILE_FLIGHT_LIFT, PROJECTILE_HAND_REACH, PROJECTILE_SPRITE_SCALE, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, GUEST_SAVE_CHECK, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, BOSS_DRAW_SCALE, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, CAMPAIGN_RESIST_PENALTY, EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES, EQUIPMENT_INVENTORY_CELLS_PER_PAGE, UNDERWORLD_DIFFICULTY_CONFIG, UNDERWORLD_DEEP_FLOOR_REWARD, UNDERWORLD_ENCHANT_POOLS, UNDERWORLD_LIMIT_BREAK, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT, COMBAT_GRID_CONFIG });
+  if (typeof safeExposeData === "function") safeExposeData({ PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEY_PATTERN, ACCOUNT_SAVE_KEY_PREFIX, CLOUD_SESSION_STORAGE_KEY, LEGACY_CLOUD_SESSION_KEY_PATTERN, CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_KEEPALIVE_BODY_LIMIT, HERO_SIZE_SCALE, HERO_RUN_RATE_MAX, PROJECTILE_FLIGHT_LIFT, PROJECTILE_HAND_REACH, PROJECTILE_SPRITE_SCALE, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, GUEST_SAVE_CHECK, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, BOSS_DRAW_SCALE, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, CAMPAIGN_RESIST_PENALTY, EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES, EQUIPMENT_INVENTORY_CELLS_PER_PAGE, UNDERWORLD_DIFFICULTY_CONFIG, UNDERWORLD_DEEP_FLOOR_REWARD, UNDERWORLD_ENCHANT_POOLS, UNDERWORLD_LIMIT_BREAK, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT, COMBAT_GRID_CONFIG });
+})();

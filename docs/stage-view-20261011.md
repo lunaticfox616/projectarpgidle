@@ -596,7 +596,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   (js/canvas-battle-units.js getHanaSwingTiming).
 - 스킬룬 추가본 v44(같은 날, 77 바위 플라스크): 추가본에는 이펙트 그림이 없어, v42 전달본 폴더에 추가본을 같은 경로로 덮어 쓴 폴더에서
   이펙트 표를 뽑는다. 시전은 js/skill-gem-casts.js 77(작살화살처럼 줄을 당겨 그 앞 칸까지, 대상이 없으면 쓰지 않는다), 무대 그림은
-  js/canvas-stage-skill-casts.js castRockFlask(바위 병은 -draws.js의 rock), 끌려가는 움직임은 js/canvas-redrawn-skill-fx-extra.js glide.
+  js/canvas-stage-skill-casts.js castRockFlask(바위 병은 -draws.js의 rock), 끌려가는 움직임은 modules/rendering/redrawn/caster-motion.mjs glide.
 - 시전 마법진(js/canvas-stage-skill-sigil.js)의 화염, 냉기, 카오스 글자는 보조룬 아이콘의 글자(ᚲ, ᚺ, ᛈ)다(같은 날 사용자 결정).
 
 ## 전체 몬스터 6장 제작본 (2026-10-21, 사용자 "몬스터 크기는 새 제작본의 목표 키를 따르는 쪽으로 해줘")
@@ -767,7 +767,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 - 데이터: data/skills.js의 젬 표, 이펙트 표, 아이콘 길, 사거리 표와 그 젬만 쓰던 시트 셋(triWave, triple, voidCutter),
   data/skill-effect-expansion.js, data/severed-wanderers.js의 방랑자 스킬 목록.
 - 그 젬만 쓰던 코드: 공중강타의 도약과 착지(js/skill-gem-casts.js 57번), 네 젬과 공중강타의 새로 그린 그림과 그 연결
-  (js/canvas-redrawn-skill-art.js, -art-moves.js, -fx.js, -fx-extra.js), 집중 광선의 광선 자리 계산(js/canvas-world-tree-fx.js),
+  (modules/rendering/redrawn/의 그림·시전·이동 모듈), 집중 광선의 광선 자리 계산(js/canvas-world-tree-fx.js),
   광선 계열의 예전 그림 갈래(js/canvas-battlefield.js). 다른 젬이 같이 쓰는 것은 남겼다: 삼원 파동의 원소 불꽃(화염 폭풍핵, 원소 포션 투척, 분광 위습의 공격이 쓴다),
   뇌격 삼연타의 지그재그 조각(파문심판이 쓴다).
 - 그림 파일 17개를 지웠다: 젬 아이콘 다섯, 그 젬만 쓰던 이펙트 시트 열둘(assets/effects/lossless-manifest.json의 다섯 줄도 같이).

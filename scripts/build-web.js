@@ -6,10 +6,12 @@ const { buildCss } = require('./build-css');
 const { prepareRelease } = require('./lib/release-bundle');
 const { stampGameBuild } = require('./lib/game-build');
 const { markImmutableUrls, stampBootBytes } = require('./lib/immutable-urls');
+const { bundleReleaseScripts } = require('./lib/classic-bundles');
 const root = path.resolve(__dirname, '..');
 const destination = path.join(root, 'dist');
 
 async function buildWeb() {
+    await require('./build-modules').buildModules();
     // This fixed generated directory is the only deletion target.
     if (path.dirname(destination) !== root || path.basename(destination) !== 'dist') {
         throw new Error('Invalid web output directory');
@@ -27,8 +29,9 @@ async function buildWeb() {
     if (!built.includes(placeholder)) throw new Error('index.html has no app-deploy placeholder');
     // Release only: no test panel and no dev-only code (scripts/lib/release-bundle.js), checked before anything is written.
     const released = await prepareRelease(destination, built.replace(placeholder, `<meta name="app-deploy" content="${build}">`));
+    const scripts = await bundleReleaseScripts(destination, released);
     // Content-named script and style URLs (scripts/lib/immutable-urls.js), hashed after the release strip changed the files.
-    await fs.writeFile(path.join(destination, 'index.html'), await stampBootBytes(destination, await markImmutableUrls(destination, released)));
+    await fs.writeFile(path.join(destination, 'index.html'), await stampBootBytes(destination, await markImmutableUrls(destination, scripts)));
     await fs.writeFile(path.join(destination, 'version.json'), JSON.stringify({ build }) + '\n');
     await fs.writeFile(path.join(destination, '.nojekyll'), '');
     console.log('Web bundle: dist/index.html (one content-hashed CSS file, content-named script and style URLs)');

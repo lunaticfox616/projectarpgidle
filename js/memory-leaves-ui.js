@@ -1,47 +1,139 @@
-/** 기억의 잎 발견 도감. 읽기 버튼은 기존 저널 리더만 열며 보상을 다시 지급하지 않는다. */
-const memoryLeavesUi = (() => {
-    const GROUPS = [...ATLAS.regions.map(region => ({ id: region.id, name: region.name, tint: region.tint,
-        test: leaf => leaf.source.region === region.id })),
-        { id: 'special', name: '보스와 특별한 곳', tint: '#b89a5a', test: leaf => !!(leaf.source.boss || leaf.source.golden || leaf.source.treasure) },
-        { id: 'any', name: '어느 지도나', tint: '#7f9a8a', test: leaf => !!leaf.source.any }];
-    let lastHtml = '';
-    const esc = value => escapeHTML(String(value ?? ''));
-    function cardHtml(leaf, tint) {
-        const seen = game.atlas.leaves.seen.includes(leaf.id);
-        const body = seen ? `<strong>${esc(_t(leaf.name))}</strong><span class="leaf-reward">${esc(_t(leaf.bonus.label))}</span>`
-            : '<strong class="is-hidden">아직 못 본 잎</strong>';
-        const button = seen ? `<button type="button" class="leaf-read" data-leaf-read="${leaf.journal}">${_t('기억 읽기')}</button>` : '';
-        return `<article class="leaf-card${seen ? '' : ' is-unseen'}" style="--leaf-tint:${tint}">`
-            + `<span class="leaf-glyph" aria-hidden="true">${renderPixelIcon('leaf', 'leaf-icon')}</span><div class="leaf-body">${body}`
-            + `<small class="leaf-source">${esc(memoryLeaves.sourceText(leaf))}</small>`
-            + `<span class="leaf-count">${seen ? _t('저널에 기록됨') : _t('미발견')}</span></div>${button}</article>`;
+// GENERATED from modules/memory-leaves-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
     }
-    function groupHtml(group) {
-        const cards = memoryLeaves.list.filter(group.test).map(leaf => cardHtml(leaf, group.tint)).join('');
-        return cards ? `<section class="leaf-group" style="--leaf-tint:${group.tint}"><h4>${esc(_t(group.name))}</h4><div class="leaf-grid">${cards}</div></section>` : '';
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
     }
-    function render() {
-        const root = document.getElementById('ui-leaf-book');
-        if (!root) return;
-        const header = `<header class="leaf-head"><div class="leaf-head-title"><h3>${_t('기억의 잎')}</h3></div>`
-            + `<div class="leaf-stats"><span><small>${_t('발견한 기억')}</small><b>${game.atlas.leaves.seen.length}/${memoryLeaves.list.length}</b></span></div></header>`;
-        const html = header + GROUPS.map(groupHtml).join('');
-        if (html !== lastHtml) { root.innerHTML = html; lastHtml = html; }
+    runtime.listeners = retained;
+  }
+
+  // modules/ui/memory-leaves-view.mjs
+  var MemoryLeavesView = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.active = true;
+      this.listeners = [];
+      this.GROUPS = [
+        ...this.deps.ATLAS.regions.map((region) => ({
+          id: region.id,
+          name: region.name,
+          tint: region.tint,
+          test: (leaf) => leaf.source.region === region.id
+        })),
+        { id: "special", name: "보스와 특별한 곳", tint: "#b89a5a", test: (leaf) => !!(leaf.source.boss || leaf.source.golden || leaf.source.treasure) },
+        { id: "any", name: "어느 지도나", tint: "#7f9a8a", test: (leaf) => !!leaf.source.any }
+      ];
+      this.lastHtml = "";
+      this.esc = (value) => this.deps.escapeHTML(String(value ?? ""));
+      for (const name of ["cardHtml", "groupHtml", "render", "announceLeaf"]) this[name] = this[name].bind(this);
+      listenView(this, this.deps.window, "project-idle:memory-leaf", ({ detail }) => this.announceLeaf(detail));
     }
-    function announceLeaf(result) {
-        game.noti.journal = true;
-        game.noti.codex = true;
-        if (game.isBackgroundCalculation) return;
-        if (game.settings.lootFx?.notices?.leaf !== false) {
-            showGameToast(_t('기억의 잎을 발견했습니다. 「{name}」', { name: _t(result.name) }), { tone: 'leaf', duration: 3600 });
-        }
-        queueImportantSave(200);
+    cardHtml(leaf, tint) {
+      const seen = this.deps.game.atlas.leaves.seen.includes(leaf.id);
+      const body = seen ? `<strong>${this.esc(this.deps._t(leaf.name))}</strong><span class="leaf-reward">${this.esc(this.deps._t(leaf.bonus.label))}</span>` : '<strong class="is-hidden">아직 못 본 잎</strong>';
+      const button = seen ? `<button type="button" class="leaf-read" data-leaf-read="${leaf.journal}">${this.deps._t("기억 읽기")}</button>` : "";
+      return `<article class="leaf-card${seen ? "" : " is-unseen"}" style="--leaf-tint:${tint}"><span class="leaf-glyph" aria-hidden="true">${this.deps.renderPixelIcon("leaf", "leaf-icon")}</span><div class="leaf-body">${body}<small class="leaf-source">${this.esc(this.deps.memoryLeaves.sourceText(leaf))}</small><span class="leaf-count">${seen ? this.deps._t("저널에 기록됨") : this.deps._t("미발견")}</span></div>${button}</article>`;
     }
-    addEventListener('project-idle:memory-leaf', ({ detail }) => announceLeaf(detail));
-    document.getElementById('ui-leaf-book')?.addEventListener('click', event => {
-        const button = event.target.closest('[data-leaf-read]');
-        if (button) storyJournalUi.openEntry(button.dataset.leafRead);
-    });
-    return Object.freeze({ render });
+    groupHtml(group) {
+      const cards = this.deps.memoryLeaves.list.filter(group.test).map((leaf) => this.cardHtml(leaf, group.tint)).join("");
+      return cards ? `<section class="leaf-group" style="--leaf-tint:${group.tint}"><h4>${this.esc(this.deps._t(group.name))}</h4><div class="leaf-grid">${cards}</div></section>` : "";
+    }
+    render() {
+      if (!this.active) return;
+      const root = this.deps.document.getElementById("ui-leaf-book");
+      if (!root) return;
+      this.bindControls(root);
+      const header = `<header class="leaf-head"><div class="leaf-head-title"><h3>${this.deps._t("기억의 잎")}</h3></div><div class="leaf-stats"><span><small>${this.deps._t("발견한 기억")}</small><b>${this.deps.game.atlas.leaves.seen.length}/${this.deps.memoryLeaves.list.length}</b></span></div></header>`;
+      const html = header + this.GROUPS.map(this.groupHtml).join("");
+      if (html !== this.lastHtml) {
+        root.innerHTML = html;
+        this.lastHtml = html;
+      }
+    }
+    announceLeaf(result) {
+      this.deps.game.noti.journal = true;
+      this.deps.game.noti.codex = true;
+      if (this.deps.game.isBackgroundCalculation) return;
+      if (this.deps.game.settings.lootFx?.notices?.leaf !== false) {
+        this.deps.showGameToast(this.deps._t("기억의 잎을 발견했습니다. 「{name}」", { name: this.deps._t(result.name) }), { tone: "leaf", duration: 3600 });
+      }
+      this.deps.queueImportantSave(200);
+    }
+    bindControls(root) {
+      if (this.root === root) return;
+      releaseViewTarget(this, this.root);
+      this.root = root;
+      this.lastHtml = "";
+      listenView(this, root, "click", (event) => {
+        const button = event.target.closest("[data-leaf-read]");
+        if (!button || !root.contains(button)) return;
+        const leaf = this.deps.memoryLeaves.list.find((row) => row.journal === button.dataset.leafRead);
+        if (leaf && this.deps.game.atlas.leaves.seen.includes(leaf.id)) this.deps.storyJournalUi.openEntry(leaf.journal);
+      });
+    }
+    api() {
+      return Object.freeze({ render: this.render });
+    }
+    dispose() {
+      releaseViewEvents(this);
+      this.root = null;
+      this.lastHtml = "";
+    }
+  };
+  function createMemoryLeavesView(deps) {
+    const view = new MemoryLeavesView(deps);
+    return Object.freeze({ ...view.api(), dispose: () => view.dispose() });
+  }
+
+  // modules/memory-leaves-ui-classic.mjs
+  var memoryLeavesUi = createMemoryLeavesView({
+    get ATLAS() {
+      return ATLAS;
+    },
+    get _t() {
+      return _t;
+    },
+    get document() {
+      return document;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get memoryLeaves() {
+      return memoryLeaves;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    },
+    get renderPixelIcon() {
+      return renderPixelIcon;
+    },
+    get showGameToast() {
+      return showGameToast;
+    },
+    get storyJournalUi() {
+      return storyJournalUi;
+    },
+    get window() {
+      return window;
+    }
+  });
+  safeExposeGlobals({ memoryLeavesUi });
 })();
-safeExposeGlobals({ memoryLeavesUi });

@@ -1,204 +1,379 @@
-/** Display adapter for the classic CSS-pixel UI. Game rules never depend on this module. */
-const uiDisplay = (() => {
-    let factor = 1;
-    let percent = 100;
-    let resolutionQuery;
-    let sideBattleHudQuery;
-    const mediaRules = new Map();
-    const visitedSheets = new WeakSet();
-    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    /** The saved choice is separate from the device preference; changing devices never overwrites it. */
-    function reducedEffects() {
-        const choice = game.settings.effectIntensity;
-        if (choice === 'reduced') return true;
-        if (choice === 'full') return false;
-        return motionQuery.matches;
-    }
-    function syncEffects() {
-        document.body.classList.toggle('reduced-effects', reducedEffects());
-    }
-    motionQuery.addEventListener('change', syncEffects);
-    // iPadOS Safari asks for desktop pages and identifies as Mac; it still needs the mobile draw budget.
-    const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    // PC 배율 단계(2026-10-27): 도트 글꼴은 CSS 1px이 기기 화소의 정수배일 때만 또렷하다. 1080p와 QHD(윈도우 100~175%)에서는 100%와 200%,
-    // 윈도우 200%의 4K에서는 세 단계 모두 정수배다. 정수배가 아닌 단계(1080p의 150%)에서는 글자만 일반 글꼴로 바꾼다(html.ui-smooth-text,
-    // css/tokens.css). 휴대폰은 기기 비율이 소수(2.625 등)라 또렷한 단계가 없어 옛 열 단계를 그대로 둔다.
-    const PC_SCALE_STEPS = [100, 150, 200];
-    const TARGET_CSS_WIDTH = 1920;   // 처음 기본값: 화면이 1080p 한 장쯤으로 보이는 배수(4K 윈도우 150%는 200%, 윈도우 200%는 100%, QHD는 100%)
-    function floorDpr(dpr) { return Math.max(1, Math.floor((dpr || 1) + 1e-6)); }
-    /** 단계마다 CSS 1px이 되는 기기 화소 수(윈도우 배율의 소수 부분은 apply가 되돌린다). */
-    function deviceMultiple(step, dpr) { return step / 100 * floorDpr(dpr); }
-    function isCrispStep(step, dpr) { const multiple = deviceMultiple(step, dpr); return Math.abs(multiple - Math.round(multiple)) < 1e-6; }
-    /** 저장된 값(옛 열 단계 포함)을 PC 단계로: 가장 가까운 것, 같은 거리면 또렷한 쪽, 그래도 같으면 작은 쪽. */
-    function pcScaleStep(value, dpr) {
-        const wanted = normalizeUiScale(value);
-        return PC_SCALE_STEPS.slice().sort((a, b) => Math.abs(a - wanted) - Math.abs(b - wanted)
-            || Number(isCrispStep(b, dpr)) - Number(isCrispStep(a, dpr)) || a - b)[0];
-    }
-    /** 처음 실행의 기본값: 또렷한 단계 가운데 화면 가로(CSS px)가 TARGET_CSS_WIDTH에 가장 가까운 것, 같으면 작은 단계. */
-    function recommendedScale(deviceWidth, dpr) {
-        const distance = step => Math.abs(deviceWidth / deviceMultiple(step, dpr) - TARGET_CSS_WIDTH);
-        return PC_SCALE_STEPS.filter(step => isCrispStep(step, dpr)).sort((a, b) => distance(a) - distance(b) || a - b)[0];
-    }
-    // Resting cadence: an idle game keeps fighting while nobody watches closely. After a quiet
-    // period, or while another window has focus, the battlefield repaints less often.
-    // Combat timing is unaffected; only drawing is spaced out. Any input restores full cadence.
-    const RESTING_AFTER_MS = 20000;
-    const RESTING_FRAME_MS = mobileDevice ? 1000 / 20 : 1000 / 30;
-    const UNFOCUSED_FRAME_MS = 1000 / 20;
-    let lastInputAt = performance.now();
-    const markInput = () => { lastInputAt = performance.now(); };
-    ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(type =>
-        window.addEventListener(type, markInput, { capture: true, passive: true }));
-    window.addEventListener('focus', markInput);
-    /** Watching a visible boss's telegraph is active play, even without input or with a test control focused. */
-    function watchingBoss() {
-        if (typeof game !== 'object' || game.combatHalted || !(game.playerHp > 0)) return false;
-        if (!document.getElementById('tab-battle')?.classList.contains('active')) return false;
-        return game.enemies.some(enemy => enemy && enemy.isBoss && enemy.hp > 0);
-    }
-    function restingFrameMs() {
-        if (!document.hidden && watchingBoss()) return 0;
-        if (!document.hasFocus()) return UNFOCUSED_FRAME_MS;
-        return performance.now() - lastInputAt > RESTING_AFTER_MS ? RESTING_FRAME_MS : 0;
-    }
+// GENERATED from modules/ui-display*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/display-scale.mjs
+  var PC_SCALE_STEPS = Object.freeze([100, 150, 200]);
+  var floorDpr = (dpr) => Math.max(1, Math.floor((dpr || 1) + 1e-6));
+  var deviceMultiple = (step, dpr) => step / 100 * floorDpr(dpr);
+  function isCrispStep(step, dpr) {
+    const multiple = deviceMultiple(step, dpr);
+    return Math.abs(multiple - Math.round(multiple)) < 1e-6;
+  }
+  function nearestPcScaleStep(wanted, dpr) {
+    return PC_SCALE_STEPS.slice().sort((a, b) => Math.abs(a - wanted) - Math.abs(b - wanted) || Number(isCrispStep(b, dpr)) - Number(isCrispStep(a, dpr)) || a - b)[0];
+  }
+  function recommendedScale(deviceWidth, dpr) {
+    const distance = (step) => Math.abs(deviceWidth / deviceMultiple(step, dpr) - 1920);
+    return PC_SCALE_STEPS.filter((step) => isCrispStep(step, dpr)).sort((a, b) => distance(a) - distance(b) || a - b)[0];
+  }
+  function scaledMediaText(query, factor) {
+    return query.replace(
+      /((?:min-|max-)?(?:width|height)\s*:\s*)([\d.]+)(px|em|rem)/g,
+      (_, prefix, value, unit) => `${prefix}${Number(value) * factor}${unit}`
+    );
+  }
 
-    function mediaText(query) {
-        return query.replace(/((?:min-|max-)?(?:width|height)\s*:\s*)([\d.]+)(px|em|rem)/g,
-            (_, prefix, value, unit) => `${prefix}${Number(value) * factor}${unit}`);
+  // modules/browser/display-styles.mjs
+  var DisplayStyles = class {
+    constructor({ window: window2, document: document2 }) {
+      this.window = window2;
+      this.document = document2;
+      this.mediaRules = /* @__PURE__ */ new Map();
+      this.visitedSheets = /* @__PURE__ */ new WeakSet();
+      this.styles = /* @__PURE__ */ new Map();
     }
-
-    function matches(query) { return window.matchMedia(mediaText(query)).matches; }
-
-    // One adapter for legacy viewport units/media queries, preserving the authored cascade.
-    // Remove this translation when all styles use logical viewport tokens/container queries.
-    // No frame-time traversal or attribute observer: ordinary battle DOM updates are untouched.
-    function adaptRules(rules) {
-        const pending = Array.from(rules);
-        while (pending.length) {
-            const rule = pending.pop();
-            if (rule.type === CSSRule.MEDIA_RULE) mediaRules.set(rule, rule.media.mediaText);
-            if (rule.cssRules) pending.push(...rule.cssRules);
-            const imported = rule.styleSheet;
-            if (imported && !visitedSheets.has(imported) && new URL(imported.href).origin === window.origin) {
-                visitedSheets.add(imported);
-                pending.push(...imported.cssRules);
-            }
-            if (rule.style) adaptStyle(rule.style);
+    adaptStyle(style) {
+      for (const property of Array.from(style)) {
+        const value = style.getPropertyValue(property);
+        if (value.includes("--scale-display-factor")) continue;
+        const next = value.replace(
+          /(-?(?:\d*\.)?\d+)(d?vw|d?vh|vmin|vmax)\b/g,
+          (_, number, unit) => `calc(${number}${unit} / var(--scale-display-factor, 1))`
+        );
+        if (next === value) continue;
+        const priority = style.getPropertyPriority(property);
+        if (!this.styles.has(style)) this.styles.set(style, /* @__PURE__ */ new Map());
+        this.styles.get(style).set(property, { value, priority, next });
+        style.setProperty(property, next, priority);
+      }
+    }
+    adaptRules(rules) {
+      const pending = Array.from(rules);
+      while (pending.length) {
+        const rule = pending.pop();
+        if (rule.type === this.window.CSSRule.MEDIA_RULE) this.mediaRules.set(rule, { original: rule.media.mediaText });
+        if (rule.cssRules) pending.push(...rule.cssRules);
+        const imported = rule.styleSheet;
+        if (imported && !this.visitedSheets.has(imported) && new this.window.URL(imported.href).origin === this.window.origin) {
+          this.visitedSheets.add(imported);
+          pending.push(...imported.cssRules);
         }
+        if (rule.style) this.adaptStyle(rule.style);
+      }
     }
-
-    function adaptStyle(style) {
-        for (const property of Array.from(style)) {
-            const value = style.getPropertyValue(property);
-            if (value.includes('--scale-display-factor')) continue;
-            const next = value.replace(/(-?(?:\d*\.)?\d+)(d?vw|d?vh|vmin|vmax)\b/g,
-                (_, number, unit) => `calc(${number}${unit} / var(--scale-display-factor, 1))`);
-            if (next !== value) style.setProperty(property, next, style.getPropertyPriority(property));
+    register(factor) {
+      for (const sheet of Array.from(this.document.styleSheets)) {
+        if (this.visitedSheets.has(sheet)) continue;
+        if (sheet.href && new this.window.URL(sheet.href).origin !== this.window.origin) continue;
+        this.adaptRules(sheet.cssRules);
+        this.visitedSheets.add(sheet);
+      }
+      for (const [rule, row] of this.mediaRules) {
+        rule.media.mediaText = scaledMediaText(row.original, factor);
+        row.next = rule.media.mediaText;
+      }
+    }
+    dispose() {
+      for (const [rule, row] of this.mediaRules) {
+        if (rule.media.mediaText === row.next) rule.media.mediaText = row.original;
+      }
+      for (const [style, properties] of this.styles) {
+        for (const [property, row] of properties) {
+          if (style.getPropertyValue(property) === row.next && style.getPropertyPriority(property) === row.priority) {
+            style.setProperty(property, row.value, row.priority);
+          }
         }
+      }
+      this.mediaRules.clear();
+      this.styles.clear();
+      this.visitedSheets = /* @__PURE__ */ new WeakSet();
     }
+  };
 
-    function registerStyles() {
-        for (const sheet of Array.from(document.styleSheets)) {
-            if (visitedSheets.has(sheet)) continue;
-            // srcdoc previews inherit the parent's security origin, while location.origin is "null".
-            if (sheet.href && new URL(sheet.href).origin !== window.origin) continue;
-            adaptRules(sheet.cssRules);
-            visitedSheets.add(sheet);
+  // modules/browser/display-cadence.mjs
+  var INPUT_EVENTS = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"];
+  var DisplayCadence = class {
+    constructor(environment, getState) {
+      const { window: window2, document: document2 } = environment;
+      this.window = window2;
+      this.document = document2;
+      this.getState = getState;
+      const { navigator } = window2;
+      this.mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+      this.lastInputAt = window2.performance.now();
+      this.markInput = () => {
+        this.lastInputAt = window2.performance.now();
+      };
+    }
+    start() {
+      if (this.started) return;
+      this.started = true;
+      INPUT_EVENTS.forEach((type) => this.window.addEventListener(type, this.markInput, { capture: true, passive: true }));
+      this.window.addEventListener("focus", this.markInput);
+    }
+    watchingBoss() {
+      const game2 = this.getState();
+      if (typeof game2 !== "object" || game2.combatHalted || !(game2.playerHp > 0)) return false;
+      if (!this.document.getElementById("tab-battle")?.classList.contains("active")) return false;
+      return game2.enemies.some((enemy) => enemy && enemy.isBoss && enemy.hp > 0);
+    }
+    restingFrameMs() {
+      if (!this.document.hidden && this.watchingBoss()) return 0;
+      if (!this.document.hasFocus()) return 1e3 / 20;
+      return this.inputIdleMs > 2e4 ? this.mobile ? 1e3 / 20 : 1e3 / 30 : 0;
+    }
+    get inputIdleMs() {
+      return this.window.performance.now() - this.lastInputAt;
+    }
+    get battleFrameMs() {
+      return Math.max(this.mobile ? 1e3 / 30 : 22, this.restingFrameMs());
+    }
+    get explorationFrameMs() {
+      return Math.max(this.mobile ? 1e3 / 30 : 1e3 / 60, this.restingFrameMs());
+    }
+    dispose() {
+      INPUT_EVENTS.forEach((type) => this.window.removeEventListener(type, this.markInput, true));
+      this.window.removeEventListener("focus", this.markInput);
+      this.started = false;
+    }
+  };
+
+  // modules/common/numbers.mjs
+  function normalizeUiSkin() {
+    return "rift";
+  }
+
+  // modules/browser/display.mjs
+  var Display = class {
+    constructor(environment, inputs) {
+      this.env = environment;
+      this.inputs = inputs;
+      this.styles = new DisplayStyles(environment);
+      this.cadence = new DisplayCadence(environment, inputs.getState);
+      this.factor = 1;
+      this.percent = 100;
+      this.started = false;
+      this.initialized = false;
+      this.disposed = false;
+      this.motionQuery = environment.window.matchMedia("(prefers-reduced-motion: reduce)");
+      this.refresh = () => this.apply(this.percent);
+      this.syncEffects = this.syncEffects.bind(this);
+      this.init = this.init.bind(this);
+      this.languageChange = () => this.syncScaleSelect(Math.max(1, this.env.window.devicePixelRatio || 1));
+      this.selectionChange = (event) => this.select(event.target.value);
+    }
+    start({ waitForDomReady = false } = {}) {
+      if (this.started || this.disposed) return;
+      this.started = true;
+      this.motionQuery.addEventListener("change", this.syncEffects);
+      this.cadence.start();
+      if (!waitForDomReady && this.env.document.readyState === "complete") this.init();
+      else this.env.document.addEventListener("DOMContentLoaded", this.init, { once: true });
+    }
+    reducedEffects() {
+      const choice = this.inputs.getState().settings.effectIntensity;
+      if (choice === "reduced") return true;
+      if (choice === "full") return false;
+      return this.motionQuery.matches;
+    }
+    syncEffects() {
+      if (this.disposed) return;
+      const classes = this.env.document.body.classList;
+      if (this.originalReduced === void 0) this.originalReduced = classes.contains("reduced-effects");
+      this.lastReduced = this.reducedEffects();
+      classes.toggle("reduced-effects", this.lastReduced);
+    }
+    mediaText(query) {
+      return scaledMediaText(query, this.factor);
+    }
+    applyUiSkin(skin) {
+      if (!this.disposed) this.env.document.body.dataset.uiSkin = normalizeUiSkin(skin);
+    }
+    applyHighContrast(enabled) {
+      if (!this.disposed) this.env.document.body.classList.toggle("high-contrast", enabled === true);
+    }
+    applyLoadedSaveLook() {
+      const settings = this.inputs.getState().settings;
+      this.applyUiSkin(settings.uiSkin);
+      this.applyHighContrast(settings.highContrast);
+    }
+    applyChatMessageSize(size) {
+      const normalized = ["small", "medium", "large"].includes(size) ? size : "medium";
+      const body = this.env.document.body;
+      if (!this.disposed && body?.dataset) body.dataset.chatMessageSize = normalized;
+      return normalized;
+    }
+    matches(query) {
+      return this.env.window.matchMedia(this.mediaText(query)).matches;
+    }
+    registerStyles() {
+      if (!this.disposed) this.styles.register(this.factor);
+    }
+    watchResolution() {
+      this.resolutionQuery?.removeEventListener("change", this.refresh);
+      this.resolutionQuery = this.env.window.matchMedia(`(resolution: ${this.env.window.devicePixelRatio}dppx)`);
+      this.resolutionQuery.addEventListener("change", this.refresh, { once: true });
+    }
+    apply(value) {
+      if (this.disposed) return;
+      const { window: window2, document: document2 } = this.env;
+      this.captureRoot();
+      const dpr = Math.max(1, window2.devicePixelRatio || 1);
+      const normalized = this.inputs.normalizeScale(value);
+      this.percent = this.cadence.mobile ? normalized : nearestPcScaleStep(normalized, dpr);
+      const deviceScale = this.cadence.mobile ? 1 : dpr / Math.floor(dpr + 1e-6);
+      const next = this.percent / 100 / deviceScale;
+      const changed = Math.abs(next - this.factor) > 1e-5;
+      this.factor = next;
+      if (changed || !this.sideBattleHudQuery) {
+        this.sideBattleHudQuery = window2.matchMedia(this.mediaText("(max-width: 1080px) and (orientation: landscape) and (max-height: 600px)"));
+      }
+      document2.documentElement.style.setProperty("--scale-display-factor", String(this.factor));
+      document2.documentElement.style.setProperty("--device-ratio", String(dpr * this.factor));
+      document2.documentElement.style.zoom = String(this.factor);
+      document2.documentElement.classList.toggle("ui-smooth-text", !this.cadence.mobile && !isCrispStep(this.percent, dpr));
+      this.lastSmooth = document2.documentElement.classList.contains("ui-smooth-text");
+      for (const [property, row] of this.rootStyles) row.next = document2.documentElement.style.getPropertyValue(property);
+      this.registerStyles();
+      this.syncScaleSelect(dpr);
+      this.watchResolution();
+      if (changed) window2.dispatchEvent(new window2.Event("resize"));
+    }
+    select(value) {
+      const settings = this.inputs.getState().settings;
+      settings.uiScale = this.inputs.normalizeScale(value);
+      settings.uiScaleChosen = true;
+      this.apply(settings.uiScale);
+      this.inputs.save({ skipCloudSync: false });
+    }
+    syncScaleSelect(dpr) {
+      const { document: document2 } = this.env;
+      const select = document2.getElementById("sel-ui-scale");
+      if (!select) return;
+      if (!this.cadence.mobile) {
+        const labels = PC_SCALE_STEPS.map((step) => this.inputs.translate(isCrispStep(step, dpr) ? "{step}% (추천)" : "{step}% (글꼴 바꿈)", { step })).join("|");
+        if (select.dataset.labels !== labels) {
+          select.dataset.labels = labels;
+          select.innerHTML = labels.split("|").map((label, index) => `<option value="${PC_SCALE_STEPS[index]}">${label}</option>`).join("");
+          const hint = document2.querySelector('label[for="sel-ui-scale"] + small');
+          if (hint) hint.textContent = this.inputs.translate("메뉴와 글자의 크기. (추천)은 도트가 또렷한 배율이고, 글꼴 바꿈 배율은 글자를 일반 글꼴로 보입니다.");
         }
-        for (const [rule, original] of mediaRules) rule.media.mediaText = mediaText(original);
+      }
+      select.value = String(this.percent);
     }
-
-    function watchResolution() {
-        if (resolutionQuery) resolutionQuery.removeEventListener('change', refresh);
-        resolutionQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-        resolutionQuery.addEventListener('change', refresh, { once: true });
+    applySaved(settings) {
+      if (this.disposed) return;
+      this.syncEffects();
+      const { window: window2 } = this.env;
+      const dpr = Math.max(1, window2.devicePixelRatio || 1);
+      const chosen = settings.uiScaleChosen === true || this.inputs.normalizeScale(settings.uiScale) !== 100;
+      if (!this.cadence.mobile && !chosen) settings.uiScale = recommendedScale((window2.screen ? window2.screen.width : 1920) * dpr, dpr);
+      this.apply(settings.uiScale);
+      settings.uiScale = this.percent;
     }
-
-    function apply(value) {
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        percent = mobileDevice ? normalizeUiScale(value) : pcScaleStep(value, dpr);
-        // PC: 디스플레이 배율의 정수 배는 살리고 소수 부분만 되돌린다 — 도트가 늘 기기 픽셀의 정수 배로 그려진다.
-        // (배율 전체를 되돌리면 Retina · 200% 화면에서 UI가 절반 크기였다: 2 → ×2, 1.25 → ×1, 2.5 → ×2)
-        const deviceScale = mobileDevice ? 1 : dpr / Math.floor(dpr + 1e-6);
-        const next = percent / 100 / deviceScale;
-        const changed = Math.abs(next - factor) > 0.00001;
-        factor = next;
-        // Reuse the MediaQueryList in drawing; its matches value follows resize without a frame-time DOM measure.
-        if (changed || !sideBattleHudQuery) sideBattleHudQuery = window.matchMedia(mediaText('(max-width: 1080px) and (orientation: landscape) and (max-height: 600px)'));
-        document.documentElement.style.setProperty('--scale-display-factor', String(factor));
-        // 기기 픽셀 ÷ CSS 1px(배율과 확대를 합친 값): 도트 그림을 기기 픽셀의 정수배로 맞출 때 쓴다(css/themes/pixel-hud.css 스킬룬 칸)
-        document.documentElement.style.setProperty('--device-ratio', String(dpr * factor));
-        document.documentElement.style.zoom = String(factor);
-        // 정수배가 아닌 단계: 도트 글꼴이 번지므로 글자만 일반 글꼴로(css/tokens.css :root.ui-smooth-text)
-        document.documentElement.classList.toggle('ui-smooth-text', !mobileDevice && !isCrispStep(percent, dpr));
-        registerStyles();
-        syncScaleSelect(dpr);
-        watchResolution();
-        if (changed) window.dispatchEvent(new Event('resize'));
+    init() {
+      if (this.initialized || this.disposed) return;
+      this.initialized = true;
+      this.apply(100);
+      this.syncEffects();
+      const { window: window2, document: document2 } = this.env;
+      this.selectElement = document2.getElementById("sel-ui-scale");
+      this.selectElement.addEventListener("change", this.selectionChange);
+      window2.addEventListener("game:languagechange", this.languageChange);
+      document2.querySelectorAll("[style]").forEach((el) => this.styles.adaptStyle(el.style));
+      this.observer = new window2.MutationObserver(() => this.registerStyles());
+      this.observer.observe(document2.head, { childList: true });
     }
-
-    function refresh() { apply(percent); }
-
-    function select(value) {
-        game.settings.uiScale = normalizeUiScale(value);
-        game.settings.uiScaleChosen = true;   // 사용자가 고른 뒤에는 처음 기본값 계산을 하지 않는다
-        apply(game.settings.uiScale);
-        saveGame({ skipCloudSync: false });
+    get battleRenderScale() {
+      const ratio = (this.env.window.devicePixelRatio || 1) * this.factor, cap = this.cadence.mobile ? 1.5 : 2;
+      return Math.max(1, ratio / Math.max(1, Math.ceil(ratio / cap - 1e-6)));
     }
-
-    /** PC 선택 상자: 세 단계와 기기에 맞춘 꼬리표. 또렷한 단계는 (추천), 아닌 단계는 (글꼴 바꿈). 설명 줄도 함께 바꾼다. 휴대폰은 index.html의 열 단계 그대로. */
-    function syncScaleSelect(dpr) {
-        const select = document.getElementById('sel-ui-scale');
-        if (!select) return;
-        if (!mobileDevice) {
-            const labels = PC_SCALE_STEPS.map(step => _t(isCrispStep(step, dpr) ? '{step}% (추천)' : '{step}% (글꼴 바꿈)', { step })).join('|');
-            if (select.dataset.labels !== labels) {
-                select.dataset.labels = labels;
-                select.innerHTML = labels.split('|').map((label, index) => `<option value="${PC_SCALE_STEPS[index]}">${label}</option>`).join('');
-                const hint = document.querySelector('label[for="sel-ui-scale"] + small');
-                if (hint) hint.textContent = _t('메뉴와 글자의 크기. (추천)은 도트가 또렷한 배율이고, 글꼴 바꿈 배율은 글자를 일반 글꼴로 보입니다.');
-            }
+    captureRoot() {
+      if (this.rootStyles) return;
+      const root = this.env.document.documentElement;
+      this.originalSmooth = root.classList.contains("ui-smooth-text");
+      this.rootStyles = new Map(["--scale-display-factor", "--device-ratio", "zoom"].map((property) => [property, { value: root.style.getPropertyValue(property), priority: root.style.getPropertyPriority(property) }]));
+    }
+    restoreRoot() {
+      const { document: document2 } = this.env, root = document2.documentElement;
+      if (this.rootStyles) {
+        for (const [property, row] of this.rootStyles) {
+          if (root.style.getPropertyValue(property) !== row.next) continue;
+          if (row.value) root.style.setProperty(property, row.value, row.priority);
+          else root.style.removeProperty(property);
         }
-        select.value = String(percent);
+        this.rootStyles.clear();
+      }
+      if (root.classList.contains("ui-smooth-text") === this.lastSmooth) root.classList.toggle("ui-smooth-text", this.originalSmooth);
+      if (document2.body.classList.contains("reduced-effects") === this.lastReduced) document2.body.classList.toggle("reduced-effects", this.originalReduced);
     }
-
-    /** 저장된 설정의 배율을 적용한다. 사용자가 고른 적이 없으면(uiScaleChosen이 true가 아니고 값이 기본 100) 화면에 맞는 추천값을 쓰고,
-     * 적용한 단계를 설정에 되돌려 적는다(옛 열 단계 값은 PC 단계로 바뀐다). */
-    function applySaved(settings) {
-        syncEffects();
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const chosen = settings.uiScaleChosen === true || normalizeUiScale(settings.uiScale) !== 100;
-        if (!mobileDevice && !chosen) settings.uiScale = recommendedScale((window.screen ? window.screen.width : 1920) * dpr, dpr);
-        apply(settings.uiScale);
-        settings.uiScale = percent;
+    dispose() {
+      if (this.disposed) return;
+      this.disposed = true;
+      this.env.document.removeEventListener("DOMContentLoaded", this.init);
+      this.motionQuery.removeEventListener("change", this.syncEffects);
+      this.resolutionQuery?.removeEventListener("change", this.refresh);
+      this.env.window.removeEventListener("game:languagechange", this.languageChange);
+      this.selectElement?.removeEventListener("change", this.selectionChange);
+      this.observer?.disconnect();
+      this.cadence.dispose();
+      this.styles.dispose();
+      this.restoreRoot();
+      this.sideBattleHudQuery = null;
     }
-
-    function init() {
-        apply(100);
-        syncEffects();
-        document.getElementById('sel-ui-scale').addEventListener('change', event => select(event.target.value));
-        // 선택 상자의 꼬리표는 번역한 글이라 언어가 바뀌면 다시 쓴다(js/i18n.js).
-        window.addEventListener('game:languagechange', () => syncScaleSelect(Math.max(1, window.devicePixelRatio || 1)));
-        document.querySelectorAll('[style]').forEach(el => adaptStyle(el.style));
-        new MutationObserver(() => registerStyles()).observe(document.head, { childList: true });
-    }
-
-    return Object.freeze({ apply, applySaved, init, matches, registerStyles, recommendedScale, isCrispStep, pcScaleStep, reducedEffects, syncEffects, get factor() { return factor; },
-        get battleHudAtSide() { return !!sideBattleHudQuery && sideBattleHudQuery.matches; },
-        // Time since the last input: a long gap means the player is away (an idle run must not stop on a reward window).
-        get inputIdleMs() { return performance.now() - lastInputAt; },
-        get battleFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 22, restingFrameMs()); },
-        get explorationFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 1000 / 60, restingFrameMs()); },
-        // Canvas pixels per CSS pixel, capped for fill cost. The canvas is shown with image-rendering:pixelated, so it
-        // takes a whole number of device pixels per canvas pixel: a 2.625 phone renders at 1.3125 (×2 on screen)
-        // instead of 1.5 (×1.75, which drew every fourth pixel-art column twice as wide as its neighbours).
-        get battleRenderScale() {
-            const ratio = (window.devicePixelRatio || 1) * factor, cap = mobileDevice ? 1.5 : 2;
-            return Math.max(1, ratio / Math.max(1, Math.ceil(ratio / cap - 1e-6)));
-        }
+  };
+  function createDisplay(environment, inputs) {
+    const service = new Display(environment, inputs);
+    return Object.freeze({
+      start: (options) => service.start(options),
+      init: () => service.init(),
+      dispose: () => service.dispose(),
+      apply: (value) => service.apply(value),
+      applySaved: (settings) => service.applySaved(settings),
+      applyUiSkin: (skin) => service.applyUiSkin(skin),
+      applyHighContrast: (enabled) => service.applyHighContrast(enabled),
+      applyLoadedSaveLook: () => service.applyLoadedSaveLook(),
+      applyChatMessageSize: (size) => service.applyChatMessageSize(size),
+      matches: (query) => service.matches(query),
+      registerStyles: () => service.registerStyles(),
+      recommendedScale,
+      isCrispStep,
+      pcScaleStep: (value, dpr) => nearestPcScaleStep(inputs.normalizeScale(value), dpr),
+      reducedEffects: () => service.reducedEffects(),
+      syncEffects: () => service.syncEffects(),
+      get factor() {
+        return service.factor;
+      },
+      get battleHudAtSide() {
+        return !!service.sideBattleHudQuery && service.sideBattleHudQuery.matches;
+      },
+      get inputIdleMs() {
+        return service.cadence.inputIdleMs;
+      },
+      get battleFrameMs() {
+        return service.cadence.battleFrameMs;
+      },
+      get explorationFrameMs() {
+        return service.cadence.explorationFrameMs;
+      },
+      get battleRenderScale() {
+        return service.battleRenderScale;
+      }
     });
+  }
+
+  // modules/ui-display-classic.mjs
+  var uiDisplay = createDisplay({ window, document }, {
+    getState: () => game,
+    normalizeScale: (value) => normalizeUiScale(value),
+    translate: (...args) => _t(...args),
+    save: (options) => saveGame(options)
+  });
+  safeExposeGlobals({
+    uiDisplay,
+    applyUiSkin: uiDisplay.applyUiSkin,
+    applyHighContrast: uiDisplay.applyHighContrast,
+    applyLoadedSaveLook: uiDisplay.applyLoadedSaveLook,
+    applyChatMessageSize: uiDisplay.applyChatMessageSize
+  });
+  uiDisplay.start({ waitForDomReady: true });
 })();
-safeExposeGlobals({ uiDisplay });
-document.addEventListener('DOMContentLoaded', () => uiDisplay.init(), { once: true });

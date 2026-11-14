@@ -149,9 +149,11 @@ PC 1280×720·모바일 390×844에서 저장·전환·등급 복원·옛 기록
 | 16 공허 베기 | 예비동작 균열과 X자 자국을 빼고 초승달만 | 앞 |
 | 5 회오리바람 | 칼바람이 그려진 캐릭터를 따라가고, 벤 자국 방향도 그 순간 서 있던 칸 기준 | 앞 |
 
-- 그림: `js/canvas-redrawn-skill-art-extra.js`(09-30 효과) · `js/canvas-redrawn-skill-art-moves.js`(이동기 4종 · 위습 공격).
-  인계 `void_fx.js`를 그대로 옮겼고 `scripts/smoke-redrawn-skill-art.js`가 인계 원본과 모든 점을 비교합니다.
-- 전투 이벤트 연결: `js/canvas-redrawn-skill-fx.js`(어떤 젬이 어떤 이벤트를 가져가는지) · `js/canvas-redrawn-skill-fx-extra.js`(그리는 쪽).
+- 그림: `modules/rendering/redrawn/art-extra.mjs`(09-30 효과) · `art-moves.mjs`(이동기 4종 · 위습 공격).
+  2026-11-14 ESM 전환 때 인계 `void_fx.js`에서 옮긴 그림 공식을 이 모듈로 이동했습니다.
+  과거의 `smoke-redrawn-skill-art.js` 원본 비교 결과와 이번 전환 후 동작 검증은 구분합니다(현재 진행은 README).
+- 전투 이벤트 연결: `modules/rendering/redrawn/skill-renderer.mjs`가 시전 기록을 소유하고,
+  `base-cast-drawers.mjs`·`supplement-cast-drawers.mjs`를 조립합니다. 이동 자세는 `caster-motion.mjs`입니다.
 - 17·37은 자체 충격 고리를 그리므로 공용 고리(`canvas-fx-remake.js`)에서 뺐습니다.
 
 ## 2. 규칙 변경 (커밋 e5a6fad9)
@@ -257,7 +259,7 @@ PC 1280×720·모바일 390×844에서 저장·전환·등급 복원·옛 기록
   같은 위습이 된 두 젬은 하나로 합칩니다 — 젬 기록은 더 자란 쪽, 각성은 하나라도 했으면, 소환 수는 합, 각인은 따라가고,
   하늘탑 젬 강화는 큰 쪽. 봉인 목록·강화 대상·암시장 젬·진행 중 탐험 보상·나무꾼 빌드 잠금도 바꿉니다. 여러 번 불러와도 같습니다.
 - 파일: 표 `data/wisp-summons.js`, 공격 규칙 `js/wisp-summons.js`, 그림 연결 `js/canvas-wisp-summon-fx.js`,
-  저장 변환 `js/save-migration-wisp-summons.js`. 그림 자체는 `js/canvas-redrawn-skill-art-moves.js` `WispAttack`(인계 원본과 도트 단위 동일).
+  저장 변환 `js/save-migration-wisp-summons.js`. 그림 자체는 `modules/rendering/redrawn/art-moves.mjs`의 `WispAttack`(기존 인계 그림 공식).
 - 가져오기: `scripts/import-hana-characters.cjs`가 동물 시안 대신 위습 시트를 가져오고, 시트 규격이 표와 다르면 멈춥니다.
 - 테스트 패널의 "원본 v3.38" 이펙트 모드에서는 위습 공격 그림이 없습니다(새 젬이라). 피해 숫자는 나옵니다.
 

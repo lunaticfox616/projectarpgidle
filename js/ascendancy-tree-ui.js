@@ -1,389 +1,667 @@
-/** 전직 트리 보기 (2026-10-09 목표 "전직노드 UI/UX 개선", 2026-10-22 "전직 노드창 개선", 2026-11-02 색과 스킬트리 노드 그림). 왼쪽에 노드 나무(스킬트리의 틀과 아이콘, 값,
- * 능력치 이름, 궁극과 4차 핵심과 특화 줄에는 이름표), 오른쪽에 키스톤과 자세히 카드를 둔다. 칸은 불투명하고 선은 칸 밑으로 지나가지 않는다. 좁은 창에서는 나무, 자세히, 키스톤 차례로
- * 쌓고 자세히 카드가 아래에 붙는다. 자세히 카드는 가리키거나 누른 칸의 효과, 찍으면 바뀌는 값, 할 수 있는 일과 그 단추를 보인다. 사고 되돌리는 규칙은 js/ui.js(buyAscend, askRefundAscendNode, buyAscendKeystone,
- * refundAscendKeystone)를 그대로 부른다. 마우스로는 누르면 바로 찍고, 가리킬 수 없는 화면(터치)에서는 첫 탭이 고르기, 같은 칸을
- * 한 번 더 누르면 찍는다(잘못 눌러 되돌리느라 마름병 포자를 쓰지 않게).
- * 아직 열리지 않은 4차 핵심과 전직 특화는 흐리게 미리 보이고, 재능 특화는 개화한 재능이 정해질 때까지 자리만 보인다.
- */
-const ascendancyTreeUi = (() => {
-    const ROWS = Object.freeze([['n1'], ['n2', 'n3'], ['n4', 'n5', 'n6'], ['n7', 'n8', 'n9'], ['n10'], ['n11', 'n12'], ['n13a', 'n13b', 'n13c', 'n13d']]);
-    const RANK = Object.freeze({ n10: '궁극 노드', n11: '4차 핵심', n12: '4차 핵심', n13a: '재능 특화', n13b: '재능 특화', n13c: '전직 특화', n13d: '전직 특화' });
-    // 능력치 → 노드 가운데 도트 그림(js/ui.js PIXEL_ICONS). 표에 없으면 별.
-    const ICONS = Object.freeze({
-        pctDmg: 'sword', flatDmg: 'sword', meleePctDmg: 'sword', physPctDmg: 'sword', slamPctDmg: 'sword', attackPctDmg: 'sword',
-        elementalPctDmg: 'flame', firePctDmg: 'flame', coldPctDmg: 'drop', lightPctDmg: 'up', chaosPctDmg: 'drop', dotPctDmg: 'flame',
-        spellPctDmg: 'star', projectilePctDmg: 'reticle', aoePctDmg: 'split', summonPctDmg: 'fork', summonHpPct: 'heart',
-        pctHp: 'heart', flatHp: 'heart', regen: 'drop', leech: 'leech', dr: 'shield', armor: 'shield', armorPct: 'shield',
-        evasion: 'boot', evasionPct: 'boot', energyShield: 'shield', resAll: 'shield', resChaos: 'shield', blockChance: 'shield',
-        aspd: 'speed', ds: 'speed', move: 'boot', crit: 'crit', critDmg: 'eye', resPen: 'pierce', physIgnore: 'physIgnore', suppCap: 'star'
+// GENERATED from modules/ascendancy-tree-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/window-methods.mjs
+  var windowCancelAnimationFrame = (...args) => globalThis.cancelAnimationFrame(...args);
+  var windowGetComputedStyle = (...args) => globalThis.getComputedStyle(...args);
+  var windowMatchMedia = (...args) => globalThis.matchMedia(...args);
+  var windowRequestAnimationFrame = (...args) => globalThis.requestAnimationFrame(...args);
+
+  // modules/ui/ascend-tree-data.mjs
+  var ROWS = /* @__PURE__ */ Object.freeze([["n1"], ["n2", "n3"], ["n4", "n5", "n6"], ["n7", "n8", "n9"], ["n10"], ["n11", "n12"], ["n13a", "n13b", "n13c", "n13d"]]);
+  var RANK = /* @__PURE__ */ Object.freeze({ n10: "궁극 노드", n11: "4차 핵심", n12: "4차 핵심", n13a: "재능 특화", n13b: "재능 특화", n13c: "전직 특화", n13d: "전직 특화" });
+  var ICONS = /* @__PURE__ */ Object.freeze({
+    pctDmg: "sword",
+    flatDmg: "sword",
+    meleePctDmg: "sword",
+    physPctDmg: "sword",
+    slamPctDmg: "sword",
+    attackPctDmg: "sword",
+    elementalPctDmg: "flame",
+    firePctDmg: "flame",
+    coldPctDmg: "drop",
+    lightPctDmg: "up",
+    chaosPctDmg: "drop",
+    dotPctDmg: "flame",
+    spellPctDmg: "star",
+    projectilePctDmg: "reticle",
+    aoePctDmg: "split",
+    summonPctDmg: "fork",
+    summonHpPct: "heart",
+    pctHp: "heart",
+    flatHp: "heart",
+    regen: "drop",
+    leech: "leech",
+    dr: "shield",
+    armor: "shield",
+    armorPct: "shield",
+    evasion: "boot",
+    evasionPct: "boot",
+    energyShield: "shield",
+    resAll: "shield",
+    resChaos: "shield",
+    blockChance: "shield",
+    aspd: "speed",
+    ds: "speed",
+    move: "boot",
+    crit: "crit",
+    critDmg: "eye",
+    resPen: "pierce",
+    physIgnore: "physIgnore",
+    suppCap: "star"
+  });
+  var NODE_TEXT = /* @__PURE__ */ Object.freeze({ taken: "할당", open: "할당 가능", nopoint: "포인트 없음", locked: "선행 노드 필요", closed: "짝 노드를 할당해 닫힘", future: "아직 열리지 않음" });
+  var KEYSTONE_TEXT = /* @__PURE__ */ Object.freeze({ taken: "할당", open: "할당 가능", nopoint: "키스톤 포인트 없음", full: "5개 모두 할당", locked: "선행 키스톤 필요", fifth: "5차 전직 필요" });
+  var ROW_LABEL = /* @__PURE__ */ Object.freeze({ n10: "궁극", n11: "4차 핵심", n13a: "특화" });
+  var KEYSTONE_HALF_WIDTH = 14;
+  var NODE_ACTIONS = /* @__PURE__ */ Object.freeze({ taken: "반환", open: "할당" });
+  var KEYSTONE_ACTIONS = /* @__PURE__ */ Object.freeze({ taken: "반환", open: "할당" });
+  var KEYSTONE_ART = /* @__PURE__ */ Object.freeze([
+    ["소환", "summon"],
+    ["카오스", "chaos"],
+    ["화염", "fire"],
+    ["점화", "ignite"],
+    ["냉기", "cold"],
+    ["동결", "freeze"],
+    ["냉각", "chill"],
+    ["번개", "lightning"],
+    ["감전", "shock"],
+    ["중독", "poison"],
+    ["출혈", "bleed"],
+    ["지속", "damageOverTime"],
+    ["투사체", "projectile"],
+    ["강타", "slam"],
+    ["근접", "blade"],
+    ["주문", "spell"],
+    ["에너지", "energyShield"],
+    ["ES", "energyShield"],
+    ["회피", "evasion"],
+    ["막기", "shield"],
+    ["방어", "armor"],
+    ["생명력", "life"],
+    ["재생", "life"],
+    ["흡수", "life"],
+    ["이동", "wind"],
+    ["공격 속도", "precision"],
+    ["치명타", "critical"],
+    ["원소", "elemental"],
+    ["저항", "elemental"],
+    ["물리", "blade"],
+    ["연속", "cycle"],
+    ["보조스킬룬", "arcane"],
+    ["룬", "arcane"]
+  ]);
+
+  // modules/ui/ascend-tree-common.mjs
+  var ascendTreeIconOf = (stat) => ICONS[stat] || "star";
+  var ascendTreeEsc = (runtime, value) => runtime.deps.escapeHTML(String(value));
+  var ascendTreeStatName = (runtime, stat) => String(runtime.deps._t(runtime.deps.P_STATS[stat] && runtime.deps.P_STATS[stat].name || runtime.deps.getStatName(stat))).replace(/\s*\(%\)$/, "");
+  var ascendTreePercent = (runtime, stat) => !!(runtime.deps.P_STATS[stat] && runtime.deps.P_STATS[stat].isPct);
+  var ascendTreeLinesOf = (node) => node && Array.isArray(node.stats) ? node.stats : node && node.stat ? [{ stat: node.stat, val: node.val }] : [];
+  function ascendTreeLineText(runtime, line) {
+    if (line.stat === "suppCap") return runtime.deps._t("보조스킬룬 장착 한도 +1");
+    return `${ascendTreeStatName(runtime, line.stat)} +${runtime.deps.formatValue(line.stat, line.val)}${ascendTreePercent(runtime, line.stat) ? "%" : ""}`;
+  }
+  var ascendTreeShortValue = (runtime, line) => line.stat === "suppCap" ? "+1" : `+${runtime.deps.formatValue(line.stat, line.val)}${ascendTreePercent(runtime, line.stat) ? "%" : ""}`;
+  var ascendTreeReqIds = (req) => Array.isArray(req) ? req : req ? [req] : [];
+  var ascendTreeTouchOnly = (runtime) => typeof runtime.deps.matchMedia === "function" && !runtime.deps.matchMedia("(hover: hover)").matches;
+  function ascendTreeLayout(rows) {
+    const at = /* @__PURE__ */ new Map();
+    rows.forEach((ids, row) => ids.forEach((id, index) => at.set(id, { x: (index + 1) * 100 / (ids.length + 1), y: (row + 0.5) * 100 / rows.length })));
+    return at;
+  }
+  function ascendTreeLinkHtml(points, state) {
+    return `<polyline class="is-${state}" points="${points.map((point) => `${point.x},${point.y}`).join(" ")}" vector-effect="non-scaling-stroke"></polyline>`;
+  }
+  function ascendTreeArtHtml(runtime, family) {
+    const cell = runtime.deps.passiveNodes.iconAtlasCell[family] || runtime.deps.passiveNodes.iconAtlasCell.constellation;
+    return `<span class="ascend-socket"><span class="ascend-art" style="--cx:${cell[0]};--cy:${cell[1]}"></span></span>`;
+  }
+  var ascendTreeStatFamily = (runtime, stat) => runtime.deps.passiveNodes.iconFamily[stat] || (stat ? "arcane" : "constellation");
+  function ascendTreeKeystoneFamily(desc) {
+    const text = String(desc || "");
+    const found = KEYSTONE_ART.map(([word, family]) => [text.indexOf(word), family]).filter(([at]) => at >= 0).sort((a, b) => a[0] - b[0]);
+    return found.length ? found[0][1] : "constellation";
+  }
+  var ascendTreeLinkState = (a, b) => a === "taken" && b === "taken" ? "done" : a === "taken" ? "lit" : "dim";
+  var ascendTreeKeystoneReqs = (k) => [k.req, ...Array.isArray(k.reqAny) ? k.reqAny : []].filter(Boolean);
+  function ascendTreeKeystoneRows(defs) {
+    const ids = new Set(defs.map((k) => k.id)), depth = new Map(defs.map((k) => [k.id, 0]));
+    for (let pass = 0; pass < defs.length; pass++) {
+      defs.forEach((k) => {
+        const reqs = ascendTreeKeystoneReqs(k).filter((id) => ids.has(id));
+        if (reqs.length) depth.set(k.id, 1 + Math.max(...reqs.map((id) => depth.get(id))));
+      });
+    }
+    const last = Math.max(0, ...depth.values()) + 1, rows = [];
+    defs.forEach((k) => {
+      const d = k.fifthJobOnly ? last : depth.get(k.id);
+      (rows[d] = rows[d] || []).push(k.id);
     });
-    const NODE_TEXT = Object.freeze({ taken: '할당', open: '할당 가능', nopoint: '포인트 없음', locked: '선행 노드 필요', closed: '짝 노드를 할당해 닫힘', future: '아직 열리지 않음' });
-    const KEYSTONE_TEXT = Object.freeze({ taken: '할당', open: '할당 가능', nopoint: '키스톤 포인트 없음', full: '5개 모두 할당', locked: '선행 키스톤 필요', fifth: '5차 전직 필요' });
-    let focus = null; // { kind: 'node' | 'keystone', id } 마지막으로 누른 칸
-    let shown = null; // 자세히 카드가 읽는 칸: 마지막으로 가리키거나 누른 칸
-    const ROW_LABEL = Object.freeze({ n10: '궁극', n11: '4차 핵심', n13a: '특화' });
-    const KEYSTONE_HALF_WIDTH = 14; // 키스톤 칸 반폭(판 폭의 %): 선이 이 안을 지나면 돌아간다
-    const NODE_ACTIONS = Object.freeze({ taken: '반환', open: '할당' });
-    const KEYSTONE_ACTIONS = Object.freeze({ taken: '반환', open: '할당' });
-    // 키스톤 설명의 낱말 → 스킬트리 아이콘. 설명에서 가장 먼저 나오는 낱말의 그림을 쓴다.
-    const KEYSTONE_ART = Object.freeze([['소환', 'summon'], ['카오스', 'chaos'], ['화염', 'fire'], ['점화', 'ignite'], ['냉기', 'cold'], ['동결', 'freeze'], ['냉각', 'chill'],
-        ['번개', 'lightning'], ['감전', 'shock'], ['중독', 'poison'], ['출혈', 'bleed'], ['지속', 'damageOverTime'], ['투사체', 'projectile'], ['강타', 'slam'], ['근접', 'blade'],
-        ['주문', 'spell'], ['에너지', 'energyShield'], ['ES', 'energyShield'], ['회피', 'evasion'], ['막기', 'shield'], ['방어', 'armor'], ['생명력', 'life'], ['재생', 'life'], ['흡수', 'life'],
-        ['이동', 'wind'], ['공격 속도', 'precision'], ['치명타', 'critical'], ['원소', 'elemental'], ['저항', 'elemental'], ['물리', 'blade'], ['연속', 'cycle'], ['보조스킬룬', 'arcane'], ['룬', 'arcane']]);
-    /** The stat's dot picture (the talent window marks each ascendancy with its main stat's, js/talent-ui.js). */
-    const iconOf = stat => ICONS[stat] || 'star';
+    return rows.filter(Boolean);
+  }
+  var ascendTreeCanTake = (state) => state === "open" || state === "nopoint";
+  var ascendTreeDetailHead = (runtime, title, stateText, state) => `<p class="ascend-detail-head"><strong>${ascendTreeEsc(runtime, title)}</strong><small class="is-${state}">${ascendTreeEsc(runtime, stateText)}</small>
+        <button type="button" class="ascend-detail-close" data-ascend-action="clear">${runtime.deps._t("닫기")}</button></p>`;
+  var ascendTreeActionHtml = (runtime, label) => label ? `<button type="button" class="ascend-detail-act" data-ascend-action="act">${ascendTreeEsc(runtime, label)}</button>` : "";
+  function ascendTreePreviewHtml(runtime, field, id, verb) {
+    const parts = runtime.deps.buildStatPreviewParts(runtime.deps.previewBuildStats((copy) => {
+      copy[field] = [...copy[field] || [], id];
+    }));
+    return parts ? `<p class="ascend-preview">${verb} ${parts}</p>` : "";
+  }
+  function ascendTreeScrollerOf(runtime, el) {
+    for (let at = el.parentElement; at; at = at.parentElement) {
+      if (/auto|scroll/.test(runtime.deps.getComputedStyle(at).overflowY) && at.scrollHeight > at.clientHeight) return at;
+    }
+    return runtime.deps.document.scrollingElement;
+  }
 
-    const esc = value => escapeHTML(String(value));
-    const statName = stat => String(_t((P_STATS[stat] && P_STATS[stat].name) || getStatName(stat))).replace(/\s*\(%\)$/, '');
-    const percent = stat => !!(P_STATS[stat] && P_STATS[stat].isPct);
-    const linesOf = node => (node && Array.isArray(node.stats) ? node.stats : (node && node.stat ? [{ stat: node.stat, val: node.val }] : []));
-    function lineText(line) {
-        if (line.stat === 'suppCap') return _t('보조스킬룬 장착 한도 +1');
-        return `${statName(line.stat)} +${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`;
-    }
-    const shortValue = line => (line.stat === 'suppCap' ? '+1' : `+${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`);
-    const reqIds = req => (Array.isArray(req) ? req : (req ? [req] : []));
-    const touchOnly = () => typeof matchMedia === 'function' && !matchMedia('(hover: hover)').matches;
+  // modules/ui/ascend-tree-nodes.mjs
+  function ascendTreeFullTree(runtime, cls) {
+    const tree = { ...runtime.deps.getClassTreeDef(cls) }, defs = runtime.deps.ASCENDANCY_NODE_DEFS[cls] || {};
+    const pair = (ids, lines, req, future) => ids.forEach((id, index) => {
+      if (!tree[id]) tree[id] = { ...lines ? { stat: lines[index].stat, val: lines[index].val } : {}, req, exclusive: ids[1 - index], future };
+    });
+    pair(["n11", "n12"], defs.core || runtime.deps.ASCENDANCY_NODE_FALLBACK.core, "n10", "4차 전직 시련을 처음 통과하면 열립니다.");
+    pair(["n13a", "n13b"], null, ["n11", "n12"], "재능 개화(5차 전직)를 하면 그 재능의 특화 둘이 열립니다.");
+    pair(["n13c", "n13d"], defs.job || runtime.deps.ASCENDANCY_NODE_FALLBACK.job, ["n11", "n12"], "재능 개화(5차 전직)를 하면 열립니다.");
+    return tree;
+  }
+  function ascendTreeNodeState(runtime, node, id) {
+    if (node.future) return "future";
+    if (runtime.deps.game.ascendNodes.includes(id)) return "taken";
+    if (node.exclusive && runtime.deps.game.ascendNodes.includes(node.exclusive)) return "closed";
+    if (!runtime.deps.isAscendNodeRequirementMet(node)) return "locked";
+    return runtime.deps.game.ascendPoints > 0 ? "open" : "nopoint";
+  }
+  function ascendTreeNodeClass(runtime, id, state, tight) {
+    const focused = runtime.focus && runtime.focus.kind === "node" && runtime.focus.id === id;
+    return `ascend-node is-${state}${RANK[id] ? " is-major" : ""}${id === "n10" ? " is-peak" : ""}${tight ? " is-tight" : ""}${focused ? " is-focus" : ""}`;
+  }
+  function ascendTreeNodeButton(runtime, id, node, pos, options) {
+    const { state, tight } = options;
+    const lines = ascendTreeLinesOf(node), first = (lines[0] || {}).stat, label = lines.length ? ascendTreeShortValue(runtime, lines[0]) : "?";
+    const stat = lines.length ? ascendTreeStatName(runtime, first) : runtime.deps._t("재능 특화"), name = `${RANK[id] ? runtime.deps._t(RANK[id]) : stat}, ${runtime.deps._t(NODE_TEXT[state])}`;
+    return `<button type="button" class="${ascendTreeNodeClass(runtime, id, state, tight)}" style="--x:${pos.x}%;--y:${pos.y}%;--tone:${runtime.deps.getItemStatToneColor(first)}"
+            aria-label="${ascendTreeEsc(runtime, name)}" aria-pressed="${state === "taken"}" data-ascend-kind="node" data-ascend-id="${id}"
+            data-info-tooltip-anchor="1">${ascendTreeArtHtml(runtime, ascendTreeStatFamily(runtime, first))}<span class="ascend-plate"><b>${ascendTreeEsc(runtime, label)}</b><span class="ascend-node-name">${ascendTreeEsc(runtime, stat)}</span></span></button>`;
+  }
+  function ascendTreeLinkSources(tree, rows, at, id) {
+    const reqs = ascendTreeReqIds(tree[id].req).filter((req) => at.has(req)), key = reqs.join(",");
+    const row = rows.find((ids) => ids.includes(id)) || [];
+    if (reqs.length < 2 || row.filter((other) => ascendTreeReqIds(tree[other].req).join(",") === key).length < 2) return reqs;
+    const x = at.get(id).x;
+    return [reqs.reduce((best, req) => Math.abs(at.get(req).x - x) < Math.abs(at.get(best).x - x) ? req : best)];
+  }
+  function ascendTreeNodeGraphHtml(runtime, tree) {
+    const rows = ROWS.map((ids) => ids.filter((id) => tree[id])).filter((ids) => ids.length), at = ascendTreeLayout(rows);
+    const states = new Map([...at.keys()].map((id) => [id, ascendTreeNodeState(runtime, tree[id], id)]));
+    const links = [...at.keys()].flatMap((id) => ascendTreeLinkSources(tree, rows, at, id).map((req) => ascendTreeLinkHtml([at.get(req), at.get(id)], ascendTreeLinkState(states.get(req), states.get(id)))));
+    const tight = new Set(rows.filter((ids) => ids.length > 3).flat());
+    const buttons = [...at.keys()].map((id) => ascendTreeNodeButton(runtime, id, tree[id], at.get(id), { state: states.get(id), tight: tight.has(id) }));
+    const labels = rows.map((ids) => ids.find((id) => ROW_LABEL[id])).filter(Boolean).map((id) => `<span class="ascend-row-label" style="--y:${at.get(id).y}%">${ascendTreeEsc(runtime, runtime.deps._t(ROW_LABEL[id]))}</span>`);
+    return `<div class="ascend-graph" style="--rows:${rows.length}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join("")}</svg>${labels.join("")}${buttons.join("")}</div>`;
+  }
 
-    // ---------------------------------------------------------------- nodes
-    /** The class tree plus the nodes this loop has not opened yet, so the whole plan shows: 4차 핵심 from the class's core lines and
-     * 전직 특화 from its job lines (js/passives.js addAscendancyPairNodes uses the same), the talent pair as an empty spot. */
-    function fullTree(cls) {
-        const tree = { ...getClassTreeDef(cls) }, defs = ASCENDANCY_NODE_DEFS[cls] || {};
-        const pair = (ids, lines, req, future) => ids.forEach((id, index) => {
-            if (!tree[id]) tree[id] = { ...(lines ? { stat: lines[index].stat, val: lines[index].val } : {}), req, exclusive: ids[1 - index], future };
-        });
-        pair(['n11', 'n12'], defs.core || ASCENDANCY_NODE_FALLBACK.core, 'n10', '4차 전직 시련을 처음 통과하면 열립니다.');
-        pair(['n13a', 'n13b'], null, ['n11', 'n12'], '재능 개화(5차 전직)를 하면 그 재능의 특화 둘이 열립니다.');
-        pair(['n13c', 'n13d'], defs.job || ASCENDANCY_NODE_FALLBACK.job, ['n11', 'n12'], '재능 개화(5차 전직)를 하면 열립니다.');
-        return tree;
+  // modules/ui/ascend-tree-keystones.mjs
+  function ascendTreeKeystoneState(runtime, k) {
+    if (runtime.deps.game.ascendKeystones.includes(k.id)) return "taken";
+    if (k.fifthJobOnly && !runtime.deps.isAscendKeystoneRequirementMet(k)) return "fifth";
+    if (!runtime.deps.isAscendKeystoneRequirementMet(k)) return "locked";
+    if (runtime.deps.game.ascendKeystones.length >= runtime.deps.CLASS_KEYSTONE_PICK_LIMIT) return "full";
+    return Math.floor(runtime.deps.game.ascendKeystonePoints || 0) > 0 ? "open" : "nopoint";
+  }
+  function ascendTreeKeystoneButton(runtime, k, pos, state) {
+    const focused = runtime.focus && runtime.focus.kind === "keystone" && runtime.focus.id === k.id ? " is-focus" : "";
+    return `<button type="button" class="ascend-node ascend-keystone is-${state}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
+            aria-label="${ascendTreeEsc(runtime, `${runtime.deps._t(k.name)}, ${runtime.deps._t(KEYSTONE_TEXT[state])}`)}" aria-pressed="${state === "taken"}" data-ascend-kind="keystone" data-ascend-id="${k.id}"
+            data-info-tooltip-anchor="1">${ascendTreeArtHtml(runtime, ascendTreeKeystoneFamily(k.desc))}<span class="ascend-plate"><span class="ascend-node-name">${ascendTreeEsc(runtime, runtime.deps._t(k.name))}</span></span></button>`;
+  }
+  function ascendTreeKeystoneSpots(defs) {
+    const fifth = defs.filter((k) => k.fifthJobOnly).map((k) => k.id);
+    const rows = ascendTreeKeystoneRows(defs).map((ids) => ids.filter((id) => !fifth.includes(id))).filter((ids) => ids.length);
+    const spots = /* @__PURE__ */ new Map();
+    rows.forEach((ids, row) => ids.forEach((id, index) => {
+      const reqs = ascendTreeKeystoneReqs(defs.find((k) => k.id === id)).filter((req) => spots.has(req)).map((req) => spots.get(req).x);
+      const x = reqs.length ? reqs.reduce((sum, value) => sum + value, 0) / reqs.length : (index + 0.5) * 100 / ids.length;
+      spots.set(id, { x, row });
+    }));
+    const last = rows.length - 1, taken = [...spots.values()].filter((spot) => spot.row === last).map((spot) => spot.x);
+    const clearance = (x) => Math.min(...taken.map((other) => Math.abs(other - x)), 100);
+    const column = [100 / 6, 50, 500 / 6].reduce((best, x) => clearance(x) > clearance(best) ? x : best);
+    const beside = clearance(column) >= KEYSTONE_HALF_WIDTH * 2;
+    fifth.forEach((id) => spots.set(id, beside ? { x: column, row: last } : { x: 50, row: last + 1 }));
+    const count = rows.length + (fifth.length && !beside ? 1 : 0);
+    spots.forEach((spot) => {
+      spot.y = (spot.row + 0.5) * 100 / count;
+    });
+    return { spots, rows: count };
+  }
+  function ascendTreeKeystoneLinkPoints(from, to, spots) {
+    const points = [from];
+    const span = to.row - from.row, reach = Math.abs(to.y - from.y) / span * 0.48;
+    for (let row = from.row + 1; row < to.row; row++) {
+      const y = from.y + (to.y - from.y) * (row - from.row) / span;
+      const xAt = (at) => from.x + (to.x - from.x) * (at - from.y) / (to.y - from.y);
+      const straight = xAt(y), passes = [xAt(y - reach), straight, xAt(y + reach)];
+      const inRow = [...spots.values()].filter((spot) => spot.row === row).map((spot) => spot.x).sort((a, b) => a - b);
+      if (!inRow.some((x2) => passes.some((pass) => Math.abs(x2 - pass) < KEYSTONE_HALF_WIDTH))) continue;
+      const gaps = [...inRow, 100].map((x2, index) => (x2 + [0, ...inRow][index]) / 2);
+      const x = gaps.reduce((best, gap) => Math.abs(gap - straight) < Math.abs(best - straight) ? gap : best);
+      points.push({ x, y: y - reach }, { x, y: y + reach });
     }
-    function nodeState(node, id) {
-        if (node.future) return 'future';
-        if (game.ascendNodes.includes(id)) return 'taken';
-        if (node.exclusive && game.ascendNodes.includes(node.exclusive)) return 'closed';
-        if (!isAscendNodeRequirementMet(node)) return 'locked';
-        return game.ascendPoints > 0 ? 'open' : 'nopoint';
-    }
-    /** Positions in a 0~100 box: rows top to bottom, nodes spread evenly in their row. */
-    function layout(rows) {
-        const at = new Map();
-        rows.forEach((ids, row) => ids.forEach((id, index) => at.set(id, { x: (index + 1) * 100 / (ids.length + 1), y: (row + 0.5) * 100 / rows.length })));
-        return at;
-    }
-    function linkHtml(points, state) {
-        return `<polyline class="is-${state}" points="${points.map(point => `${point.x},${point.y}`).join(' ')}" vector-effect="non-scaling-stroke"></polyline>`;
-    }
-    /** The skill tree's picture for a family, sized by CSS (--cell): the sheet cell goes in as --cx, --cy. */
-    function artHtml(family) {
-        const cell = PASSIVE_ICON_ATLAS_CELL[family] || PASSIVE_ICON_ATLAS_CELL.constellation;
-        return `<span class="ascend-socket"><span class="ascend-art" style="--cx:${cell[0]};--cy:${cell[1]}"></span></span>`;
-    }
-    const statFamily = stat => PASSIVE_ICON_FAMILY[stat] || (stat ? 'arcane' : 'constellation');
-    function keystoneFamily(desc) {
-        const text = String(desc || '');
-        const found = KEYSTONE_ART.map(([word, family]) => [text.indexOf(word), family]).filter(([at]) => at >= 0).sort((a, b) => a[0] - b[0]);
-        return found.length ? found[0][1] : 'constellation';
-    }
-    /** Both ends taken: gold; the way on from a taken node: lit; the rest waits dim. */
-    const linkState = (a, b) => (a === 'taken' && b === 'taken' ? 'done' : (a === 'taken' ? 'lit' : 'dim'));
-    function nodeClass(id, state, tight) {
-        const focused = focus && focus.kind === 'node' && focus.id === id;
-        return `ascend-node is-${state}${RANK[id] ? ' is-major' : ''}${id === 'n10' ? ' is-peak' : ''}${tight ? ' is-tight' : ''}${focused ? ' is-focus' : ''}`;
-    }
-    function nodeButton(id, node, pos, state, tight) {
-        const lines = linesOf(node), first = (lines[0] || {}).stat, label = lines.length ? shortValue(lines[0]) : '?';
-        const stat = lines.length ? statName(first) : _t('재능 특화'), name = `${RANK[id] ? _t(RANK[id]) : stat}, ${_t(NODE_TEXT[state])}`;
-        return `<button type="button" class="${nodeClass(id, state, tight)}" style="--x:${pos.x}%;--y:${pos.y}%;--tone:${getItemStatToneColor(first)}"
-            aria-label="${esc(name)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('node','${id}')"
-            data-info-tooltip-anchor="1" onpointerenter="ascendancyTreeUi.tip(event,'node','${id}')" onpointermove="ascendancyTreeUi.tip(event,'node','${id}')" onpointerleave="hideInfoTooltip()"
-            onmouseenter="ascendancyTreeUi.hint('node','${id}')" onfocus="ascendancyTreeUi.hint('node','${id}')">${artHtml(statFamily(first))}<span class="ascend-plate"><b>${esc(label)}</b><span class="ascend-node-name">${esc(stat)}</span></span></button>`;
-    }
-    /** The prerequisites a node's lines come from. Nodes of one row that share the same choice of several prerequisites (n13a~d
-     * after n11 or n12) draw only from the nearest one, or their lines cross into an X; a lone node (n10 after n7~n9) keeps them all. */
-    function linkSources(tree, rows, at, id) {
-        const reqs = reqIds(tree[id].req).filter(req => at.has(req)), key = reqs.join(',');
-        const row = rows.find(ids => ids.includes(id)) || [];
-        if (reqs.length < 2 || row.filter(other => reqIds(tree[other].req).join(',') === key).length < 2) return reqs;
-        const x = at.get(id).x;
-        return [reqs.reduce((best, req) => (Math.abs(at.get(req).x - x) < Math.abs(at.get(best).x - x) ? req : best))];
-    }
-    function nodeGraphHtml(tree) {
-        const rows = ROWS.map(ids => ids.filter(id => tree[id])).filter(ids => ids.length), at = layout(rows);
-        const states = new Map([...at.keys()].map(id => [id, nodeState(tree[id], id)]));
-        const links = [...at.keys()].flatMap(id => linkSources(tree, rows, at, id)
-            .map(req => linkHtml([at.get(req), at.get(id)], linkState(states.get(req), states.get(id)))));
-        const tight = new Set(rows.filter(ids => ids.length > 3).flat());
-        const buttons = [...at.keys()].map(id => nodeButton(id, tree[id], at.get(id), states.get(id), tight.has(id)));
-        const labels = rows.map(ids => ids.find(id => ROW_LABEL[id])).filter(Boolean)
-            .map(id => `<span class="ascend-row-label" style="--y:${at.get(id).y}%">${esc(_t(ROW_LABEL[id]))}</span>`);
-        return `<div class="ascend-graph" style="--rows:${rows.length}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join('')}</svg>${labels.join('')}${buttons.join('')}</div>`;
-    }
+    return [...points, to];
+  }
+  function ascendTreeKeystoneGraphHtml(runtime, defs) {
+    if (!defs.length) return '<p class="ascend-muted">이 전직에는 키스톤이 없습니다.</p>';
+    const { spots, rows } = ascendTreeKeystoneSpots(defs);
+    const states = new Map(defs.map((k) => [k.id, ascendTreeKeystoneState(runtime, k)]));
+    const links = defs.flatMap((k) => ascendTreeKeystoneReqs(k).filter((id) => spots.has(id)).map((id) => ascendTreeLinkHtml(ascendTreeKeystoneLinkPoints(spots.get(id), spots.get(k.id), spots), ascendTreeLinkState(states.get(id), states.get(k.id)))));
+    const buttons = defs.map((k) => ascendTreeKeystoneButton(runtime, k, spots.get(k.id), states.get(k.id)));
+    return `<div class="ascend-graph is-keystones" style="--rows:${rows}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join("")}</svg>${buttons.join("")}</div>`;
+  }
 
-    // ---------------------------------------------------------------- keystones
-    const keystoneReqs = k => [k.req, ...(Array.isArray(k.reqAny) ? k.reqAny : [])].filter(Boolean);
-    function keystoneState(k) {
-        if (game.ascendKeystones.includes(k.id)) return 'taken';
-        if (k.fifthJobOnly && !isAscendKeystoneRequirementMet(k)) return 'fifth';
-        if (!isAscendKeystoneRequirementMet(k)) return 'locked';
-        if (game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT) return 'full';
-        return Math.floor(game.ascendKeystonePoints || 0) > 0 ? 'open' : 'nopoint';
+  // modules/ui/ascend-tree-details.mjs
+  function ascendTreeNextPoints(runtime) {
+    const done = Array.isArray(runtime.deps.game.completedTrials) ? runtime.deps.game.completedTrials : [];
+    const trial = ["trial_1", "trial_2", "trial_3", "trial_4"].find((id) => !done.includes(id));
+    if (trial) return runtime.deps._t("다음 포인트: {trial}차 전직 시련 첫 통과(노드 +{value}, 키스톤 +1)", { trial: trial.slice(-1), value: trial === "trial_4" ? 1 : 2 });
+    return runtime.deps.game.bloomedClassThisLoop ? "이번 루프의 포인트를 모두 받았습니다." : "다음 포인트: 재능 개화(노드 +2, 키스톤 +1)";
+  }
+  function ascendTreeTotalsText(runtime, tree) {
+    const sums = /* @__PURE__ */ new Map();
+    runtime.deps.game.ascendNodes.forEach((id) => ascendTreeLinesOf(tree[id]).forEach((line) => sums.set(line.stat, (sums.get(line.stat) || 0) + Number(line.val || 0))));
+    return [...sums].map(([stat, val]) => ascendTreeLineText(runtime, { stat, val })).join(", ");
+  }
+  function ascendTreeSummaryHtml(runtime, cls, tree) {
+    const template = runtime.deps.CLASS_TEMPLATES[cls], total = ascendTreeTotalsText(runtime, tree), ks = runtime.deps.game.ascendKeystones.length;
+    return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${ascendTreeEsc(runtime, runtime.deps._t(template.name))}</strong><span>${ascendTreeEsc(runtime, runtime.deps._t(template.desc))}</span></div>
+            <div class="ascend-summary-chips"><span class="is-node">${runtime.deps._t("노드 포인트")} <b>${Math.max(0, Math.floor(runtime.deps.game.ascendPoints || 0))}</b></span>
+            <span class="is-key">${runtime.deps._t("키스톤")} <b>${ks}/${runtime.deps.CLASS_KEYSTONE_PICK_LIMIT}</b>${runtime.deps._t(", 포인트")} <b>${Math.max(0, Math.floor(runtime.deps.game.ascendKeystonePoints || 0))}</b></span>
+            <span class="is-taken">${runtime.deps._t("할당한 노드")} <b>${runtime.deps.game.ascendNodes.length}</b></span>
+            ${runtime.deps.game.ascendNodes.length ? `<button type="button" class="ascend-reset" data-ascend-action="reset-nodes">${runtime.deps._t("노드 초기화")}</button>` : ""}</div>
+            <p class="ascend-muted">${runtime.deps._t("{nextPoints}. 이번 루프의 노드 포인트는 최대 9점이라 전부 할당할 수는 없습니다.", { nextPoints: ascendTreeEsc(runtime, ascendTreeNextPoints(runtime)) })}</p>
+            ${total ? `<p class="ascend-total">${runtime.deps._t("합계: {html}", { html: runtime.deps.statToneText.html(total) })}</p>` : ""}${runtime.deps.getAscendancyPlanContinueHtml()}</div>`;
+  }
+  function ascendTreeNodeNote(runtime, tree, id) {
+    const node = tree[id];
+    if (!node) return "";
+    const state = ascendTreeNodeState(runtime, node, id), lines = ascendTreeLinesOf(node);
+    const body = lines.length ? lines.map((line) => `<span style="color:${runtime.deps.getItemStatToneColor(line.stat)}">${ascendTreeEsc(runtime, ascendTreeLineText(runtime, line))}</span>`).join("<br>") : runtime.deps._t("개화한 재능에 따라 정해집니다.");
+    return `${ascendTreeDetailHead(runtime, runtime.deps._t(RANK[id] || "전직 노드"), runtime.deps._t(NODE_TEXT[state]), state)}<p class="ascend-detail-lines">${body}</p>
+            ${ascendTreeCanTake(state) ? ascendTreePreviewHtml(runtime, "ascendNodes", id, runtime.deps._t("할당하면")) : ""}<p class="ascend-detail-advice">${ascendTreeEsc(runtime, ascendTreeNodeAdvice(runtime, tree, node, id, state))}</p>${ascendTreeActionHtml(runtime, NODE_ACTIONS[state] && runtime.deps._t(NODE_ACTIONS[state]))}`;
+  }
+  function ascendTreeNodeAdvice(runtime, tree, node, id, state) {
+    if (state === "future") return node.future;
+    if (state === "taken") return runtime.deps._t("다시 누르면 반환합니다(마름병 포자 1개, 이 노드를 선행으로 둔 노드가 없을 때).");
+    if (state === "closed") return runtime.deps._t("둘 중 하나만 할당할 수 있습니다. 짝 노드를 반환하면 할당할 수 있습니다.");
+    if (state === "locked") return runtime.deps._t("선행 노드 필요: {list}", { list: ascendTreeReqIds(node.req).map((req) => ascendTreeLinesOf(tree[req]).map((...args) => ascendTreeLineText(runtime, ...args)).join(", ")).join(runtime.deps._t(" 또는 ")) });
+    if (state === "nopoint") return runtime.deps._t("전직 포인트가 없습니다. {nextPoints}.", { nextPoints: ascendTreeNextPoints(runtime) });
+    return runtime.deps._t("{value} 할당합니다{value2}.", { value: ascendTreeTouchOnly(runtime) ? runtime.deps._t("한 번 더 누르면") : runtime.deps._t("누르면"), value2: node.exclusive ? runtime.deps._t("(짝 노드와 둘 중 하나)") : "" });
+  }
+  function ascendTreeKeystoneNote(runtime, defs, id) {
+    const k = defs.find((row) => row.id === id);
+    if (!k) return "";
+    const state = ascendTreeKeystoneState(runtime, k), names = ascendTreeKeystoneReqs(k).map((req) => (defs.find((row) => row.id === req) || {}).name).filter(Boolean);
+    const advice = {
+      taken: runtime.deps._t("다시 누르면 반환합니다(마름병 포자 1개, 이 키스톤을 선행으로 둔 키스톤이 없을 때)."),
+      fifth: runtime.deps._t("재능 개화(5차 전직)를 하면 할당할 수 있습니다."),
+      locked: runtime.deps._t("선행 키스톤 필요: {names}", { names: names.map((name) => runtime.deps._t(name)).join(Array.isArray(k.reqAny) ? runtime.deps._t(" 또는 ") : ", ") }),
+      full: runtime.deps._t("키스톤은 {value}개까지 할당할 수 있습니다. 하나를 반환하면 바꿀 수 있습니다.", { value: runtime.deps.CLASS_KEYSTONE_PICK_LIMIT }),
+      nopoint: runtime.deps._t("키스톤 포인트가 없습니다. 전직 시련을 처음 통과할 때마다 1점씩 받습니다."),
+      open: runtime.deps._t("{value} 할당합니다.", { value: ascendTreeTouchOnly(runtime) ? runtime.deps._t("한 번 더 누르면") : runtime.deps._t("누르면") })
+    }[state];
+    return `${ascendTreeDetailHead(runtime, runtime.deps._t(k.name), runtime.deps._t(KEYSTONE_TEXT[state]), state)}<p class="ascend-detail-lines">${runtime.deps.statToneText.html(runtime.deps._t(k.desc))}</p>
+            ${ascendTreeCanTake(state) ? ascendTreePreviewHtml(runtime, "ascendKeystones", id, runtime.deps._t("할당하면")) : ""}<p class="ascend-detail-advice">${ascendTreeEsc(runtime, advice)}</p>${ascendTreeActionHtml(runtime, KEYSTONE_ACTIONS[state] && runtime.deps._t(KEYSTONE_ACTIONS[state]))}`;
+  }
+  function ascendTreeDetailBody(runtime, tree, defs) {
+    const body = runtime.shown ? runtime.shown.kind === "node" ? ascendTreeNodeNote(runtime, tree, runtime.shown.id) : ascendTreeKeystoneNote(runtime, defs, runtime.shown.id) : "";
+    return body || '<p class="ascend-muted">노드나 키스톤을 가리키거나 누르면 효과와 할 수 있는 일이 여기에 나옵니다.</p>';
+  }
+  function ascendTreeTipHtml(runtime, kind, id, tree, defs) {
+    if (kind === "keystone") {
+      const k = defs.find((row) => row.id === id);
+      return k ? `<div class="tooltip-title">${ascendTreeEsc(runtime, runtime.deps._t(k.name))}</div><div class="tooltip-line">${runtime.deps.statToneText.html(runtime.deps._t(k.desc))}</div><div class="tooltip-line" style="color:#b3a58c;">${ascendTreeEsc(runtime, runtime.deps._t(KEYSTONE_TEXT[ascendTreeKeystoneState(runtime, k)]))}</div>` : "";
     }
-    /** Rows by prerequisite depth (the old card view's order), relaxed pass by pass (no recursion); a 5th-job keystone goes last. */
-    function keystoneRows(defs) {
-        const ids = new Set(defs.map(k => k.id)), depth = new Map(defs.map(k => [k.id, 0]));
-        for (let pass = 0; pass < defs.length; pass++) {
-            defs.forEach(k => {
-                const reqs = keystoneReqs(k).filter(id => ids.has(id));
-                if (reqs.length) depth.set(k.id, 1 + Math.max(...reqs.map(id => depth.get(id))));
-            });
-        }
-        const last = Math.max(0, ...depth.values()) + 1, rows = [];
-        defs.forEach(k => { const d = k.fifthJobOnly ? last : depth.get(k.id); (rows[d] = rows[d] || []).push(k.id); });
-        return rows.filter(Boolean);
-    }
-    function keystoneButton(k, pos, state) {
-        const focused = focus && focus.kind === 'keystone' && focus.id === k.id ? ' is-focus' : '';
-        return `<button type="button" class="ascend-node ascend-keystone is-${state}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
-            aria-label="${esc(`${_t(k.name)}, ${_t(KEYSTONE_TEXT[state])}`)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('keystone','${k.id}')"
-            data-info-tooltip-anchor="1" onpointerenter="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointermove="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointerleave="hideInfoTooltip()"
-            onmouseenter="ascendancyTreeUi.hint('keystone','${k.id}')" onfocus="ascendancyTreeUi.hint('keystone','${k.id}')">${artHtml(keystoneFamily(k.desc))}<span class="ascend-plate"><span class="ascend-node-name">${esc(_t(k.name))}</span></span></button>`;
-    }
-    /** Where keystones sit: the first row spread over three columns, a later one under the middle of its prerequisites so links run down;
-     * a 5th-job keystone, tied to nothing, beside the deepest row in the column farthest from the others, or below it when none is free. */
-    function keystoneSpots(defs) {
-        const fifth = defs.filter(k => k.fifthJobOnly).map(k => k.id);
-        const rows = keystoneRows(defs).map(ids => ids.filter(id => !fifth.includes(id))).filter(ids => ids.length);
-        const spots = new Map();
-        rows.forEach((ids, row) => ids.forEach((id, index) => {
-            const reqs = keystoneReqs(defs.find(k => k.id === id)).filter(req => spots.has(req)).map(req => spots.get(req).x);
-            const x = reqs.length ? reqs.reduce((sum, value) => sum + value, 0) / reqs.length : (index + 0.5) * 100 / ids.length;
-            spots.set(id, { x, row });
-        }));
-        const last = rows.length - 1, taken = [...spots.values()].filter(spot => spot.row === last).map(spot => spot.x);
-        const clearance = x => Math.min(...taken.map(other => Math.abs(other - x)), 100);
-        const column = [100 / 6, 50, 500 / 6].reduce((best, x) => (clearance(x) > clearance(best) ? x : best));
-        const beside = clearance(column) >= KEYSTONE_HALF_WIDTH * 2;
-        fifth.forEach(id => spots.set(id, beside ? { x: column, row: last } : { x: 50, row: last + 1 }));
-        const count = rows.length + (fifth.length && !beside ? 1 : 0);
-        spots.forEach(spot => { spot.y = (spot.row + 0.5) * 100 / count; });
-        return { spots, rows: count };
-    }
-    /** A link that skips a row must not run under a keystone of that row: it goes straight down the nearest gap for that whole row. */
-    function keystoneLinkPoints(from, to, spots) {
-        const points = [from];
-        const span = to.row - from.row, reach = Math.abs(to.y - from.y) / span * 0.48;
-        for (let row = from.row + 1; row < to.row; row++) {
-            const y = from.y + (to.y - from.y) * (row - from.row) / span;
-            const xAt = at => from.x + (to.x - from.x) * (at - from.y) / (to.y - from.y);
-            const straight = xAt(y), passes = [xAt(y - reach), straight, xAt(y + reach)];
-            const inRow = [...spots.values()].filter(spot => spot.row === row).map(spot => spot.x).sort((a, b) => a - b);
-            if (!inRow.some(x => passes.some(pass => Math.abs(x - pass) < KEYSTONE_HALF_WIDTH))) continue;
-            const gaps = [...inRow, 100].map((x, index) => (x + [0, ...inRow][index]) / 2);
-            const x = gaps.reduce((best, gap) => (Math.abs(gap - straight) < Math.abs(best - straight) ? gap : best));
-            points.push({ x, y: y - reach }, { x, y: y + reach });
-        }
-        return [...points, to];
-    }
-    function keystoneGraphHtml(defs) {
-        if (!defs.length) return '<p class="ascend-muted">이 전직에는 키스톤이 없습니다.</p>';
-        const { spots, rows } = keystoneSpots(defs);
-        const states = new Map(defs.map(k => [k.id, keystoneState(k)]));
-        const links = defs.flatMap(k => keystoneReqs(k).filter(id => spots.has(id))
-            .map(id => linkHtml(keystoneLinkPoints(spots.get(id), spots.get(k.id), spots), linkState(states.get(id), states.get(k.id)))));
-        const buttons = defs.map(k => keystoneButton(k, spots.get(k.id), states.get(k.id)));
-        return `<div class="ascend-graph is-keystones" style="--rows:${rows}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join('')}</svg>${buttons.join('')}</div>`;
-    }
+    const node = tree[id];
+    if (!node) return "";
+    const lines = ascendTreeLinesOf(node), body = lines.length ? lines.map((line) => `<span style="color:${runtime.deps.getItemStatToneColor(line.stat)}">${ascendTreeEsc(runtime, ascendTreeLineText(runtime, line))}</span>`).join("<br>") : runtime.deps._t("개화한 재능에 따라 정해집니다.");
+    return `<div class="tooltip-title">${ascendTreeEsc(runtime, runtime.deps._t(RANK[id] || "전직 노드"))}</div><div class="tooltip-line">${body}</div><div class="tooltip-line" style="color:#b3a58c;">${ascendTreeEsc(runtime, runtime.deps._t(NODE_TEXT[ascendTreeNodeState(runtime, node, id)]))}</div>`;
+  }
 
-    // ---------------------------------------------------------------- summary and the note
-    /** What the next first clear brings (js/combat.js trial clears: 1~3차 노드 +2, 4차 +1, 각 키스톤 +1; 재능 개화 노드 +2, 키스톤 +1). */
-    function nextPoints() {
-        const done = Array.isArray(game.completedTrials) ? game.completedTrials : [];
-        const trial = ['trial_1', 'trial_2', 'trial_3', 'trial_4'].find(id => !done.includes(id));
-        if (trial) return _t('다음 포인트: {trial}차 전직 시련 첫 통과(노드 +{value}, 키스톤 +1)', { trial: trial.slice(-1), value: trial === 'trial_4' ? 1 : 2 });
-        return game.bloomedClassThisLoop ? '이번 루프의 포인트를 모두 받았습니다.' : '다음 포인트: 재능 개화(노드 +2, 키스톤 +1)';
-    }
-    function totalsText(tree) {
-        const sums = new Map();
-        game.ascendNodes.forEach(id => linesOf(tree[id]).forEach(line => sums.set(line.stat, (sums.get(line.stat) || 0) + Number(line.val || 0))));
-        return [...sums].map(([stat, val]) => lineText({ stat, val })).join(', ');
-    }
-    function summaryHtml(cls, tree) {
-        const template = CLASS_TEMPLATES[cls], total = totalsText(tree), ks = game.ascendKeystones.length;
-        return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${esc(_t(template.name))}</strong><span>${esc(_t(template.desc))}</span></div>
-            <div class="ascend-summary-chips"><span class="is-node">${_t('노드 포인트')} <b>${Math.max(0, Math.floor(game.ascendPoints || 0))}</b></span>
-            <span class="is-key">${_t('키스톤')} <b>${ks}/${CLASS_KEYSTONE_PICK_LIMIT}</b>${_t(', 포인트')} <b>${Math.max(0, Math.floor(game.ascendKeystonePoints || 0))}</b></span>
-            <span class="is-taken">${_t('할당한 노드')} <b>${game.ascendNodes.length}</b></span>
-            ${game.ascendNodes.length ? _t('<button type="button" class="ascend-reset" onclick="resetAscendNodes()">노드 초기화</button>') : ''}</div>
-            <p class="ascend-muted">${_t('{nextPoints}. 이번 루프의 노드 포인트는 최대 9점이라 전부 할당할 수는 없습니다.', { nextPoints: esc(nextPoints()) })}</p>
-            ${total ? `<p class="ascend-total">${_t('합계: {html}', { html: statToneText.html(total) })}</p>` : ''}${getAscendancyPlanContinueHtml()}</div>`;
-    }
-    function nodeNote(tree, id) {
-        const node = tree[id];
-        if (!node) return '';
-        const state = nodeState(node, id), lines = linesOf(node);
-        const body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : _t('개화한 재능에 따라 정해집니다.');
-        return `${detailHead(_t(RANK[id] || '전직 노드'), _t(NODE_TEXT[state]), state)}<p class="ascend-detail-lines">${body}</p>
-            ${canTake(state) ? previewHtml('ascendNodes', id, _t('할당하면')) : ''}<p class="ascend-detail-advice">${esc(nodeAdvice(tree, node, id, state))}</p>${actionHtml(NODE_ACTIONS[state] && _t(NODE_ACTIONS[state]))}`;
-    }
-    /** A node or keystone the hero can take now or once a point comes. */
-    const canTake = state => state === 'open' || state === 'nopoint';
-    /** The card's title line: the cell's name and its state. */
-    const detailHead = (title, stateText, state) => `<p class="ascend-detail-head"><strong>${esc(title)}</strong><small class="is-${state}">${esc(stateText)}</small>
-        <button type="button" class="ascend-detail-close" onclick="ascendancyTreeUi.clear()">${_t('닫기')}</button></p>`;
-    /** The card's button (할당, 반환) for what it shows; nothing when the cell waits on something else. */
-    const actionHtml = label => (label ? `<button type="button" class="ascend-detail-act" onclick="ascendancyTreeUi.act()">${esc(label)}</button>` : '');
-    /** "할당하면 DPS 61 → 64, 생명력 186 → 196": the stats with id added to game[field], read on a copy (js/passives.js previewBuildStats). */
-    function previewHtml(field, id, verb) {
-        const parts = buildStatPreviewParts(previewBuildStats(copy => { copy[field] = [...(copy[field] || []), id]; }));
-        return parts ? `<p class="ascend-preview">${verb} ${parts}</p>` : '';
-    }
-    function nodeAdvice(tree, node, id, state) {
-        if (state === 'future') return node.future;
-        if (state === 'taken') return _t('다시 누르면 반환합니다(마름병 포자 1개, 이 노드를 선행으로 둔 노드가 없을 때).');
-        if (state === 'closed') return _t('둘 중 하나만 할당할 수 있습니다. 짝 노드를 반환하면 할당할 수 있습니다.');
-        if (state === 'locked') return _t('선행 노드 필요: {list}', { list: reqIds(node.req).map(req => linesOf(tree[req]).map(lineText).join(', ')).join(_t(' 또는 ')) });
-        if (state === 'nopoint') return _t('전직 포인트가 없습니다. {nextPoints}.', { nextPoints: nextPoints() });
-        return _t('{value} 할당합니다{value2}.', { value: touchOnly() ? _t('한 번 더 누르면') : _t('누르면'), value2: node.exclusive ? _t('(짝 노드와 둘 중 하나)') : '' });
-    }
-    function keystoneNote(defs, id) {
-        const k = defs.find(row => row.id === id);
-        if (!k) return '';
-        const state = keystoneState(k), names = keystoneReqs(k).map(req => (defs.find(row => row.id === req) || {}).name).filter(Boolean);
-        const advice = {
-            taken: _t('다시 누르면 반환합니다(마름병 포자 1개, 이 키스톤을 선행으로 둔 키스톤이 없을 때).'),
-            fifth: _t('재능 개화(5차 전직)를 하면 할당할 수 있습니다.'),
-            locked: _t('선행 키스톤 필요: {names}', { names: names.map(name => _t(name)).join(Array.isArray(k.reqAny) ? _t(' 또는 ') : ', ') }),
-            full: _t('키스톤은 {value}개까지 할당할 수 있습니다. 하나를 반환하면 바꿀 수 있습니다.', { value: CLASS_KEYSTONE_PICK_LIMIT }),
-            nopoint: _t('키스톤 포인트가 없습니다. 전직 시련을 처음 통과할 때마다 1점씩 받습니다.'),
-            open: _t('{value} 할당합니다.', { value: touchOnly() ? _t('한 번 더 누르면') : _t('누르면') })
-        }[state];
-        return `${detailHead(_t(k.name), _t(KEYSTONE_TEXT[state]), state)}<p class="ascend-detail-lines">${statToneText.html(_t(k.desc))}</p>
-            ${canTake(state) ? previewHtml('ascendKeystones', id, _t('할당하면')) : ''}<p class="ascend-detail-advice">${esc(advice)}</p>${actionHtml(KEYSTONE_ACTIONS[state] && _t(KEYSTONE_ACTIONS[state]))}`;
-    }
-    function detailBody(tree, defs) {
-        const body = shown ? (shown.kind === 'node' ? nodeNote(tree, shown.id) : keystoneNote(defs, shown.id)) : '';
-        return body || '<p class="ascend-muted">노드나 키스톤을 가리키거나 누르면 효과와 할 수 있는 일이 여기에 나옵니다.</p>';
-    }
+  // modules/ui/loop-investment-session.mjs
+  function captureInvestmentSession(runtime) {
+    const owner = runtime.deps.game;
+    return {
+      owner,
+      season: owner.season,
+      loop: owner.loopCount,
+      selectedClass: owner.selectedClassId,
+      ascendClass: owner.ascendClass
+    };
+  }
+  function investmentSessionIsCurrent(runtime, session) {
+    const owner = runtime.deps.game;
+    return runtime.active && session.owner === owner && session.season === owner.season && session.loop === owner.loopCount && session.selectedClass === owner.selectedClassId && session.ascendClass === owner.ascendClass;
+  }
 
-    // ---------------------------------------------------------------- screen and actions
-    function render() {
-        const box = document.getElementById('ui-ascend-tree-container'), cls = game.ascendClass;
-        if (!box || !cls || !CLASS_TEMPLATES[cls]) return;
-        game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
-        game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-        const tree = fullTree(cls), defs = getClassKeystoneDefs(cls);
-        box.dataset.ascend = cls;
-        box.innerHTML = `${summaryHtml(cls, tree)}<div class="ascend-layout">
-            <section class="ascend-board is-nodes" aria-label="${_t('전직 노드')}"><h3>${_t('전직 노드')}</h3>${nodeGraphHtml(tree)}</section>
-            <section class="ascend-board is-keystones" aria-label="${_t('키스톤')}"><h3>${_t('키스톤')} <button type="button" class="ascend-reset" onclick="resetAscendKeystones()">${_t('키스톤 초기화')}</button></h3>${keystoneGraphHtml(defs)}</section>
-            <section class="ascend-detail${shown ? '' : ' is-empty'}" aria-label="${_t('자세히')}" aria-live="polite">${detailBody(tree, defs)}</section></div>`;
+  // modules/ui/ascend-tree-actions.mjs
+  function ascendTreeRender(runtime) {
+    const box = runtime.deps.document.getElementById("ui-ascend-tree-container"), cls = runtime.deps.game.ascendClass;
+    if (!box || !cls || !runtime.deps.CLASS_TEMPLATES[cls]) return;
+    runtime.deps.rules.normalize(runtime.deps.game);
+    const tree = ascendTreeFullTree(runtime, cls), defs = runtime.deps.getClassKeystoneDefs(cls);
+    box.dataset.ascend = cls;
+    box.innerHTML = `${ascendTreeSummaryHtml(runtime, cls, tree)}<div class="ascend-layout">
+            <section class="ascend-board is-nodes" aria-label="${runtime.deps._t("전직 노드")}"><h3>${runtime.deps._t("전직 노드")}</h3>${ascendTreeNodeGraphHtml(runtime, tree)}</section>
+            <section class="ascend-board is-keystones" aria-label="${runtime.deps._t("키스톤")}"><h3>${runtime.deps._t("키스톤")} <button type="button" class="ascend-reset" data-ascend-action="reset">${runtime.deps._t("키스톤 초기화")}</button></h3>${ascendTreeKeystoneGraphHtml(runtime, defs)}</section>
+            <section class="ascend-detail${runtime.shown ? "" : " is-empty"}" aria-label="${runtime.deps._t("자세히")}" aria-live="polite">${ascendTreeDetailBody(runtime, tree, defs)}</section></div>`;
+  }
+  function ascendTreeHint(runtime, kind, id) {
+    const card = runtime.deps.document.querySelector("#ui-ascend-tree-container .ascend-detail"), cls = runtime.deps.game.ascendClass;
+    if (!card || !cls || ascendTreeTouchOnly(runtime)) return;
+    runtime.shown = { kind, id };
+    card.innerHTML = ascendTreeDetailBody(runtime, ascendTreeFullTree(runtime, cls), runtime.deps.getClassKeystoneDefs(cls));
+    card.classList.remove("is-empty");
+  }
+  function ascendTreeTip(runtime, event, kind, id) {
+    const cls = runtime.deps.game.ascendClass;
+    if (!event || event.pointerType === "touch" || !cls || typeof runtime.deps.showInfoTooltipHtml !== "function") return;
+    const html = ascendTreeTipHtml(runtime, kind, id, ascendTreeFullTree(runtime, cls), runtime.deps.getClassKeystoneDefs(cls));
+    if (html) runtime.deps.showInfoTooltipHtml(event.clientX, event.clientY, html, runtime.deps.getComputedStyle(event.currentTarget).getPropertyValue("--asc") || "#c9a86a", `ascend:${kind}:${id}`);
+  }
+  function ascendTreePress(runtime, kind, id) {
+    const again = !!runtime.focus && runtime.focus.kind === kind && runtime.focus.id === id;
+    runtime.focus = { kind, id };
+    runtime.shown = runtime.focus;
+    if (!ascendTreeTouchOnly(runtime) || again) kind === "node" ? ascendTreeActOnNode(runtime, id) : ascendTreeActOnKeystone(runtime, id);
+    ascendTreeRender(runtime);
+    ascendTreeKeepFocusAboveCard(runtime);
+  }
+  function ascendTreeKeepFocusAboveCard(runtime) {
+    if (runtime.scrollFrame !== null) runtime.deps.cancelAnimationFrame(runtime.scrollFrame);
+    const session = captureInvestmentSession(runtime);
+    runtime.scrollFrame = runtime.deps.requestAnimationFrame(() => {
+      runtime.scrollFrame = null;
+      if (!investmentSessionIsCurrent(runtime, session)) return;
+      const box = runtime.deps.document.getElementById("ui-ascend-tree-container");
+      const cell = box && box.querySelector(".ascend-node.is-focus"), card = box && box.querySelector(".ascend-detail");
+      if (!cell || !card || runtime.deps.getComputedStyle(card).position !== "sticky") return;
+      const scroller = ascendTreeScrollerOf(runtime, box), port = scroller === runtime.deps.document.scrollingElement ? runtime.deps.innerHeight : scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
+      const over = cell.getBoundingClientRect().bottom + 8 - (Math.min(port, runtime.deps.innerHeight) - card.getBoundingClientRect().height);
+      if (over > 0) scroller.scrollBy({ top: over / (runtime.deps.uiDisplay.factor || 1) });
+    });
+  }
+  function ascendTreeClear(runtime) {
+    runtime.shown = null;
+    runtime.focus = null;
+    ascendTreeRender(runtime);
+  }
+  function ascendTreeAct(runtime) {
+    if (!runtime.shown) return;
+    if (runtime.shown.kind === "node") ascendTreeActOnNode(runtime, runtime.shown.id);
+    else ascendTreeActOnKeystone(runtime, runtime.shown.id);
+    ascendTreeRender(runtime);
+  }
+  function ascendTreeActOnNode(runtime, id) {
+    const tree = ascendTreeFullTree(runtime, runtime.deps.game.ascendClass), node = tree[id], state = node ? ascendTreeNodeState(runtime, node, id) : "future";
+    if (!node) return;
+    if (state === "taken") return runtime.deps.askRefundAscendNode(id);
+    if (state === "open") return runtime.deps.buyAscend(id);
+    runtime.deps.addLog(ascendTreeNodeAdvice(runtime, tree, node, id, state), "attack-monster");
+  }
+  function ascendTreeActOnKeystone(runtime, id) {
+    const k = runtime.deps.getClassKeystoneDefs(runtime.deps.game.ascendClass).find((row) => row.id === id);
+    if (!k) return;
+    const state = ascendTreeKeystoneState(runtime, k);
+    if (state === "taken") return runtime.deps.refundAscendKeystone(id);
+    if (state === "open") return runtime.deps.buyAscendKeystone(id);
+    ascendTreeHint(runtime, "keystone", id);
+  }
+
+  // modules/ui/ascend-tree-pick.mjs
+  function ascendTreeFocusStats(runtime, key) {
+    const tree = runtime.deps.getClassTreeDef(key), stats = [];
+    ["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8", "n9"].forEach((id) => ascendTreeLinesOf(tree[id]).forEach((line) => {
+      if (line.stat && !stats.includes(line.stat)) stats.push(line.stat);
+    }));
+    return stats.slice(0, 4);
+  }
+  function ascendTreePickCardHtml(runtime, key) {
+    const template = runtime.deps.CLASS_TEMPLATES[key], defs = runtime.deps.getClassKeystoneDefs(key), stats = ascendTreeFocusStats(runtime, key);
+    const chips = stats.map((stat) => `<span class="ascend-pick-chip">${runtime.deps.renderPixelIcon(ascendTreeIconOf(stat), "ascend-pick-chip-icon")}${ascendTreeEsc(runtime, ascendTreeStatName(runtime, stat))}</span>`).join("");
+    const keys = (ascendTreeKeystoneRows(defs)[0] || []).map((id) => defs.find((k) => k.id === id)).filter(Boolean).map((k) => `<span class="ascend-pick-key"><b>${ascendTreeEsc(runtime, runtime.deps._t(k.name))}</b><span>${runtime.deps.statToneText.html(runtime.deps._t(k.desc))}</span></span>`).join("");
+    return `<button type="button" class="class-card ascend-pick-card" data-loop-class="${key}">
+            <span class="ascend-pick-head">${runtime.deps.renderPixelIcon(ascendTreeIconOf(stats[0]), "ascend-pick-icon")}<strong>${ascendTreeEsc(runtime, runtime.deps._t(template.name))}</strong></span>
+            <span class="ascend-pick-desc">${ascendTreeEsc(runtime, runtime.deps._t(template.desc))}</span>
+            <span class="ascend-pick-section">${runtime.deps._t("노드")}</span><span class="ascend-pick-chips">${chips}</span>
+            <span class="ascend-pick-section">${runtime.deps._t("첫 키스톤 ({length}개 가운데 {value}개 할당)", { length: defs.length, value: runtime.deps.CLASS_KEYSTONE_PICK_LIMIT })}</span><span class="ascend-pick-keys">${keys}</span>
+            <span class="ascend-pick-cta">${runtime.deps._t("이 전직 고르기")}</span></button>`;
+  }
+
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
     }
-    /** Pointer or keyboard on a node: the note reads it; nothing is bought. */
-    function hint(kind, id) {
-        const card = document.querySelector('#ui-ascend-tree-container .ascend-detail'), cls = game.ascendClass;
-        // 터치의 탭은 가리키기(mouseenter, focus)를 먼저 보낸다: 여기서 카드를 띄우면 좁은 창에서는 아래에 붙은 카드가 누른 칸을 덮어 정작
-        // 누름이 카드로 갔다. 터치에서는 누름(press)이 카드를 띄운다.
-        if (!card || !cls || touchOnly()) return;
-        shown = { kind, id };
-        card.innerHTML = detailBody(fullTree(cls), getClassKeystoneDefs(cls));
-        card.classList.remove('is-empty');
+    runtime.listeners.length = 0;
+  }
+
+  // modules/ui/ascend-tree-events.mjs
+  function installAscendTreeEvents(runtime) {
+    const host = runtime.deps.document.getElementById("ui-ascend-tree-container");
+    if (!host) return;
+    listenView(runtime, host, "click", (event) => {
+      const cell = event.target.closest?.("[data-ascend-kind]");
+      if (cell && host.contains(cell)) return runtime.handlers.press(cell.dataset.ascendKind, cell.dataset.ascendId);
+      const action = event.target.closest?.("[data-ascend-action]");
+      if (!action || !host.contains(action)) return;
+      const commands = {
+        clear: runtime.handlers.clear,
+        act: runtime.handlers.act,
+        reset: runtime.handlers.reset,
+        "reset-nodes": runtime.handlers.resetNodes,
+        "continue-plan": runtime.handlers.continuePlan
+      };
+      commands[action.dataset.ascendAction]?.();
+    });
+    listenView(runtime, host, "focusin", (event) => hintAscendCell(runtime, host, event));
+    listenView(runtime, host, "mouseover", (event) => {
+      const cell = event.target.closest?.("[data-ascend-kind]");
+      if (cell?.contains(event.relatedTarget)) return;
+      hintAscendCell(runtime, host, event);
+    });
+    listenView(runtime, host, "pointerover", (event) => tipAscendCell(runtime, host, event));
+    listenView(runtime, host, "pointermove", (event) => tipAscendCell(runtime, host, event));
+    listenView(runtime, host, "pointerout", (event) => {
+      const cell = event.target.closest?.("[data-ascend-kind]");
+      if (cell && host.contains(cell) && !cell.contains(event.relatedTarget)) (0, runtime.deps.hideInfoTooltip)();
+    });
+  }
+  function hintAscendCell(runtime, host, event) {
+    const cell = event.target.closest?.("[data-ascend-kind]");
+    if (cell && host.contains(cell)) runtime.handlers.hint(cell.dataset.ascendKind, cell.dataset.ascendId);
+  }
+  function tipAscendCell(runtime, host, event) {
+    const cell = event.target.closest?.("[data-ascend-kind]");
+    if (!cell || !host.contains(cell)) return;
+    runtime.handlers.tip(
+      { currentTarget: cell, pointerType: event.pointerType, clientX: event.clientX, clientY: event.clientY },
+      cell.dataset.ascendKind,
+      cell.dataset.ascendId
+    );
+  }
+
+  // modules/ui/ascend-tree-view.mjs
+  function createAscendTreeView(deps) {
+    const runtime = { deps, active: true, session: null, focus: null, shown: null, scrollFrame: null, listeners: [], handlers: {} };
+    const actions = {
+      hint: ascendTreeHint,
+      tip: ascendTreeTip,
+      press: ascendTreePress,
+      act: ascendTreeAct,
+      clear: ascendTreeClear,
+      reset: () => (0, deps.resetAscendKeystones)(),
+      resetNodes: () => (0, deps.resetAscendNodes)(),
+      continuePlan: () => (0, deps.continueLastLoopAscendPlan)()
+    };
+    runtime.handlers.render = () => {
+      if (!runtime.active) return;
+      syncAscendTreeSession(runtime);
+      ascendTreeRender(runtime);
+    };
+    for (const [name, action] of Object.entries(actions)) runtime.handlers[name] = (...args) => {
+      if (!runtime.active) return;
+      if (!runtime.session || !investmentSessionIsCurrent(runtime, runtime.session)) return runtime.handlers.render();
+      return action(runtime, ...args);
+    };
+    installAscendTreeEvents(runtime);
+    return Object.freeze({
+      ...runtime.handlers,
+      pickCardHtml: (key) => ascendTreePickCardHtml(runtime, key),
+      icon: ascendTreeIconOf,
+      dispose() {
+        if (runtime.scrollFrame !== null) deps.cancelAnimationFrame(runtime.scrollFrame);
+        runtime.scrollFrame = null;
+        runtime.session = null;
+        releaseViewEvents(runtime);
+      }
+    });
+  }
+  function syncAscendTreeSession(runtime) {
+    if (runtime.session && investmentSessionIsCurrent(runtime, runtime.session)) return;
+    if (runtime.scrollFrame !== null) runtime.deps.cancelAnimationFrame(runtime.scrollFrame);
+    runtime.scrollFrame = null;
+    runtime.focus = null;
+    runtime.shown = null;
+    runtime.session = captureInvestmentSession(runtime);
+  }
+
+  // modules/ascendancy-tree-ui-classic.mjs
+  var ascendancyTreeUi = createAscendTreeView({
+    get rules() {
+      return window.GameModules.loopInvestmentRules.ascend;
+    },
+    get ASCENDANCY_NODE_DEFS() {
+      return ASCENDANCY_NODE_DEFS;
+    },
+    get ASCENDANCY_NODE_FALLBACK() {
+      return ASCENDANCY_NODE_FALLBACK;
+    },
+    get CLASS_KEYSTONE_PICK_LIMIT() {
+      return CLASS_KEYSTONE_PICK_LIMIT;
+    },
+    get CLASS_TEMPLATES() {
+      return CLASS_TEMPLATES;
+    },
+    get P_STATS() {
+      return P_STATS;
+    },
+    get _t() {
+      return _t;
+    },
+    get addLog() {
+      return addLog;
+    },
+    get askRefundAscendNode() {
+      return window.GameModules.loopInvestmentView.askRefundAscendNode;
+    },
+    get buildStatPreviewParts() {
+      return buildStatPreviewParts;
+    },
+    get buyAscend() {
+      return window.GameModules.loopInvestmentView.buyAscend;
+    },
+    get buyAscendKeystone() {
+      return window.GameModules.loopInvestmentView.buyAscendKeystone;
+    },
+    get document() {
+      return document;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get formatValue() {
+      return formatValue;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get getAscendancyPlanContinueHtml() {
+      return window.GameModules.loopInvestmentView.getAscendancyPlanContinueHtml;
+    },
+    get getClassKeystoneDefs() {
+      return getClassKeystoneDefs;
+    },
+    get getClassTreeDef() {
+      return getClassTreeDef;
+    },
+    get getComputedStyle() {
+      return windowGetComputedStyle;
+    },
+    get getItemStatToneColor() {
+      return getItemStatToneColor;
+    },
+    get getStatName() {
+      return getStatName;
+    },
+    get innerHeight() {
+      return innerHeight;
+    },
+    get isAscendKeystoneRequirementMet() {
+      return window.GameModules.loopInvestmentView.isAscendKeystoneRequirementMet;
+    },
+    get isAscendNodeRequirementMet() {
+      return window.GameModules.loopInvestmentView.isAscendNodeRequirementMet;
+    },
+    get matchMedia() {
+      return typeof matchMedia === "undefined" ? void 0 : windowMatchMedia;
+    },
+    get passiveNodes() {
+      return window.GameModules.passiveScene.nodes;
+    },
+    get previewBuildStats() {
+      return previewBuildStats;
+    },
+    get refundAscendKeystone() {
+      return window.GameModules.loopInvestmentView.refundAscendKeystone;
+    },
+    get renderPixelIcon() {
+      return renderPixelIcon;
+    },
+    get requestAnimationFrame() {
+      return windowRequestAnimationFrame;
+    },
+    get showInfoTooltipHtml() {
+      return typeof showInfoTooltipHtml === "undefined" ? void 0 : showInfoTooltipHtml;
+    },
+    get statToneText() {
+      return statToneText;
+    },
+    get uiDisplay() {
+      return uiDisplay;
+    },
+    get cancelAnimationFrame() {
+      return windowCancelAnimationFrame;
+    },
+    get hideInfoTooltip() {
+      return hideInfoTooltip;
+    },
+    get resetAscendKeystones() {
+      return window.GameModules.loopInvestmentView.resetAscendKeystones;
+    },
+    get resetAscendNodes() {
+      return window.GameModules.loopInvestmentView.resetAscendNodes;
+    },
+    get continueLastLoopAscendPlan() {
+      return window.GameModules.loopInvestmentView.continueLastLoopAscendPlan;
     }
-    /** 가리킨 칸의 효과를 커서 옆에(2026-11-02 사용자: 창에 스크롤이 생기면 오른쪽 아래 카드가 잘 안 보인다). 자세한 일은 카드가 맡는다. */
-    function tipHtml(kind, id, tree, defs) {
-        if (kind === 'keystone') {
-            const k = defs.find(row => row.id === id);
-            return k ? `<div class="tooltip-title">${esc(_t(k.name))}</div><div class="tooltip-line">${statToneText.html(_t(k.desc))}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(_t(KEYSTONE_TEXT[keystoneState(k)]))}</div>` : '';
-        }
-        const node = tree[id];
-        if (!node) return '';
-        const lines = linesOf(node), body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : _t('개화한 재능에 따라 정해집니다.');
-        return `<div class="tooltip-title">${esc(_t(RANK[id] || '전직 노드'))}</div><div class="tooltip-line">${body}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(_t(NODE_TEXT[nodeState(node, id)]))}</div>`;
-    }
-    function tip(event, kind, id) {
-        const cls = game.ascendClass;
-        if (!event || event.pointerType === 'touch' || !cls || typeof showInfoTooltipHtml !== 'function') return;
-        const html = tipHtml(kind, id, fullTree(cls), getClassKeystoneDefs(cls));
-        if (html) showInfoTooltipHtml(event.clientX, event.clientY, html, getComputedStyle(event.currentTarget).getPropertyValue('--asc') || '#c9a86a', `ascend:${kind}:${id}`);
-    }
-    /** A press: on a touch screen the first one only reads the node; otherwise (and on the second touch) it buys or refunds. */
-    function press(kind, id) {
-        const again = !!focus && focus.kind === kind && focus.id === id;
-        focus = { kind, id };
-        shown = focus;
-        if (!touchOnly() || again) (kind === 'node' ? actOnNode(id) : actOnKeystone(id));
-        render();
-        keepFocusAboveCard();
-    }
-    /** 좁은 창에서는 자세히 카드가 화면 아래에 붙어 뜬다(css/ascendancy-tree.css): 방금 누른 칸이 그 밑에 깔리면(나무 위쪽 칸을 누르면 카드가
-     * 바로 그 칸을 덮었다) 카드 위로 보이게 민다. */
-    function keepFocusAboveCard() {
-        requestAnimationFrame(() => {
-            const box = document.getElementById('ui-ascend-tree-container');
-            const cell = box && box.querySelector('.ascend-node.is-focus'), card = box && box.querySelector('.ascend-detail');
-            if (!cell || !card || getComputedStyle(card).position !== 'sticky') return;
-            // 카드는 스크롤 칸 아래 끝에 붙는다: 그 자리 위로 칸이 오도록 민다(카드가 아직 칸 아래의 제자리에 있어도 밀고 나면 붙는다).
-            const scroller = scrollerOf(box), port = scroller === document.scrollingElement ? innerHeight : scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
-            const over = cell.getBoundingClientRect().bottom + 8 - (Math.min(port, innerHeight) - card.getBoundingClientRect().height);
-            if (over > 0) scroller.scrollBy({ top: over / (uiDisplay.factor || 1) });
-        });
-    }
-    function scrollerOf(el) {
-        for (let at = el.parentElement; at; at = at.parentElement) {
-            if (/auto|scroll/.test(getComputedStyle(at).overflowY) && at.scrollHeight > at.clientHeight) return at;
-        }
-        return document.scrollingElement;
-    }
-    /** 닫기(좁은 창에서만 보인다): 카드를 내리고 고른 칸을 잊는다. */
-    function clear() {
-        shown = null;
-        focus = null;
-        render();
-    }
-    /** The card's button: the same as pressing the cell it shows (on a touch screen without the second tap). */
-    function act() {
-        if (!shown) return;
-        if (shown.kind === 'node') actOnNode(shown.id);
-        else actOnKeystone(shown.id);
-        render();
-    }
-    function actOnNode(id) {
-        const tree = fullTree(game.ascendClass), node = tree[id], state = node ? nodeState(node, id) : 'future';
-        if (state === 'taken') return askRefundAscendNode(id);
-        if (state === 'open') return buyAscend(id);
-        addLog(nodeAdvice(tree, node, id, state), 'attack-monster');
-    }
-    function actOnKeystone(id) {
-        const k = getClassKeystoneDefs(game.ascendClass).find(row => row.id === id);
-        if (!k) return;
-        const state = keystoneState(k);
-        if (state === 'taken') return refundAscendKeystone(id);
-        if (state === 'open') return buyAscendKeystone(id);
-        hint('keystone', id);
-    }
-    /** The stats nodes n1~n9 give, first seen first, each once, four at most (a class that reshuffles its rows reads its real nodes). */
-    function focusStats(key) {
-        const tree = getClassTreeDef(key), stats = [];
-        ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9'].forEach(id => linesOf(tree[id]).forEach(line => {
-            if (line.stat && !stats.includes(line.stat)) stats.push(line.stat);
-        }));
-        return stats.slice(0, 4);
-    }
-    /** The pick screen's card for one ascendancy (2026-10-22: the choice holds for the loop, so the card carries what decides it): the
-     * main stat's picture, name and line, the node stats with their pictures, the first keystones with what they do, a 고르기 footer.
-     * selectClass asks before it takes. */
-    function pickCardHtml(key) {
-        const template = CLASS_TEMPLATES[key], defs = getClassKeystoneDefs(key), stats = focusStats(key);
-        const chips = stats.map(stat => `<span class="ascend-pick-chip">${renderPixelIcon(iconOf(stat), 'ascend-pick-chip-icon')}${esc(statName(stat))}</span>`).join('');
-        const keys = (keystoneRows(defs)[0] || []).map(id => defs.find(k => k.id === id)).filter(Boolean)
-            .map(k => `<span class="ascend-pick-key"><b>${esc(_t(k.name))}</b><span>${statToneText.html(_t(k.desc))}</span></span>`).join('');
-        return `<button type="button" class="class-card ascend-pick-card" onclick="selectClass('${key}')">
-            <span class="ascend-pick-head">${renderPixelIcon(iconOf(stats[0]), 'ascend-pick-icon')}<strong>${esc(_t(template.name))}</strong></span>
-            <span class="ascend-pick-desc">${esc(_t(template.desc))}</span>
-            <span class="ascend-pick-section">${_t('노드')}</span><span class="ascend-pick-chips">${chips}</span>
-            <span class="ascend-pick-section">${_t('첫 키스톤 ({length}개 가운데 {value}개 할당)', { length: defs.length, value: CLASS_KEYSTONE_PICK_LIMIT })}</span><span class="ascend-pick-keys">${keys}</span>
-            <span class="ascend-pick-cta">${_t('이 전직 고르기')}</span></button>`;
-    }
-    return Object.freeze({ render, hint, tip, press, act, clear, pickCardHtml, icon: iconOf });
+  });
+  window.GameModules.ascendTreeView = ascendancyTreeUi;
+  safeExposeGlobals({ ascendancyTreeUi });
 })();
-safeExposeGlobals({ ascendancyTreeUi });

@@ -9,6 +9,7 @@
  * 전달본의 코드는 실행하지 않는다: pixelfx-atlas.js는 JSON으로만 읽는다.
  */
 'use strict';
+const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -54,7 +55,7 @@ fs.copyFileSync(path.join(sim, 'vfx5.png'), path.join(pictures, 'vfx5.png'));
 fs.copyFileSync(path.join(sim, 'license-notices/pixelfx-MIT-LICENSE.txt'), path.join(pictures, 'pixelfx-LICENSE.txt'));
 
 const tableFile = path.join(root, 'data/stage-skill-vfx.js');
-const raw = fs.readFileSync(tableFile, 'utf8'), crlf = raw.includes('\r\n');
+const raw = readDataSource(tableFile), crlf = raw.includes('\r\n');
 let text = raw.replace(/\r\n/g, '\n');
 const box = { safeExposeData: () => {} };
 vm.runInNewContext(`${text}\nthis.out = STAGE_SKILL_VFX;`, box);
@@ -85,5 +86,5 @@ for (const file of files) hash.update(fs.readFileSync(path.join(pictures, file))
 text = text.replace(/^    files: Object\.freeze\(.*$/m, `    files: Object.freeze(${q(files)}),`).replace(/^    version: '.*$/m, `    version: '${hash.digest('hex').slice(0, 10)}',`);
 const NOTE = '//   pivot   클립의 기준점을 칸 안의 자리 [x, y]로 정할 때(pixelfx로 구운 클립, scripts/build-stage-skill-vfx-v39.cjs가 덧붙인다). proj 날아가는 몸, pfxImpact 맞은 자리의 섬광, pfxBurst 꿰뚫은 자리, pfxWave 바닥을 달리는 파동, pfxSmite 내리꽂힘.\n';
 if (!text.includes('//   pivot ')) text = text.replace('const STAGE_SKILL_VFX = Object.freeze({', `${NOTE}const STAGE_SKILL_VFX = Object.freeze({`);
-fs.writeFileSync(tableFile, crlf ? text.replace(/\n/g, '\r\n') : text);
+writeDataSource(tableFile, crlf ? text.replace(/\n/g, '\r\n') : text);
 console.log(`그림 vfx5.png ${(fs.statSync(path.join(pictures, 'vfx5.png')).size / 1048576).toFixed(2)}MB, 칸 묶음 ${Object.keys(ATLAS).length}, 클립 ${Object.keys(CLIPS).length}, 룬 ${Object.keys(GEMS).length}`);

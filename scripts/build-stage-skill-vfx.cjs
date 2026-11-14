@@ -18,6 +18,7 @@
  * 인계 폴더의 스크립트는 실행하지 않는다. 표는 글자로 읽어 풀고(값, 배열, 묶음만 받아들인다), 쓰이는 클립의 칸만 옮긴다.
  */
 'use strict';
+const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -176,7 +177,7 @@ for (const [element, row] of Object.entries(blessFloors)) if (!clips[String(row.
 /** 룬을 쓸 때 주인공이 하는 동작(v32부터의 motions): 룬 번호 → 직업 → 무기 자세 → data/stage-characters.js의 동작 이름('강타' → 'slam'). */
 const heroSets = (() => {
     const sandbox = { safeExposeData: data => Object.assign(sandbox, data) };
-    require('node:vm').runInNewContext(fs.readFileSync(path.join(root, 'data/stage-characters.js'), 'utf8'), sandbox);
+    require('node:vm').runInNewContext(readDataSource(path.join(root, 'data/stage-characters.js')), sandbox);
     return sandbox.STAGE_CHARACTERS.classes;
 })();
 /** 시뮬레이터가 그림이 없어 대신 쓴 동작을 게임의 그림으로 되돌린다: 연금술사와 성직자 한손검의 회전은 v42 시뮬레이터의 그림에 없어 단타로
@@ -253,13 +254,16 @@ ${rows(elements, '        ')}
 ${rows(clips, '        ')}
     }),
     gems: Object.freeze({
-${rows(gems, '        ')}
+${rows(gems, '        ')},
+        ...BASIC_STAGE.gems
     }),
     meta: Object.freeze({
-${rows(meta, '        ')}
+${rows(meta, '        ')},
+        ...BASIC_STAGE.meta
     }),
     motions: Object.freeze({
-${rows(motions, '        ')}
+${rows(motions, '        ')},
+        ...BASIC_STAGE.motions
     }),
     bless: Object.freeze({
         spin: ${blessSpin},
@@ -273,6 +277,8 @@ ${rows(atlas, '        ')}
 });
 safeExposeData({ STAGE_SKILL_VFX });
 `;
-fs.writeFileSync(path.join(root, 'data/stage-skill-vfx.js'), text);
+const tableFile = path.join(root, 'data/stage-skill-vfx.js');
+const basicDefinitions = readDataSource(tableFile).split('const STAGE_SKILL_VFX =')[0];
+writeDataSource(tableFile, basicDefinitions + text);
 if (commentedClips.length) console.log(`주석 안에서 살린 클립: ${commentedClips.join(', ')}`);
 console.log(`클립 ${Object.keys(clips).length}개(원본 ${Object.keys(atlas).length}개), 룬 ${Object.keys(gems).length}종, 동작 ${Object.keys(motions).length}종, 그림 ${files.length}장 ${megabytes.toFixed(1)}MB, 판 ${version}`);

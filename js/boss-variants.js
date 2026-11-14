@@ -1,93 +1,161 @@
-// 보스 변이체(12번 루프 33, 2026-10-08, data/boss-variants.js): 보스가 태어날 때(js/combat-enemy-build.js finishBossSpawn) 드물게 변이를 입히고,
-// 기억 던전 3단계부터는 기억의 보스를 변이체로 다시 부른다(memoryDungeon.tuneBoss). 쓰러질 때 기록(game.atlas.memory.variants)과
-// 보상(처음 잡은 변이의 선물, 아틀라스 보스의 기억 3단계)을 정한다. 알림은 'boss-variant' 이벤트(기록은 js/boss-variants-ui.js).
-const bossVariants = (() => {
-    const V = BOSS_VARIANTS;
-    const BY_ID = new Map(V.kinds.map(kind => [kind.id, kind]));
-    const IDS = Object.freeze(V.kinds.map(kind => kind.id));
-    // 나무꾼, 경계 너머, 정점 관문과 아스트라는 이미 정해진 싸움이라 변이하지 않는다.
-    const FIXED_ZONE_TYPES = new Set(['outsideChaos', 'beyondBoundary']);
-    const open = state => contentProgression.holds('bossVariant', state);
-    const eligible = (enemy, zone) => !!enemy && enemy.isBoss && !enemy.bossVariant && !!zone && !FIXED_ZONE_TYPES.has(zone.type)
-        && !zone.milestonePinnacle && zone.id !== 'cosmos_astra';
-    const pick = random => V.kinds[Math.min(V.kinds.length - 1, Math.floor(random() * V.kinds.length))];
-
-    /** The variant's look, safe to repeat (a late fight's stage renames its boss after spawning): name suffix, tint, rim. */
-    function dress(enemy) {
-        const kind = BY_ID.get(enemy && enemy.bossVariant);
-        if (!kind) return enemy;
-        if (!String(enemy.name || '').includes(kind.name)) enemy.name = `${enemy.name} (${kind.name})`;
-        return Object.assign(enemy, { bossVisualTint: kind.hue, variantOutline: kind.outline });
-    }
-    /** Puts the variant on a boss: element, strength (mul and add), shield, more loot and experience, then its look. */
-    function apply(enemy, kind) {
-        for (const [key, mul] of Object.entries(kind.mul)) {
-            const base = Number(enemy[key]);
-            enemy[key] = (Number.isFinite(base) ? base : 1) * mul;
-        }
-        for (const [key, add] of Object.entries(kind.add)) enemy[key] = (Number(enemy[key]) || 0) + add;
-        enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp));
-        enemy.hp = enemy.maxHp;
-        if (kind.shieldPct > 0) {
-            enemy.maxEnergyShield = Math.max(Number(enemy.maxEnergyShield) || 0, Math.floor(enemy.maxHp * kind.shieldPct / 100));
-            enemy.energyShield = enemy.maxEnergyShield;
-        }
-        Object.assign(enemy, { bossVariant: kind.id, ele: kind.ele, dropMul: (Number(enemy.dropMul) || 1) * V.reward.dropMul,
-            expMul: (Number(enemy.expMul) || 1) * V.reward.expMul });
-        return dress(enemy);
-    }
-    function announce(enemy, recalled) {
-        dispatchRuntimeEvent('boss-variant', { kind: 'spawn', name: enemy.name, variant: enemy.bossVariant, recalled });
-    }
-    /** An atlas map's 되감긴 기억 passive (data/atlas-passives.js variantChance %p) makes its bosses vary more often. */
-    function atlasChance(zone) {
-        const run = zone && zone.type === 'atlasMap' && game.atlas ? game.atlas.run : null;
-        return (Number(run && run.bonus && run.bonus.variantChance) || 0) / 100;
-    }
-    /** A boss just spawned (js/combat-enemy-build.js finishBossSpawn): from loop 33, by chance, it is a variant. */
-    function maybeApply(enemy, zone, random = Math.random) {
-        if (!open(game) || !eligible(enemy, zone) || random() >= V.chance + atlasChance(zone)) return enemy;
-        apply(enemy, pick(random));
-        announce(enemy, false);
-        return enemy;
-    }
-    /** A memory fight's boss (js/memory-dungeon.js tuneBoss): from tier 3 the memory may come back as a variant. */
-    function recall(enemy, tier, random = Math.random) {
-        const chance = V.recall[tier - 1] || 0;
-        if (!enemy || enemy.bossVariant || random() >= chance) return enemy;
-        apply(enemy, pick(random));
-        announce(enemy, true);
-        return enemy;
-    }
-
-    const ledger = state => {
-        const memory = state.atlas.memory;
-        if (!memory.variants || typeof memory.variants !== 'object') memory.variants = {};
-        return memory.variants;
+// GENERATED from modules/boss-variants*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/boss-variant-catalog.mjs
+  var FIXED_ZONE_TYPES = /* @__PURE__ */ new Set(["outsideChaos", "beyondBoundary"]);
+  function createBossVariantCatalog(rules) {
+    return {
+      rules,
+      byId: new Map(rules.kinds.map((kind) => [kind.id, kind])),
+      ids: Object.freeze(rules.kinds.map((kind) => kind.id))
     };
-    /** The memory a fallen atlas boss variant leaves (its node, tier 3), or null. */
-    function variantMemory(state) {
-        const zone = typeof getZone === 'function' ? getZone(state.currentZoneId) : null;
-        if (!zone || zone.type !== 'atlasMap' || !zone.atlasNode || typeof memoryDungeon !== 'object' || !memoryDungeon.open(state)) return null;
-        return memoryDungeon.give(state, zone.atlasNode, V.reward.memoryTier) ? { node: zone.atlasNode, tier: V.reward.memoryTier } : null;
+  }
+  function variantEligible(enemy, zone) {
+    return !!enemy && enemy.isBoss && !enemy.bossVariant && !!zone && !FIXED_ZONE_TYPES.has(zone.type) && !zone.milestonePinnacle && zone.id !== "cosmos_astra";
+  }
+  function variantPick(catalog2, random) {
+    const pool = catalog2.rules.kinds;
+    return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
+  }
+  function variantKind(catalog2, id) {
+    return catalog2.byId.get(id) || null;
+  }
+  function variantNormalizeKills(catalog2, raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return Object.fromEntries(catalog2.ids.map((id) => [id, Math.max(0, Math.min(1e6, Math.floor(Number(source[id]) || 0)))]).filter(([, count]) => count > 0));
+  }
+  function variantRecords(catalog2, state) {
+    return catalog2.ids.map((id) => ({ kind: catalog2.byId.get(id), kills: (state.atlas.memory.variants || {})[id] || 0 }));
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/ui/runtime-event-commands.mjs
+  function runRuntimeEventCommands(commands, dispatch) {
+    return consumeDomainCommands(commands, { dispatchRuntimeEvent: dispatch });
+  }
+
+  // modules/domain/boss-variant-lifecycle.mjs
+  function variantOpen(env2, state) {
+    return env2.deps.contentProgression.holds("bossVariant", state);
+  }
+  function variantDress(catalog2, enemy) {
+    const kind = catalog2.byId.get(enemy && enemy.bossVariant);
+    if (!kind) return enemy;
+    if (!String(enemy.name || "").includes(kind.name)) enemy.name = `${enemy.name} (${kind.name})`;
+    return Object.assign(enemy, { bossVisualTint: kind.hue, variantOutline: kind.outline });
+  }
+  function variantApply(catalog2, enemy, kind) {
+    for (const [key, mul] of Object.entries(kind.mul)) {
+      const base = Number(enemy[key]);
+      enemy[key] = (Number.isFinite(base) ? base : 1) * mul;
     }
-    /** A boss variant fell (js/combat-skill-effects.js recordKillProgress): its record, the first-kill gift, an atlas boss's tier-3 memory. */
-    function onKilled(state, enemy) {
-        const kind = BY_ID.get(enemy && enemy.bossVariant);
-        if (!kind || !state.atlas || !state.atlas.memory) return null;
-        const book = ledger(state), first = !(book[kind.id] > 0);
-        book[kind.id] = (book[kind.id] || 0) + 1;
-        if (first) V.reward.firstKill.forEach(([key, amount]) => awardCurrency(key, amount));
-        const out = { kind: 'kill', name: enemy.name, variant: kind.id, first, gift: first ? V.reward.firstKill : [], memory: variantMemory(state) };
-        dispatchRuntimeEvent('boss-variant', out);
-        return out;
+    for (const [key, add] of Object.entries(kind.add)) enemy[key] = (Number(enemy[key]) || 0) + add;
+    enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp));
+    enemy.hp = enemy.maxHp;
+    if (kind.shieldPct > 0) {
+      enemy.maxEnergyShield = Math.max(Number(enemy.maxEnergyShield) || 0, Math.floor(enemy.maxHp * kind.shieldPct / 100));
+      enemy.energyShield = enemy.maxEnergyShield;
     }
-    /** Save boundary for the record: known variants, whole counts. */
-    function normalizeKills(raw) {
-        const source = raw && typeof raw === 'object' ? raw : {};
-        return Object.fromEntries(IDS.map(id => [id, Math.max(0, Math.min(1e6, Math.floor(Number(source[id]) || 0)))]).filter(([, count]) => count > 0));
+    Object.assign(enemy, {
+      bossVariant: kind.id,
+      ele: kind.ele,
+      dropMul: (Number(enemy.dropMul) || 1) * catalog2.rules.reward.dropMul,
+      expMul: (Number(enemy.expMul) || 1) * catalog2.rules.reward.expMul
+    });
+    return variantDress(catalog2, enemy);
+  }
+  function* variantAnnounce(enemy, recalled) {
+    yield { kind: "dispatchRuntimeEvent", args: ["boss-variant", { kind: "spawn", name: enemy.name, variant: enemy.bossVariant, recalled }] };
+  }
+  function variantAtlasChance(owner, zone) {
+    const run = zone && zone.type === "atlasMap" && owner.atlas ? owner.atlas.run : null;
+    return (Number(run && run.bonus && run.bonus.variantChance) || 0) / 100;
+  }
+  function* variantMaybeApply(env2, enemy, zone, random = Math.random) {
+    if (!variantOpen(env2, env2.owner) || !variantEligible(enemy, zone) || random() >= env2.catalog.rules.chance + variantAtlasChance(env2.owner, zone)) return enemy;
+    variantApply(env2.catalog, enemy, variantPick(env2.catalog, random));
+    yield* variantAnnounce(enemy, false);
+    return enemy;
+  }
+  function* variantRecall(env2, enemy, tier, random = Math.random) {
+    const chance = env2.catalog.rules.recall[tier - 1] || 0;
+    if (!enemy || enemy.bossVariant || random() >= chance) return enemy;
+    variantApply(env2.catalog, enemy, variantPick(env2.catalog, random));
+    yield* variantAnnounce(enemy, true);
+    return enemy;
+  }
+  function variantLedger(state) {
+    const memory = state.atlas.memory;
+    if (!memory.variants || typeof memory.variants !== "object") memory.variants = {};
+    return memory.variants;
+  }
+  function variantMemory(env2, state) {
+    const zone = typeof env2.deps.getZone === "function" ? env2.deps.getZone(state.currentZoneId) : null;
+    if (!zone || zone.type !== "atlasMap" || !zone.atlasNode || typeof env2.deps.memoryDungeon !== "object" || !env2.deps.memoryDungeon.open(state)) return null;
+    return env2.deps.memoryDungeon.give(state, zone.atlasNode, env2.catalog.rules.reward.memoryTier) ? { node: zone.atlasNode, tier: env2.catalog.rules.reward.memoryTier } : null;
+  }
+  function* variantOnKilled(env2, state, enemy) {
+    const kind = env2.catalog.byId.get(enemy && enemy.bossVariant);
+    if (!kind || !state.atlas || !state.atlas.memory) return null;
+    const book = variantLedger(state), first = !(book[kind.id] > 0);
+    book[kind.id] = (book[kind.id] || 0) + 1;
+    if (first) env2.catalog.rules.reward.firstKill.forEach(([key, amount]) => env2.deps.awardCurrency(key, amount));
+    const out = { kind: "kill", name: enemy.name, variant: kind.id, first, gift: first ? env2.catalog.rules.reward.firstKill : [], memory: variantMemory(env2, state) };
+    yield { kind: "dispatchRuntimeEvent", args: ["boss-variant", out] };
+    return out;
+  }
+
+  // modules/boss-variants-classic.mjs
+  var catalog = createBossVariantCatalog(BOSS_VARIANTS);
+  var env = { get owner() {
+    return game;
+  }, catalog, deps: {
+    get contentProgression() {
+      return contentProgression;
+    },
+    get getZone() {
+      return typeof getZone === "undefined" ? void 0 : getZone;
+    },
+    get memoryDungeon() {
+      return typeof memoryDungeon === "undefined" ? void 0 : memoryDungeon;
+    },
+    get awardCurrency() {
+      return awardCurrency;
     }
-    const records = state => IDS.map(id => ({ kind: BY_ID.get(id), kills: (state.atlas.memory.variants || {})[id] || 0 }));
-    return Object.freeze({ open, maybeApply, recall, dress, apply, onKilled, normalizeKills, records, kind: id => BY_ID.get(id) || null });
+  } };
+  var bossVariants = Object.freeze({
+    open(state) {
+      return variantOpen(env, state);
+    },
+    maybeApply(enemy, zone, random) {
+      return runRuntimeEventCommands(variantMaybeApply(env, enemy, zone, random), dispatchRuntimeEvent);
+    },
+    recall(enemy, tier, random) {
+      return runRuntimeEventCommands(variantRecall(env, enemy, tier, random), dispatchRuntimeEvent);
+    },
+    dress(enemy) {
+      return variantDress(catalog, enemy);
+    },
+    apply(enemy, kind) {
+      return variantApply(catalog, enemy, kind);
+    },
+    onKilled(state, enemy) {
+      return runRuntimeEventCommands(variantOnKilled(env, state, enemy), dispatchRuntimeEvent);
+    },
+    normalizeKills(raw) {
+      return variantNormalizeKills(catalog, raw);
+    },
+    records(state) {
+      return variantRecords(catalog, state);
+    },
+    kind(id) {
+      return variantKind(catalog, id);
+    }
+  });
+  safeExposeGlobals({ bossVariants });
 })();
-safeExposeGlobals({ bossVariants });

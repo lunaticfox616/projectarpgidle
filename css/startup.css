@@ -40,7 +40,7 @@
 }
 #startup-overlay .startup-hero-grid { display: grid; height: 100%; align-items: stretch; }
 #startup-overlay .startup-hero-copy { display: flex; flex-direction: column; justify-content: flex-end; }
-/* 로고는 로그인 판 위, 같은 테 안에 놓인다. 도트 하나가 기기 화소의 정수배가 되는 크기는 js/ui-game-shell.js가 --startup-logo-size로 준다. */
+/* 로고는 로그인 판 위, 같은 테 안에 놓인다. 도트 하나가 기기 화소의 정수배가 되는 크기는 modules/browser/game-shell.mjs가 --startup-logo-size로 준다. */
 #startup-overlay .startup-brand-wrap { display: flex; justify-content: center; margin: 0; padding: 22px 30px 0; }
 #startup-overlay .startup-logo {
   display: block; width: var(--startup-logo-size, 192px); height: auto; max-width: 100%; margin: 0;
@@ -187,7 +187,7 @@
   #startup-overlay .startup-panel.auth { padding: 20px; }
   #startup-overlay .startup-summary-grid { grid-template-columns: 1fr; }
 }
-/* 금빛 나뭇잎(2026-11-05 사용자 "로그인화면에 금빛 나뭇잎이 흩날리게 해줄 수 있어?"): js/ui-game-shell.js가 잎 14장을 넣고, 그림은
+/* 금빛 나뭇잎(2026-11-05 사용자 "로그인화면에 금빛 나뭇잎이 흩날리게 해줄 수 있어?"): modules/browser/game-shell.mjs가 잎 14장을 넣고, 그림은
    assets/ui/title-leaves.png(한 칸 15도트, 12칸이 한 바퀴, 두 줄이 잎 두 종류). 위에서 떨어지며(fall) 좌우로 흔들리고(sway) 칸을 넘겨
    돈다(turn). 로그인 대기에서 움직이는 것은 이 잎뿐이다(docs/login-loading-resources.md): 자리와 투명도만 바꿔 화면 합성기가 맡고
    requestAnimationFrame과 스크립트는 쓰지 않는다. 판들 뒤에 깔린다. */

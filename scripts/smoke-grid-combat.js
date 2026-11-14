@@ -3,144 +3,26 @@ const fs = require('fs');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
-const files = [
-  'js/bootstrap.js',
-  'cloud-save-config.js',
-  'data/constants.js',
-  'data/level-progression.js', 'data/build-stat-inputs.js',
-  'data/maps.js',
-  'data/act-exploration-maps.js',
-  'data/cosmos-route.js',
-  'data/exploration-regions.js', 'data/atlas-board.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'data/loot-omens.js', 'data/memory-leaves.js', 'data/memory-dungeon.js',
-  'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
-  'data/endgame-progression.js',
-  'data/severed-wanderers.js',
-  'data/items.js', 'data/currency-exchange.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/item-influences.js', 'data/colony-wards.js', 'data/weapon-categories.js',
-  'data/unique-equipment.js',
-  'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js', 'data/hana-weapon-combos.js',
-  'data/passives.js',
-  'data/passive-tree-v22.js',
-  'data/bosses.js', 'data/monster-sprites.js', 'data/monster-combat-roles.js', 'data/monster-stage-roster.js', 'data/stage-view.js', 'data/knitting.js',
-  'data/rewards.js',
-  'data/talent-cards.js',
-  'data/content-progression.js',
-  'data/offline-progress.js',
-  'data/locales/ko.js',
-  'js/utils.js', 'js/i18n.js',
-  'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-rooms.js', 'js/act-exploration-sight.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
-  'js/act-exploration-state.js', 'js/exploration-objects.js', 'js/act-exploration-doors.js', 'js/exploration-ground-loot.js',
-  'data/ascendancies.js', 'js/state.js',
-  'js/combat-loot-receipts.js',
-  'js/level-progression.js', 'js/combat-equipment-stats.js', 'js/player-stat-cache.js',
-  'js/content-progression.js',
-  'js/offline-progress.js',
-  'js/endgame-progression.js',
-  'js/crafting-workspace-state.js',
-  'js/save.js',
-  'js/items.js', 'js/weapon-categories.js',
-  'js/equipment-crafting.js',
-  'js/passive-routing.js', 'js/passives.js', 'js/battle-assets.js', 'js/item-rolls.js', 'js/currency-exchange.js', 'js/item-save-slim.js',
-  'js/loot.js', 'js/gem-drop-rewards.js',
-  'js/unique-hunt.js',
-  'js/background-build-cache.js',
-  'js/equipment-stat-resolution.js',
-  'js/gem-core-forge.js', 'js/skills.js', 'js/support-runes.js', 'js/combat-support-runes.js', 'js/combat-projectile-shots.js', 'js/combat-support-summons.js',
-  'js/core-items.js', 'js/talismans.js', 'js/talisman-effects.js', 'js/talisman-combat.js', 'js/stump-cube-recipes.js', 'js/stump-cube.js',
-  'js/skill-effect-expansion.js', 'js/combat-grid.js',
-  'js/act-exploration-progress.js', 'js/exploration-object-combat.js',
-  'js/loot-omens.js', 'js/memory-leaves.js', 'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas-board.js', 'js/atlas.js', 'js/atlas-endgame.js', 'js/memory-dungeon.js',
-  'js/condition-patterns.js',
-  'js/hidden-journal.js',
-  'js/severed-wanderers.js',
-  'data/woodsman-battle.js', 'js/combat-woodsman.js', 'js/combat-woodsman-stumps.js',
-  'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js', 'js/combat-room-invader.js', 'js/enemy-ambush.js',
-  'js/cosmos-rules.js',
-  'js/equipment-sockets.js',
-  'js/combat-build-stats.js',
-  'js/cosmos-route.js',
-  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/ascendancy-node-rules.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
-  'js/combat-ehp.js',
-  'js/talent-cards.js', 'js/knitting.js', 'js/knitting-rewards.js',
-];
-
-function createElement() {
-  return {
-    style: {},
-    dataset: {},
-    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
-    appendChild() {},
-    setAttribute() {},
-    addEventListener() {},
-    removeEventListener() {},
-    querySelector() { return null; },
-    querySelectorAll() { return []; },
-    getContext() { return null; },
-  };
-}
-
-const context = {
-  console,
-  window: null,
-  globalThis: null,
-  document: {
-    readyState: 'loading',
-    addEventListener() {},
-    getElementById() { return null; },
-    querySelector() { return null; },
-    querySelectorAll() { return []; },
-    createElement,
-    head: { appendChild() {} },
-    body: { appendChild() {} },
-  },
-  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
-  location: { search: '', hash: '', href: '' },
-  navigator: {},
-  addEventListener() {},
-  removeEventListener() {},
-  setTimeout() {},
-  clearTimeout() {},
-  setInterval() {},
-  clearInterval() {},
-  requestAnimationFrame() {},
-  cancelAnimationFrame() {},
-  performance: { now() { return Date.now(); } },
-  Image: function Image() {},
-  Date,
-  Math,
-  JSON,
-  Number,
-  String,
-  Boolean,
-  Array,
-  Object,
-  Map,
-  Set,
-  WeakSet,
-  RegExp,
-  Error,
-  URLSearchParams,
-  structuredClone,
-};
-context.window = context;
-context.globalThis = context;
-vm.createContext(context);
-context.exposeFileGlobals = map => Object.assign(context, map);   // js/utils.js의 것: 이 목록은 그 파일보다 먼저 읽는 파일이 있다
-require('./lib/load-combat-clock')(context);
-files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
+const context = buildGameRuntime();
+context.console = console;
+vm.runInContext(fs.readFileSync('data/monster-stage-roster.js', 'utf8'), context, { filename: 'data/monster-stage-roster.js' });
 context.getHeroSelectionDef = () => ({ label: '테스트 영웅', classId: null });
 context.getCodexBonusPct = () => 0;
 context.addLog = () => {};
 context.checkUnlocks = () => {};
 context.updateStaticUI = () => {};
 
-// 스킬룬 무기 규칙(js/skills.js isSkillRuneUsableWithStance)은 이 시험의 엔진 판정과 상관이 없다: 무기 없이 아무 룬이나 끼워 보도록
-// 꺼 두고, 무기 규칙 구간에서만 원래 규칙으로 확인한다.
-const realSkillRuneUsable = context.isSkillRuneUsableWithStance;
-vm.runInContext('isSkillRuneUsableWithStance = () => true;', context);
 function resetGame() {
   vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
   context.game.currentZoneId = 0;
 }
+
+const weaponOf = (category, id) => {
+  // 그 대분류의 가장 낮은 바탕(시작하는 주인공의 능력치로 낄 수 있다)
+  const base = vm.runInContext('BASE_ITEM_DB', context).filter(row => row.slot === '무기' && context.getWeaponCategoryOfBase(row.id) === category)
+    .reduce((low, row) => (!low || row.reqTier < low.reqTier ? row : low), null);
+  return { id, slot: '무기', baseId: base.id, name: base.name, rarity: 'normal', baseStats: [], stats: [] };
+};
 
 function makeEnemy(id, gx, gy, extra) {
   return Object.assign({
@@ -561,7 +443,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const cosmosEhpBands = [[28000, 35000], [38000, 46000], [52000, 60000], [64000, 72000], [76000, 84000]];
   cosmosBossEstimates.slice(1).forEach((estimate, index) => {
     assert.ok(estimate.dps > cosmosBossEstimates[index].dps,
-      `G${index + 2} 권장 DPS는 이전 은하보다 높아야 한다`);
+      `G${index + 2} 권장 DPS는 이전 은하보다 높아야 한다 (${cosmosBossEstimates.map(row => row.dps).join(', ')})`);
     assert.ok(cosmosRecommendedEhp[index + 1] > cosmosRecommendedEhp[index],
       `G${index + 2} 개인화 권장 EHP는 이전 은하보다 높아야 한다`);
   });
@@ -1001,6 +883,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   function measurePlayerDamage(distance) {
     resetGame();
     context.game.activeSkill = '얼음 창';
+    context.game.equipment['무기'] = weaponOf('scimitar', 2199);
     context.game.skills = Array.from(new Set([...(context.game.skills || []), '얼음 창']));
     context.game.gemData['얼음 창'] = { level: 1, exp: 0, quality: 0 };
     context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
@@ -1012,7 +895,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     stats.accuracy = 1000000;
     stats.crit = 0;
     context.performPlayerAttack(stats);
-    vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+    vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
     return target.maxHp - target.hp;
   }
 
@@ -1028,7 +911,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
       resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
     };
     context.performMonsterAttacks(stats);
-    vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+    vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
     context.performMonsterAttacks(stats);
     return 100000 - context.game.playerHp;
   }
@@ -1100,6 +983,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.settings.combatPositionMode = 'auto';
   context.game.settings.combatTargetPriority = 'nearest';
   context.game.activeSkill = '얼음 창';
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0.6 };
   context.game.enemies = [makeEnemy(221, 4, 3)];
   context.resetCombatTacticsRuntime();
@@ -1230,6 +1114,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.game.activeSkill = '얼음 창';
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.skills = ['얼음 창'];
   context.game.gemData['얼음 창'] = { level: 1, exp: 0, quality: 0 };
   context.game.skyGemEnhancements = { '얼음 창': ['sky_projectile_split'] };
@@ -1265,8 +1150,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   patternWeapons.forEach(([name, mode, damageMultiplier]) => {
     resetGame();
     context.game.activeSkill = '얼음 창';
+    context.game.equipment['무기'] = weaponOf('scimitar', 2199);
     context.game.skills = ['얼음 창'];
     context.game.gemData['얼음 창'] = { level: 1, exp: 0, quality: 0 };
+    context.game.equipment['무기'] = makeUniqueItem(name, false);
     const baseSkillDamage = context.getActiveSkillStats(0).dmg;
     context.game.equipment['무기'] = makeUniqueItem(name);
     const weaponStats = context.getPlayerStats();
@@ -1310,9 +1197,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.activeSkill = '기본 공격';
   context.game.gridPlayer = { gx: 1, gy: 1, gridMoveTimer: 0 };
   context.game.enemies = [makeEnemy(820, 2, 1, { hp: 1000000, maxHp: 1000000 })];
-  vm.runInContext('pendingSkillStageHits = [];', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   context.performPlayerAttack(loneStats);
-  assert.strictEqual(vm.runInContext('pendingSkillStageHits[0].options.attackDamageMultiplier', context), 1.2, '잔상 반격은 다음 스킬 전체에 피해 20% 증폭을 전달해야 한다');
+  assert.strictEqual(vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits[0].options.attackDamageMultiplier", context), 1.2, '잔상 반격은 다음 스킬 전체에 피해 20% 증폭을 전달해야 한다');
   assert.strictEqual(context.game.uniqueLoneEvasionCounterUntil, 0, '잔상 반격은 한 번의 스킬에만 소비돼야 한다');
 
   resetGame();
@@ -1330,9 +1217,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.playerEnergyShield = Math.floor(zeroPointStats.energyShield / 2);
   const esHitAt = Date.now();
   context.game.playerEsLastHitAt = esHitAt;
-  vm.runInContext('pendingSkillStageHits = [];', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   context.performPlayerAttack(zeroPointStats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.strictEqual(context.game.playerEsLastHitAt, esHitAt - 250, '영점 장갑의 치명타는 재충전 대기시간을 0.25초만 앞당겨야 한다');
   const advancedOnce = context.game.playerEsLastHitAt;
   assert.strictEqual(context.advanceEnergyShieldRechargeOnCrit(zeroPointStats, Date.now()), false, '영점 장갑은 0.6초 내부 재사용 대기시간 동안 연속 발동하면 안 된다');
@@ -1364,6 +1251,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.game.activeSkill = '연발 사격';
+  context.game.equipment['무기'] = weaponOf('shortbow', 2199);
   context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
   context.game.enemies = [makeEnemy(301, 4, 3), makeEnemy(302, 4, 2), makeEnemy(303, 4, 4), makeEnemy(304, 3, 2),
     makeEnemy(305, 3, 4), makeEnemy(306, 2, 2), makeEnemy(307, 2, 4), makeEnemy(308, 2, 3)];
@@ -1529,14 +1417,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     flatElementHitDamage: {}, finalDamageMultiplier: 1,
   });
   context.performPlayerAttack(stats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.strictEqual(target.maxHp - target.hp, 1200,
     '카오스 선택 시 물리 스킬에 붙은 카오스 추가 피해도 20% 증폭되어야 한다');
 
   target.hp = target.maxHp;
   stats.addedDamagePctByElement = { fire: 100 };
   context.performPlayerAttack(stats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.strictEqual(target.hp, target.maxHp,
     '카오스 선택 시 물리 본체와 다른 속성의 추가 피해는 피해를 주지 않아야 한다');
 
@@ -1547,6 +1435,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   ]`, context);
   context.game.passiveSpecialization = { keystoneChoices: { wisdom_leap_element: 'chaos' } };
   context.game.activeSkill = '암흑 파열';
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '암흑 파열']));
   context.game.gemData['암흑 파열'] = { level: 20, exp: 0, quality: 0 };
   const chaosSkillStats = context.getPlayerStats();
@@ -1558,7 +1447,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(chaosSkillStats.finalDamageMultiplier > 0,
     '공허 선택이 일반 최종 피해 배율 자체를 0으로 만들면 안 된다');
   context.performPlayerAttack(chaosSkillStats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(target.hp < target.maxHp,
     '지혜의 도약에서 공허를 선택한 후 카오스 주력 스킬이 0 피해를 주면 안 된다');
 }
@@ -1585,11 +1474,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const castFrost = (enemies, move, untilMs = Infinity) => {
     context.game.enemies = enemies;
     context.game.combatTimeMs = 1000000000000;
-    vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+    vm.runInContext("battleFx = []; window.GameModules.state.combat.pendingSkillStageHits = [];", context);
     const stats = context.getPlayerStats();
     Object.assign(stats, { minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000, crit: 0 });
     context.performPlayerAttack(stats);
-    context.__waveStart = vm.runInContext('Math.min(...pendingSkillStageHits.filter(row => row.wave).map(row => row.at))', context);
+    context.__waveStart = vm.runInContext("Math.min(...window.GameModules.state.combat.pendingSkillStageHits.filter(row => row.wave).map(row => row.at))", context);
     move();
     advanceWave(untilMs);
   };
@@ -1642,10 +1531,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   stats.accuracy = 1000000;
   context.performPlayerAttack(stats);
   assert.ok(enemies.every(enemy => enemy.hp === enemy.maxHp), '공격 모션이 끝나기 전에 회오리 피해가 적용되면 안 된다');
-  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.sort((a, b) => a.at - b.at); window.GameModules.state.combat.pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();", context);
   assert.ok(enemies[0].hp < enemies[0].maxHp, '회오리 첫 대상은 첫 단계에서 피해를 받아야 한다');
   assert.strictEqual(enemies[1].hp, enemies[1].maxHp, '회오리 두 번째 대상 피해가 첫 단계와 동시에 들어가면 안 된다');
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
 
   // 09-30: 회전마다 그 순간 서 있는 칸 둘레에서 아직 안 맞은 적을 벤다 — 걷는 동안에도 칼바람이 따라간다.
@@ -1659,12 +1548,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const walkStats = context.getPlayerStats();
   Object.assign(walkStats, { baseDmg: 1000, minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000 });
   context.performPlayerAttack(walkStats);
-  assert.strictEqual(vm.runInContext('pendingSkillStageHits.length', context), walkStats.sSkill.targets, '회오리는 대상 수만큼 회전을 예약한다');
-  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  assert.strictEqual(vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.length", context), walkStats.sSkill.targets, '회오리는 대상 수만큼 회전을 예약한다');
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.sort((a, b) => a.at - b.at); window.GameModules.state.combat.pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();", context);
   const nearAfterFirst = near.hp;
   assert.ok(near.hp < near.maxHp && far.hp === far.maxHp, '첫 회전은 서 있는 칸 둘레의 적을 벤다');
   context.game.gridPlayer = { gx: 3, gy: 6, gridMoveTimer: 0 };
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(far.hp < far.maxHp, '걸어간 칸 둘레의 적을 남은 회전이 벤다');
   assert.strictEqual(near.hp, nearAfterFirst, '이미 벤 적은 같은 시전에서 다시 베지 않는다');
 
@@ -1682,9 +1571,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   guardedStats.accuracy = 1000000;
   guardedStats.crit = 0;
   guardedStats.sSkill = { ...context.SKILL_DB['기본 공격'], multiHit: 3, repeatHitDamagePct: 100 };
-  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  vm.runInContext("battleFx = []; window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   context.performPlayerAttack(guardedStats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   const firstGuardedAttack = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 49).map(fx => fx.rawDamage)", context);
   assert.strictEqual(firstGuardedAttack.length, 3, '연타경감 검사는 한 공격의 세 타격을 모두 실제 처리해야 한다');
   assert.ok(firstGuardedAttack[0] > firstGuardedAttack[1] && firstGuardedAttack[1] > firstGuardedAttack[2],
@@ -1693,9 +1582,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     && Math.abs(firstGuardedAttack[2] / firstGuardedAttack[0] - 0.8) < 0.02,
     '연타경감 10%는 같은 공격의 2타와 3타를 각각 약 90%, 80%로 줄여야 한다');
 
-  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  vm.runInContext("battleFx = []; window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   context.performPlayerAttack(guardedStats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   const nextGuardedAttack = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 49).map(fx => fx.rawDamage)", context);
   assert.strictEqual(nextGuardedAttack[0], firstGuardedAttack[0],
     '이전 피격 횟수가 아무리 많아도 다음 공격의 첫 타격은 연타경감 없이 시작해야 한다');
@@ -1704,9 +1593,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     ...context.SKILL_DB['기본 공격'],
     combatPattern: { kind: 'field', hits: 3, intervalMs: 80, damagePct: 100 },
   };
-  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  vm.runInContext("battleFx = []; window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   context.performPlayerAttack(guardedStats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   const stagedGuardedAttack = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 49).map(fx => fx.rawDamage)", context);
   assert.strictEqual(stagedGuardedAttack.length, 3, '시간차 공격의 세 타격을 모두 실제 처리해야 한다');
   assert.ok(stagedGuardedAttack[0] > stagedGuardedAttack[1] && stagedGuardedAttack[1] > stagedGuardedAttack[2],
@@ -1727,9 +1616,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   slamStats.accuracy = 1000000;
   context.performPlayerAttack(slamStats);
   assert.strictEqual(slamTarget.hp, slamTarget.maxHp, '강타 피해는 공격 모션이 끝난 뒤 적용돼야 한다');
-  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.sort((a, b) => a.at - b.at); window.GameModules.state.combat.pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();", context);
   const hpAfterPrimary = slamTarget.hp;
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(slamTarget.hp < hpAfterPrimary, '강타 여진은 본 타격 이후 별도의 실제 피해를 적용해야 한다');
 }
 
@@ -1742,17 +1631,18 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.game.activeSkill = '번개 창';
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '번개 창']));
   context.game.gemData['번개 창'] = { level: 1, exp: 0, quality: 0 };
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   context.game.enemies = [makeEnemy(560, 3, 6), makeEnemy(561, 5, 6), makeEnemy(562, 7, 6)];
   context.game.enemies.forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
-  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  vm.runInContext("battleFx = []; window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   const lightningSpearStats = context.getPlayerStats();
   lightningSpearStats.accuracy = 1000000;
   context.performPlayerAttack(lightningSpearStats);
   const lightningTravel = vm.runInContext(`battleFx.filter(fx => fx && fx.type === 'combatTravel' && fx.skillName === '번개 창')`, context);
-  const lightningPendingCount = vm.runInContext('pendingSkillStageHits.length', context);
+  const lightningPendingCount = vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.length", context);
   assert.strictEqual(lightningPendingCount, 3, '번개창의 관통 판정은 세 대상 모두 유지해야 한다');
   assert.strictEqual(lightningTravel.length, 1, '번개창 한 발을 관통 대상마다 별도 투사체로 복제하면 안 된다');
   assert.deepStrictEqual(
@@ -1778,6 +1668,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   resetGame();
   context.game.level = 37;
   context.game.activeSkill = '난타 눈보라';
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '난타 눈보라']));
   context.game.gemData['난타 눈보라'] = { level: 1, exp: 0, quality: 0 };
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
@@ -1794,26 +1685,27 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(fieldTravelFx[0].duration >= 1200, '장판 이미지는 마지막 타격까지 유지되어야 한다');
   fieldTarget.gx = 7; fieldTarget.gy = 1;
   fieldEntrant.gx = 3; fieldEntrant.gy = 5;
-  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.sort((a, b) => a.at - b.at); window.GameModules.state.combat.pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();", context);
   assert.strictEqual(fieldTarget.hp, fieldTarget.maxHp, '장판 밖으로 이동한 적은 다음 틱을 맞으면 안 된다');
   assert.ok(fieldEntrant.hp < fieldEntrant.maxHp, '유지 중인 장판 칸에 새로 들어온 적이 다음 틱을 맞아야 한다');
-  vm.runInContext('pendingSkillStageHits = [];', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits = [];", context);
 
   resetGame();
   context.game.level = 37;
   context.game.activeSkill = '유성 낙화';
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '유성 낙화']));
   context.game.gemData['유성 낙화'] = { level: 1, exp: 0, quality: 0 };
   assert.ok(context.SKILL_DB['유성 낙화'].tags.includes('spell'), '유성 낙화는 주문 태그를 가져야 한다');
   assert.ok(!context.SKILL_DB['유성 낙화'].tags.includes('attack'), '유성 낙화에 공격 태그가 남으면 안 된다');
   assert.ok(context.SKILL_DB['유성 낙화'].spellFlatBase > 0 && context.SKILL_DB['유성 낙화'].spellFlatScale > 0, '유성 낙화는 레벨에 따라 성장하는 주문 내장 피해를 가져야 한다');
-  context.game.equipment['무기'] = { id: 9940, slot: '무기', name: '시험용 무기', rarity: 'normal', baseStats: [{ id: 'flatDmg', val: 10 }], stats: [] };
+  context.game.equipment['무기'] = { id: 9940, slot: '무기', baseId: 'rusted_blade', name: '시험용 무기', rarity: 'normal', baseStats: [{ id: 'flatDmg', val: 10 }], stats: [] };
   const lowWeaponMeteorDamage = context.getPlayerStats().baseDmg;
   context.game.equipment['무기'].baseStats[0].val = 10000;
   assert.strictEqual(context.getPlayerStats().baseDmg, lowWeaponMeteorDamage, '무기 기본 피해가 유성 낙화 주문 피해를 올리면 안 된다');
   context.game.equipment['무기'].stats = [{ id: 'spellFlatDmg', val: 20 }];
   assert.ok(context.getPlayerStats().baseDmg > lowWeaponMeteorDamage, '주문 기본 피해 옵션은 유성 낙화 피해를 올려야 한다');
-  context.game.equipment['무기'] = null;
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const meteorTargets = [makeEnemy(600, 3, 6), makeEnemy(601, 3, 5)];
   meteorTargets.forEach(enemy => { enemy.hp = enemy.maxHp = 1000000; });
@@ -1823,17 +1715,18 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   meteorStats.minDmgRoll = meteorStats.maxDmgRoll = 100;
   meteorStats.accuracy = 1000000;
   context.performPlayerAttack(meteorStats);
-  const meteorRows = vm.runInContext("pendingSkillStageHits.filter(row => row.patternKind === 'meteor')", context);
+  const meteorRows = vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.filter(row => row.patternKind === 'meteor')", context);
   const meteorTravelFx = vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'meteor')", context);
   assert.strictEqual(meteorRows.length, 7, '실제 유성 공격은 충돌과 불타는 지대 6회를 예약해야 한다');
   assert.strictEqual(meteorTravelFx.length, 1, '실제 유성 공격도 낙하 이펙트를 하나만 만들어야 한다');
   assert.ok(meteorTravelFx[0].duration >= meteorRows[6].at - meteorRows[0].launchAt, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(meteorTargets.every(enemy => enemy.hp < enemy.maxHp), '단일 유성이 충돌 범위의 모든 선택 대상에게 피해를 줘야 한다');
   assert.ok(meteorTargets.every(enemy => (enemy.ailments || []).some(ailment => ailment.type === 'ignite')), '불길 지대에 남은 적은 점화되어야 한다');
 
   resetGame();
   context.game.activeSkill = '관통 사격';
+  context.game.equipment['무기'] = weaponOf('shortbow', 2199);
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '관통 사격']));
   context.game.gemData['관통 사격'] = { level: 1, exp: 0, quality: 0 };
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
@@ -1848,7 +1741,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performPlayerAttack(projectileStats);
   original.gx = 3; original.gy = 5;
   interceptor.gx = 2; interceptor.gy = 6;
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.strictEqual(original.hp, original.maxHp, '직선 투사체는 떠난 원래 대상을 추적하면 안 된다');
   assert.ok(interceptor.hp < interceptor.maxHp, '직선 투사체는 목표까지의 중간 경로에 들어온 다른 적과 충돌해야 한다');
   const projectileHitGroups = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 62).map(fx => fx.damageTextGroupId)", context);
@@ -1858,6 +1751,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.game.activeSkill = '연발 사격';
+  context.game.equipment['무기'] = weaponOf('shortbow', 2199);
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '연발 사격']));
   context.game.gemData['연발 사격'] = { level: 1, exp: 0, quality: 0 };
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
@@ -1870,7 +1764,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   homingStats.accuracy = 1000000;
   context.performPlayerAttack(homingStats);
   homingTarget.gx = 3; homingTarget.gy = 5;
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(homingTarget.hp < homingTarget.maxHp, '단일 유도 투사체는 이동한 생존 대상을 따라가야 한다');
 
   resetGame();
@@ -1886,7 +1780,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.game.playerHp, 1000, '적 원거리 공격은 발사 순간 피해를 주면 안 된다');
   const pathSummon = { id: 640, gx: 2, gy: 6, hp: 100, maxHp: 100, alive: true, evasion: 0, armor: 0 };
   context.game.summons = [pathSummon];
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(defenseStats);
   assert.strictEqual(context.game.playerHp, 1000, '소환수가 중간 경로에 들어오면 뒤의 플레이어가 맞으면 안 된다');
   assert.ok(pathSummon.hp < pathSummon.maxHp, '적 투사체는 이동 경로의 소환수에게 가로막혀야 한다');
@@ -1895,13 +1789,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   ranged.attackTimer = 1;
   context.performMonsterAttacks(defenseStats);
   context.game.gridPlayer.gy = 5;
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(defenseStats);
   assert.strictEqual(context.game.playerHp, 1000, '투사체 도착 전에 목표 칸을 벗어나면 회피해야 한다');
   context.game.gridPlayer.gy = 6;
   ranged.attackTimer = 1;
   context.performMonsterAttacks(defenseStats);
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(context.game.playerHp < 1000, '목표 칸에 남은 플레이어는 도착한 적 투사체 피해를 받아야 한다');
 
@@ -1911,7 +1805,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performMonsterAttacks(defenseStats);
   ranged.hp = 0;
   context.game.enemies = [];
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(context.game.playerHp < 1000, '이미 발사된 투사체는 발사한 적이 죽어도 사라지면 안 된다');
 }
@@ -1928,9 +1822,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const attackStats = context.getPlayerStats();
   attackStats.accuracy = 1000000;
   attackStats.crit = 0;
-  vm.runInContext('pendingSkillStageHits = [];', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   context.performPlayerAttack(attackStats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(logs.some(message => /^🩸 기본 공격으로 시험 허수아비에게 \d[\d,]* 피해$/.test(message)),
     '기본 공격 로그는 속성 표식, 기술 이름, 맞은 적, 총 피해만 표시해야 한다(검토 5차부터 출처를, 2026-10-06부터 대상을 적는다)');
 
@@ -1938,9 +1832,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.settings.showDetailedDamageLog = true;
   context.game.enemies = [makeEnemy(642, 2, 6, { hp: 1000000, maxHp: 1000000, name: '시험 허수아비' })];
   attackStats.damageScales = { regen: 1.2 };
-  vm.runInContext('pendingSkillStageHits = [];', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits = [];", context);
   context.performPlayerAttack(attackStats);
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.ok(logs.some(message => /^🩸 기본 공격으로 시험 허수아비에게 \d[\d,]* 피해 \/ .*계수 재생x1\.20/.test(message)),
     '상세 공격 로그는 같은 줄 뒤에 전투 맥락(계수 등)을 더 표시해야 한다');
   delete attackStats.damageScales;
@@ -1958,7 +1852,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
   };
   context.performMonsterAttacks(defenseStats);
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(logs.some(message => /^[🩸🔥❄️⚡☠️✦]+ \S.*의 공격으로 \d[\d,]* 피해$/u.test(message)), '기본 피격 로그도 주요 속성 표식, 공격한 적, 받은 피해만 표시해야 한다(검토 5차부터 출처를 적는다)');
 
@@ -1966,7 +1860,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.settings.showDetailedDamageLog = true;
   ranged.attackTimer = 1;
   context.performMonsterAttacks(defenseStats);
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(logs.some(message => message.includes('피격') && message.includes('화염')), '상세 피격 로그는 속성별 피해 분해를 표시해야 한다');
   context.addLog = () => {};
@@ -1985,14 +1879,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const random = context.Math.random;
   context.Math.random = () => .5;
   context.performMonsterAttacks(stats);
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(stats);
   assert(context.game.playerEnergyShield < 1000, 'normal monster damage must reduce ES');
   assert.strictEqual(context.game.playerHp, 1000, 'absorbed damage must not reduce HP');
   context.game.playerEnergyShield = 1;
   attacker.attackTimer = 1;
   context.performMonsterAttacks(stats);
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(stats);
   assert.strictEqual(context.game.playerEnergyShield, 0, 'the last shield point must be consumed');
   assert(context.game.playerHp < 1000, 'damage beyond the remaining shield must reduce HP');
@@ -2000,7 +1894,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.settings.showDeathNotice = false;
   attacker.attackTimer = 1; stats.cosmosEnergyShieldBypassPct = 100;
   context.performMonsterAttacks(stats);
-  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
+  vm.runInContext("game.combatTimeMs = Math.max(getCombatTime(), ...window.GameModules.state.combat.pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));", context);
   context.performMonsterAttacks(stats);
   assert.strictEqual(context.game.loopDeaths, 1, 'explicit shield bypass can kill at zero HP even with ES remaining');
   context.Math.random = random;
@@ -2026,14 +1920,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performMonsterAttacks(defenseStats);
   const normalFlightMs = vm.runInContext("battleFx.find(fx => fx.type === 'combatTravel' && fx.sourceId === 65).flightMs", context);
 
-  vm.runInContext('pendingEnemyCombatAttacks = []; battleFx = [];', context);
+  vm.runInContext("window.GameModules.state.combat.pendingEnemyCombatAttacks = []; battleFx = [];", context);
   boss.attackTimer = 1;
   boss.patternAttackCount = 3;
   boss.specialPlan = { attackNumber: 4, special: true, shape: 0 }; // 특수기를 쓰는 때는 굴린다(js/combat-patterns.js planBossSpecial): 이 공격으로 정해 둔다
   boss.nextPatternState = context.getBossPatternPreview(boss);
   context.updateBossPatternTelegraph(boss, context.getCombatTime() - context.COMBAT_GRID_CONFIG.bossPatternWarningMs, context.game.gridPlayer);
   context.performMonsterAttacks(defenseStats);
-  const special = vm.runInContext("(attack => ({ ms: attack.at - getCombatTime(), move: attack.bossPattern.move.kind }))(pendingEnemyCombatAttacks.find(attack => attack.enemyId === 65))", context);
+  const special = vm.runInContext("(attack => ({ ms: attack.at - getCombatTime(), move: attack.bossPattern.move.kind }))(window.GameModules.state.combat.pendingEnemyCombatAttacks.find(attack => attack.enemyId === 65))", context);
 
   // 2026-10-16: 연속 참격(부채꼴)은 갈래 사격이 되어 첫 칸이 BOSS_MOVE_RULES.volley.firstMs에 닿는다(js/boss-moves.js). 그림도 그 시각에 맞춘다.
   assert.deepStrictEqual(
@@ -2355,6 +2249,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.skills = ['기본 공격', '냉기 위습 소환', '이중 베기'];
   context.game.activeSkill = '기본 공격';
   context.game.equippedSummonSkills = ['냉기 위습 소환'];
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.summonSkillCounts = { '냉기 위습 소환': 1 };
   context.sealAllInactiveSkillGems();
   assert.ok(context.game.skills.includes('냉기 위습 소환'), '장착 중인 소환수 룬은 일괄 봉인에서 제외해야 한다');
@@ -2415,6 +2310,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 {
   resetGame();
   context.game.ascendClass = 'soulbinder';
+  context.game.equipment['무기'] = weaponOf('scimitar', 2199);
   context.game.ascendKeystones = ['sb3'];
   let pStats = context.getPlayerStats();
   assert.ok(pStats.leech >= 3.5, '야생성은 플레이어와 소환수에 공유하는 흡혈 +3.5%를 제공해야 한다');
@@ -2483,13 +2379,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(channelBreakdown.parts.some(part => part.statId === 'channelingPctDmg' && part.value === 17), '집중 유지 보조의 피해는 채널링 태그에만 연결되어야 한다');
 
   // 스킬룬 무기 규칙(2026-10-17 인계 §4): 낀 무기의 대분류 → 자세, 룬의 계열이 그 자세를 허락해야 쓴다.
-  context.isSkillRuneUsableWithStance = realSkillRuneUsable;
-  const weaponOf = (category, id) => {
-    // 그 대분류의 가장 낮은 바탕(시작하는 주인공의 능력치로 낄 수 있다)
-    const base = vm.runInContext('BASE_ITEM_DB', context).filter(row => row.slot === '무기' && context.getWeaponCategoryOfBase(row.id) === category)
-      .reduce((low, row) => (!low || row.reqTier < low.reqTier ? row : low), null);
-    return { id, slot: '무기', baseId: base.id, name: base.name, rarity: 'normal', baseStats: [], stats: [] };
-  };
+
   context.game.equipment['무기'] = null;
   context.game.equipment['방패'] = null;
   assert.strictEqual(context.getEquippedWeaponStance(), 'unarmed', '무기가 없으면 맨손 자세다');
@@ -2546,7 +2436,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '채널 이미지는 범위 중앙이 아니라 실제로 조준한 1차 대상 방향을 보존해야 한다');
   context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
   context.updateCombatChannelRuntime(Date.now());
-  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();", context);
   assert.strictEqual(target.hp, target.maxHp, '채널링 중 동결되면 예약된 후속 타격이 남아 피해를 주면 안 된다');
 
   resetGame();
@@ -2564,13 +2454,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const fastestStages = context.createContinuousChannelStages(channelStages, context.getCombatChannelCycleMs(100));
   assert.ok(fastestStages[fastestStages.length - 1].delayMs < 100, '공격 속도 상한에서도 모든 채널 틱이 다음 주기 전에 예약되어야 한다');
   context.performPlayerAttack(sustainedStats);
-  vm.runInContext('pendingSkillStageHits = []; combatChannelRuntime.endAt = 0; pTimer = 0; updateCombatChannelRuntime(Date.now());', context);
+  vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits = []; window.GameModules.state.combat.combatChannelRuntime.endAt = 0; window.GameModules.state.session.pTimer = 0; updateCombatChannelRuntime(Date.now());", context);
   assert.strictEqual(sustainedTarget.hp, sustainedTarget.maxHp, '집중 주기 종료만으로 추가 피해를 적용하지 않아야 한다');
-  assert.strictEqual(vm.runInContext('combatChannelResumeSkillName', context), context.game.activeSkill, '종료된 채널은 같은 스킬의 연속 집중 상태를 보존해야 한다');
+  assert.strictEqual(vm.runInContext("window.GameModules.state.combat.combatChannelResumeSkillName", context), context.game.activeSkill, '종료된 채널은 같은 스킬의 연속 집중 상태를 보존해야 한다');
   assert.ok(sustainedStats.sSkill.tags.includes('channeling'), '연속 집중 검증 스킬은 채널링 태그를 유지해야 한다');
   context.performPlayerAttack(sustainedStats);
-  const continuationRows = vm.runInContext('pendingSkillStageHits.map(row => ({ at: row.at, channelId: row.channelId }))', context);
-  const continuationRuntimeRemaining = vm.runInContext('combatChannelRuntime.endAt - Date.now()', context);
+  const continuationRows = vm.runInContext("window.GameModules.state.combat.pendingSkillStageHits.map(row => ({ at: row.at, channelId: row.channelId }))", context);
+  const continuationRuntimeRemaining = vm.runInContext("window.GameModules.state.combat.combatChannelRuntime.endAt - Date.now()", context);
   assert.strictEqual(continuationRows.length, 4, '이어지는 집중도 같은 수의 피해 틱을 예약해야 한다');
   const continuationDelay = continuationRows[0].at - Date.now();
   assert.ok(continuationDelay < 120, `이어지는 집중은 재시전 선딜 없이 바로 첫 피해 틱을 예약해야 한다 (${continuationDelay}ms)`);
@@ -2604,22 +2494,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '이동 속도 배율을 먼저 적용한 뒤 빈 구간 2배 가속을 적용해야 한다');
 }
 
-// 전장 좌표 변화와 걷기 프레임은 같은 이동 진행도를 공유해야 한다.
+// 지도 진입 판단은 실제 계산 결과의 화력과 생존력을 함께 표시한다.
 {
-  const battlefield = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
-  const ui = fs.readFileSync('js/ui.js', 'utf8') + fs.readFileSync('js/battlefield-sprites-ui.js', 'utf8');
-  assert.ok(battlefield.includes('updatePlayerGridVisualMotion'), '전장 캔버스가 실제 칸 변경을 화면 이동으로 변환해야 한다');
-  assert.ok(ui.includes('pickProgressFrame(runCycle, moveProgress)'),
-    '스프라이트는 칸 이동 진행도로 걷기 프레임을 골라 도착 시 마지막 프레임에 맞춰야 한다');
-  assert.ok(!battlefield.includes('isPlayerWalkingForAnimation') && !ui.includes('isPlayerWalkingForAnimation'),
-    '진행도나 접근 플래그만으로 제자리 걷기를 켜는 이전 판정은 남지 않아야 한다');
-  const estimateStart = ui.indexOf('function formatApproximateMapPower(');
-  const estimateEnd = ui.indexOf('function buildTrialMapItemHtml(', estimateStart);
   const rewardRuntime = buildGameRuntime();
-  vm.runInContext(ui.slice(estimateStart, estimateEnd), rewardRuntime, { filename: 'map-power-estimate.js' });
   for (const [dps, hp, expected] of [[1,1,'미달성'],[1e12,1,'미달성'],[1,1e12,'미달성'],[1e12,1e12,'달성']]) {
     rewardRuntime.readinessFixture = { ...rewardRuntime.getPlayerStats(), totalDps:dps, maxHp:hp, regen:100, energyShield:0 };
-    vm.runInContext('cachedTooltipStats = readinessFixture',rewardRuntime);
+    vm.runInContext('window.GameModules.uiRuntime.stats.store(readinessFixture)',rewardRuntime);
     const html = rewardRuntime.buildMapPowerEstimateHtml(rewardRuntime.getZone(1));
     assert(html.includes(`grade-${expected === '달성' ? 'high' : 'low'}">권장 전투력 ${expected}</span>`),
       '화력과 생존력 모두 충족해야 달성으로 표시한다');
@@ -2683,7 +2563,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // Boss death / interrupted specials leave no later hit, and warning clocks/approach match the real combat route.
 {
   const runtime = buildGameRuntime();
-  const result = JSON.parse(JSON.stringify(vm.runInContext("(() => {\ngame=mergeDefaults({});window.game=game;game.selectedClassId='warrior';game.combatTimeMs=10000;\ngame.gridPlayer={gx:1,gy:3,gridMoveTimer:0};game.enemies=[{id:1,gx:7,gy:3,hp:100}];\nconst stats=getPlayerStats(),target=game.enemies[0],before=JSON.stringify(game.gridPlayer);\nconst distant=[{gx:6,gy:3}],inside=[{gx:1,gy:3}],wall=Array.from({length:getCombatGridSize().rows},(_,gy)=>({gx:2,gy}));\nconst avoid=warned=>({hard:warned,soft:[],warned});\nconst safe=warningAllowsStep(target,avoid(distant)),blocked=warningAllowsStep(target,avoid(wall)),held=bossWarningApproach(inside).hold;\nconst untouched=before===JSON.stringify(game.gridPlayer);\nconst wanted=getGridApproachStep(game.gridPlayer,target,avoid(distant));\nadvanceGridUnitMovement(game.gridPlayer,target,1,.1,avoid(distant));\nconst moved=wanted.gx===game.gridPlayer.gx&&wanted.gy===game.gridPlayer.gy;\ngame.gridPlayer={gx:2,gy:3,gridMoveTimer:0};game.playerHp=1000;\nconst boss=createEnemy(getZone(1),{boss:true},0);Object.assign(boss,{gx:6,gy:3,hp:100,maxHp:100,attackCast:null});\ngame.enemies=[boss];queueEnemyCombatAttack(boss,game.gridPlayer,null,'projectileCell');\nboss.hp=0;retireDeadEnemyAttacks(boss);game.enemies=[];settleLastEnemyAttacks(stats);\nconst death={hp:game.playerHp,pending:pendingEnemyCombatAttacks.length,flights:battleFx.filter(f=>f?.enemyFlight).length};\nObject.assign(boss,{hp:100,attackCast:null,patternMode:'intro',apexRecoveryUntil:20000});game.enemies=[boss];game.combatTimeMs=11000;\nconst area={kind:'line',source:{gx:6,gy:3},cells:[{gx:5,gy:3},{gx:4,gy:3},{gx:3,gy:3},{gx:2,gy:3}]};\nconst pattern={isSpecial:true,telegraphKind:'beam',damageMul:1.15,area,castStartedAt:9000};\nbossMoves.plan(pattern,boss);queueEnemyCombatAttack(boss,game.gridPlayer,pattern,'patternArea');\nboss.ailments=[{type:'freeze',time:2}];takePendingEnemyCombatAttack(boss.id,12000);\nconst cancel={pending:pendingEnemyCombatAttacks.length,live:bossMoves.live(12000).length,recovery:boss.apexRecoveryUntil};\nboss.ailments=[];boss.attackCast=null;boss.patternTelegraphKey=null;\nboss.nextPatternState={isSpecial:true,mode:'intro',attackNumber:2,telegraphKind:'impact',warningMs:1200};boss.attackTimer=.5;\nconst early=updateBossPatternTelegraph(boss,12000,game.gridPlayer,.1);\nboss.attackTimer=.9;updateBossPatternTelegraph(boss,13000,game.gridPlayer,.1);const first=JSON.stringify(boss.patternArea);\nconst during=updateBossPatternTelegraph(boss,14199,{gx:0,gy:0},.01),ready=updateBossPatternTelegraph(boss,14200,{gx:0,gy:0},.01);\nreturn {safe,blocked,held,untouched,moved,death,cancel,early,during,ready,fixed:first===JSON.stringify(boss.patternArea)};\n})()", runtime)));
+  const result = JSON.parse(JSON.stringify(vm.runInContext("(() => {\ngame=mergeDefaults({});window.game=game;game.selectedClassId='warrior';game.combatTimeMs=10000;\ngame.gridPlayer={gx:1,gy:3,gridMoveTimer:0};game.enemies=[{id:1,gx:7,gy:3,hp:100}];\nconst stats=getPlayerStats(),target=game.enemies[0],before=JSON.stringify(game.gridPlayer);\nconst distant=[{gx:6,gy:3}],inside=[{gx:1,gy:3}],wall=Array.from({length:getCombatGridSize().rows},(_,gy)=>({gx:2,gy}));\nconst avoid=warned=>({hard:warned,soft:[],warned});\nconst safe=warningAllowsStep(target,avoid(distant)),blocked=warningAllowsStep(target,avoid(wall)),held=bossWarningApproach(inside).hold;\nconst untouched=before===JSON.stringify(game.gridPlayer);\nconst wanted=getGridApproachStep(game.gridPlayer,target,avoid(distant));\nadvanceGridUnitMovement(game.gridPlayer,target,1,.1,avoid(distant));\nconst moved=wanted.gx===game.gridPlayer.gx&&wanted.gy===game.gridPlayer.gy;\ngame.gridPlayer={gx:2,gy:3,gridMoveTimer:0};game.playerHp=1000;\nconst boss=createEnemy(getZone(1),{boss:true},0);Object.assign(boss,{gx:6,gy:3,hp:100,maxHp:100,attackCast:null});\ngame.enemies=[boss];queueEnemyCombatAttack(boss,game.gridPlayer,null,'projectileCell');\nboss.hp=0;retireDeadEnemyAttacks(boss);game.enemies=[];settleLastEnemyAttacks(stats);\nconst death={hp:game.playerHp,pending:window.GameModules.state.combat.pendingEnemyCombatAttacks.length,flights:battleFx.filter(f=>f?.enemyFlight).length};\nObject.assign(boss,{hp:100,attackCast:null,patternMode:'intro',apexRecoveryUntil:20000});game.enemies=[boss];game.combatTimeMs=11000;\nconst area={kind:'line',source:{gx:6,gy:3},cells:[{gx:5,gy:3},{gx:4,gy:3},{gx:3,gy:3},{gx:2,gy:3}]};\nconst pattern={isSpecial:true,telegraphKind:'beam',damageMul:1.15,area,castStartedAt:9000};\nbossMoves.plan(pattern,boss);queueEnemyCombatAttack(boss,game.gridPlayer,pattern,'patternArea');\nboss.ailments=[{type:'freeze',time:2}];takePendingEnemyCombatAttack(boss.id,12000);\nconst cancel={pending:window.GameModules.state.combat.pendingEnemyCombatAttacks.length,live:bossMoves.live(12000).length,recovery:boss.apexRecoveryUntil};\nboss.ailments=[];boss.attackCast=null;boss.patternTelegraphKey=null;\nboss.nextPatternState={isSpecial:true,mode:'intro',attackNumber:2,telegraphKind:'impact',warningMs:1200};boss.attackTimer=.5;\nconst early=updateBossPatternTelegraph(boss,12000,game.gridPlayer,.1);\nboss.attackTimer=.9;updateBossPatternTelegraph(boss,13000,game.gridPlayer,.1);const first=JSON.stringify(boss.patternArea);\nconst during=updateBossPatternTelegraph(boss,14199,{gx:0,gy:0},.01),ready=updateBossPatternTelegraph(boss,14200,{gx:0,gy:0},.01);\nreturn {safe,blocked,held,untouched,moved,death,cancel,early,during,ready,fixed:first===JSON.stringify(boss.patternArea)};\n})()", runtime)));
   assert.deepStrictEqual(result, {safe:true,blocked:false,held:true,untouched:true,moved:true,
     death:{hp:1000,pending:0,flights:0},cancel:{pending:0,live:0,recovery:12000},early:false,during:false,ready:true,fixed:true});
 }
@@ -2757,7 +2637,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
         game=mergeDefaults({season:8,level:100,selectedClassId:'warrior',combatTimeMs:1800000000000,
           settings:{stageRoomPlan:'1',autoMove:true,pauseGameOnOverlay:false}});
         window.game=game;gameplayStarted=true;startupOverlayActive=false;
-        resetCombatRuntimesForLoadedSave();lastTime=game.combatTimeMs;
+        resetCombatRuntimesForLoadedSave();window.GameModules.state.session.lastTime=game.combatTimeMs;
         game.currencies.hiveKey=1;startBeehiveRun();
         const stage=!!getBeehiveRoomRun()&&!!actExplorationMap.forRun(game.actExploration).stage;
         const results=[];
@@ -2827,23 +2707,23 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
       const enemy=JSON.parse(JSON.stringify(wave.find(row=>row.monsterVisualId===visual)));
       Object.assign(enemy,{gx:4,gy:3,attackTimer:1,attackCast:null,ailments:[]});game.enemies=[enemy];
       game.gridPlayer={gx:1,gy:3,gridMoveTimer:0};game.playerHp=1000000;game.playerEnergyShield=0;
-      game.combatTimeMs=1000;pendingEnemyCombatAttacks=[];performMonsterAttacks(defense);
+      game.combatTimeMs=1000;window.GameModules.state.combat.pendingEnemyCombatAttacks=[];performMonsterAttacks(defense);
       const prepared=enemy.attackCast.finishAt===1000+enemy.attackCastMs;
       const restored=mergeDefaults(JSON.parse(serializeSaveState(game)));
       const savedWindup=JSON.stringify(restored.enemies[0].attackCast)===JSON.stringify(enemy.attackCast);
       if(move)game.gridPlayer.gy=5;
       game.combatTimeMs=1000+enemy.attackCastMs;performMonsterAttacks(defense);
-      const attack=pendingEnemyCombatAttacks[0],released=game.playerHp===1000000;
+      const attack=window.GameModules.state.combat.pendingEnemyCombatAttacks[0],released=game.playerHp===1000000;
       const warned=visual!=='hive-nurse'||(attack.groundCell&&attack.at===game.combatTimeMs+900);
       enemy.hp=0;game.enemies=[];game.combatTimeMs=5000;performMonsterAttacks(defense);
       const hp=game.playerHp;performMonsterAttacks(defense);
       shots.push(prepared&&savedWindup&&released&&warned&&attack.targetCell.gy===3&&
-        (move?hp===1000000:hp<1000000)&&game.playerHp===hp&&pendingEnemyCombatAttacks.length===0);
+        (move?hp===1000000:hp<1000000)&&game.playerHp===hp&&window.GameModules.state.combat.pendingEnemyCombatAttacks.length===0);
       for(const type of ['freeze','stun','silence']) {
         Object.assign(enemy,{hp:enemy.maxHp,attackTimer:1,attackCast:null,ailments:[]});game.enemies=[enemy];
         game.gridPlayer.gy=3;performMonsterAttacks(defense);
         enemy.ailments=[{type,time:1}];performMonsterAttacks(defense);
-        interrupts.push(enemy.attackCast===null&&enemy.attackTimer===0&&pendingEnemyCombatAttacks.length===0);
+        interrupts.push(enemy.attackCast===null&&enemy.attackTimer===0&&window.GameModules.state.combat.pendingEnemyCombatAttacks.length===0);
       }
     }
     game.enemies=wave;
@@ -3154,7 +3034,7 @@ for (const kind of ['nest', 'ambush']) {
     'long melee measures the near cells of a multi-cell target');
 
   resetGame();
-  vm.runInContext('pendingEnemyCombatAttacks = [];', context);
+  vm.runInContext("window.GameModules.state.combat.pendingEnemyCombatAttacks = [];", context);
   context.game.gridPlayer = { gx: 1, gy: 3, gridMoveTimer: 0 };
   context.game.playerHp = 1000;
   context.game.combatTimeMs = 1000;

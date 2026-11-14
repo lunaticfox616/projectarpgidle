@@ -6,9 +6,9 @@ test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
     });
 });
@@ -277,7 +277,7 @@ test('the underworld announces itself once and leads to the blocked entrance', a
         contentProgression.sync();
         updateStaticUI();
     });
-    await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().queued && !window.GameModules.uiRuntime.status().running);
     await page.evaluate(() => {
         const key = 'unlock_content_underworld';
         if (activeTutorial && activeTutorial.key !== key) dismissTutorial(false);
@@ -320,7 +320,7 @@ test('the outside-chaos notice opens the actual entry in the loop panel', async 
         contentProgression.sync();
         updateStaticUI();
     });
-    await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().queued && !window.GameModules.uiRuntime.status().running);
     await page.evaluate(() => {
         const key = 'unlock_outside_chaos';
         if (activeTutorial && activeTutorial.key !== key) dismissTutorial(false);
@@ -379,7 +379,7 @@ test('the atlas appears on the world map only after its own unlock', async ({ pa
         contentProgression.sync();
         updateStaticUI();
     });
-    await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().queued && !window.GameModules.uiRuntime.status().running);
     await page.evaluate(() => explorationAtlasUi.open());
     const atlas = page.locator('.wm-atlas-entrance');
     await expect(atlas).toHaveCount(0);

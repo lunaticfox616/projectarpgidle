@@ -1,0 +1,15 @@
+export const dirs = {2:[0,1],4:[-1,0],6:[1,0],8:[0,-1]};
+export const LANCE=Object.freeze({reach:3,targets:3,blast:1,first:30,gap:[70,140],fall:[150,200],tilt:.61,height:[190,230],keep:.6});
+export const MIST_LAST_STRIKE=520;
+export const JUDGMENT=Object.freeze({contact:540,frame:6,mageContact:630,mageFrame:7,gap:45});
+export const BOUNCE_REACH=3;
+export const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'},77:{range:5,grows:'radius'}};
+export const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+export const FLASK_RELEASE=90;
+export const SMOKE_RADIUS=1;
+export const FLICKER={first:5,jump:4,cuts:6,every:150,appear:40,cut:70,pose:110};
+export const HOMING={cells:8,wide:64,deep:32,speed:569,turn:11,stepMs:20,release:200,hitX:32,hitY:16,curve:0.5,ramp:380,bendFrom:27,bendSpan:151,near:98,nearest:21};
+export const PETRIFY={radius:1.5,ms:1800};
+export const TIME_SLASH={range:6,cycle:890,slowStart:229.7,slow:1300,hit:459.4,lateHit:660.3,lateClasses:new Set(['archer','cleric']),flight:120,step:24,volleyGap:48,swords:7,bounce:90,bounceReach:2,bounceTargets:2,bouncePct:20};
+export const BOUNCE_POP_PCT=30;
+export const STAB=Object.freeze({lead:30,rise:140,hover:50,every:95,dive:80});

@@ -62,7 +62,7 @@ function auditGear(tier) {
         const baseSlot = slot.replace(/[123]$/, '');
         const base = BASE_ITEM_DB.filter(row => row.slot === baseSlot && (row.reqTier || 1) <= tier).at(-1);
         if (!base) continue;
-        const item = { id: ++itemIdCounter, slot: baseSlot, baseId: base.id, baseName: base.name, name: base.name, rarity: 'rare',
+        const item = { id: ++window.GameModules.state.session.itemIdCounter, slot: baseSlot, baseId: base.id, baseName: base.name, name: base.name, rarity: 'rare',
             itemTier: tier, hiddenTier: tier, quality: 0, baseStats: rollBaseStats(base, tier), stats: [] };
         rerollExplicitMods(item, 'rare', tier);
         game.equipment[slot] = item;

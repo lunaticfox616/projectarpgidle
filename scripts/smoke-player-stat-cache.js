@@ -1,8 +1,7 @@
 // 능력치 계산의 틱 분리와 캐시(2026-10-08, js/player-stat-cache.js): 정산과 평소 플레이가 같은 계산을 다시 쓰는 규칙.
 // 계산은 빌드가 그대로인 동안 다시 쓰고, 싸우는 동안 바뀌는 값(시계, 생명력, 중첩, 시한 버프, 적)은 틱으로만 읽는다.
-// 1. 정적 검사: 계산 본체(getPlayerStats의 장비 보기 경로)가 닿는 함수는 시계를 직접 읽지 않는다. game에서 읽는 필드는 빌드 입력
-//    (BUILD_STAT_FIELDS, BUILD_STAT_PARTS)이나 맥락(PLAYER_STAT_CONTEXT_FIELDS)이고, 쓰는 필드는 PLAYER_STAT_DERIVED_WRITES이며,
-//    모듈 상태는 MODULE_STATE에 이유가 적힌 것만 읽는다. 새 콘텐츠가 이 규칙을 어기면 실패하고, 메시지가 고칠 곳을 알려 준다.
+// 1. 정적 검사: native 능력치 단계는 시계를 직접 읽지 않고 선언된 owner 입력과 파생 쓰기만 사용한다.
+//    연결된 서비스의 캐시 무효화와 결과 일치는 아래 실제 계산/재생 비교로 확인한다.
 // 2. 정산: 캐시로 답할 때마다 새 계산과 같고(시작 빌드, 전사 키스톤), 객체 안쪽 읽기도 키가 덮고, 캐시를 끈 정산과 끝이 같다.
 // 3. 평소 플레이: 입력 없이 코드로 바꾼 빌드 편집 11가지를 다음 계산이 바로 알고, 세대, 자체 점검, 손으로 켠 백그라운드 표시,
 //    예외로 열린 사건이 제대로 돈다.
@@ -14,28 +13,11 @@ const replayFixture = require('./lib/replay-fixture');
 const configureOfflineEndgameFixture = require('./lib/offline-endgame-fixture');
 const { SHADOW, NESTED, readShadow, assertShadow } = require('./lib/player-stat-shadow');
 
-// 정규화만 하는 함수가 틱 필드의 모양을 다듬는 것은 괜찮다(값은 틱으로만 계산에 들어간다).
-const NORMALIZERS = { normalizePassiveSpecializationState: ['cycleBuffs', 'fanaticism'] };
-// 계산이 읽는 모듈 상태와 바뀌는 전역 변수, 그리고 캐시 키가 따로 필요 없는 까닭. 새 항목은 키에 넣거나 바꾸는 쪽이
-// playerStatCache.invalidate()를 부르게 한 뒤 여기에 이유를 적는다.
-const MODULE_STATE = {
-    ascendKeystoneOwnerIndex: 'index of the fixed class trees, built once',
-    passiveTreeAdjacencyCache: 'adjacency of the fixed passive tree',
-    'combatEquipmentStats.tickResults': 'equipment evaluations shared within one tick',
-    'stumpBox.memo': 'memo keyed by the stump board and its signature',
-    'stumpBox.effectsMemo': 'memo keyed by the stump board and its signature (board synergies)',
-    'talismanEffects.memo': 'memo keyed by the stump board and its signature',
-    'skillEffectExpansion.testLevel': 'test panel level; setTestLevel drops kept stat calculations',
-    buildMemoPass: 'one synchronous screen draw (withBuildMemoPass) that cannot edit the build; values kept per equipment object'
-};
-// 매 호출 끝(finishPlayerStats), 틱 자체, 틱 없이 부르는 다른 호출자를 위한 실시간 읽기, 공개 경로.
-const STOP = new Set(['finishPlayerStats', 'estimateSummonDps', 'appendPlayerDpsBreakdowns', 'playerStatTick.create',
-    'getMossRecoveryOccupied', 'getTalentMistralStackCount', 'getActivePassiveCycleBuffEffects', 'combatEquipmentStats.read']);
 const CLOCKS = new Set(['getCombatTime', 'Date.now', 'performance.now']);
-const GUIDE = '싸우는 동안 바뀌는 값이면 js/player-stat-cache.js의 playerStatTick 읽기 함수로 읽고, 빌드 값이면 data/build-stat-inputs.js의 '
+const GUIDE = '싸우는 동안 바뀌는 값이면 modules/domain/player-stat-readers.mjs의 playerStatTick 읽기 함수로 읽고, 빌드 값이면 data/build-stat-inputs.js의 '
     + 'BUILD_STAT_FIELDS나 BUILD_STAT_PARTS에, 그 밖의 값이면 PLAYER_STAT_CONTEXT_FIELDS에 이유와 함께 더한다. '
     + '계산 안에서 game에 쓰는 값은 PLAYER_STAT_DERIVED_WRITES(정규화, 빌드에서 나온 값)만 되고, 매 호출 처리는 finishPlayerStats로 옮긴다. '
-    + 'game 밖 모듈 상태를 읽으면 그 값을 바꾸는 쪽이 playerStatCache.invalidate()를 부르게 하고 MODULE_STATE에 이유를 적는다.';
+    + 'game 밖 모듈 상태를 읽으면 그 값을 바꾸는 쪽이 playerStatCache.invalidate()를 부르게 하고 입력 소유 모듈에 이유를 적는다.';
 
 function walk(node, visit, parent = null) {
     if (!node || typeof node !== 'object') return;
@@ -46,139 +28,50 @@ function walk(node, visit, parent = null) {
         else if (value && typeof value === 'object') walk(value, visit, node.type ? node : parent);
     }
 }
-const isFunction = node => !!node && ['ArrowFunctionExpression', 'FunctionExpression'].includes(node.type);
-const isPropertyName = (node, parent) => parent && ((parent.type === 'MemberExpression' && parent.property === node && !parent.computed)
-    || (parent.type === 'Property' && parent.key === node && !parent.computed));
-
-/** A module object's functions, and its `let`/`var` state (mutable values the module keeps between calls). */
-function moduleInner(init) {
-    const inner = new Map(), state = new Set();
-    for (const statement of init.callee.body.body) {
-        if (statement.type === 'FunctionDeclaration') inner.set(statement.id.name, statement);
-        if (statement.type !== 'VariableDeclaration') continue;
-        for (const entry of statement.declarations) {
-            if (entry.id.type !== 'Identifier') continue;
-            if (isFunction(entry.init)) inner.set(entry.id.name, entry.init);
-            else if (statement.kind !== 'const') state.add(entry.id.name);
-        }
-    }
-    return { inner, state };
-}
-
-function readRuntimeFunctions() {
-    const html = fs.readFileSync('index.html', 'utf8');
-    const files = [...html.matchAll(/<script\b[^>]*\bsrc="([^"?]+)(?:\?[^" ]*)?"/g)].map(match => match[1]).filter(file => !/^https?:/.test(file));
-    const functions = new Map(), modules = new Map(), globals = new Set();
-    for (const file of files) {
-        const ast = espree.parse(fs.readFileSync(file, 'utf8'), { ecmaVersion: 'latest', sourceType: 'script', loc: true });
-        // A file's functions sit in its opening closure, (() => { ... exposeFileGlobals({ ... }); })(): they are read with the top level.
-        const inClosure = ast.body.flatMap(node => node.type === 'ExpressionStatement' && node.expression.type === 'CallExpression'
-            && node.expression.callee.type === 'ArrowFunctionExpression' && node.expression.callee.body.type === 'BlockStatement'
-            ? node.expression.callee.body.body.filter(inner => inner.type === 'FunctionDeclaration') : []);
-        for (const node of [...inClosure, ...ast.body]) {
-            if (node.type === 'FunctionDeclaration') functions.set(node.id.name, { file, node });
-            if (node.type !== 'VariableDeclaration') continue;
-            for (const entry of node.declarations) {
-                if (entry.id.type !== 'Identifier') continue;
-                if (node.kind !== 'const' && !isFunction(entry.init)) globals.add(entry.id.name);
-                if (!entry.init) continue;
-                if (isFunction(entry.init)) functions.set(entry.id.name, { file, node: entry.init });
-                if (entry.init.type === 'CallExpression' && isFunction(entry.init.callee) && entry.init.callee.body.type === 'BlockStatement') {
-                    modules.set(entry.id.name, { file, ...moduleInner(entry.init) });
-                }
-            }
-        }
-    }
-    globals.delete('game');
-    return { functions, modules, globals };
-}
-
-/** game.X names the tick's readers use: reading them elsewhere in the calculation would bypass the tick. */
+/** The ESM readers receive an explicit owner; reading the same fields elsewhere would bypass the tick. */
 function tickFieldNames() {
-    const ast = espree.parse(fs.readFileSync('js/player-stat-cache.js', 'utf8'), { ecmaVersion: 'latest', sourceType: 'script' });
-    const tick = ast.body.flatMap(node => node.type === 'VariableDeclaration' ? node.declarations : [])
-        .find(entry => entry.id.name === 'playerStatTick');
+    const ast = espree.parse(fs.readFileSync('modules/domain/player-stat-readers.mjs', 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' });
     const names = new Set();
-    walk(tick.init, node => {
-        if (node.type === 'MemberExpression' && !node.computed && node.object.type === 'Identifier' && node.object.name === 'game') names.add(node.property.name);
+    walk(ast, node => {
+        if (node.type === 'MemberExpression' && !node.computed && node.object.type === 'Identifier' && node.object.name === 'owner') names.add(node.property.name);
     });
     return names;
 }
 
-function lookup(name, runtime) {
-    const [owner, member] = name.split('.');
-    if (!member) return runtime.functions.get(name);
-    const module = runtime.modules.get(owner);
-    return module && module.inner.has(member) ? { file: module.file, node: module.inner.get(member), module: owner } : null;
-}
-
-function calleeKey(callee) {
-    if (callee.type === 'Identifier') return callee.name;
-    return callee.type === 'MemberExpression' && callee.object.type === 'Identifier' && !callee.computed ? `${callee.object.name}.${callee.property.name}` : '';
-}
-
-/** game.X written by an assignment, an update (++) or a delete, or '' for anything else. */
-function writtenGameField(node, parent) {
-    const target = node.type === 'MemberExpression' && !node.computed && node.object.type === 'Identifier' && node.object.name === 'game' ? node.property.name : '';
-    if (!target || !parent) return '';
-    const assigned = parent.type === 'AssignmentExpression' && parent.left === node;
-    const updated = parent.type === 'UpdateExpression' || (parent.type === 'UnaryExpression' && parent.operator === 'delete');
-    return assigned || updated ? target : '';
-}
-
-function followReferences(node, parent, entry, rules, follow) {
-    if (node.type === 'Identifier' && !isPropertyName(node, parent)) {
-        if (rules.runtime.functions.has(node.name)) follow(node.name);
-        else if (entry.module && rules.runtime.modules.get(entry.module).inner.has(node.name)) follow(`${entry.module}.${node.name}`);
-    }
-    // window.someFunction(...) reaches the same global function.
-    if (node.type === 'MemberExpression' && !node.computed && node.object.type === 'Identifier' && node.object.name === 'window'
-        && rules.runtime.functions.has(node.property.name)) follow(node.property.name);
-    if (node.type === 'CallExpression') {
-        const key = calleeKey(node.callee);
-        if (key.includes('.') && rules.runtime.modules.has(key.split('.')[0])) follow(key);
-    }
-}
-
-/** `module.name` for a module's own state, `name` for a mutable global, or '' for anything else. */
-function stateName(node, parent, entry, rules) {
-    if (node.type !== 'Identifier' || isPropertyName(node, parent)) return '';
-    if (entry.module && rules.runtime.modules.get(entry.module).state.has(node.name)) return `${entry.module}.${node.name}`;
-    return rules.runtime.globals.has(node.name) ? node.name : '';
-}
-
-function inspectFunction(name, entry, rules, follow) {
-    const findings = [];
-    const at = node => `${entry.file}:${node.loc.start.line}`;
-    walk(entry.node.body, (node, parent) => {
-        followReferences(node, parent, entry, rules, follow);
-        const state = stateName(node, parent, entry, rules);
-        if (state && !Object.prototype.hasOwnProperty.call(MODULE_STATE, state)) findings.push(`${name}이(가) 모듈 상태 ${state}를 읽는다 ${at(node)}`);
-        if (node.type === 'CallExpression' && CLOCKS.has(calleeKey(node.callee))) findings.push(`${name}이(가) 시계(${calleeKey(node.callee)})를 직접 읽는다 ${at(node)}`);
-        const written = writtenGameField(node, parent);
-        if (written && !rules.writes.has(written)) findings.push(`${name}이(가) game.${written}에 쓴다 ${at(node)}`);
-        const assignedTo = parent && parent.type === 'AssignmentExpression' && parent.left === node;
-        if (written || assignedTo || node.type !== 'MemberExpression' || node.computed || node.property.type !== 'Identifier') return;
-        const field = node.property.name, onGame = node.object.type === 'Identifier' && node.object.name === 'game';
-        if (onGame && !rules.allowed.has(field)) findings.push(`${name}이(가) game.${field}를 읽는다 ${at(node)}`);
-        if (!onGame && rules.tickFields.has(field) && !(NORMALIZERS[name] || []).includes(field)) findings.push(`${name}이(가) 틱 값 .${field}를 틱 밖에서 읽는다 ${at(node)}`);
-    });
-    return findings;
-}
-
+// Inspect the native calculation stages directly. Compiled IIFEs no longer share a lexical scope;
+// flattening their private function names can follow an unrelated UI function with the same name.
 function checkCalculationInputs(lists) {
-    const rules = { runtime: readRuntimeFunctions(), tickFields: tickFieldNames(), writes: new Set(lists.writes),
-        allowed: new Set([...lists.build, ...lists.context]) };
+    const rules = { tickFields: tickFieldNames(), writes: new Set(lists.writes), allowed: new Set([...lists.build, ...lists.context]) };
     assert.ok(rules.tickFields.has('playerHp') && rules.tickFields.has('enemies'), 'tick readers parsed');
-    const seen = new Set(['getPlayerStats']), queue = ['getPlayerStats'], findings = [];
-    const follow = name => { if (!STOP.has(name) && !seen.has(name)) { seen.add(name); queue.push(name); } };
-    while (queue.length) {
-        const name = queue.shift(), entry = lookup(name, rules.runtime);
-        if (entry && entry.node) findings.push(...inspectFunction(name, entry, rules, follow));
-    }
-    assert.ok(seen.size > 200, `the calculation closure looks too small (${seen.size})`);
+    const findings = inspectNativeCalculationInputs(rules);
     assert.deepEqual(findings, [], `능력치 계산의 입력 규칙 위반. ${GUIDE}`);
-    return seen.size;
+}
+
+function calleeKey(node) {
+    if (node.type === 'Identifier') return node.name;
+    if (node.type === 'MemberExpression' && !node.computed) return `${calleeKey(node.object)}.${node.property.name}`;
+    return '';
+}
+
+/** Native calculation stages receive owner (directly or as context.owner), never an unchecked live game. */
+function inspectNativeCalculationInputs(rules) {
+    const findings = [];
+    for (const file of ['modules/domain/player-unique-effects.mjs', 'modules/domain/player-passive-stats.mjs', 'modules/domain/player-stat-math.mjs', 'modules/domain/player-growth-stats.mjs', 'modules/domain/player-ascendancy-stats.mjs', 'modules/domain/player-ascendancy-nodes.mjs', 'modules/domain/player-stat-final.mjs', 'modules/domain/player-dps-estimate.mjs', 'modules/domain/player-stat-result.mjs', 'modules/domain/player-stat-inputs.mjs', 'modules/domain/player-stat-pipeline.mjs', 'modules/domain/player-stat-pipeline-sources.mjs', 'modules/domain/player-stat-pipeline-defense.mjs', 'modules/domain/player-stat-pipeline-damage.mjs', 'modules/domain/player-stat-pipeline-finish.mjs', 'modules/domain/player-stat-descriptions.mjs', 'modules/domain/player-stat-description-helpers.mjs', 'modules/domain/player-stat-extra-descriptions.mjs', 'modules/domain/player-stat-combat-descriptions.mjs', 'modules/domain/player-stat-vitals-descriptions.mjs', 'modules/domain/player-stat-resistance-descriptions.mjs']) {
+        const ast = espree.parse(fs.readFileSync(file, 'utf8'), { ecmaVersion: 'latest', sourceType: 'module', loc: true });
+        walk(ast, (node, parent) => {
+            const at = `${file}:${node.loc.start.line}`;
+            if (node.type === 'CallExpression' && CLOCKS.has(calleeKey(node.callee))) findings.push(`native stage reads clock ${at}`);
+            if (node.type !== 'MemberExpression' || node.computed || node.property.type !== 'Identifier') return;
+            const source = node.object, field = node.property.name;
+            const onOwner = source.type === 'Identifier' && source.name === 'owner'
+                || source.type === 'MemberExpression' && !source.computed && source.property.name === 'owner';
+            if (!onOwner) return;
+            const writing = parent.type === 'AssignmentExpression' && parent.left === node
+                || parent.type === 'UpdateExpression' || parent.type === 'UnaryExpression' && parent.operator === 'delete';
+            if (writing ? !rules.writes.has(field) : !rules.allowed.has(field)) findings.push(`native stage ${writing ? 'writes' : 'reads'} owner.${field} ${at}`);
+        });
+    }
+    return findings;
 }
 
 async function settle(seed, setup, minutes, options = {}) {
@@ -220,7 +113,7 @@ const ENDGAME = `(${configureOfflineEndgameFixture.toString()})(); game.settings
 const EDITS = [
     ['passive', `game.passives.push(Object.values(PASSIVE_TREE.nodes).find(node => node.kind !== 'void' && !node.keystone
         && !node.intentionalNoEffect && (node.effects || []).some(effect => effect.stat === 'pctDmg') && !game.passives.includes(node.id)).id);`, true],
-    ['weapon swap', `const weapon = JSON.parse(JSON.stringify(game.equipment['무기'])); weapon.id = ++itemIdCounter;
+    ['weapon swap', `const weapon = JSON.parse(JSON.stringify(game.equipment['무기'])); weapon.id = ++window.GameModules.state.session.itemIdCounter;
         weapon.stats.push({ id: 'pctDmg', val: 40 }); game.equipment['무기'] = weapon;`, true],
     ['ring edited in place', `game.equipment['반지1'].stats.push({ id: 'pctHp', val: 30 });`, true],
     ['support gem level', `game.supportGemData[game.equippedSupports[2]].level = 1;`, true],
@@ -290,7 +183,7 @@ async function normalPlayGuards(run) {
     const { run } = replayFixture(1);
     const lists = JSON.parse(run(`JSON.stringify({ build: [...BUILD_STAT_FIELDS, ...Object.keys(BUILD_STAT_PARTS)],
         context: Object.keys(PLAYER_STAT_CONTEXT_FIELDS), writes: PLAYER_STAT_DERIVED_WRITES })`));
-    const closure = checkCalculationInputs(lists);
+    checkCalculationInputs(lists);
     run(ENDGAME);
     checkKeyValues(run);
 
@@ -306,7 +199,7 @@ async function normalPlayGuards(run) {
     normal.run(ENDGAME + SHADOW + NESTED);
     const edited = normalPlayEdits(normal.run);
     await normalPlayGuards(normal.run);
-    console.log(`player stat cache: closure ${closure} functions, settlement kept ${(keptShare(starter.shadow.health) * 100).toFixed(0)}% `
+    console.log(`player stat cache: native inputs checked, settlement kept ${(keptShare(starter.shadow.health) * 100).toFixed(0)}% `
         + `and ends like an uncached one, ${EDITS.length} normal-play edits seen at once over ${edited.health.answers} kept answers, `
         + 'self-check and abandoned events recover');
 })().catch(error => { console.error(error); process.exit(1); });

@@ -26,6 +26,7 @@
  * 키우거나 줄이지 않고 담는다(바꾸는 점은 지운 병뿐이다). 전달본 안의 스크립트는 실행하지 않는다.
  */
 'use strict';
+const { writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -305,7 +306,7 @@ function main() {
         '// version: 모든 시트의 해시, 그림 주소의 ?v=(js/canvas-stage-actors.js).',
         '// 맨손 사망을 거꾸로 이은 <직업>/unarmed/rise.png는 처음 장면의 일어나기다(시간은 data/stage-view.js STAGE_HERO_RISE, 칸은 사망과 같다).'
     ].join('\n');
-    fs.writeFileSync(path.join(root, 'data/stage-characters.js'), `${header}\n${tableText(data)}\nsafeExposeData({ STAGE_CHARACTERS });\n`);
+    writeDataSource(path.join(root, 'data/stage-characters.js'), `${header}\n${tableText(data)}\nsafeExposeData({ STAGE_CHARACTERS });\n`);
     console.log(`직업 ${Object.keys(classes).length}개, 시트 ${sheets}장(일어나기 ${Object.keys(classes).length}장 따로) → assets/playable/stage, data/stage-characters.js`);
     console.log(`광과민으로 앞 장을 담은 모션 ${flagged.length}개:\n  ${flagged.join('\n  ')}`);
 }

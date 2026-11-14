@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const espree = require('espree');
 
 const VFX_LABELS = Object.freeze({
     skillFxWhirlwind: ['회오리', '회오리'],
@@ -41,10 +42,17 @@ function parseActiveVfxAssets(source) {
     const entries = [];
     const keys = new Set();
     const paths = new Set();
-    const pattern = /^\s*(skillFx[A-Za-z0-9_]+):\s*'([^']+\.(?:png|webp))',?\s*$/gm;
-    for (const match of source.matchAll(pattern)) {
-        const key = match[1];
-        const assetPath = match[2].replace(/\\/g, '/');
+    const pending = [espree.parse(source, { ecmaVersion: 'latest', sourceType: 'module' })];
+    while (pending.length) {
+        const node = pending.pop();
+        for (const value of Object.values(node)) {
+            if (Array.isArray(value)) pending.push(...value.filter(child => child && typeof child.type === 'string').reverse());
+            else if (value && typeof value.type === 'string') pending.push(value);
+        }
+        if (node.type !== 'Property' || node.computed || node.value.type !== 'Literal') continue;
+        const key = node.key.name || node.key.value;
+        if (!/^skillFx[A-Za-z0-9_]+$/.test(key) || typeof node.value.value !== 'string' || !/\.(png|webp)$/.test(node.value.value)) continue;
+        const assetPath = node.value.value.replace(/\\/g, '/');
         if (!assetPath.startsWith('assets/')) throw new Error(`${key}: assets 경로가 아닙니다.`);
         if (keys.has(key) || paths.has(assetPath)) throw new Error(`${key}: 중복된 이펙트 자산입니다.`);
         const [label, usage] = VFX_LABELS[key] || [key, '공격 이펙트'];
@@ -57,9 +65,9 @@ function parseActiveVfxAssets(source) {
 }
 
 function loadVfxAssetCatalog(root) {
-    const passivesFile = path.join(root, 'js', 'battle-assets.js');
-    const areaSource = fs.readFileSync(path.join(root, 'data', 'skills.js'), 'utf8');
-    return parseActiveVfxAssets(fs.readFileSync(passivesFile, 'utf8') + '\n' + areaSource).map(entry => {
+    const manifestFile = path.join(root, 'modules', 'browser', 'battle-image-manifest.mjs');
+    const areaSource = fs.readFileSync(path.join(root, 'modules', 'data', 'skills.mjs'), 'utf8');
+    return parseActiveVfxAssets(fs.readFileSync(manifestFile, 'utf8') + '\n' + areaSource).map(entry => {
         const file = path.resolve(root, entry.path);
         if (!file.startsWith(`${path.resolve(root)}${path.sep}`) || !fs.existsSync(file)) {
             throw new Error(`${entry.path}: 실제 파일을 찾지 못했습니다.`);

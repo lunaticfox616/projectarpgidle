@@ -22,7 +22,7 @@ const fs=require('node:fs');
                         const art=[],poses=new Set();
                         for(let t=0;t<=6500;t+=50) {
                             game.combatTimeMs=start+t;updateSkillGemCombat(stats);
-                            for(const e of skillGemCombatRuntime?.events||[]) {
+                            for(const e of window.GameModules.state.combat.skillGemCombatRuntime?.events||[]) {
                                 const render=worldTreeNativeFx.create(e);
                                 render.layout(start+t,s=>{art.push(s);poses.add(JSON.stringify(s));});
                             }

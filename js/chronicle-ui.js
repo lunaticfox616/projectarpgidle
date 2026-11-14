@@ -1,83 +1,188 @@
-// 세계수 연대기 보기(js/chronicle.js): 기록 창의 연대기 칸(나이테 그림, 장마다 진행과 다음 할 일)과 새 나이테 알림.
-const chronicleUi = (() => {
-    const C = CHRONICLE;
-    const esc = value => escapeHTML(String(value));
-    /** Concentric rings, innermost first: wound rings in amber, the rest as faint grooves. */
-    function ringsSvg(wound, share) {
-        const circles = Array.from({ length: C.rings }, (_, index) => {
-            const on = index < wound;
-            return `<circle cx="60" cy="60" r="${17 + index * 4.4}" fill="none" stroke="${on ? '#e0aa45' : 'rgba(190, 168, 120, .3)'}"
+// GENERATED from modules/chronicle-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+
+  // modules/ui/chronicle-view.mjs
+  var ChronicleView = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.active = true;
+      this.listeners = [];
+      this.C = this.deps.CHRONICLE;
+      this.esc = (value) => this.deps.escapeHTML(String(value));
+      this.TONES = Object.freeze({
+        codex: "#ff9f43",
+        mastery: "#e8c27a",
+        talismans: "#c98cff",
+        journal: "#ffd36b",
+        depth: "#b78bff",
+        loops: "#7fd88a",
+        harvest: "#9fd46a",
+        fishing: "#5ab8f0",
+        variants: "#ff6f59",
+        memory: "#78d7ff",
+        epochs: "#f0c86f"
+      });
+      this.TARGETS = Object.freeze({
+        codex: { route: "tab-codex", select: () => this.deps.uniqueCodexUi.setSubtab("main") },
+        mastery: { route: "tab-records", section: ".records-mastery" },
+        talismans: { route: "tab-stump", content: "talisman", more: "talisman", section: "#stump-box-more .stump-codex" },
+        journal: { route: "tab-journal" },
+        depth: { route: "tab-map", content: "deepChaos" },
+        loops: { route: "tab-records", section: ".records-loop-history" },
+        harvest: { route: "tab-stump", more: "harvest", section: "#stump-box-more" },
+        fishing: { route: "tab-map", content: "fishing" },
+        variants: { route: "map-explore-worldtree", atlas: "memory", ready: () => this.deps.bossVariants.open(this.deps.game), section: "#ui-atlas .boss-variant-records" },
+        memory: { route: "map-explore-worldtree", atlas: "memory", ready: () => this.deps.memoryDungeon.open(this.deps.game), select: () => this.deps.memoryDungeonUi.setFilter("records", true) },
+        epochs: { route: "map-explore-worldtree", atlas: "epoch" }
+      });
+      for (const name of ["ringsSvg", "targetReady", "revealSection", "open", "chapterHtml", "sectionHtml", "announce"]) this[name] = this[name].bind(this);
+      listenView(this, this.deps.window, "project-idle:chronicle-ring", (event) => this.announce(event.detail || {}));
+    }
+    ringsSvg(wound, share) {
+      const circles = Array.from({ length: this.C.rings }, (_, index) => {
+        const on = index < wound;
+        return `<circle cx="60" cy="60" r="${17 + index * 4.4}" fill="none" stroke="${on ? "#e0aa45" : "rgba(190, 168, 120, .3)"}"
                 stroke-width="${on ? 3 : 1.4}"/>`;
-        }).join('');
-        return `<svg class="chronicle-rings" viewBox="0 0 120 120" role="img" aria-label="${_t('나이테 {wound}개', { wound })}">${circles}
+      }).join("");
+      return `<svg class="chronicle-rings" viewBox="0 0 120 120" role="img" aria-label="${this.deps._t("나이테 {wound}개", { wound })}">${circles}
             <text x="60" y="64" text-anchor="middle">${Math.floor(share * 100)}%</text></svg>`;
     }
-    // 장마다 그 수집의 색(2026-10-09 사용자 "기록 색감이 하나도 없이 빠져 있음"): 이름, 수, 막대가 그 색이고 아직 0이면 흐리다.
-    const TONES = Object.freeze({ codex: '#ff9f43', mastery: '#e8c27a', talismans: '#c98cff', journal: '#ffd36b', depth: '#b78bff', loops: '#7fd88a',
-        harvest: '#9fd46a', fishing: '#5ab8f0', variants: '#ff6f59', memory: '#78d7ff', epochs: '#f0c86f' });
-    // These only open existing views. Entry, crafting, rewards and the chronicle's full completion stay with their owners.
-    const TARGETS = Object.freeze({
-        codex: { route: 'tab-codex', select: () => uniqueCodexUi.setSubtab('main') },
-        mastery: { route: 'tab-records', section: '.records-mastery' },
-        talismans: { route: 'tab-stump', content: 'talisman', more: 'talisman', section: '#stump-box-more .stump-codex' },
-        journal: { route: 'tab-journal' },
-        depth: { route: 'tab-map', content: 'deepChaos' },
-        loops: { route: 'tab-records', section: '.records-loop-history' },
-        harvest: { route: 'tab-stump', more: 'harvest', section: '#stump-box-more' },
-        fishing: { route: 'tab-map', content: 'fishing' },
-        variants: { route: 'map-explore-worldtree', atlas: 'memory', ready: () => bossVariants.open(game), section: '#ui-atlas .boss-variant-records' },
-        memory: { route: 'map-explore-worldtree', atlas: 'memory', ready: () => memoryDungeon.open(game), select: () => memoryDungeonUi.setFilter('records', true) },
-        epochs: { route: 'map-explore-worldtree', atlas: 'epoch' }
-    });
-    function targetReady(id) {
-        if (!Object.hasOwn(TARGETS, id)) return false;
-        const target = TARGETS[id];
-        if (target.content && !contentProgression.isUnlocked(target.content)) return false;
-        if (target.ready && !target.ready()) return false;
-        return contentProgression.canOpen(target.route);
+    targetReady(id) {
+      if (!Object.hasOwn(this.TARGETS, id)) return false;
+      const target = this.TARGETS[id];
+      if (target.content && !this.deps.contentProgression.isUnlocked(target.content)) return false;
+      if (target.ready && !target.ready()) return false;
+      return this.deps.contentProgression.canOpen(target.route);
     }
-    function revealSection(selector) {
-        const section = document.querySelector(selector);
-        if (!section) return;
-        if (section.tagName === 'DETAILS') section.open = true;
-        section.setAttribute('tabindex', '-1');
-        section.focus({ preventScroll: true });
-        section.scrollIntoView({ block: 'start' });
+    revealSection(selector) {
+      const section = this.deps.document.querySelector(selector);
+      if (!section) return;
+      if (section.tagName === "DETAILS") section.open = true;
+      section.setAttribute("tabindex", "-1");
+      section.focus({ preventScroll: true });
+      section.scrollIntoView({ block: "start" });
     }
-    /** Recheck the current unlocks at the click boundary; a stale chapter cannot open locked content. */
-    function open(id) {
-        if (!targetReady(id)) return false;
-        const target = TARGETS[id];
-        if (target.atlas) { atlasUi.openPanel(); atlasUi.setView(target.atlas); }
-        else if (target.content) contentUnlockUi.open(target.content);
-        else switchTab(target.route, { keepWindowOpen: true });
-        if (target.select) target.select();
-        if (target.more) stumpBoxUi.revealMoreTab(target.more);
-        if (target.section) revealSection(target.section);
-        return true;
+    open(id) {
+      if (!this.active) return false;
+      if (!this.targetReady(id)) return false;
+      const target = this.TARGETS[id];
+      if (target.atlas) {
+        this.deps.atlasUi.openPanel();
+        this.deps.atlasUi.setView(target.atlas);
+      } else if (target.content) this.deps.contentUnlockUi.open(target.content);
+      else this.deps.switchTab(target.route, { keepWindowOpen: true });
+      if (target.select) target.select();
+      if (target.more) this.deps.stumpBoxUi.revealMoreTab(target.more);
+      if (target.section) this.revealSection(target.section);
+      return true;
     }
-    function chapterHtml(row) {
-        const fill = Math.floor(row.share * 100), done = row.share >= 1, state = done ? ' is-done' : row.count > 0 ? ' is-started' : '';
-        const action = targetReady(row.id) ? `<button type="button" class="chronicle-open" aria-label="${_t('{name} 보기', { name: esc(_t(row.name)) })}" onclick="chronicleUi.open('${row.id}')">${_t('보기')}</button>` : '';
-        return `<li class="chronicle-chapter${state}" style="--chapter-tone:${TONES[row.id] || '#e8c27a'}"><div><strong>${esc(_t(row.name))}</strong><span>${row.count}/${row.goal}</span>${action}</div>
-            <div class="mastery-bar"><i style="width:${fill}%"></i></div>${done ? '' : `<small>${esc(row.hint)}</small>`}</li>`;
+    chapterHtml(row) {
+      const fill = Math.floor(row.share * 100), done = row.share >= 1, state = done ? " is-done" : row.count > 0 ? " is-started" : "";
+      const action = this.targetReady(row.id) ? `<button type="button" class="chronicle-open" aria-label="${this.deps._t("{name} 보기", { name: this.esc(this.deps._t(row.name)) })}" data-chronicle-open="${row.id}">${this.deps._t("보기")}</button>` : "";
+      return `<li class="chronicle-chapter${state}" style="--chapter-tone:${this.TONES[row.id] || "#e8c27a"}"><div><strong>${this.esc(this.deps._t(row.name))}</strong><span>${row.count}/${row.goal}</span>${action}</div>
+            <div class="mastery-bar"><i style="width:${fill}%"></i></div>${done ? "" : `<small>${this.esc(row.hint)}</small>`}</li>`;
     }
-    /** The records window's chronicle section. Winds any ring earned since the last check first. */
-    function sectionHtml() {
-        chronicle.check(game);
-        const view = chronicle.completion(game), wound = chronicle.rings(game);
-        const nextAt = wound < C.rings ? Math.ceil((wound + 1) * 100 / C.rings) : 0;
-        return `<details class="records-fold records-chronicle" open><summary>${_t('세계수 연대기')}<span>${_t('나이테 {wound}/{rings}, 방치 효율', { wound, rings: C.rings })} <b class="records-gain">+${wound}%p</b></span></summary>
-            <div class="records-fold-body chronicle-body">${ringsSvg(wound, view.share)}<div><p class="records-fold-hint">흩어진 수집을 한데 모은 완성도입니다.
-            10%마다 나이테가 하나 감기고 나이테마다 방치 효율 +1%p.${nextAt ? _t(' 다음 나이테는 {nextAt}%.', { nextAt }) : ''}</p>
-            <ul class="chronicle-chapters">${view.rows.filter(row => row.count > 0 || targetReady(row.id)).map(chapterHtml).join('')}</ul></div></div></details>`;
+    sectionHtml() {
+      if (!this.active) return "";
+      this.bindControls();
+      this.deps.chronicle.check(this.deps.game);
+      const view = this.deps.chronicle.completion(this.deps.game), wound = this.deps.chronicle.rings(this.deps.game);
+      const nextAt = wound < this.C.rings ? Math.ceil((wound + 1) * 100 / this.C.rings) : 0;
+      return `<details class="records-fold records-chronicle" open><summary>${this.deps._t("세계수 연대기")}<span>${this.deps._t("나이테 {wound}/{rings}, 방치 효율", { wound, rings: this.C.rings })} <b class="records-gain">+${wound}%p</b></span></summary>
+            <div class="records-fold-body chronicle-body">${this.ringsSvg(wound, view.share)}<div><p class="records-fold-hint">흩어진 수집을 한데 모은 완성도입니다.
+            10%마다 나이테가 하나 감기고 나이테마다 방치 효율 +1%p.${nextAt ? this.deps._t(" 다음 나이테는 {nextAt}%.", { nextAt }) : ""}</p>
+            <ul class="chronicle-chapters">${view.rows.filter((row) => row.count > 0 || this.targetReady(row.id)).map(this.chapterHtml).join("")}</ul></div></div></details>`;
     }
-    function announce(detail) {
-        const rings = Array.isArray(detail.rings) ? detail.rings : [];
-        if (!rings.length) return;
-        addLog(_t('🌳 세계수 연대기에 나이테가 감겼습니다({rings}번째). 방치 효율 +{length}%p.', { rings: rings.join(', '), length: rings.length }), 'loot-unique', { toast: true });
+    announce(detail) {
+      const rings = Array.isArray(detail.rings) ? detail.rings : [];
+      if (!rings.length) return;
+      this.deps.addLog(this.deps._t("🌳 세계수 연대기에 나이테가 감겼습니다({rings}번째). 방치 효율 +{length}%p.", { rings: rings.join(", "), length: rings.length }), "loot-unique", { toast: true });
     }
-    window.addEventListener('project-idle:chronicle-ring', event => announce(event.detail || {}));
-    return Object.freeze({ sectionHtml, open });
+    bindControls() {
+      if (this.controlsBound) return;
+      this.controlsBound = true;
+      listenView(this, this.deps.document, "click", (event) => {
+        const button = event.target.closest("[data-chronicle-open]");
+        if (button?.closest(".records-chronicle")) this.open(button.dataset.chronicleOpen);
+      });
+    }
+    api() {
+      return Object.freeze({ sectionHtml: this.sectionHtml, open: this.open });
+    }
+    dispose() {
+      releaseViewEvents(this);
+    }
+  };
+  function createChronicleView(deps) {
+    const view = new ChronicleView(deps);
+    return Object.freeze({ ...view.api(), dispose: () => view.dispose() });
+  }
+
+  // modules/chronicle-ui-classic.mjs
+  var chronicleUi = createChronicleView({
+    get CHRONICLE() {
+      return CHRONICLE;
+    },
+    get _t() {
+      return _t;
+    },
+    get addLog() {
+      return addLog;
+    },
+    get atlasUi() {
+      return atlasUi;
+    },
+    get bossVariants() {
+      return bossVariants;
+    },
+    get chronicle() {
+      return chronicle;
+    },
+    get contentProgression() {
+      return contentProgression;
+    },
+    get contentUnlockUi() {
+      return contentUnlockUi;
+    },
+    get document() {
+      return document;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get memoryDungeon() {
+      return memoryDungeon;
+    },
+    get memoryDungeonUi() {
+      return memoryDungeonUi;
+    },
+    get stumpBoxUi() {
+      return stumpBoxUi;
+    },
+    get switchTab() {
+      return switchTab;
+    },
+    get uniqueCodexUi() {
+      return uniqueCodexUi;
+    },
+    get window() {
+      return window;
+    }
+  });
+  safeExposeGlobals({ chronicleUi });
 })();
-safeExposeGlobals({ chronicleUi });

@@ -1,4 +1,5 @@
 'use strict';
+const { readDataSource, writeDataSource } = require('./data-authoring.cjs');
 // Add a reviewed delivery pack without rebuilding or removing unrelated actors. Original frame pixels and anchors stay intact.
 //   node scripts/build-stage-roster.cjs --append-pack <pack folder>: manifest.json items (id, aliases), delivery/<id>/animation.json.
 // A delivered death clip (actions.death) gets its own cell like build-stage-roster's deaths. An alias ({ id, name } in the item) is
@@ -77,7 +78,7 @@ function aliasRow(row, alias, old, output, stamp) {
     return out;
 }
 module.exports = function appendPack(root, dir) {
-    const file=path.join(root,'data/monster-stage-roster.js'), old=fs.readFileSync(file,'utf8');
+    const file=path.join(root,'data/monster-stage-roster.js'), old=readDataSource(file);
     const items=JSON.parse(fs.readFileSync(path.join(dir,'manifest.json'),'utf8')).items, names=items.map(item=>item.id);
     const stamp=crypto.createHash('sha1'), output=path.join(root,'assets/enemies/roster');
     const rowPattern = /^        \[['"]([^'"]+)['"]/;
@@ -95,6 +96,6 @@ module.exports = function appendPack(root, dir) {
     if(start<0 || end<start || rows.size<names.length) throw Error('Roster layout changed; no table written');
     const text=old.slice(0,start)+'    actors: Object.freeze(Object.fromEntries([\n'+[...rows.values()].map(row=>'        '+row).join(',\n')+'\n'+old.slice(end);
     stamp.update(text.replace(/version: '[^']+'/, "version: 'content'"));
-    fs.writeFileSync(file,text.replace(/version: '[^']+'/,`version: '${stamp.digest('hex').slice(0,10)}'`));
+    writeDataSource(file,text.replace(/version: '[^']+'/,`version: '${stamp.digest('hex').slice(0,10)}'`));
     console.log(JSON.stringify({imported:names.length,aliases,total:rows.size,removed:0,ids:names}));
 };

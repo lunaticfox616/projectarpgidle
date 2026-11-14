@@ -1,594 +1,737 @@
-// 조합창 화면: 5×5 칸(그루터기 함 판과 같은 틀 자리, 틀 위 생명의 나무로 서로 바꾼다: js/stump-box-ui.js), 틀 아래에 맞는 조합법과 비용,
-// 바로 넣기, 최근 결과. 조합은 틀 아래 단추(2026-11-03, 아래 보석은 생육함으로 바꾼다), 비우기는 오른쪽 보석이 한다. 빈 칸을 누르면
-// 재료 고르기(선택 대화 상자: 장비 · 그루터기 · 주얼 · 코어)가 열린다. 조합법은 틀 아래의 책: 누르면 책이 화면 가운데로 커지며 펼쳐진다.
-// 칸과 책 단추는 stump-box-ui.js의 클릭 위임(data-stump-action)이 이 모듈의 동작을 부르고, 대화 상자 단추는 직접 부른다. 규칙은 stump-cube.js.
-const stumpCubeUi = (() => {
-    const OVERLAY_ID = 'stump-cube-picker';
-    const KIND_LABELS = { equipment: '장비', stump: '그루터기', jewel: '주얼', core: '코어', wallet: '화폐화' };
-    const isStumpKind = kind => kind === 'stump' || kind === 'wallet';
-    let pickerKind = 'equipment';
-    let pickerItems = [], pickerSelection = null, lastResult = null;
+// GENERATED from modules/stump-cube-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/window-methods.mjs
+  var windowGetComputedStyle = (...args) => globalThis.getComputedStyle(...args);
 
-    function esc(text) { return escapeHTML(String(text)); }
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
 
-    const ICONS = Object.freeze({
-        equipment: item => getEquipmentGridVisualAsset(item),
-        stump: item => stumpBox.iconPath(item),
-        wallet: item => stumpBox.iconPath(item),
-        jewel: item => getInventoryItemVisualAsset(item, 'jewel'),
-        core: item => coreItems.icon(item)
+  // modules/ui/stump-book-motion.mjs
+  function afterStumpBookMotion(runtime, animation, next) {
+    const epoch = runtime.state.bookOpening, owner = runtime.deps.game, dialog = runtime.state.bookDialog;
+    for (const previous of runtime.state.bookAnimations) {
+      if (previous.effect?.target !== animation.effect?.target) continue;
+      runtime.state.bookAnimations.delete(previous);
+      previous.cancel();
+    }
+    runtime.state.bookAnimations.add(animation);
+    animation.finished.then(() => {
+      if (!runtime.state.bookAnimations.has(animation)) return;
+      if (runtime.active && epoch === runtime.state.bookOpening && owner === runtime.deps.game && dialog === runtime.state.bookDialog) next();
+    }, (error) => {
+      runtime.state.bookAnimations.delete(animation);
+      if (error?.name !== "AbortError") runtime.deps.window.console.error("[stump recipe book] animation failed", error);
     });
+  }
+  function stopStumpBookMotion(runtime) {
+    runtime.state.bookOpening += 1;
+    for (const animation of runtime.state.bookAnimations) animation.cancel();
+    runtime.state.bookAnimations.clear();
+    runtime.state.bookTurning = null;
+  }
+  function syncStumpCubeOwner(runtime) {
+    if (runtime.state.owner === runtime.deps.game) return false;
+    stopStumpBookMotion(runtime);
+    if (runtime.state.pickerPanel?.isConnected) runtime.deps.selectionDialog.close(runtime.state.OVERLAY_ID);
+    if (runtime.state.resultPanel?.isConnected) runtime.deps.selectionDialog.close("stump-cube-result");
+    runtime.state.bookDialog?.close();
+    Object.assign(runtime.state, { owner: runtime.deps.game, pickerSelection: null, pickerItems: [], lastResult: null, pickerPanel: null, resultPanel: null });
+    return true;
+  }
 
-    function itemName(kind, item) {
-        if (kind === 'currency') return _t(ORB_DB[item.currency].name);
-        return isStumpKind(kind) ? stumpBox.label(item) : String(item.name || KIND_LABELS[kind]);
-    }
+  // modules/ui/stump-cube-items.mjs
+  function isStumpKind(runtime, kind) {
+    return kind === "stump" || kind === "wallet";
+  }
+  function esc(runtime, text) {
+    return (0, runtime.deps.escapeHTML)(String(text));
+  }
+  function itemName(runtime, kind, item) {
+    if (kind === "currency") return (0, runtime.deps._t)(runtime.deps.ORB_DB[item.currency].name);
+    return isStumpKind(runtime, kind) ? runtime.deps.stumpBox.label(item) : String(item.name || runtime.state.KIND_LABELS[kind]);
+  }
+  function itemTone(runtime, kind, item) {
+    if (kind === "stump" && item.albino) return runtime.deps.STUMP_BOX_RIPENING.albino.tone;
+    if (isStumpKind(runtime, kind) && item.color) return runtime.deps.STUMP_BOX_COLORS[item.color].tone;
+    if (kind === "stump" && item.family === "scar") return runtime.deps.STUMP_BOX_SCAR.tone;
+    return (0, runtime.deps.getRarityColor)(item.rarity || "normal");
+  }
 
-    function itemTone(kind, item) {
-        if (kind === 'stump' && item.albino) return STUMP_BOX_RIPENING.albino.tone;
-        if (isStumpKind(kind) && item.color) return STUMP_BOX_COLORS[item.color].tone;
-        if (kind === 'stump' && item.family === 'scar') return STUMP_BOX_SCAR.tone;
-        return getRarityColor(item.rarity || 'normal');
+  // modules/ui/stump-cube-picker.mjs
+  function storedItemMeta(runtime, kind, item) {
+    if (kind === "stump" && item.color) return (0, runtime.deps._t)("품질 {round}%, {value}", { round: Math.round(item.roll * 100), value: runtime.deps.stumpBox.isMature(item) ? (0, runtime.deps._t)("성장 완료") : (0, runtime.deps._t)("성장 전") });
+    const rarity = runtime.deps.ITEM_RARITY_LABELS[item.rarity] || "";
+    if (kind === "equipment") return equipmentMeta(runtime, item, rarity);
+    if (kind === "core") return item.perfect ? "완전한 코어" : (0, runtime.deps._t)("{rarity} 코어", { rarity });
+    if (kind === "currency") return (0, runtime.deps._t)("{amount}개 획득", { amount: item.amount });
+    return rarity || runtime.state.KIND_LABELS[kind];
+  }
+  function equipmentMeta(runtime, item, rarity) {
+    return (0, runtime.deps._t)("{rarity} T{item}, 품질 {max}%", { rarity, item: (0, runtime.deps.getItemCraftTier)(item), max: Math.max(0, Math.floor(Number(item.quality) || 0)) });
+  }
+  function firstOption(runtime, kind, item) {
+    if (kind === "core") return item.lines[0] ? runtime.deps.coreItems.describe(item.lines[0]) : "";
+    if (kind === "stump") return stumpFirstOption(runtime, item);
+    if (kind === "currency" || kind === "wallet") return "";
+    return firstStatOption(runtime, kind, item);
+  }
+  function stumpFirstOption(runtime, item) {
+    if (item.family === "talisman") return item.uniqueEffect || (item.lines[0] ? runtime.deps.talismans.describeLine(item.lines[0]) : "");
+    if (item.albino) {
+      const line = runtime.deps.STUMP_BOX_RIPENING.albino.variants[runtime.deps.stumpBox.yieldKind(item)][item.color][0];
+      return runtime.deps.stumpBox.lineText(line.stat, line.value);
     }
+    const gain = runtime.deps.stumpBox.yieldOf(item);
+    return gain ? gain.text.replace("{v}", String(Math.round(gain.value * runtime.deps.stumpBox.qualityOf(item) * runtime.deps.stumpBox.goldenMul(item) * 100) / 100)) : "";
+  }
+  function firstStatOption(runtime, kind, item) {
+    const stat = kind === "jewel" ? (0, runtime.deps.getJewelStats)(item)[0] : (item.stats || [])[0] || (item.baseStats || [])[0];
+    if (!stat) return "";
+    const key = stat.id || stat.stat;
+    return `${(0, runtime.deps._t)(stat.statName || (0, runtime.deps.getStatName)(key))} ${(0, runtime.deps.formatSignedValue)(key, stat.val)}`;
+  }
+  function renderMaterialDetail(runtime, panel) {
+    const detail = panel.querySelector(".stump-cube-material-detail");
+    detail.style.setProperty("--cube-tone", runtime.state.pickerSelection ? itemTone(runtime, runtime.state.pickerSelection.kind, runtime.state.pickerSelection.item) : "#8c7043");
+    if (!runtime.state.pickerSelection) {
+      detail.innerHTML = '<p class="selection-overlay-help">재료를 골라 옵션을 확인하세요.</p>';
+      return;
+    }
+    const { kind, item } = runtime.state.pickerSelection;
+    detail.innerHTML = `<div class="stump-cube-material-head"><img src="${runtime.state.ICONS[kind](item)}" alt="" draggable="false"><span>${runtime.deps.statToneText.html(candidateMeta(runtime, kind, item))}</span></div><div class="stump-cube-material-options equipment-inspection-tooltip"></div><button type="button" class="stump-cube-material-add" onclick="stumpCubeUi.pickCubeItem()">조합창에 넣기</button>`;
+    const body = detail.querySelector(".stump-cube-material-options");
+    renderItemDetails(runtime, body, kind, item);
+  }
+  function renderItemDetails(runtime, body, kind, item, snapshot = false) {
+    if (kind === "wallet") body.innerHTML = `<h3>${esc(runtime, itemName(runtime, kind, item))}</h3>`;
+    else if (kind === "stump") body.innerHTML = runtime.deps.statToneText.markup(runtime.deps.stumpBoxUi.itemTipHtml(item, snapshot));
+    else if (kind === "currency") body.innerHTML = `<h3>${esc(runtime, (0, runtime.deps._t)(runtime.deps.ORB_DB[item.currency].name))}</h3><p>${runtime.deps.statToneText.html((0, runtime.deps._t)(runtime.deps.ORB_DB[item.currency].desc) || "")}</p>`;
+    else (0, runtime.deps.showItemTooltip)(null, null, false, item, { target: body });
+  }
+  function currentResult(runtime) {
+    if (runtime.state.lastResult && (runtime.state.lastResult.state !== runtime.deps.game || runtime.state.lastResult.season !== runtime.deps.game.season)) runtime.state.lastResult = null;
+    return runtime.state.lastResult;
+  }
+  function resultCardHtml(runtime, { kind, item }, index) {
+    const option = firstOption(runtime, kind, item);
+    return `<button type="button" class="stump-cube-result-card" onclick="stumpCubeUi.inspectCubeResult(${index})" style="--cube-tone:${itemTone(runtime, kind, item)}">${resultArtHtml(runtime, kind, item)}<span><strong>${esc(runtime, itemName(runtime, kind, item))}</strong><span>${runtime.deps.statToneText.html(candidateMeta(runtime, kind, item))}</span>${option ? `<span>${runtime.deps.statToneText.html(option)}</span>` : ""}<small>결과 자세히 보기</small></span></button>`;
+  }
+  function resultArtHtml(runtime, kind, item) {
+    if (kind === "currency") {
+      const icon = runtime.deps.ORB_DB[item.currency].icon;
+      return icon ? `<img src="${icon}" alt="" draggable="false">` : "";
+    }
+    return `<img src="${runtime.state.ICONS[kind](item)}" alt="" draggable="false">`;
+  }
+  function resultHtml(runtime) {
+    const result = currentResult(runtime);
+    if (!result) return "";
+    return `<section class="stump-cube-result" aria-label="${(0, runtime.deps._t)("최근 조합 결과")}"><h4>${(0, runtime.deps._t)("방금 만든 결과")}</h4>${result.outputs.map(runtime.handlers.resultCardHtml).join("")}</section>`;
+  }
+  function inspectCubeResult(runtime, index) {
+    const row = currentResult(runtime)?.outputs[index];
+    if (!row) return;
+    const { kind, item } = row;
+    const panel = runtime.deps.selectionDialog.show({
+      id: "stump-cube-result",
+      title: (0, runtime.deps._t)("조합 결과"),
+      panelClass: "stump-cube-result-panel",
+      body: `<div class="stump-cube-material-head">${resultArtHtml(runtime, kind, item)}<span>${runtime.deps.statToneText.html(candidateMeta(runtime, kind, item))}</span></div><div class="stump-cube-material-options equipment-inspection-tooltip"></div><p class="selection-overlay-help">제작 직후의 결과입니다.</p>`
+    });
+    runtime.state.resultPanel = panel;
+    renderItemDetails(runtime, panel.querySelector(".stump-cube-material-options"), kind, item, true);
+  }
+  function candidateHtml(runtime, kind, item, index) {
+    const name = itemName(runtime, kind, item), selected = runtime.state.pickerSelection?.item === item, option = firstOption(runtime, kind, item);
+    return `<button type="button" class="stump-cube-candidate${selected ? " is-selected" : ""}" data-cube-candidate="${index}" onclick="stumpCubeUi.selectCubeItem(${index})" ondblclick="stumpCubeUi.pickCubeItem()" aria-pressed="${selected}" style="--cube-tone:${itemTone(runtime, kind, item)}"><img src="${runtime.state.ICONS[kind](item)}" alt="" draggable="false"><span class="stump-cube-candidate-copy"><strong>${esc(runtime, name)}</strong><span class="stump-cube-candidate-meta">${runtime.deps.statToneText.html(candidateMeta(runtime, kind, item))}</span>${option ? `<span class="stump-cube-candidate-option">${runtime.deps.statToneText.html(option)}</span>` : ""}</span></button>`;
+  }
+  function pickerBodyHtml(runtime) {
+    const tabs = runtime.deps.stumpCube.KINDS.filter((kind) => kind !== "wallet" || kind === runtime.state.pickerKind || pickerCount(runtime, kind) > 0).map((kind) => `<button type="button" class="${kind === runtime.state.pickerKind ? "is-on" : ""}" aria-pressed="${kind === runtime.state.pickerKind}" onclick="stumpCubeUi.openCubePicker('${kind}')">${runtime.state.KIND_LABELS[kind]} ${pickerCount(runtime, kind)}</button>`).join("");
+    runtime.state.pickerItems = runtime.deps.stumpCube.candidates(runtime.state.pickerKind);
+    if (runtime.state.pickerSelection && !runtime.state.pickerItems.includes(runtime.state.pickerSelection.item)) runtime.state.pickerSelection = null;
+    const list = runtime.state.pickerItems.map((item, index) => candidateHtml(runtime, runtime.state.pickerKind, item, index)).join("");
+    return `<div class="stump-cube-picker-tabs">${tabs}</div><div class="stump-cube-picker-layout">
+            <div class="stump-cube-candidates">${list || (0, runtime.deps._t)('<p class="selection-overlay-help">넣을 수 있는 아이템이 없습니다.</p>')}</div>
+            <section class="stump-cube-material-detail" aria-label="${(0, runtime.deps._t)("고른 재료 정보")}"></section></div>`;
+  }
+  function candidateMeta(runtime, kind, item) {
+    return kind === "wallet" ? (0, runtime.deps._t)("화폐화 {walletCount}개", { walletCount: runtime.deps.stumpBox.walletCount(runtime.deps.game, item.walletKey) }) : storedItemMeta(runtime, kind, item);
+  }
+  function pickerCount(runtime, kind) {
+    return kind === "wallet" ? runtime.deps.stumpBox.walletTotal(runtime.deps.game) : runtime.deps.stumpCube.candidates(kind).length;
+  }
 
-    /** 비용 줄: 재화 이름은 제 색(getStyledOrbName), 모자라면 보유 수를 붉게. */
-    function costHtml(cost) {
-        const rows = Object.entries(cost || {}).map(([key, need]) => {
-            const have = Math.floor(game.currencies[key] || 0);
-            return `${getStyledOrbName(key)} ${need} <span class="${have < need ? 'is-bad' : 'stump-cube-have'}">${_t('(보유 {have})', { have })}</span>`;
-        });
-        return rows.length ? rows.join(', ') : '비용 없음';
-    }
+  // modules/ui/stump-cube-markup.mjs
+  function costHtml(runtime, cost) {
+    const rows = Object.entries(cost || {}).map(([key, need]) => {
+      const have = Math.floor(runtime.deps.game.currencies[key] || 0);
+      return `${(0, runtime.deps.getStyledOrbName)(key)} ${need} <span class="${have < need ? "is-bad" : "stump-cube-have"}">${(0, runtime.deps._t)("(보유 {have})", { have })}</span>`;
+    });
+    return rows.length ? rows.join(", ") : "비용 없음";
+  }
+  function recipeTones(runtime) {
+    if (runtime.state.recipeTone) return runtime.state.recipeTone;
+    const tones = new Map([
+      ...runtime.state.KIND_TONES,
+      ...["unique", "rare", "magic"].map((key) => [runtime.deps.ITEM_RARITY_LABELS[key], (0, runtime.deps.getRarityColor)(key)]),
+      ...Object.values(runtime.deps.STUMP_BOX_COLORS).map((row) => [row.label, row.tone])
+    ]);
+    const words = [...tones.keys()].sort((a, b) => b.length - a.length);
+    runtime.state.recipeTone = { tones, pattern: new RegExp(`(${words.join("|")})|(\\d+(?:%|개)?)`, "g") };
+    return runtime.state.recipeTone;
+  }
+  function recipeToneHtml(runtime, text) {
+    const { tones, pattern } = recipeTones(runtime);
+    return esc(runtime, text).replace(pattern, (match, word) => word ? `<span class="stump-ink is-tone" style="--ink:${tones.get(word)}">${match}</span>` : `<span class="stump-ink is-tone is-num">${match}</span>`);
+  }
+  function bookCostHtml(runtime, cost) {
+    const rows = Object.entries(cost || {}).map(([key, need]) => {
+      const have = Math.floor(runtime.deps.game.currencies[key] || 0);
+      return `${esc(runtime, (0, runtime.deps._t)(runtime.deps.ORB_DB[key].name))} ${need} <span class="${have < need ? "is-short" : ""}">${(0, runtime.deps._t)("(보유 {have})", { have })}</span>`;
+    });
+    return rows.length ? rows.join(", ") : "비용 없음";
+  }
+  function entryHtml(runtime, entry) {
+    const wallet = entry.kind === "wallet", name = `${itemName(runtime, entry.kind, entry.item)}${wallet ? (0, runtime.deps._t)(" (화폐화)") : ""}`, cell = entry.y * runtime.deps.stumpCube.SIZE + entry.x;
+    return `<button type="button" class="stump-cube-item${entry.w * entry.h > 1 ? " is-multi" : ""}${wallet ? " is-wallet" : ""}" data-stump-action="cube-cell" data-cell="${cell}" data-stump-drop-cube="${cell}" data-stump-drag-cube="${cell}" data-cube-w="${entry.w}" data-cube-h="${entry.h}" style="grid-column:${track(runtime, entry.x, entry.w)};grid-row:${track(runtime, entry.y, entry.h)};--cube-tone:${itemTone(runtime, entry.kind, entry.item)}" ${(0, runtime.deps._t)('data-tip="{name}, 누르면 꺼냅니다" aria-label="{name2} 꺼내기">', { name: esc(runtime, name), name2: esc(runtime, name) })}<img src="${runtime.state.ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
+  }
+  function gridHtml(runtime, list) {
+    const cells = Array.from({ length: runtime.deps.stumpCube.SIZE * runtime.deps.stumpCube.SIZE }, (_, cell) => `<button type="button" class="stump-cube-cell" data-stump-action="cube-open" data-stump-drop-cube="${cell}" style="grid-column:${track(runtime, cell % runtime.deps.stumpCube.SIZE)};grid-row:${track(runtime, Math.floor(cell / runtime.deps.stumpCube.SIZE))}" ${(0, runtime.deps._t)('aria-label="빈 칸, 재료 넣기">')}</button>`).join("");
+    return `<div class="stump-cube-grid" role="grid" aria-label="${(0, runtime.deps._t)("조합창 {SIZE}×{SIZE2}", { SIZE: runtime.deps.stumpCube.SIZE, SIZE2: runtime.deps.stumpCube.SIZE })}">${cells}${list.map(runtime.handlers.entryHtml).join("")}</div>`;
+  }
+  function previewFactsHtml(runtime, outcome) {
+    const badges = [];
+    if (outcome.tier !== void 0) badges.push(`T${outcome.tier}`);
+    if (outcome.quality !== void 0) badges.push(`품질 ${outcome.quality}%`);
+    if (outcome.qualityCap !== void 0) badges.push(`현재 상한 ${outcome.qualityCap}%`);
+    return `<strong class="stump-cube-preview-name">${esc(runtime, (0, runtime.deps._t)(outcome.label))}</strong>` + (badges.length ? `<p class="stump-cube-preview-meta">${runtime.deps.statToneText.html(badges.join(", "))}</p>` : "") + (outcome.keep ? `<p><b>${(0, runtime.deps._t)("유지")}</b> ${runtime.deps.statToneText.html(outcome.keep)}</p>` : "") + (outcome.change ? `<p><b>${(0, runtime.deps._t)("변경")}</b> ${runtime.deps.statToneText.html(outcome.change)}</p>` : "") + (outcome.note ? `<p class="stump-cube-preview-note">${runtime.deps.statToneText.html((0, runtime.deps._t)(outcome.note))}</p>` : "");
+  }
+  function statusHtml(runtime, found, list, matched) {
+    if (!list.length) return "";
+    if (list.some((entry) => entry.item.locked)) return '<p class="stump-line is-bad">잠긴 재료를 조합창에서 꺼내 주세요.</p>';
+    if (!found) return missingRecipesHtml(runtime, matched);
+    const lacking = runtime.deps.stumpCube.missingCost(found.recipe).length > 0;
+    return `<div class="stump-cube-status"><p class="stump-cube-preview-title">${(0, runtime.deps._t)("예상 결과")} <span>${esc(runtime, (0, runtime.deps._t)(found.recipe.name))}</span></p>` + previewFactsHtml(runtime, found) + (found.reason ? `<p class="stump-line is-bad">${esc(runtime, found.reason)}</p>` : "") + `<p class="stump-line${lacking ? " is-bad" : ""}">${found.recipe.costText ? recipeToneHtml(runtime, found.recipe.costText) : costHtml(runtime, found.recipe.cost)}</p></div>`;
+  }
+  function sharedMaterialValue(runtime, { rule, picked }, key) {
+    return (rule.same || []).includes(key) ? picked[0]?.item[key] : void 0;
+  }
+  function missingFamilyLabel(runtime, family, ripe, path) {
+    if (family !== "seed") return family === "talisman" ? "부적" : "흉터";
+    const label = [].concat(path || []).map((kind) => runtime.deps.STUMP_BOX_STAGES[kind].label).join("/");
+    return ripe ? label || "성장 완료 씨앗" : "씨앗류";
+  }
+  function missingMaterialLabel(runtime, row) {
+    const { rule } = row, name = sharedMaterialValue(runtime, row, "name");
+    if (name) return name;
+    const rarity = rule.rarity ? [].concat(rule.rarity).map((key) => runtime.deps.ITEM_RARITY_LABELS[key]).join("/") + " " : "";
+    if (rule.kind !== "stump") return rule.socketable ? "소켓 가능한 장신구" : rarity + runtime.state.KIND_LABELS[rule.kind];
+    const family = sharedMaterialValue(runtime, row, "family") || rule.family, path = sharedMaterialValue(runtime, row, "path") || rule.path;
+    const color = sharedMaterialValue(runtime, row, "color");
+    const names = [].concat(family).map((key) => missingFamilyLabel(runtime, key, rule.ripe, path));
+    return (color ? runtime.deps.STUMP_BOX_COLORS[color].label + " " : "") + rarity + names.join("/");
+  }
+  function missingRecipesHtml(runtime, matched) {
+    const hints = runtime.deps.stumpCube.missingRecipes().slice(0, 3);
+    if (!hints.length) return `<p class="stump-status">${matched ? (0, runtime.deps._t)("결과 미확인") : (0, runtime.deps._t)("맞는 조합법 없음")}</p>`;
+    return '<ul class="stump-cube-missing">' + hints.map((hint) => `<li><strong>${esc(runtime, (0, runtime.deps._t)(hint.recipe.name))}</strong><span>${hint.missing.map((row) => `${runtime.deps.statToneText.html(missingMaterialLabel(runtime, row))} <b class="stump-cube-shortage">${(0, runtime.deps._t)("{count}개 부족", { count: row.count })}</b>`).join(", ")}</span></li>`).join("") + "</ul>";
+  }
+  function recipeBookHtml(runtime) {
+    const shown = runtime.deps.stumpCube.revealed(runtime.deps.game), hidden = runtime.deps.STUMP_CUBE_RECIPES.length - shown.length;
+    const rows = shown.map((recipe) => `<li style="--recipe-tone:${runtime.state.GROUP_TONES[recipe.group] || "#e6c67f"}"><span class="stump-book-entry-head"><span class="stump-book-group">${esc(runtime, recipe.group)}</span><strong>${recipeToneHtml(runtime, recipe.name)}</strong></span>` + bookLineHtml(runtime, "재료", recipeToneHtml(runtime, recipe.need)) + bookLineHtml(runtime, "결과", recipeToneHtml(runtime, recipe.result) + bookCapHtml(runtime, recipe)) + (recipe.note ? `<small class="stump-book-note">${keepBracketsHtml(runtime, recipeToneHtml(runtime, recipe.note))}${bookTierCapHtml(runtime, recipe)}</small>` : "") + bookCostLineHtml(runtime, recipe) + "</li>").join("");
+    const more = hidden ? `<li class="is-hidden">${(0, runtime.deps._t)("아직 모르는 조합법 {hidden}개 (새 재료가 성장 완료되거나 해금되면 공개)", { hidden })}</li>` : "";
+    return `<ul class="stump-book-list stump-book-page">${rows}${more}</ul>`;
+  }
+  function bookCostLineHtml(runtime, recipe) {
+    if (recipe.costText) return bookLineHtml(runtime, "비용", recipeToneHtml(runtime, recipe.costText));
+    return Object.keys(recipe.cost || {}).length ? bookLineHtml(runtime, "비용", bookCostHtml(runtime, recipe.cost)) : "";
+  }
+  function keepBracketsHtml(runtime, html) {
+    return html.replace(/\([^()]*\)/g, (part) => part.replace(/<[^>]+>/g, "").length <= 18 ? `<span class="stump-book-keep">${part}</span>` : part);
+  }
+  function bookCapHtml(runtime, recipe) {
+    return recipe.id === "stump_merge" ? (0, runtime.deps._t)(" (상한 {value})", { value: recipeToneHtml(runtime, Math.round(runtime.deps.stumpBox.rollCap(runtime.deps.game) * 100) + "%") }) : "";
+  }
+  function bookTierCapHtml(runtime, recipe) {
+    return recipe.id === "equip_rare_tier" ? ` T${runtime.deps.levelProgression.maxDropTier(Math.floor(Number(runtime.deps.game.level) || 1))}` : "";
+  }
+  function cubeGridHtml(runtime) {
+    return gridHtml(runtime, runtime.deps.stumpCube.entries());
+  }
+  function cubeHtml(runtime) {
+    const list = runtime.deps.stumpCube.entries(), found = runtime.deps.stumpCube.preview(), matched = runtime.deps.stumpCube.match();
+    return statusHtml(runtime, found, list, matched) + quickFillHtml(runtime) + resultHtml(runtime);
+  }
+  function quickFillRecipes(runtime) {
+    const current = runtime.deps.stumpCube.match()?.recipe.id;
+    return runtime.deps.stumpCube.readyCubeSets().map((row) => row.recipe).filter((recipe) => recipe.id !== current);
+  }
+  function quickFillHtml(runtime) {
+    const recipes = quickFillRecipes(runtime);
+    if (!recipes.length) return "";
+    return '<div class="stump-cube-quick" role="group" aria-label="바로 넣기"><span>바로 넣기</span>' + recipes.map((recipe) => `<button type="button" data-stump-action="cube-quick" data-recipe="${recipe.id}" style="--recipe-tone:${runtime.state.GROUP_TONES[recipe.group] || "#e6c67f"}">${esc(runtime, (0, runtime.deps._t)(recipe.name))}</button>`).join("") + "</div>";
+  }
+  function cubeSignature(runtime) {
+    syncStumpCubeOwner(runtime);
+    const found = runtime.deps.stumpCube.preview(), matched = runtime.deps.stumpCube.match(), revealed = runtime.deps.stumpCube.revealed(runtime.deps.game);
+    const costs = Object.keys(matched && matched.recipe.cost || {});
+    return JSON.stringify([
+      runtime.deps.stumpCube.entries().map((entry) => [entry.kind, entry.id, entry.x, entry.y, entry.item]),
+      found,
+      costs.map((key) => [key, runtime.deps.game.currencies[key] || 0]),
+      !!runtime.deps.game.woodsmanBuildLock,
+      runtime.deps.stumpBox.rollCap(runtime.deps.game),
+      revealed.map((recipe) => recipe.id),
+      currentResult(runtime)?.outputs,
+      quickFillRecipes(runtime).map((recipe) => recipe.id)
+    ]);
+  }
+  function track(runtime, at, span = 1) {
+    return `${at * 2 + 1} / span ${span * 2 - 1}`;
+  }
+  function bookLineHtml(runtime, label, html) {
+    return `<span class="stump-book-line"><b>${label}</b><span>${keepBracketsHtml(runtime, html)}</span></span>`;
+  }
 
-    // 조합법 글의 색(2026-10-25 사용자 "조합법에도 색감 좀 넣어줘"): 희귀도는 그 등급 색, 재료 종류(장비, 씨앗, 꽃, 열매, 덩굴, 뿌리,
-    // 부적, 주얼, 코어)는 제 색, 물리 · 화염 · 냉기 · 번개 · 카오스는 그루터기 함의 색, 수치는 조금 밝게. 나머지 글은 그대로 둔다.
-    const GROUP_TONES = Object.freeze({ 장비: '#e6c67f', 그루터기: '#9fd46a', 부적: '#c9a0f0', 주얼: '#7fd6cf', 코어: '#f0a35a' });
-    const KIND_TONES = Object.freeze([['장신구', '#e6c67f'], ['장비', '#e6c67f'], ['씨앗', '#9fd46a'], ['꽃', '#f0a8c8'], ['열매', '#e8955a'],
-        ['덩굴', '#7cc9a0'], ['뿌리', '#d0a070'], ['부적', '#c9a0f0'], ['주얼', '#7fd6cf'], ['코어', '#f0a35a'], ['기폭제', '#f3d28c'], ['기름', '#f3d28c']]);
-    let recipeTone = null;
-    function recipeTones() {
-        if (recipeTone) return recipeTone;
-        const tones = new Map([...KIND_TONES, ...['unique', 'rare', 'magic'].map(key => [ITEM_RARITY_LABELS[key], getRarityColor(key)]),
-            ...Object.values(STUMP_BOX_COLORS).map(row => [row.label, row.tone])]);
-        const words = [...tones.keys()].sort((a, b) => b.length - a.length);
-        recipeTone = { tones, pattern: new RegExp(`(${words.join('|')})|(\\d+(?:%|개)?)`, 'g') };
-        return recipeTone;
+  // modules/ui/stump-recipe-book.mjs
+  function playBookFrames(runtime, frames) {
+    const keys = frames.map((frame, at) => ({ backgroundPositionX: bookFramePos(runtime, frame), offset: at / frames.length, easing: "step-end" }));
+    keys.push({ backgroundPositionX: bookFramePos(runtime, frames[frames.length - 1]), offset: 1 });
+    return runtime.state.bookDialog.querySelector(".stump-book-art").animate(keys, { duration: frames.length * runtime.state.BOOK_FRAME_MS, fill: "forwards" });
+  }
+  function bookButtonHtml(runtime) {
+    return `<button type="button" class="stump-recipe-book" data-stump-action="recipe-book" aria-haspopup="dialog"><img src="assets/ui/grove/recipe-book.png" alt="" draggable="false"><span>${(0, runtime.deps._t)("조합법 {bookCount}", { bookCount: bookCount(runtime) })}</span></button>`;
+  }
+  function bookMarkup(runtime) {
+    return `<div class="stump-book-volume"><div class="stump-book-art" aria-hidden="true"></div><div class="stump-book-cover" aria-hidden="true"></div><div class="stump-book-text"><div class="stump-book-flow">${recipeBookHtml(runtime)}</div></div><button type="button" class="stump-book-turn is-prev" aria-label="앞 장" data-book-turn="-1">◀</button><button type="button" class="stump-book-turn is-next" aria-label="다음 장" data-book-turn="1">▶</button><button type="button" class="stump-book-close" aria-label="책 덮기" data-book-close>✕</button></div>`;
+  }
+  function ensureBookDialog(runtime) {
+    if (runtime.state.bookDialog) return runtime.state.bookDialog;
+    runtime.state.bookDialog = runtime.deps.document.createElement("dialog");
+    runtime.state.bookDialog.className = "stump-book";
+    runtime.state.bookDialog.setAttribute("aria-label", (0, runtime.deps._t)("조합법"));
+    listenView(runtime, runtime.state.bookDialog, "click", runtime.handlers.onBookClick);
+    listenView(runtime, runtime.state.bookDialog, "cancel", (event) => {
+      event.preventDefault();
+      closeRecipeBook(runtime);
+    });
+    runtime.deps.document.body.appendChild(runtime.state.bookDialog);
+    return runtime.state.bookDialog;
+  }
+  function onBookClick(runtime, event) {
+    const turn = event.target.closest("[data-book-turn]");
+    if (turn) return turnBookPage(runtime, Number(turn.dataset.bookTurn));
+    if (event.target === runtime.state.bookDialog || event.target.closest("[data-book-close]")) closeRecipeBook(runtime);
+  }
+  function bookSteps(runtime, flow) {
+    const gap = (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(flow).columnGap) || 0, step = flow.clientWidth + gap;
+    return { step, count: Math.max(1, Math.ceil((flow.scrollWidth + gap) / step - 0.01)) };
+  }
+  function turnBookPage(runtime, delta) {
+    const flow = runtime.state.bookDialog?.querySelector(".stump-book-flow");
+    if (!flow || runtime.state.bookTurning) return;
+    const { step, count } = bookSteps(runtime, flow);
+    const next = Math.max(0, Math.min(count - 1, runtime.state.bookSpread + delta));
+    const show = () => {
+      runtime.state.bookSpread = next;
+      flow.style.transform = `translateX(${-runtime.state.bookSpread * step}px)`;
+      markBookTurns(runtime, count);
+      runtime.state.bookDialog.classList.remove("is-turning");
+      runtime.state.bookTurning = null;
+    };
+    if (!delta || next === runtime.state.bookSpread || bookStill(runtime)) return show();
+    (0, runtime.deps.playUiFeedbackSound)("uiSelect");
+    runtime.state.bookDialog.classList.add("is-turning");
+    runtime.state.bookTurning = playBookFrames(runtime, delta > 0 ? runtime.state.BOOK_TURN : [7, 6, 5, 4]);
+    afterStumpBookMotion(runtime, runtime.state.bookTurning, show);
+  }
+  function paginateBook(runtime) {
+    const flow = runtime.state.bookDialog.querySelector(".stump-book-flow"), all = flow.querySelector(".stump-book-page");
+    const height = flow.clientHeight, gap = (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(all).rowGap) || 0, pages = [];
+    let used = Infinity;
+    for (const row of [...all.children]) {
+      const h = row.offsetHeight;
+      if (used + gap + h > height) {
+        pages.push([]);
+        used = -gap;
+      }
+      pages[pages.length - 1].push(row);
+      used += gap + h;
     }
-    /** The book is parchment: each word keeps its game colour as --ink with an ink outline (css/stump-box.css); numbers are rubric red.
-     * is-tone tells statToneText.markup the span already has its colour. */
-    function recipeToneHtml(text) {
-        const { tones, pattern } = recipeTones();
-        return esc(text).replace(pattern, (match, word) => (word ? `<span class="stump-ink is-tone" style="--ink:${tones.get(word)}">${match}</span>`
-            : `<span class="stump-ink is-tone is-num">${match}</span>`));
-    }
-    /** A recipe's cost in the book: plain names (the styled currency names are drawn for dark windows), the held count red when short. */
-    function bookCostHtml(cost) {
-        const rows = Object.entries(cost || {}).map(([key, need]) => {
-            const have = Math.floor(game.currencies[key] || 0);
-            return `${esc(_t(ORB_DB[key].name))} ${need} <span class="${have < need ? 'is-short' : ''}">${_t('(보유 {have})', { have })}</span>`;
-        });
-        return rows.length ? rows.join(', ') : '비용 없음';
-    }
+    flow.replaceChildren(...pages.map((rows) => {
+      const page = runtime.deps.document.createElement("ul");
+      page.className = all.className;
+      page.append(...rows);
+      return page;
+    }));
+  }
+  function markBookTurns(runtime, count) {
+    runtime.state.bookDialog.querySelector(".is-prev").disabled = runtime.state.bookSpread === 0;
+    runtime.state.bookDialog.querySelector(".is-next").disabled = runtime.state.bookSpread >= count - 1;
+  }
+  function openRecipeBook(runtime, button) {
+    if (!runtime.active) return;
+    syncStumpCubeOwner(runtime);
+    stopStumpBookMotion(runtime);
+    const dialog = ensureBookDialog(runtime);
+    dialog.innerHTML = bookMarkup(runtime);
+    runtime.state.bookSpread = 0;
+    runtime.state.bookOpening += 1;
+    runtime.state.bookTurning = null;
+    runtime.state.bookButton = button;
+    dialog.classList.remove("is-open", "is-turning", "is-closing");
+    dialog.classList.add("is-closed");
+    dialog.showModal();
+    (0, runtime.deps.playUiFeedbackSound)("stumpFrameSwitch");
+    paginateBook(runtime);
+    turnBookPage(runtime, 0);
+    if (bookStill(runtime)) return dialog.classList.replace("is-closed", "is-open");
+    afterStumpBookMotion(runtime, flyBook(runtime, false), () => {
+      afterStumpBookMotion(runtime, playBookFrames(runtime, runtime.state.BOOK_OPEN), () => dialog.classList.replace("is-closed", "is-open"));
+    });
+  }
+  function flyBook(runtime, back) {
+    const volume = runtime.state.bookDialog.querySelector(".stump-book-volume"), box = volume.getBoundingClientRect();
+    const button = runtime.state.bookButton?.isConnected ? runtime.state.bookButton : runtime.deps.document.querySelector("#tab-stump .stump-recipe-book");
+    const from = button?.offsetParent ? button.querySelector("img") || button : null;
+    const cover = volume.querySelector(".stump-book-cover").getBoundingClientRect();
+    const start = from ? from.getBoundingClientRect() : { left: cover.left, top: cover.top, width: cover.width * 0.2, height: cover.height * 0.2 };
+    const scale = Math.max(0.05, start.width / cover.width);
+    const dx = start.left + start.width / 2 - (cover.left + cover.width / 2), dy = start.top + start.height / 2 - (cover.top + cover.height / 2);
+    const origin = `${cover.left + cover.width / 2 - box.left}px ${cover.top + cover.height / 2 - box.top}px`;
+    const away = { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, transformOrigin: origin, opacity: back ? 0 : 1 };
+    const home = { transform: "translate(0, 0) scale(1)", transformOrigin: origin, opacity: 1 };
+    return volume.animate(
+      back ? [home, away] : [away, home],
+      { duration: runtime.state.BOOK_GROW_MS, easing: back ? "cubic-bezier(.6, 0, .8, .3)" : "cubic-bezier(.2, .7, .2, 1)", fill: "both" }
+    );
+  }
+  function closeRecipeBook(runtime) {
+    if (!runtime.state.bookDialog?.open || runtime.state.bookDialog.classList.contains("is-closing")) return;
+    stopStumpBookMotion(runtime);
+    const closing = runtime.state.bookOpening, done = () => {
+      if (closing !== runtime.state.bookOpening) return;
+      runtime.state.bookDialog.close();
+      runtime.state.bookDialog.classList.remove("is-open", "is-closed", "is-turning", "is-closing");
+    };
+    if (bookStill(runtime)) return done();
+    runtime.state.bookTurning?.cancel();
+    runtime.state.bookTurning = null;
+    runtime.state.bookDialog.classList.remove("is-open", "is-turning");
+    runtime.state.bookDialog.classList.add("is-closed", "is-closing");
+    afterStumpBookMotion(runtime, playBookFrames(runtime, [...runtime.state.BOOK_OPEN].reverse()), () => {
+      afterStumpBookMotion(runtime, flyBook(runtime, true), done);
+    });
+  }
+  function bookCount(runtime) {
+    return `${runtime.deps.stumpCube.revealed(runtime.deps.game).length}/${runtime.deps.STUMP_CUBE_RECIPES.length}`;
+  }
+  function bookFramePos(runtime, frame) {
+    return `${frame / (runtime.state.BOOK_STRIP - 1) * 100}%`;
+  }
+  function bookStill(runtime) {
+    return runtime.deps.uiDisplay.matches("(prefers-reduced-motion: reduce)") || !runtime.state.bookDialog.querySelector(".stump-book-art").animate;
+  }
 
-    // ── 칸 ─────────────────────────────────────────────────
-    // 칸과 넣은 재료는 그루터기 함 보관함이나 장비 가방(왼쪽 보석으로 띄운 가방)에서 끌어 놓는 자리다(data-stump-drop-cube,
-    // js/stump-box-drag-ui.js, js/equipment-inventory-grid-ui.js). 칸은 판처럼 틀의 구멍(홀수 줄)에 놓고, 여러 칸 재료는 그 사이 살까지
-    // 덮어 한 덩어리로 보인다(2026-10-28 사용자: 중앙의 선을 가리도록, css/stump-box.css .is-multi).
-    const track = (at, span = 1) => `${at * 2 + 1} / span ${span * 2 - 1}`;
-    function entryHtml(entry) {
-        const wallet = entry.kind === 'wallet', name = `${itemName(entry.kind, entry.item)}${wallet ? _t(' (화폐화)') : ''}`, cell = entry.y * stumpCube.SIZE + entry.x;
-        // data-stump-drag-cube: the item can be dragged to another cube cell or out to the storage or bag (js/stump-box-drag-ui.js).
-        return `<button type="button" class="stump-cube-item${entry.w * entry.h > 1 ? ' is-multi' : ''}${wallet ? ' is-wallet' : ''}" data-stump-action="cube-cell" data-cell="${cell}" data-stump-drop-cube="${cell}"`
-            + ` data-stump-drag-cube="${cell}" data-cube-w="${entry.w}" data-cube-h="${entry.h}"`
-            + ` style="grid-column:${track(entry.x, entry.w)};grid-row:${track(entry.y, entry.h)};--cube-tone:${itemTone(entry.kind, entry.item)}"`
-            + ` ${_t('data-tip="{name}, 누르면 꺼냅니다" aria-label="{name2} 꺼내기">', { name: esc(name), name2: esc(name) })}<img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
+  // modules/ui/stump-cube-actions.mjs
+  function selectCubeItem(runtime, index) {
+    if (syncStumpCubeOwner(runtime)) return;
+    const item = runtime.state.pickerItems[index];
+    if (!item || !runtime.deps.stumpCube.candidates(runtime.state.pickerKind).includes(item)) {
+      (0, runtime.deps.showGameToast)((0, runtime.deps._t)("재료 상태가 바뀌었습니다. 다시 선택해 주세요."), { tone: "warning" });
+      return openCubePicker(runtime, runtime.state.pickerKind);
     }
+    runtime.state.pickerSelection = { kind: runtime.state.pickerKind, item };
+    const panel = runtime.deps.document.getElementById(runtime.state.OVERLAY_ID)?.querySelector(".selection-overlay-panel");
+    if (!panel) return;
+    panel.querySelectorAll("[data-cube-candidate]").forEach((button) => {
+      const selected = Number(button.dataset.cubeCandidate) === index;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    renderMaterialDetail(runtime, panel);
+  }
+  function openCubePicker(runtime, kind) {
+    syncStumpCubeOwner(runtime);
+    if (!runtime.deps.selectionDialog.isOpen(runtime.state.OVERLAY_ID) || kind && kind !== runtime.state.pickerKind) runtime.state.pickerSelection = null;
+    if (runtime.deps.stumpCube.KINDS.includes(kind)) runtime.state.pickerKind = kind;
+    const panel = runtime.deps.selectionDialog.show({ id: runtime.state.OVERLAY_ID, title: (0, runtime.deps._t)("조합창에 넣을 재료"), panelClass: "stump-cube-picker-panel", body: pickerBodyHtml(runtime) });
+    runtime.state.pickerPanel = panel;
+    renderMaterialDetail(runtime, panel);
+  }
+  function closeCubePicker(runtime) {
+    runtime.state.pickerSelection = null;
+    runtime.deps.selectionDialog.close(runtime.state.OVERLAY_ID);
+  }
+  function refreshCube(runtime) {
+    if (runtime.deps.selectionDialog.isOpen(runtime.state.OVERLAY_ID)) openCubePicker(runtime, runtime.state.pickerKind);
+    runtime.deps.stumpBoxUi.refreshStumpTabNow();
+  }
+  function pickCubeItem(runtime) {
+    if (!runtime.active || syncStumpCubeOwner(runtime)) return;
+    const selected = runtime.state.pickerSelection;
+    const usable = selected && runtime.deps.stumpCube.candidates(selected.kind).includes(selected.item);
+    const reason = usable ? runtime.deps.stumpCube.put(runtime.deps.game, selected.kind, selected.item) : "재료 상태가 바뀌었습니다. 다시 선택해 주세요.";
+    if (reason) (0, runtime.deps.showGameToast)(reason, { tone: "warning" });
+    runtime.state.pickerSelection = null;
+    refreshCube(runtime);
+  }
+  function takeOutCubeCell(runtime, cell) {
+    if (runtime.deps.stumpCube.takeOut(runtime.deps.game, cell)) refreshCube(runtime);
+  }
+  function moveCubeItem(runtime, from, to) {
+    const reason = runtime.deps.stumpCube.move(runtime.deps.game, from, to);
+    if (reason) (0, runtime.deps.showGameToast)(reason, { tone: "warning" });
+    refreshCube(runtime);
+  }
+  function putStumpItem(runtime, id, cell) {
+    const item = runtime.deps.stumpBox.itemById(runtime.deps.game, id);
+    const reason = item ? runtime.deps.stumpCube.put(runtime.deps.game, "stump", item, cell) : "재료 상태가 바뀌었습니다. 다시 선택해 주세요.";
+    if (reason) (0, runtime.deps.showGameToast)(reason, { tone: "warning" });
+    refreshCube(runtime);
+    return !reason;
+  }
+  function putWalletUnit(runtime, key) {
+    const piece = runtime.deps.stumpCube.candidates("wallet").find((row) => row.walletKey === key);
+    const reason = piece ? runtime.deps.stumpCube.put(runtime.deps.game, "wallet", piece) : "조합창에 더 넣을 수 없습니다.";
+    if (reason) (0, runtime.deps.showGameToast)(reason, { tone: "warning" });
+    refreshCube(runtime);
+  }
+  function quickFillCube(runtime, recipeId) {
+    const reason = runtime.deps.stumpCube.fillCubeRecipe(runtime.deps.game, recipeId);
+    if (reason) (0, runtime.deps.showGameToast)(reason, { tone: "warning" });
+    refreshCube(runtime);
+  }
+  function transmuteCube(runtime) {
+    const result = runtime.deps.stumpCube.transmute();
+    (0, runtime.deps.playUiFeedbackSound)(result.ok ? "craftSuccess" : "craftFailure");
+    if (!result.ok) return (0, runtime.deps.showGameToast)(result.reason, { tone: "warning" });
+    runtime.state.lastResult = { state: runtime.deps.game, season: runtime.deps.game.season, outputs: JSON.parse(JSON.stringify(result.outputs)) };
+    const names = result.outputs.map((row) => itemName(runtime, row.kind, row.item)).join(", ");
+    const paid = Object.entries(result.paid).map(([key, need]) => (0, runtime.deps._t)("{name} {need}개", { name: (0, runtime.deps._t)(runtime.deps.ORB_DB[key].name), need })).join(", ");
+    (0, runtime.deps.addLog)((0, runtime.deps._t)("🧩 조합창 {recipe}: {names}{paid}", { recipe: (0, runtime.deps._t)(result.recipe.name), names, paid: paid ? ` ${(0, runtime.deps._t)("({cost} 사용)", { cost: paid })}` : "" }), "loot-rare");
+    result.outputs.filter((row) => row.kind === "core" && row.item && row.item.perfect).forEach((row) => (0, runtime.deps.dispatchRuntimeEvent)("incident", { text: (0, runtime.deps._t)("체이싱 코어를 획득했습니다. 「{name}」", { name: row.item.name }), tone: "chase", chase: true }));
+    (0, runtime.deps.queueImportantSave)(300);
+    (0, runtime.deps.updateStaticUI)();
+    refreshCube(runtime);
+  }
+  function putBagItem(runtime, item, cell) {
+    if (!runtime.deps.stumpBoxUi.frameShowsCube()) return false;
+    const usable = runtime.deps.stumpCube.candidates("equipment").includes(item);
+    const reason = usable ? runtime.deps.stumpCube.put(runtime.deps.game, "equipment", item, cell) : "조합창에 넣을 수 없는 장비입니다.";
+    if (reason) (0, runtime.deps.showGameToast)(reason, { tone: "warning" });
+    refreshCube(runtime);
+    return true;
+  }
 
-    function gridHtml(list) {
-        const cells = Array.from({ length: stumpCube.SIZE * stumpCube.SIZE }, (_, cell) => `<button type="button" class="stump-cube-cell"`
-            + ` data-stump-action="cube-open" data-stump-drop-cube="${cell}" style="grid-column:${track(cell % stumpCube.SIZE)};grid-row:${track(Math.floor(cell / stumpCube.SIZE))}"`
-            + ` ${_t('aria-label="빈 칸, 재료 넣기">')}</button>`).join('');
-        return `<div class="stump-cube-grid" role="grid" aria-label="${_t('조합창 {SIZE}×{SIZE2}', { SIZE: stumpCube.SIZE, SIZE2: stumpCube.SIZE })}">${cells}${list.map(entryHtml).join('')}</div>`;
-    }
+  // modules/ui/stump-cube-view.mjs
+  function createStumpCubeView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, listeners: [] };
+    const handlers = { entryHtml, resultCardHtml, onBookClick, cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, moveCubeItem, transmuteCube, recipeToneHtml, putStumpItem, putWalletUnit, quickFillCube, putBagItem, bookButtonHtml, openRecipeBook };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = (...args) => runtime.active ? handler(runtime, ...args) : void 0;
+    initialize(runtime);
+    runtime.api = StumpCubeViewApi(runtime);
+    return runtime.api;
+  }
+  function initialize(runtime) {
+    runtime.state.owner = runtime.deps.game;
+    runtime.state.bookAnimations = /* @__PURE__ */ new Set();
+    runtime.state.OVERLAY_ID = "stump-cube-picker";
+    runtime.state.KIND_LABELS = { equipment: "장비", stump: "그루터기", jewel: "주얼", core: "코어", wallet: "화폐화" };
+    runtime.state.pickerKind = "equipment";
+    runtime.state.pickerItems = [];
+    runtime.state.pickerSelection = null;
+    runtime.state.lastResult = null;
+    runtime.state.ICONS = Object.freeze({
+      equipment: (item) => (0, runtime.deps.getEquipmentGridVisualAsset)(item),
+      stump: (item) => runtime.deps.stumpBox.iconPath(item),
+      wallet: (item) => runtime.deps.stumpBox.iconPath(item),
+      jewel: (item) => (0, runtime.deps.getInventoryItemVisualAsset)(item, "jewel"),
+      core: (item) => runtime.deps.coreItems.icon(item)
+    });
+    runtime.state.GROUP_TONES = Object.freeze({ 장비: "#e6c67f", 그루터기: "#9fd46a", 부적: "#c9a0f0", 주얼: "#7fd6cf", 코어: "#f0a35a" });
+    runtime.state.KIND_TONES = Object.freeze([
+      ["장신구", "#e6c67f"],
+      ["장비", "#e6c67f"],
+      ["씨앗", "#9fd46a"],
+      ["꽃", "#f0a8c8"],
+      ["열매", "#e8955a"],
+      ["덩굴", "#7cc9a0"],
+      ["뿌리", "#d0a070"],
+      ["부적", "#c9a0f0"],
+      ["주얼", "#7fd6cf"],
+      ["코어", "#f0a35a"],
+      ["기폭제", "#f3d28c"],
+      ["기름", "#f3d28c"]
+    ]);
+    runtime.state.recipeTone = null;
+    runtime.state.bookDialog = null;
+    runtime.state.bookSpread = 0;
+    runtime.state.bookOpening = 0;
+    runtime.state.bookButton = null;
+    runtime.state.bookTurning = null;
+    runtime.state.BOOK_GROW_MS = 360;
+    runtime.state.BOOK_FRAME_MS = 104;
+    runtime.state.BOOK_STRIP = 8;
+    runtime.state.BOOK_OPEN = [0, 1, 2, 3, 4];
+    runtime.state.BOOK_TURN = [5, 6, 7, 4];
+  }
+  function StumpCubeViewApi(runtime) {
+    return Object.freeze({
+      cubeHtml: runtime.handlers.cubeHtml,
+      cubeGridHtml: runtime.handlers.cubeGridHtml,
+      cubeSignature: runtime.handlers.cubeSignature,
+      openCubePicker: runtime.handlers.openCubePicker,
+      closeCubePicker: runtime.handlers.closeCubePicker,
+      selectCubeItem: runtime.handlers.selectCubeItem,
+      pickCubeItem: runtime.handlers.pickCubeItem,
+      inspectCubeResult: runtime.handlers.inspectCubeResult,
+      takeOutCubeCell: runtime.handlers.takeOutCubeCell,
+      moveCubeItem: runtime.handlers.moveCubeItem,
+      transmuteCube: runtime.handlers.transmuteCube,
+      recipeToneHtml: runtime.handlers.recipeToneHtml,
+      putStumpItem: runtime.handlers.putStumpItem,
+      putWalletUnit: runtime.handlers.putWalletUnit,
+      quickFillCube: runtime.handlers.quickFillCube,
+      putBagItem: runtime.handlers.putBagItem,
+      bookButtonHtml: runtime.handlers.bookButtonHtml,
+      openRecipeBook: runtime.handlers.openRecipeBook,
+      dispose: () => disposeStumpCubeView(runtime)
+    });
+  }
+  function disposeStumpCubeView(runtime) {
+    releaseViewEvents(runtime);
+    stopStumpBookMotion(runtime);
+    if (runtime.state.pickerPanel?.isConnected) runtime.deps.selectionDialog.close(runtime.state.OVERLAY_ID);
+    if (runtime.state.resultPanel?.isConnected) runtime.deps.selectionDialog.close("stump-cube-result");
+    runtime.state.bookDialog?.close();
+    runtime.state.bookDialog?.remove();
+    runtime.state.bookDialog = runtime.state.pickerPanel = runtime.state.resultPanel = null;
+  }
 
-    function previewFactsHtml(outcome) {
-        const badges = [];
-        if (outcome.tier !== undefined) badges.push(`T${outcome.tier}`);
-        if (outcome.quality !== undefined) badges.push(`품질 ${outcome.quality}%`);
-        if (outcome.qualityCap !== undefined) badges.push(`현재 상한 ${outcome.qualityCap}%`);
-        return `<strong class="stump-cube-preview-name">${esc(_t(outcome.label))}</strong>`
-            + (badges.length ? `<p class="stump-cube-preview-meta">${statToneText.html(badges.join(', '))}</p>` : '')
-            + (outcome.keep ? `<p><b>${_t('유지')}</b> ${statToneText.html(outcome.keep)}</p>` : '')
-            + (outcome.change ? `<p><b>${_t('변경')}</b> ${statToneText.html(outcome.change)}</p>` : '')
-            + (outcome.note ? `<p class="stump-cube-preview-note">${statToneText.html(_t(outcome.note))}</p>` : '');
+  // modules/stump-cube-ui-classic.mjs
+  var stumpCubeUi = createStumpCubeView({
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get _t() {
+      return _t;
+    },
+    get ORB_DB() {
+      return ORB_DB;
+    },
+    get stumpBox() {
+      return stumpBox;
+    },
+    get STUMP_BOX_RIPENING() {
+      return STUMP_BOX_RIPENING;
+    },
+    get STUMP_BOX_COLORS() {
+      return STUMP_BOX_COLORS;
+    },
+    get STUMP_BOX_SCAR() {
+      return STUMP_BOX_SCAR;
+    },
+    get getRarityColor() {
+      return getRarityColor;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get getStyledOrbName() {
+      return getStyledOrbName;
+    },
+    get ITEM_RARITY_LABELS() {
+      return ITEM_RARITY_LABELS;
+    },
+    get stumpCube() {
+      return stumpCube;
+    },
+    get statToneText() {
+      return statToneText;
+    },
+    get STUMP_BOX_STAGES() {
+      return STUMP_BOX_STAGES;
+    },
+    get STUMP_CUBE_RECIPES() {
+      return STUMP_CUBE_RECIPES;
+    },
+    get levelProgression() {
+      return levelProgression;
+    },
+    get getItemCraftTier() {
+      return getItemCraftTier;
+    },
+    get coreItems() {
+      return coreItems;
+    },
+    get talismans() {
+      return talismans;
+    },
+    get getJewelStats() {
+      return getJewelStats;
+    },
+    get getStatName() {
+      return getStatName;
+    },
+    get formatSignedValue() {
+      return formatSignedValue;
+    },
+    get stumpBoxUi() {
+      return stumpBoxUi;
+    },
+    get showItemTooltip() {
+      return showItemTooltip;
+    },
+    get selectionDialog() {
+      return selectionDialog;
+    },
+    get document() {
+      return document;
+    },
+    get showGameToast() {
+      return showGameToast;
+    },
+    get playUiFeedbackSound() {
+      return playUiFeedbackSound;
+    },
+    get addLog() {
+      return addLog;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    },
+    get updateStaticUI() {
+      return updateStaticUI;
+    },
+    get dispatchRuntimeEvent() {
+      return dispatchRuntimeEvent;
+    },
+    get parseFloat() {
+      return parseFloat;
+    },
+    get getComputedStyle() {
+      return windowGetComputedStyle;
+    },
+    get uiDisplay() {
+      return uiDisplay;
+    },
+    get getEquipmentGridVisualAsset() {
+      return getEquipmentGridVisualAsset;
+    },
+    get getInventoryItemVisualAsset() {
+      return getInventoryItemVisualAsset;
     }
-
-    function statusHtml(found, list, matched) {
-        // 비어 있으면 아무 말도 하지 않는다(빈 칸과 [재료 넣기]가 할 일을 보여 준다).
-        if (!list.length) return '';
-        if (list.some(entry => entry.item.locked)) return '<p class="stump-line is-bad">잠긴 재료를 조합창에서 꺼내 주세요.</p>';
-        // A hidden recipe that happens to match says nothing about its result; the revealed hints come first.
-        if (!found) return missingRecipesHtml(matched);
-        const lacking = stumpCube.missingCost(found.recipe).length > 0;
-        return `<div class="stump-cube-status"><p class="stump-cube-preview-title">${_t('예상 결과')} <span>${esc(_t(found.recipe.name))}</span></p>`
-            + previewFactsHtml(found) + (found.reason ? `<p class="stump-line is-bad">${esc(found.reason)}</p>` : '')
-            + `<p class="stump-line${lacking ? ' is-bad' : ''}">${found.recipe.costText ? recipeToneHtml(found.recipe.costText) : costHtml(found.recipe.cost)}</p></div>`;
-    }
-
-    function sharedMaterialValue({ rule, picked }, key) {
-        return (rule.same || []).includes(key) ? picked[0]?.item[key] : undefined;
-    }
-
-    /** '꽃/열매', '뿌리', '성장 완료 씨앗' for a grown row, '씨앗류' for growing seeds (their kind is not known yet). */
-    function missingFamilyLabel(family, ripe, path) {
-        if (family !== 'seed') return family === 'talisman' ? '부적' : '흉터';
-        const label = [].concat(path || []).map(kind => STUMP_BOX_STAGES[kind].label).join('/');
-        return ripe ? label || '성장 완료 씨앗' : '씨앗류';
-    }
-
-    /** Describe the missing row using the same-kind/colour/name already placed, without revealing any hidden recipe. */
-    function missingMaterialLabel(row) {
-        const { rule } = row, name = sharedMaterialValue(row, 'name');
-        if (name) return name;
-        const rarity = rule.rarity ? [].concat(rule.rarity).map(key => ITEM_RARITY_LABELS[key]).join('/') + ' ' : '';
-        if (rule.kind !== 'stump') return rule.socketable ? '소켓 가능한 장신구' : rarity + KIND_LABELS[rule.kind];
-        const family = sharedMaterialValue(row, 'family') || rule.family, path = sharedMaterialValue(row, 'path') || rule.path;
-        const color = sharedMaterialValue(row, 'color');
-        const names = [].concat(family).map(key => missingFamilyLabel(key, rule.ripe, path));
-        return (color ? STUMP_BOX_COLORS[color].label + ' ' : '') + rarity + names.join('/');
-    }
-
-    function missingRecipesHtml(matched) {
-        const hints = stumpCube.missingRecipes().slice(0, 3);
-        if (!hints.length) return `<p class="stump-status">${matched ? _t('결과 미확인') : _t('맞는 조합법 없음')}</p>`;
-        return '<ul class="stump-cube-missing">' + hints.map(hint => `<li><strong>${esc(_t(hint.recipe.name))}</strong>`
-            + `<span>${hint.missing.map(row => `${statToneText.html(missingMaterialLabel(row))} <b class="stump-cube-shortage">${_t('{count}개 부족', { count: row.count })}</b>`).join(', ')}</span></li>`).join('') + '</ul>';
-    }
-
-    /** 조합법 책의 글: 재료가 생길 수 있게 된 조합법만(조합법 발견, stumpCube.revealed). 나머지는 개수만 알린다. 양피지 위라 낱말 색은
-     * 먹빛으로 어둡게 섞는다(css/stump-box.css .stump-book). */
-    // 2026-10-29 사용자 "더 간결하고 알기쉽게": 이름 아래 재료와 결과를 한 줄씩, 덧붙임은 한 줄, 비용은 있을 때만 쓴다. 책 제목 줄은 없다.
-    function recipeBookHtml() {
-        const shown = stumpCube.revealed(game), hidden = STUMP_CUBE_RECIPES.length - shown.length;
-        const rows = shown.map(recipe => `<li style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">`
-            + `<span class="stump-book-entry-head"><span class="stump-book-group">${esc(recipe.group)}</span><strong>${recipeToneHtml(recipe.name)}</strong></span>`
-            + bookLineHtml('재료', recipeToneHtml(recipe.need)) + bookLineHtml('결과', recipeToneHtml(recipe.result) + bookCapHtml(recipe))
-            + (recipe.note ? `<small class="stump-book-note">${keepBracketsHtml(recipeToneHtml(recipe.note))}${bookTierCapHtml(recipe)}</small>` : '')
-            + bookCostLineHtml(recipe) + '</li>').join('');
-        const more = hidden ? `<li class="is-hidden">${_t('아직 모르는 조합법 {hidden}개 (새 재료가 성장 완료되거나 해금되면 공개)', { hidden })}</li>` : '';
-        return `<ul class="stump-book-list stump-book-page">${rows}${more}</ul>`;
-    }
-    function bookCostLineHtml(recipe) {
-        if (recipe.costText) return bookLineHtml('비용', recipeToneHtml(recipe.costText));
-        return Object.keys(recipe.cost || {}).length ? bookLineHtml('비용', bookCostHtml(recipe.cost)) : '';
-    }
-    const bookLineHtml = (label, html) => `<span class="stump-book-line"><b>${label}</b><span>${keepBracketsHtml(html)}</span></span>`;
-    /** A short bracket ("(꽃, 열매, 덩굴, 뿌리 소켓)") moves to the next line whole instead of breaking inside (2026-10-29 사용자: 설명 도중에
-     * 줄 바뀌는 부분은 미리 줄바꾸기). Long ones still wrap. The html holds only tone spans, which carry no brackets. */
-    function keepBracketsHtml(html) {
-        return html.replace(/\([^()]*\)/g, part => (part.replace(/<[^>]+>/g, '').length <= 18 ? `<span class="stump-book-keep">${part}</span>` : part));
-    }
-    /** 합치기의 품질 상한(해금으로 오른다): 결과 줄 끝에 지금 값을 붙인다. */
-    function bookCapHtml(recipe) {
-        return recipe.id === 'stump_merge' ? _t(' (상한 {value})', { value: recipeToneHtml(Math.round(stumpBox.rollCap(game) * 100) + '%') }) : '';
-    }
-    /** 단련의 티어 상한(지금 레벨에서 떨어지는 티어, js/stump-cube-recipes.js rareTierTarget): 덧붙임 끝에 지금 값을 붙인다. */
-    function bookTierCapHtml(recipe) {
-        return recipe.id === 'equip_rare_tier' ? ` T${levelProgression.maxDropTier(Math.floor(Number(game.level) || 1))}` : '';
-    }
-
-    /** The cube's 5×5 cells, drawn inside the stump box frame when the frame shows the cube (js/stump-box-ui.js). */
-    function cubeGridHtml() { return gridHtml(stumpCube.entries()); }
-
-    /** Under the frame while it shows the cube: the matching recipe and cost, the quick fill and the last result. */
-    function cubeHtml() {
-        const list = stumpCube.entries(), found = stumpCube.preview(), matched = stumpCube.match();
-        return statusHtml(found, list, matched) + quickFillHtml() + resultHtml();
-    }
-
-    /** 바로 넣기: one button per revealed recipe the stored items make now (not the one already in the cube). Pressing it empties the cube
-     * and puts that set in, the plainest materials first (stumpCube.readyCubeSets). */
-    function quickFillRecipes() {
-        const current = stumpCube.match()?.recipe.id;
-        return stumpCube.readyCubeSets().map(row => row.recipe).filter(recipe => recipe.id !== current);
-    }
-
-    function quickFillHtml() {
-        const recipes = quickFillRecipes();
-        if (!recipes.length) return '';
-        return '<div class="stump-cube-quick" role="group" aria-label="바로 넣기"><span>바로 넣기</span>' + recipes.map(recipe => `<button type="button"`
-            + ` data-stump-action="cube-quick" data-recipe="${recipe.id}" style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">${esc(_t(recipe.name))}</button>`).join('') + '</div>';
-    }
-
-    /** What the screen shows depends on these, so the stump tab repaints when they change. */
-    function cubeSignature() {
-        const found = stumpCube.preview(), matched = stumpCube.match(), revealed = stumpCube.revealed(game);
-        const costs = Object.keys((matched && matched.recipe.cost) || {});
-        return JSON.stringify([stumpCube.entries().map(entry => [entry.kind, entry.id, entry.x, entry.y, entry.item]), found,
-            costs.map(key => [key, game.currencies[key] || 0]), !!game.woodsmanBuildLock, stumpBox.rollCap(game),
-            revealed.map(recipe => recipe.id), currentResult()?.outputs, quickFillRecipes().map(recipe => recipe.id)]);
-    }
-
-    // ── 재료 고르기 ─────────────────────────────────────────
-    const candidateMeta = (kind, item) => (kind === 'wallet' ? _t('화폐화 {walletCount}개', { walletCount: stumpBox.walletCount(game, item.walletKey) }) : storedItemMeta(kind, item));
-    function storedItemMeta(kind, item) {
-        // Candidates and results are stored, so an unripe one is not growing yet ("성장 중" means placed on the board).
-        if (kind === 'stump' && item.color) return _t('품질 {round}%, {value}', { round: Math.round(item.roll * 100), value: stumpBox.isMature(item) ? _t('성장 완료') : _t('성장 전') });
-        const rarity = ITEM_RARITY_LABELS[item.rarity] || '';
-        if (kind === 'equipment') return equipmentMeta(item, rarity);
-        if (kind === 'core') return item.perfect ? '완전한 코어' : _t('{rarity} 코어', { rarity });
-        if (kind === 'currency') return _t('{amount}개 획득', { amount: item.amount });
-        return rarity || KIND_LABELS[kind];
-    }
-
-    function equipmentMeta(item, rarity) {
-        return _t('{rarity} T{item}, 품질 {max}%', { rarity, item: getItemCraftTier(item), max: Math.max(0, Math.floor(Number(item.quality) || 0)) });
-    }
-
-    /** A short identifying option; the selection panel below always carries the full existing item details. */
-    function firstOption(kind, item) {
-        if (kind === 'core') return item.lines[0] ? coreItems.describe(item.lines[0]) : '';
-        if (kind === 'stump') return stumpFirstOption(item);
-        if (kind === 'currency' || kind === 'wallet') return '';
-        return firstStatOption(kind, item);
-    }
-
-    function stumpFirstOption(item) {
-        if (item.family === 'talisman') return item.uniqueEffect || (item.lines[0] ? talismans.describeLine(item.lines[0]) : '');
-        if (item.albino) {
-            const line = STUMP_BOX_RIPENING.albino.variants[stumpBox.yieldKind(item)][item.color][0];
-            return stumpBox.lineText(line.stat, line.value);
-        }
-        const gain = stumpBox.yieldOf(item);
-        return gain ? gain.text.replace('{v}', String(Math.round(gain.value * stumpBox.qualityOf(item) * stumpBox.goldenMul(item) * 100) / 100)) : '';
-    }
-
-    function firstStatOption(kind, item) {
-        const stat = kind === 'jewel' ? getJewelStats(item)[0] : ((item.stats || [])[0] || (item.baseStats || [])[0]);
-        if (!stat) return '';
-        const key = stat.id || stat.stat;
-        return `${_t(stat.statName || getStatName(key))} ${formatSignedValue(key, stat.val)}`;
-    }
-
-    function renderMaterialDetail(panel) {
-        const detail = panel.querySelector('.stump-cube-material-detail');
-        detail.style.setProperty('--cube-tone', pickerSelection ? itemTone(pickerSelection.kind, pickerSelection.item) : '#8c7043');
-        if (!pickerSelection) {
-            detail.innerHTML = '<p class="selection-overlay-help">재료를 골라 옵션을 확인하세요.</p>';
-            return;
-        }
-        const { kind, item } = pickerSelection;
-        detail.innerHTML = `<div class="stump-cube-material-head"><img src="${ICONS[kind](item)}" alt="" draggable="false">`
-            + `<span>${statToneText.html(candidateMeta(kind, item))}</span></div><div class="stump-cube-material-options equipment-inspection-tooltip"></div>`
-            + '<button type="button" class="stump-cube-material-add" onclick="stumpCubeUi.pickCubeItem()">조합창에 넣기</button>';
-        const body = detail.querySelector('.stump-cube-material-options');
-        renderItemDetails(body, kind, item);
-    }
-
-    function renderItemDetails(body, kind, item, snapshot = false) {
-        if (kind === 'wallet') body.innerHTML = `<h3>${esc(itemName(kind, item))}</h3>`;
-        else if (kind === 'stump') body.innerHTML = statToneText.markup(stumpBoxUi.itemTipHtml(item, snapshot));
-        else if (kind === 'currency') body.innerHTML = `<h3>${esc(_t(ORB_DB[item.currency].name))}</h3><p>${statToneText.html(_t(ORB_DB[item.currency].desc) || '')}</p>`;
-        else showItemTooltip(null, null, false, item, { target: body });
-    }
-
-    // Keep the actual rolled result, not a fresh roll or a reference that later crafting can change.
-    function currentResult() {
-        if (lastResult && (lastResult.state !== game || lastResult.season !== game.season)) lastResult = null;
-        return lastResult;
-    }
-
-    function resultCardHtml({ kind, item }, index) {
-        const option = firstOption(kind, item);
-        return `<button type="button" class="stump-cube-result-card" onclick="stumpCubeUi.inspectCubeResult(${index})" style="--cube-tone:${itemTone(kind, item)}">`
-            + `${resultArtHtml(kind, item)}<span><strong>${esc(itemName(kind, item))}</strong>`
-            + `<span>${statToneText.html(candidateMeta(kind, item))}</span>${option ? `<span>${statToneText.html(option)}</span>` : ''}`
-            + '<small>결과 자세히 보기</small></span></button>';
-    }
-
-    function resultArtHtml(kind, item) {
-        if (kind === 'currency') {
-            const icon = ORB_DB[item.currency].icon;
-            return icon ? `<img src="${icon}" alt="" draggable="false">` : '';
-        }
-        return `<img src="${ICONS[kind](item)}" alt="" draggable="false">`;
-    }
-
-    function resultHtml() {
-        const result = currentResult();
-        if (!result) return '';
-        return `<section class="stump-cube-result" aria-label="${_t('최근 조합 결과')}"><h4>${_t('방금 만든 결과')}</h4>${result.outputs.map(resultCardHtml).join('')}</section>`;
-    }
-
-    function inspectCubeResult(index) {
-        const row = currentResult()?.outputs[index];
-        if (!row) return;
-        const { kind, item } = row;
-        const panel = selectionDialog.show({ id: 'stump-cube-result', title: _t('조합 결과'), panelClass: 'stump-cube-result-panel',
-            body: `<div class="stump-cube-material-head">${resultArtHtml(kind, item)}<span>${statToneText.html(candidateMeta(kind, item))}</span></div>`
-                + '<div class="stump-cube-material-options equipment-inspection-tooltip"></div><p class="selection-overlay-help">제작 직후의 결과입니다.</p>' });
-        renderItemDetails(panel.querySelector('.stump-cube-material-options'), kind, item, true);
-    }
-
-    /** Indices only address the rendered snapshot, never a newly reordered inventory. Insertion revalidates the same object. */
-    function selectCubeItem(index) {
-        const item = pickerItems[index];
-        if (!item || !stumpCube.candidates(pickerKind).includes(item)) {
-            showGameToast(_t('재료 상태가 바뀌었습니다. 다시 선택해 주세요.'), { tone: 'warning' });
-            return openCubePicker(pickerKind);
-        }
-        pickerSelection = { kind: pickerKind, item };
-        const panel = document.getElementById(OVERLAY_ID)?.querySelector('.selection-overlay-panel');
-        if (!panel) return;
-        panel.querySelectorAll('[data-cube-candidate]').forEach(button => {
-            const selected = Number(button.dataset.cubeCandidate) === index;
-            button.classList.toggle('is-selected', selected);
-            button.setAttribute('aria-pressed', String(selected));
-        });
-        renderMaterialDetail(panel);
-    }
-
-    function candidateHtml(kind, item, index) {
-        const name = itemName(kind, item), selected = pickerSelection?.item === item, option = firstOption(kind, item);
-        return `<button type="button" class="stump-cube-candidate${selected ? ' is-selected' : ''}" data-cube-candidate="${index}"`
-            + ` onclick="stumpCubeUi.selectCubeItem(${index})" ondblclick="stumpCubeUi.pickCubeItem()" aria-pressed="${selected}" style="--cube-tone:${itemTone(kind, item)}">`
-            + `<img src="${ICONS[kind](item)}" alt="" draggable="false"><span class="stump-cube-candidate-copy"><strong>${esc(name)}</strong>`
-            + `<span class="stump-cube-candidate-meta">${statToneText.html(candidateMeta(kind, item))}</span>`
-            + `${option ? `<span class="stump-cube-candidate-option">${statToneText.html(option)}</span>` : ''}</span></button>`;
-    }
-
-    /** A tab's count; currency counts its units. No currency, no tab (unless it is the one showing). */
-    const pickerCount = kind => (kind === 'wallet' ? stumpBox.walletTotal(game) : stumpCube.candidates(kind).length);
-    function pickerBodyHtml() {
-        const tabs = stumpCube.KINDS.filter(kind => kind !== 'wallet' || kind === pickerKind || pickerCount(kind) > 0)
-            .map(kind => `<button type="button" class="${kind === pickerKind ? 'is-on' : ''}" aria-pressed="${kind === pickerKind}"`
-            + ` onclick="stumpCubeUi.openCubePicker('${kind}')">${KIND_LABELS[kind]} ${pickerCount(kind)}</button>`).join('');
-        pickerItems = stumpCube.candidates(pickerKind);
-        if (pickerSelection && !pickerItems.includes(pickerSelection.item)) pickerSelection = null;
-        const list = pickerItems.map((item, index) => candidateHtml(pickerKind, item, index)).join('');
-        return `<div class="stump-cube-picker-tabs">${tabs}</div><div class="stump-cube-picker-layout">
-            <div class="stump-cube-candidates">${list || _t('<p class="selection-overlay-help">넣을 수 있는 아이템이 없습니다.</p>')}</div>
-            <section class="stump-cube-material-detail" aria-label="${_t('고른 재료 정보')}"></section></div>`;
-    }
-
-    /** Opens the picker, or redraws it in place (another kind, or after putting an item in). */
-    function openCubePicker(kind) {
-        if (!selectionDialog.isOpen(OVERLAY_ID) || (kind && kind !== pickerKind)) pickerSelection = null;
-        if (stumpCube.KINDS.includes(kind)) pickerKind = kind;
-        const panel = selectionDialog.show({ id: OVERLAY_ID, title: _t('조합창에 넣을 재료'), panelClass: 'stump-cube-picker-panel', body: pickerBodyHtml() });
-        renderMaterialDetail(panel);
-    }
-
-    function closeCubePicker() {
-        pickerSelection = null;
-        selectionDialog.close(OVERLAY_ID);
-    }
-
-    function refreshCube() {
-        if (selectionDialog.isOpen(OVERLAY_ID)) openCubePicker(pickerKind);
-        stumpBoxUi.refreshStumpTabNow();
-    }
-
-    function pickCubeItem() {
-        const selected = pickerSelection;
-        const usable = selected && stumpCube.candidates(selected.kind).includes(selected.item);
-        const reason = usable ? stumpCube.put(game, selected.kind, selected.item) : '재료 상태가 바뀌었습니다. 다시 선택해 주세요.';
-        if (reason) showGameToast(reason, { tone: 'warning' });
-        pickerSelection = null;
-        refreshCube();
-    }
-
-    // ── 칸 · 단추 동작(stump-box-ui.js의 클릭 위임에서) ───────────────────────
-    function takeOutCubeCell(cell) {
-        if (stumpCube.takeOut(game, cell)) refreshCube();
-    }
-    /** A cube item dragged onto another cell: moves there, or swaps with a same-size item sitting exactly there. */
-    function moveCubeItem(from, to) {
-        const reason = stumpCube.move(game, from, to);
-        if (reason) showGameToast(reason, { tone: 'warning' });
-        refreshCube();
-    }
-
-    /** A stored stump item into the cube: double-clicked in storage, or dropped on a cube cell (it goes there when it fits). */
-    function putStumpItem(id, cell) {
-        const item = stumpBox.itemById(game, id);
-        const reason = item ? stumpCube.put(game, 'stump', item, cell) : '재료 상태가 바뀌었습니다. 다시 선택해 주세요.';
-        if (reason) showGameToast(reason, { tone: 'warning' });
-        refreshCube();
-        return !reason;
-    }
-
-    /** One unit of currency into the cube (a press on the 재화 tab while the frame shows the cube). It stays in the wallet until a recipe spends it. */
-    function putWalletUnit(key) {
-        const piece = stumpCube.candidates('wallet').find(row => row.walletKey === key);
-        const reason = piece ? stumpCube.put(game, 'wallet', piece) : '조합창에 더 넣을 수 없습니다.';
-        if (reason) showGameToast(reason, { tone: 'warning' });
-        refreshCube();
-    }
-
-    function quickFillCube(recipeId) {
-        const reason = stumpCube.fillCubeRecipe(game, recipeId);
-        if (reason) showGameToast(reason, { tone: 'warning' });
-        refreshCube();
-    }
-
-    /** 틀 아래 단추(조합창): 맞는 조합법대로 조합한다. */
-    function transmuteCube() {
-        const result = stumpCube.transmute();
-        playUiFeedbackSound(result.ok ? 'craftSuccess' : 'craftFailure');
-        if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
-        lastResult = { state: game, season: game.season, outputs: JSON.parse(JSON.stringify(result.outputs)) };
-        const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
-        const paid = Object.entries(result.paid).map(([key, need]) => _t('{name} {need}개', { name: _t(ORB_DB[key].name), need })).join(', ');
-        addLog(_t('🧩 조합창 {recipe}: {names}{paid}', { recipe: _t(result.recipe.name), names, paid: paid ? ` ${_t('({cost} 사용)', { cost: paid })}` : '' }), 'loot-rare');
-        // 완전한 코어(js/core-items.js rollPerfect)는 드랍처럼 체이싱 티어 알림도
-        result.outputs.filter(row => row.kind === 'core' && row.item && row.item.perfect)
-            .forEach(row => dispatchRuntimeEvent('incident', { text: _t('체이싱 코어를 획득했습니다. 「{name}」', { name: row.item.name }), tone: 'chase', chase: true }));
-        queueImportantSave(300);
-        updateStaticUI();
-        refreshCube();
-    }
-
-    /** Bag gear into the cube (a drop on a cube cell, or a double-click while the frame shows the cube). @returns {boolean} true when the
-     * frame shows the cube (the bag then does nothing else with it), whether or not it went in. */
-    function putBagItem(item, cell) {
-        if (!stumpBoxUi.frameShowsCube()) return false;
-        const usable = stumpCube.candidates('equipment').includes(item);
-        const reason = usable ? stumpCube.put(game, 'equipment', item, cell) : '조합창에 넣을 수 없는 장비입니다.';
-        if (reason) showGameToast(reason, { tone: 'warning' });
-        refreshCube();
-        return true;
-    }
-
-    // ── 조합법 책(2026-10-29 사용자: 책 모양을 누르면 책이 화면에 커지면서 펼쳐지고 그 안에 쓰여 있게) ─────────────
-    // 그림은 PixelLab으로 그린 8장 띠(assets/ui/grove/recipe-book-open.png): 0~4 펼침(닫힌 책 → 펼친 두 쪽), 5~7 책장 넘김(오른쪽
-    // 쪽이 들림, 등 위에 섬, 왼쪽으로 내려옴). 닫힌 책이 단추 자리에서 화면 가운데로 커진 뒤 0~4가 넘어가며 펼쳐지고, 화살표를 누르면
-    // 5~7(앞 장은 7~5)이 넘어가며 장이 바뀌고, 닫으면 4~0으로 접혀 단추 자리로 돌아간다(2026-10-29 사용자). 글은 쪽마다 조합법을
-    // 통째로 담는다. 휴대폰은 오른쪽 한 쪽씩 본다. 움직임을 줄이는 설정이면 그림 없이 바로 바뀐다.
-    // bookOpening counts each open and close, so an opening still running when the book closes leaves the next opening alone.
-    let bookDialog = null, bookSpread = 0, bookOpening = 0, bookButton = null, bookTurning = null;
-    const BOOK_GROW_MS = 360, BOOK_FRAME_MS = 104, BOOK_STRIP = 8, BOOK_OPEN = [0, 1, 2, 3, 4], BOOK_TURN = [5, 6, 7, 4];
-    const bookCount = () => `${stumpCube.revealed(game).length}/${STUMP_CUBE_RECIPES.length}`;
-    const bookFramePos = frame => `${(frame / (BOOK_STRIP - 1)) * 100}%`;
-    const bookStill = () => uiDisplay.matches('(prefers-reduced-motion: reduce)') || !bookDialog.querySelector('.stump-book-art').animate;
-    /** Plays pictures of the strip one after another, each BOOK_FRAME_MS; the last one stays. */
-    function playBookFrames(frames) {
-        const keys = frames.map((frame, at) => ({ backgroundPositionX: bookFramePos(frame), offset: at / frames.length, easing: 'step-end' }));
-        keys.push({ backgroundPositionX: bookFramePos(frames[frames.length - 1]), offset: 1 });
-        return bookDialog.querySelector('.stump-book-art').animate(keys, { duration: frames.length * BOOK_FRAME_MS, fill: 'forwards' });
-    }
-    /** The closed book under the frame (both sides of the frame: the board's bottom gem merges by one of its recipes). */
-    function bookButtonHtml() {
-        return `<button type="button" class="stump-recipe-book" data-stump-action="recipe-book" aria-haspopup="dialog">`
-            + `<img src="assets/ui/grove/recipe-book.png" alt="" draggable="false"><span>${_t('조합법 {bookCount}', { bookCount: bookCount() })}</span></button>`;
-    }
-    function bookMarkup() {
-        return '<div class="stump-book-volume"><div class="stump-book-art" aria-hidden="true"></div><div class="stump-book-cover" aria-hidden="true"></div>'
-            + `<div class="stump-book-text"><div class="stump-book-flow">${recipeBookHtml()}</div></div>`
-            + '<button type="button" class="stump-book-turn is-prev" aria-label="앞 장" data-book-turn="-1">◀</button>'
-            + '<button type="button" class="stump-book-turn is-next" aria-label="다음 장" data-book-turn="1">▶</button>'
-            + '<button type="button" class="stump-book-close" aria-label="책 덮기" data-book-close>✕</button></div>';
-    }
-    function ensureBookDialog() {
-        if (bookDialog) return bookDialog;
-        bookDialog = document.createElement('dialog');
-        bookDialog.className = 'stump-book';
-        bookDialog.setAttribute('aria-label', _t('조합법'));
-        bookDialog.addEventListener('click', onBookClick);
-        bookDialog.addEventListener('cancel', event => { event.preventDefault(); closeRecipeBook(); });
-        document.body.appendChild(bookDialog);
-        return bookDialog;
-    }
-    function onBookClick(event) {
-        const turn = event.target.closest('[data-book-turn]');
-        if (turn) return turnBookPage(Number(turn.dataset.bookTurn));
-        if (event.target === bookDialog || event.target.closest('[data-book-close]')) closeRecipeBook();
-    }
-    /** How far one spread (two pages, or one on a phone) moves the text, and how many there are. The pages run on past the book
-     * (.stump-book-flow) and a turn shifts them, not scrolls: a scroll stops at the last page, so a last spread with one page of
-     * writing turned by one page and slid the right page over to the left. */
-    function bookSteps(flow) {
-        const gap = parseFloat(getComputedStyle(flow).columnGap) || 0, step = flow.clientWidth + gap;
-        return { step, count: Math.max(1, Math.ceil((flow.scrollWidth + gap) / step - 0.01)) };
-    }
-    /** A turn hides the writing, plays the page turning over (forward 5, 6, 7; back 7, 6, 5) and shows the next spread's writing. */
-    function turnBookPage(delta) {
-        const flow = bookDialog?.querySelector('.stump-book-flow');
-        if (!flow || bookTurning) return;
-        const { step, count } = bookSteps(flow);
-        const next = Math.max(0, Math.min(count - 1, bookSpread + delta));
-        const show = () => {
-            bookSpread = next;
-            flow.style.transform = `translateX(${-bookSpread * step}px)`;
-            markBookTurns(count);
-            bookDialog.classList.remove('is-turning');
-            bookTurning = null;
-        };
-        if (!delta || next === bookSpread || bookStill()) return show();
-        playUiFeedbackSound('uiSelect');
-        bookDialog.classList.add('is-turning');
-        bookTurning = playBookFrames(delta > 0 ? BOOK_TURN : [7, 6, 5, 4]);
-        bookTurning.finished.then(show, show);
-    }
-    /** Lays the recipes onto pages one whole recipe at a time (2026-10-29 사용자: 다음 쪽으로 잘리는 조합법은 미리 넘기고, 남는 공간은
-     * 가운데로). Each page is as high as the writing area; css/stump-box.css centres what a page holds. Needs the open dialog's layout. */
-    function paginateBook() {
-        const flow = bookDialog.querySelector('.stump-book-flow'), all = flow.querySelector('.stump-book-page');
-        const height = flow.clientHeight, gap = parseFloat(getComputedStyle(all).rowGap) || 0, pages = [];
-        let used = Infinity;
-        for (const row of [...all.children]) {
-            const h = row.offsetHeight;
-            if (used + gap + h > height) { pages.push([]); used = -gap; }
-            pages[pages.length - 1].push(row);
-            used += gap + h;
-        }
-        flow.replaceChildren(...pages.map(rows => {
-            const page = document.createElement('ul');
-            page.className = all.className;
-            page.append(...rows);
-            return page;
-        }));
-    }
-    function markBookTurns(count) {
-        bookDialog.querySelector('.is-prev').disabled = bookSpread === 0;
-        bookDialog.querySelector('.is-next').disabled = bookSpread >= count - 1;
-    }
-    function openRecipeBook(button) {
-        const dialog = ensureBookDialog();
-        dialog.innerHTML = bookMarkup();
-        bookSpread = 0;
-        bookOpening += 1;
-        bookTurning = null;
-        bookButton = button;
-        dialog.classList.remove('is-open', 'is-turning', 'is-closing');
-        dialog.classList.add('is-closed');
-        dialog.showModal();
-        playUiFeedbackSound('stumpFrameSwitch');
-        paginateBook();
-        turnBookPage(0);
-        if (bookStill()) return dialog.classList.replace('is-closed', 'is-open');
-        const opening = bookOpening;
-        flyBook(false).finished.then(() => {
-            if (opening !== bookOpening) return;
-            playBookFrames(BOOK_OPEN).finished.then(() => opening === bookOpening && bookDialog.classList.replace('is-closed', 'is-open'), () => {});
-        }, () => {});
-    }
-    /** The closed book of the first picture (.stump-book-cover marks it on the right half) flies between its button and its place:
-     * out from the button when opening, back into it when closing. A button gone from the page (the window redrew) is looked up again. */
-    function flyBook(back) {
-        const volume = bookDialog.querySelector('.stump-book-volume'), box = volume.getBoundingClientRect();
-        const button = bookButton?.isConnected ? bookButton : document.querySelector('#tab-stump .stump-recipe-book');
-        const from = button?.offsetParent ? (button.querySelector('img') || button) : null;
-        const cover = volume.querySelector('.stump-book-cover').getBoundingClientRect();
-        const start = from ? from.getBoundingClientRect() : { left: cover.left, top: cover.top, width: cover.width * 0.2, height: cover.height * 0.2 };
-        const scale = Math.max(0.05, start.width / cover.width);
-        const dx = start.left + start.width / 2 - (cover.left + cover.width / 2), dy = start.top + start.height / 2 - (cover.top + cover.height / 2);
-        const origin = `${cover.left + cover.width / 2 - box.left}px ${cover.top + cover.height / 2 - box.top}px`;
-        const away = { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, transformOrigin: origin, opacity: back ? 0 : 1 };
-        const home = { transform: 'translate(0, 0) scale(1)', transformOrigin: origin, opacity: 1 };
-        return volume.animate(back ? [home, away] : [away, home],
-            { duration: BOOK_GROW_MS, easing: back ? 'cubic-bezier(.6, 0, .8, .3)' : 'cubic-bezier(.2, .7, .2, 1)', fill: 'both' });
-    }
-    /** Closing runs the opening backwards: the writing goes, the pictures fold from 4 back to 0 and the closed book flies into its button. */
-    function closeRecipeBook() {
-        if (!bookDialog?.open || bookDialog.classList.contains('is-closing')) return;
-        bookOpening += 1;
-        const closing = bookOpening, done = () => {
-            if (closing !== bookOpening) return;
-            bookDialog.close();
-            bookDialog.classList.remove('is-open', 'is-closed', 'is-turning', 'is-closing');
-        };
-        if (bookStill()) return done();
-        bookTurning?.cancel();
-        bookTurning = null;
-        bookDialog.classList.remove('is-open', 'is-turning');
-        bookDialog.classList.add('is-closed', 'is-closing');
-        playBookFrames([...BOOK_OPEN].reverse()).finished.then(() => flyBook(true).finished.then(done, done), done);
-    }
-
-    // recipeToneHtml is also the ? rules card's colouring (js/stump-box-ui.js stumpRulesTipHtml), so stump words read the same everywhere.
-    return Object.freeze({ cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, moveCubeItem, transmuteCube,
-        recipeToneHtml,
-        putStumpItem, putWalletUnit, quickFillCube, putBagItem, bookButtonHtml, openRecipeBook });
+  });
+  safeExposeGlobals({ stumpCubeUi });
 })();
-safeExposeGlobals({ stumpCubeUi });

@@ -1,64 +1,60 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/background-build-cache*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/** The values of one equipment object. A stat read that masks disabled slots (combatEquipmentStats.read) swaps state.equipment
- * for the active gear while it reads, so the masked and the real gear each keep their own values. */
-function getEquipmentMemoValues(byEquipment, state) {
-    const key = state.equipment || state;
-    let values = byEquipment.get(key);
-    if (!values) byEquipment.set(key, values = new Map());
-    return values;
-}
+  // modules/domain/build-memo.mjs
+  function createBuildMemo(fields, parts) {
+    const background = /* @__PURE__ */ new WeakMap();
+    let pass = null;
+    const values = (byEquipment, state) => {
+      const key = state.equipment || state;
+      let memo2 = byEquipment.get(key);
+      if (!memo2) byEquipment.set(key, memo2 = /* @__PURE__ */ new Map());
+      return memo2;
+    };
+    const foreground = (state) => !pass || pass.owner !== state || !state.equipment ? null : values(pass.byEquipment, state);
+    const withinPass = (state, draw) => {
+      if (pass) return draw();
+      pass = { owner: state, byEquipment: /* @__PURE__ */ new WeakMap() };
+      try {
+        return draw();
+      } finally {
+        pass = null;
+      }
+    };
+    const signature = (state, includeInventory = false) => {
+      const inputs = fields.filter((key) => includeInventory || key !== "inventory").map((key) => state[key]);
+      Object.entries(parts).forEach(([key, names]) => inputs.push(names.map((name) => state[key]?.[name])));
+      return JSON.stringify(inputs, (key, value) => ["locked", "exp", "xp", "uniqueBaseLegacy"].includes(key) ? void 0 : value);
+    };
+    const read = (state) => {
+      if (!state.isBackgroundCalculation) return foreground(state);
+      const revision = [
+        state.loopKills,
+        state.loopDeaths,
+        state.level,
+        state.season,
+        state.maxZoneId,
+        state.currentZoneId,
+        state.passives,
+        state.actRewardBonuses?.length,
+        state.journalBonuses?.length
+      ];
+      let memo2 = background.get(state);
+      if (!memo2 || revision.some((value, index) => value !== memo2.revision[index])) {
+        memo2 = { revision, byEquipment: /* @__PURE__ */ new WeakMap() };
+        background.set(state, memo2);
+      }
+      return values(memo2.byEquipment, state);
+    };
+    return Object.freeze({ withinPass, signature, read, clear: (state) => background.delete(state) });
+  }
 
-function getBuildMemoPassValues(state) {
-    if (!buildMemoPass || buildMemoPass.owner !== state || !state.equipment) return null;
-    return getEquipmentMemoValues(buildMemoPass.byEquipment, state);
-}
-
-/** Runs draw with the build memo on for game (foreground only; nested calls join the outer pass). @returns what draw returns. */
-function withBuildMemoPass(draw) {
-    if (buildMemoPass) return draw();
-    buildMemoPass = { owner: game, byEquipment: new WeakMap() };
-    try { return draw(); } finally { buildMemoPass = null; }
-}
-
-function getPersistentBuildSignature(owner, includeInventory = false) {
-    const inputs = BUILD_STAT_FIELDS.filter(key => includeInventory || key !== 'inventory').map(key => owner[key]);
-    Object.entries(BUILD_STAT_PARTS).forEach(([key, fields]) => inputs.push(fields.map(field => owner[key]?.[field])));
-    return JSON.stringify(inputs, (key, value) => ['locked', 'exp', 'xp', 'uniqueBaseLegacy'].includes(key) ? undefined : value);
-}
-
-/**
- * Replay owns an isolated snapshot: equipment/board/passive selections cannot be edited between
- * kills, level-ups, defeats and map transitions. Only static build inputs are cached.
- * Reward-list growth also invalidates during a kill's reward processing. Weak keys
- * prevent retention after settlement; foreground evaluations always read fresh inputs.
- * @param {typeof defaultGame} state
- * @returns {Map<string, unknown>|null}
- */
-function getBackgroundBuildMemo(state) {
-    if (!state.isBackgroundCalculation) return getBuildMemoPassValues(state);
-    // Not the equipment reference: the disabled-slot mask swaps it on every stat read, and each swap emptied the memo (an
-    // endgame build with one disabled slot settled at about half speed, 2026-10-25). New gear gets its own values instead.
-    const revision = [state.loopKills, state.loopDeaths, state.level, state.season, state.maxZoneId,
-        state.currentZoneId, state.passives, state.actRewardBonuses?.length, state.journalBonuses?.length];
-    let memo = backgroundBuildMemos.get(state);
-    if (!memo || revision.some((value, index) => value !== memo.revision[index])) {
-        memo = { revision, byEquipment: new WeakMap() };
-        backgroundBuildMemos.set(state, memo);
-    }
-    return getEquipmentMemoValues(memo.byEquipment, state);
-}
-
-/** Drops every kept value of a settlement state, the masked gear's too (after a kill or a projected cycle). */
-function clearBackgroundBuildMemo(state) {
-    backgroundBuildMemos.delete(state);
-}
-
-exposeFileGlobals({ withBuildMemoPass, getPersistentBuildSignature, getBackgroundBuildMemo, clearBackgroundBuildMemo });
+  // modules/background-build-cache-classic.mjs
+  var memo = createBuildMemo(BUILD_STAT_FIELDS, BUILD_STAT_PARTS);
+  var withBuildMemoPass = (draw) => memo.withinPass(game, draw);
+  var getPersistentBuildSignature = (owner, includeInventory = false) => memo.signature(owner, includeInventory);
+  var getBackgroundBuildMemo = (state) => memo.read(state);
+  var clearBackgroundBuildMemo = (state) => {
+    memo.clear(state);
+  };
+  safeExposeGlobals({ withBuildMemoPass, getPersistentBuildSignature, getBackgroundBuildMemo, clearBackgroundBuildMemo });
 })();
-const backgroundBuildMemos = new WeakMap();
-
-
-// One synchronous screen draw shares the same build memo (withBuildMemoPass): the rune screen recounted the jewel and unique gem
-// levels for each of ~140 rune cards, 290 ms a draw (2026-10-25). Nothing edits the build while it draws.
-let buildMemoPass = null;

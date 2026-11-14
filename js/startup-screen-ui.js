@@ -1,255 +1,436 @@
-// 시작 화면과 불러오는 화면(2026-11-10에 js/ui.js에서 그대로 옮겼다): 시작 화면을 열고 닫기, 불러오는 막대, 저장 요약 카드와 상태 줄
-// (updateStartupScreenUI). 계정과 서버 저장은 js/cloud-save-ui.js.
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/startup-screen-ui*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function isStartupOverlayOpen() {
-    return !!startupOverlayActive;
-}
+  // modules/browser/window-methods.mjs
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
 
-function setStartupOverlayActive(active) {
-    startupOverlayActive = !!active;
-    document.body.classList.toggle('startup-active', startupOverlayActive);
-    let overlay = document.getElementById('startup-overlay');
-    if (!overlay) return;
-    overlay.classList.toggle('active', startupOverlayActive);
-    if (startupOverlayActive) {
-        overlay.scrollTop = 0;
-        if (gameLoopFrameHandle !== null) cancelAnimationFrame(gameLoopFrameHandle);
-        gameLoopFrameHandle = null;
-    } else {
-        scheduleGameLoop();
-        if (typeof showNextTutorial === 'function') setTimeout(showNextTutorial, 0);
+  // modules/ui/startup-save-card.mjs
+  var saveStamp = (save) => save?.saveMeta?.lastModifiedAt || 0;
+  var StartupSaveCard = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.preview = null;
     }
-    startMobilePipRefreshLoop();
-    dispatchRuntimeEvent('startup-visibility', {active:startupOverlayActive});
-}
-
-function setLoadingOverlayState(active, options = {}) {
-    let overlay = document.getElementById('loading-overlay');
-    if (!overlay) return;
-    let titleEl = document.getElementById('loading-title');
-    let detailEl = document.getElementById('loading-detail');
-    let captionEl = document.getElementById('loading-caption');
-    let barEl = document.getElementById('loading-bar-fill');
-    if (!active) {
-        overlay.classList.remove('active');
-        document.body.classList.remove('loading-active');
-        loadingOverlayProgress = 0;
-        if (barEl) { barEl.style.width = '0%'; barEl.parentElement.setAttribute('aria-valuenow', '0'); }
-        if (typeof showNextTutorial === 'function') setTimeout(showNextTutorial, 0);
-        return;
+    shown() {
+      const account = this.deps.getSaveSlot().kind === "account", userId = this.deps.cloudState.user?.id;
+      if (account || !userId) {
+        this.preview = null;
+        return { account, preview: false, save: this.deps.game };
+      }
+      if (!this.preview || this.preview.userId !== userId) this.preview = { userId, save: this.deps.readAccountSaveCopy(userId) };
+      return { account: true, preview: true, save: this.preview.save };
     }
-    loadingOverlayProgress = Math.max(0, Math.min(92, options.progress || 12));
-    if (titleEl) titleEl.innerText = _t(options.title) || '차원을 정렬하는 중...';
-    if (detailEl) detailEl.innerText = options.detail || '세이브 상태를 점검하고 전장을 준비하고 있습니다.';
-    if (captionEl) captionEl.innerText = options.caption || 'Syncing Timeline';
-    if (barEl) { barEl.style.width = `${loadingOverlayProgress}%`; barEl.parentElement.setAttribute('aria-valuenow', String(Math.round(loadingOverlayProgress))); }
-    overlay.classList.add('active');
-    document.body.classList.add('loading-active');
-}
-
-function advanceLoadingOverlay(options = {}) {
-    let titleEl = document.getElementById('loading-title');
-    let detailEl = document.getElementById('loading-detail');
-    let captionEl = document.getElementById('loading-caption');
-    let barEl = document.getElementById('loading-bar-fill');
-    if (titleEl && options.title) titleEl.innerText = _t(options.title);
-    if (detailEl && options.detail) detailEl.innerText = options.detail;
-    if (captionEl && options.caption) captionEl.innerText = options.caption;
-    if (barEl && Number.isFinite(options.progress)) {
-        loadingOverlayProgress = Math.max(loadingOverlayProgress, options.progress);
-        barEl.style.width = `${loadingOverlayProgress}%`;
-        barEl.parentElement.setAttribute('aria-valuenow', String(Math.round(loadingOverlayProgress)));
+    emptyText(shown, hasSave) {
+      if (shown.preview) return "계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.";
+      if (!hasSave && !shown.account && this.deps.hasAccountSaveCopy()) return "이 기기에 로그인한 계정의 저장이 있습니다. 그 계정으로 로그인하면 이어서 할 수 있습니다.";
+      return null;
     }
-}
-
-async function finishLoadingOverlay() {
-    advanceLoadingOverlay({
-        progress: 100,
-        title: _t('전장을 여는 중...'),
-        detail: _t('진입 준비를 마무리하고 있습니다.'),
-        caption: _t('전장 입장')
-    });
-    await new Promise(resolve => setTimeout(resolve, 320));
-    setLoadingOverlayState(false);
-}
-
-function openStartupGate(options = {}) {
-    setStartupRegistrationMode(false);
-    if (options.accountOnly && cloudState.user) setCloudMessage(_t('계정 화면을 열었습니다. 다른 계정을 쓰려면 "다른 계정 사용"을 눌러주세요.'));
-    else if (options.accountOnly && !cloudState.user) setCloudMessage(_t('계정 화면을 열었습니다. 로그인하거나 회원가입할 수 있습니다.'));
-    else setCloudMessage(_t('시작 화면을 다시 열었습니다.'));
-    setStartupOverlayActive(true);
-    updateCloudSaveUI();
-}
-
-/** The card's one line for a save: level, loop and the zone it was in. */
-function renderStartupSaveSummary(el, save) {
-    if (!el) return;
-    const current = save || {};
-    const zone = getZone(current.currentZoneId) || { name: '액트 1: 버려진 해안' };
-    const loopLabel = Math.max(1, Math.floor(current.season || 1));
-    const act = getStoryActByZoneId(zone.id);
-    const floors = { underworld: '지하계 {floor}층', skyTower: '창공의 탑 {floor}층', chaosRealm: '혼돈계 {floor}층' };
-    const zoneLabel = act ? `${formatStoryActLabel(act)}: ${_t(act.title)}` : _t(floors[zone.type] || zone.name, { floor: zone.floor });
-    el.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: current.level || 1, loopLabel, zoneLabel });
-}
-
-function startupSaveStamp(save) {
-    return (save && save.saveMeta && save.saveMeta.lastModifiedAt) || 0;
-}
-
-function startupShownSave() {
-    const account = getSaveSlot().kind === 'account', userId = cloudState.user && cloudState.user.id;
-    if (account || !userId) {
-        startupAccountPreview = null;   // 계정에 들어가 놀았다면 다음 미리보기는 그 뒤의 사본을 다시 읽는다
-        return { account, preview: false, save: game };
-    }
-    if (!startupAccountPreview || startupAccountPreview.userId !== userId) startupAccountPreview = { userId, save: readAccountSaveCopy(userId) };
-    return { account: true, preview: true, save: startupAccountPreview.save };
-}
-
-function getStartupStatusText() {
-    const message = cloudState.lastMessage || '';
-    return STARTUP_IDLE_MESSAGES.has(message) ? '' : message;
-}
-
-/** The summary card and the guest button. In the guest slot (boot, or after leaving an account) the card is this device's guest save:
- * with a save the guest button says "이어하기" (else "게스트로 시작"), without one the card says "새 모험" and shows no grid (a first visitor
- * is not shown Lv.1, 루프 1, 마지막 저장 없음). The gate reopened from an account shows the account save instead, and the guest button
- * follows the guest save noted at the account entry (cloudState.guestSaveSummary). */
-function renderStartupLocalSave(timeEl, guestBtn, shown) {
-    const stamp = startupSaveStamp(shown.save);
-    const card = startupSaveCardState(shown, stamp);
-    if (timeEl) timeEl.innerText = formatCloudTime(stamp);
-    if (guestBtn) guestBtn.textContent = _t(card.hasGuestSave ? '이 기기 저장으로 이어하기' : '게스트로 시작');
-    const cardEl = document.querySelector('.startup-summary-card');
-    if (!cardEl) return;
-    cardEl.querySelector('.startup-summary-grid').hidden = !card.hasSave;
-    const blocked = shown.preview ? null : getStartupBlockedSaveNotice(getLocalSaveStatus());   // 그 알림은 지금 불러온 칸의 것이다
-    renderStartupSaveHint(cardEl.querySelector('.startup-summary-hint'), card.hasSave, blocked && blocked.hint, card.emptyText && _t(card.emptyText));
-    cardEl.querySelector('.startup-summary-title').textContent = blocked ? blocked.title : _t(card.title);
-}
-
-/** What the summary card and the guest button show (renderStartupLocalSave). In the preview the page still holds the guest slot, so
- * the guest button follows the loaded game; with no copy of the account on this device the card says the entry fetches it. */
-function startupSaveCardState(shown, stamp) {
-    const guestStamp = startupSaveStamp(game);
-    const hasSave = shown.preview ? !!shown.save : (shown.account || stamp > 0);
-    return {
+    state(shown, stamp) {
+      const guestStamp = saveStamp(this.deps.game);
+      const hasSave = shown.preview ? !!shown.save : shown.account || stamp > 0;
+      return {
         hasSave,
-        hasGuestSave: shown.preview ? guestStamp > 0 : (shown.account ? !!cloudState.guestSaveSummary : hasSave),
-        title: shown.account ? '계정 저장' : (hasSave ? '이 기기 저장' : '새 모험'),
-        emptyText: startupEmptyText(shown, hasSave)
-    };
-}
-
-/** The line under an empty card, or null for the card's own line (index.html): in the preview the entry fetches the server save; signed
- * out on an empty guest slot with an account's copy on this device (js/save.js hasAccountSaveCopy), that logging in continues it. */
-function startupEmptyText(shown, hasSave) {
-    if (shown.preview) return '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.';
-    if (!hasSave && !shown.account && hasAccountSaveCopy()) return '이 기기에 로그인한 계정의 저장이 있습니다. 그 계정으로 로그인하면 이어서 할 수 있습니다.';
-    return null;
-}
-
-/** 이 기기 저장을 쓸 수 없어 멈춘 경우의 제목과 안내(js/save.js loadGame): 읽지 못한 저장(corrupt, 원래 저장은 따로 보관한다)과
- * 더 새 판의 게임이 남긴 저장(newer-build, 2026-10-28: 그 판에서 열도록 그대로 둔다). 그 밖에는 null. */
-function getStartupBlockedSaveNotice(status) {
-    if (status.status === 'corrupt') return { title: _t('저장을 읽지 못했습니다'), hint: _t('저장을 읽지 못해 원래 저장을 따로 보관했습니다. 이대로 시작하면 진행이 저장되지 않습니다.') };
-    if (status.status === 'newer-build') return { title: _t('새 버전의 저장입니다'), hint: _t('{message} 이대로 시작하면 진행이 저장되지 않습니다.', { message: status.message }) };
-    return null;
-}
-
-/** 요약 칸 아래 한 줄. 이 기기 저장을 쓸 수 없으면(warning) "저장된 모험이 없습니다" 대신 그 까닭을 알린다(2026-10-27: 새 모험으로 보여
- * 시작한 진행이 말없이 저장되지 않았다). */
-function renderStartupSaveHint(hint, hasSave, warning, emptyText) {
-    if (!hint) return;
-    hint.dataset.emptyText ??= hint.textContent;
-    hint.textContent = warning || emptyText || hint.dataset.emptyText;
-    hint.classList.toggle('is-warning', !!warning);
-    hint.hidden = hasSave && !warning;
-}
-
-function updateStartupScreenUI() {
-    let overlay = document.getElementById('startup-overlay');
-    if (!overlay) return;
-    let config = getCloudConfig();
-    let localSummaryEl = document.getElementById('startup-local-summary');
-    let localTimeEl = document.getElementById('startup-local-time');
-    let statusEl = document.getElementById('startup-status');
-    let authFormEl = document.getElementById('startup-auth-form');
-    let authActionsEl = document.getElementById('startup-auth-actions');
-    let socialActionsEl = document.getElementById('startup-social-login');
-    let continueBtn = document.getElementById('btn-startup-continue');
-    let switchBtn = document.getElementById('btn-startup-switch-account');
-    let guestBtn = document.getElementById('btn-startup-guest');
-    let backBtn = document.getElementById('btn-startup-back');
-    let loginBtn = document.getElementById('btn-startup-login');
-    let signupBtn = document.getElementById('btn-startup-signup');
-    let resendBtn = document.getElementById('btn-startup-resend-confirmation');
-    let googleBtn = document.getElementById('btn-startup-google');
-    let kakaoBtn = document.getElementById('btn-startup-kakao');
-    const shown = startupShownSave();
-    renderStartupSaveSummary(localSummaryEl, shown.save);
-    renderStartupLocalSave(localTimeEl, guestBtn, shown);
-    if (statusEl) statusEl.textContent = getStartupStatusText();
-    if (backBtn) {
-        backBtn.style.display = gameplayStarted ? 'block' : 'none';
-        backBtn.disabled = cloudState.busy;
+        hasGuestSave: shown.preview ? guestStamp > 0 : shown.account ? !!this.deps.cloudState.guestSaveSummary : hasSave,
+        title: shown.account ? "계정 저장" : hasSave ? "이 기기 저장" : "새 모험",
+        emptyText: this.emptyText(shown, hasSave)
+      };
     }
+    blocked(status) {
+      const t = this.deps._t;
+      if (status.status === "corrupt") return { title: t("저장을 읽지 못했습니다"), hint: t("저장을 읽지 못해 원래 저장을 따로 보관했습니다. 이대로 시작하면 진행이 저장되지 않습니다.") };
+      if (status.status === "newer-build") return { title: t("새 버전의 저장입니다"), hint: t("{message} 이대로 시작하면 진행이 저장되지 않습니다.", { message: status.message }) };
+      return null;
+    }
+    summary(el, save) {
+      if (!el) return;
+      const current = save || {}, t = this.deps._t;
+      const zone = this.deps.getZone(current.currentZoneId) || { name: "액트 1: 버려진 해안" };
+      const loopLabel = Math.max(1, Math.floor(current.season || 1)), act = this.deps.getStoryActByZoneId(zone.id);
+      const floors = { underworld: "지하계 {floor}층", skyTower: "창공의 탑 {floor}층", chaosRealm: "혼돈계 {floor}층" };
+      const zoneLabel = act ? `${this.deps.formatStoryActLabel(act)}: ${t(act.title)}` : t(floors[zone.type] || zone.name, { floor: zone.floor });
+      el.innerText = t("Lv.{level}, 루프 {loopLabel}, {zoneLabel}", { level: current.level || 1, loopLabel, zoneLabel });
+    }
+    hint(el, hasSave, warning, emptyText) {
+      var _a;
+      if (!el) return;
+      (_a = el.dataset).emptyText ?? (_a.emptyText = el.textContent);
+      el.textContent = warning || emptyText || el.dataset.emptyText;
+      el.classList.toggle("is-warning", !!warning);
+      el.hidden = hasSave && !warning;
+    }
+    render(shown) {
+      const document2 = this.deps.document, t = this.deps._t;
+      this.summary(document2.getElementById("startup-local-summary"), shown.save);
+      const stamp = saveStamp(shown.save), state = this.state(shown, stamp);
+      const time = document2.getElementById("startup-local-time"), guest = document2.getElementById("btn-startup-guest");
+      if (time) time.innerText = this.deps.formatCloudTime(stamp);
+      if (guest) guest.textContent = t(state.hasGuestSave ? "이 기기 저장으로 이어하기" : "게스트로 시작");
+      const card = document2.querySelector(".startup-summary-card");
+      if (!card) return;
+      card.querySelector(".startup-summary-grid").hidden = !state.hasSave;
+      const blocked = shown.preview ? null : this.blocked(this.deps.getLocalSaveStatus());
+      this.hint(card.querySelector(".startup-summary-hint"), state.hasSave, blocked?.hint, state.emptyText && t(state.emptyText));
+      card.querySelector(".startup-summary-title").textContent = blocked ? blocked.title : t(state.title);
+    }
+    dispose() {
+      this.preview = null;
+    }
+  };
 
-    if (!config.enabled) {
-        if (authFormEl) authFormEl.classList.remove('hidden');
-        if (authActionsEl) authActionsEl.style.display = 'grid';
-        if (socialActionsEl) socialActionsEl.style.display = '';
-        if (continueBtn) continueBtn.style.display = 'none';
-        if (switchBtn) switchBtn.style.display = 'none';
-        if (loginBtn) loginBtn.disabled = true;
-        if (signupBtn) signupBtn.disabled = true;
-        if (resendBtn) resendBtn.disabled = true;
-        if (googleBtn) googleBtn.disabled = true;
-        if (kakaoBtn) kakaoBtn.disabled = true;
-        if (guestBtn) guestBtn.disabled = false;
+  // modules/ui/startup-screen.mjs
+  var IDLE_MESSAGES = /* @__PURE__ */ new Set(["설정 전", "로그인하면 클라우드 저장을 사용할 수 있습니다.", "시작 화면을 다시 열었습니다."]);
+  var StartupScreen = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.card = new StartupSaveCard(deps);
+      this.active = true;
+      this.progress = 0;
+      this.timers = /* @__PURE__ */ new Map();
+    }
+    element(id) {
+      return this.deps.document.getElementById(id);
+    }
+    tutorialLater() {
+      if (!this.active || typeof this.deps.showNextTutorial !== "function") return;
+      const handle = this.deps.setTimeout(() => {
+        this.timers.delete(handle);
+        if (this.active) this.deps.showNextTutorial();
+      }, 0);
+      this.timers.set(handle, null);
+    }
+    setGate(active) {
+      if (!this.active) return;
+      this.deps.startupActive = !!active;
+      this.deps.document.body.classList.toggle("startup-active", this.deps.startupActive);
+      const overlay = this.element("startup-overlay");
+      if (!overlay) return;
+      overlay.classList.toggle("active", this.deps.startupActive);
+      if (this.deps.startupActive) {
+        overlay.scrollTop = 0;
+        this.deps.presentation.stopGameLoop();
+      } else {
+        this.deps.presentation.scheduleGameLoop();
+        this.tutorialLater();
+      }
+      this.deps.presentation.startMobilePipRefreshLoop();
+      this.deps.dispatchRuntimeEvent("startup-visibility", { active: this.deps.startupActive });
+    }
+    bar(progress) {
+      const bar = this.element("loading-bar-fill");
+      if (!bar) return;
+      bar.style.width = `${progress}%`;
+      bar.parentElement.setAttribute("aria-valuenow", String(Math.round(progress)));
+    }
+    loadingText(options) {
+      for (const key of ["title", "detail", "caption"]) {
+        const element = this.element(`loading-${key}`);
+        if (element && options[key]) element.innerText = key === "title" ? this.deps._t(options[key]) : options[key];
+      }
+    }
+    setLoading(active, options = {}) {
+      if (!this.active) return;
+      const overlay = this.element("loading-overlay");
+      if (!overlay) return;
+      if (!active) {
+        overlay.classList.remove("active");
+        this.deps.document.body.classList.remove("loading-active");
+        this.progress = 0;
+        this.bar(0);
+        this.tutorialLater();
         return;
+      }
+      this.progress = Math.max(0, Math.min(92, options.progress || 12));
+      this.loadingText({
+        title: options.title || "차원을 정렬하는 중...",
+        detail: options.detail || "세이브 상태를 점검하고 전장을 준비하고 있습니다.",
+        caption: options.caption || "Syncing Timeline"
+      });
+      this.bar(this.progress);
+      overlay.classList.add("active");
+      this.deps.document.body.classList.add("loading-active");
     }
-
-    if (cloudState.user) {
-        if (authFormEl) authFormEl.classList.add('hidden');
-        if (authActionsEl) authActionsEl.style.display = 'none';
-        if (socialActionsEl) socialActionsEl.style.display = 'none';
-        if (continueBtn) {
-            continueBtn.style.display = 'block';
-            continueBtn.disabled = cloudState.busy;
-        }
-        if (switchBtn) {
-            switchBtn.style.display = 'block';
-            switchBtn.disabled = cloudState.busy;
-        }
-        if (guestBtn) guestBtn.disabled = cloudState.busy;
+    advance(options = {}) {
+      if (!this.active) return;
+      this.loadingText(options);
+      if (this.element("loading-bar-fill") && Number.isFinite(options.progress)) {
+        this.progress = Math.max(this.progress, options.progress);
+        this.bar(this.progress);
+      }
+    }
+    startBattleAssetLoadNow() {
+      if (!this.active || this.deps.startupActive && !this.deps.isLoadingOverlayOpen()) return Promise.resolve(false);
+      this.deps.window.__battleAssetAutoloadEnabled = true;
+      return this.deps.initBattleAssets();
+    }
+    async ensureBattleAssetsLoadedBeforeEntry() {
+      if (!this.active) return false;
+      if (this.deps.battleAssets.ready) return true;
+      const owner = this.deps.game, epoch = this.deps.cloudState.sessionEpoch;
+      this.advance({
+        title: this.deps._t("전장을 준비하는 중..."),
+        detail: this.deps._t("첫 전투에 필요한 그림을 불러오고 있습니다."),
+        caption: this.deps._t("전투 그림 불러오기"),
+        progress: 56
+      });
+      const result = await this.waitForBattleAssets();
+      if (!this.active || this.deps.game !== owner || this.deps.cloudState.sessionEpoch !== epoch) return false;
+      this.advance({
+        progress: 92,
+        detail: result ? this.deps._t("전장 준비를 마쳤습니다.") : this.deps._t("일부 그림을 불러오지 못해 기본 그림으로 준비합니다."),
+        caption: result ? this.deps._t("준비 완료") : this.deps._t("기본 그림 사용")
+      });
+      return result;
+    }
+    async waitForBattleAssets() {
+      let timeout;
+      try {
+        return await Promise.race([this.startBattleAssetLoadNow(), new Promise((resolve) => {
+          timeout = this.deps.setTimeout(() => {
+            this.deps.console.warn("battle asset entry wait timed out; images continue loading");
+            resolve(false);
+          }, 3e4);
+          this.timers.set(timeout, () => resolve(false));
+        })]);
+      } catch (error) {
+        this.deps.console.warn("battle asset preload failed:", error);
+        return false;
+      } finally {
+        this.deps.clearTimeout(timeout);
+        this.timers.delete(timeout);
+      }
+    }
+    reportFatalError(stage, error) {
+      this.deps.console.error(stage + " failed:", error);
+      if (!this.active) return;
+      if (stage === "runtime") {
+        if (typeof this.deps.addLog === "function") this.deps.addLog(
+          this.deps._t("⚠️ 일시적인 오류가 있었습니다. 반복되면 새로고침해 주세요."),
+          "attack-monster",
+          { rateKey: "runtime-error", minIntervalMs: 6e4 }
+        );
         return;
+      }
+      try {
+        this.showStartFailure(error);
+      } catch (uiError) {
+        this.deps.console.error("fatal error UI update failed:", uiError);
+      }
     }
+    showStartFailure(error) {
+      const message = String(error && error.message || error);
+      const stack = String(error && error.stack || "").split("\n").slice(0, 4).join("\n");
+      for (const [id, text] of [["ui-progress-label", "⚠️ 오류"], ["ui-move-time-text", "시작 실패"], ["ui-battlefield-caption", "게임을 시작하지 못했습니다. 새로고침해 주세요."]]) {
+        const node = this.element(id);
+        if (node) node.innerText = text;
+      }
+      const log = this.element("log");
+      if (!log) return;
+      const detail = stack ? `<details><summary>${this.deps._t("자세히")}</summary><pre style="white-space:pre-wrap;margin:6px 0 0;color:#ff9f9f;font-size:12px;">${this.deps.escapeHTML(stack)}</pre></details>` : "";
+      log.innerHTML = `<div class="log-item attack-monster">${this.deps._t("⚠️ 게임을 시작하지 못했습니다: {message}{detail}", { message: this.deps.escapeHTML(message), detail })}</div>`;
+    }
+    async finish() {
+      if (!this.active) return;
+      this.advance({
+        progress: 100,
+        title: this.deps._t("전장을 여는 중..."),
+        detail: this.deps._t("진입 준비를 마무리하고 있습니다."),
+        caption: this.deps._t("전장 입장")
+      });
+      await new Promise((resolve) => {
+        const handle = this.deps.setTimeout(() => {
+          this.timers.delete(handle);
+          resolve();
+        }, 320);
+        this.timers.set(handle, resolve);
+      });
+      if (this.active) this.setLoading(false);
+    }
+    open(options = {}) {
+      if (!this.active) return;
+      this.deps.setStartupRegistrationMode(false);
+      let message = "시작 화면을 다시 열었습니다.";
+      if (options.accountOnly) message = this.deps.cloudState.user ? '계정 화면을 열었습니다. 다른 계정을 쓰려면 "다른 계정 사용"을 눌러주세요.' : "계정 화면을 열었습니다. 로그인하거나 회원가입할 수 있습니다.";
+      this.deps.setCloudMessage(this.deps._t(message));
+      this.setGate(true);
+      this.deps.updateCloudSaveUI();
+    }
+    accountControls(signedIn, busy) {
+      this.element("startup-auth-form")?.classList.toggle("hidden", signedIn);
+      for (const [id, shown] of [["startup-auth-actions", "grid"], ["startup-social-login", ""]]) {
+        const element = this.element(id);
+        if (element) element.style.display = signedIn ? "none" : shown;
+      }
+      for (const name of ["continue", "switch-account"]) {
+        const button = this.element(`btn-startup-${name}`);
+        if (button) {
+          button.style.display = signedIn ? "block" : "none";
+          if (signedIn) button.disabled = busy;
+        }
+      }
+    }
+    authControls(config) {
+      const signedIn = !!config.enabled && !!this.deps.cloudState.user, busy = this.deps.cloudState.busy;
+      this.accountControls(signedIn, busy);
+      if (!signedIn) for (const name of ["login", "signup", "resend-confirmation", "google", "kakao"]) {
+        const button = this.element(`btn-startup-${name}`);
+        if (button) button.disabled = config.enabled ? busy : true;
+      }
+      const guest = this.element("btn-startup-guest");
+      if (guest) guest.disabled = config.enabled ? busy : false;
+    }
+    render() {
+      if (!this.active || !this.element("startup-overlay")) return;
+      const config = this.deps.getCloudConfig();
+      this.card.render(this.card.shown());
+      const status = this.element("startup-status"), message = this.deps.cloudState.lastMessage || "";
+      if (status) status.textContent = IDLE_MESSAGES.has(message) ? "" : message;
+      const back = this.element("btn-startup-back");
+      if (back) {
+        back.style.display = this.deps.gameplayStarted ? "block" : "none";
+        back.disabled = this.deps.cloudState.busy;
+      }
+      this.authControls(config);
+    }
+    dispose() {
+      this.active = false;
+      for (const [handle, resolve] of this.timers) {
+        this.deps.clearTimeout(handle);
+        if (resolve) resolve();
+      }
+      this.timers.clear();
+      this.card.dispose();
+    }
+  };
+  function createStartupScreen(deps) {
+    const view = new StartupScreen(deps);
+    return Object.freeze({
+      isStartupOverlayOpen: () => !!deps.startupActive,
+      setStartupOverlayActive: view.setGate.bind(view),
+      setLoadingOverlayState: view.setLoading.bind(view),
+      advanceLoadingOverlay: view.advance.bind(view),
+      finishLoadingOverlay: view.finish.bind(view),
+      openStartupGate: view.open.bind(view),
+      startupShownSave: view.card.shown.bind(view.card),
+      startupSaveCardState: view.card.state.bind(view.card),
+      startupEmptyText: view.card.emptyText.bind(view.card),
+      startBattleAssetLoadNow: view.startBattleAssetLoadNow.bind(view),
+      ensureBattleAssetsLoadedBeforeEntry: view.ensureBattleAssetsLoadedBeforeEntry.bind(view),
+      reportFatalError: view.reportFatalError.bind(view),
+      updateStartupScreenUI: view.render.bind(view),
+      dispose: view.dispose.bind(view)
+    });
+  }
 
-    if (authFormEl) authFormEl.classList.remove('hidden');
-    if (authActionsEl) authActionsEl.style.display = 'grid';
-    if (socialActionsEl) socialActionsEl.style.display = '';
-    if (continueBtn) continueBtn.style.display = 'none';
-    if (switchBtn) switchBtn.style.display = 'none';
-    if (loginBtn) loginBtn.disabled = cloudState.busy;
-    if (signupBtn) signupBtn.disabled = cloudState.busy;
-    if (resendBtn) resendBtn.disabled = cloudState.busy;
-    if (googleBtn) googleBtn.disabled = cloudState.busy;
-    if (kakaoBtn) kakaoBtn.disabled = cloudState.busy;
-    if (guestBtn) guestBtn.disabled = cloudState.busy;
-}
-
-exposeFileGlobals({ isStartupOverlayOpen, setStartupOverlayActive, setLoadingOverlayState, advanceLoadingOverlay, finishLoadingOverlay, openStartupGate, startupShownSave, startupSaveCardState, startupEmptyText, updateStartupScreenUI });
+  // modules/startup-screen-ui-classic.mjs
+  var screen = createStartupScreen({
+    get window() {
+      return window;
+    },
+    get console() {
+      return console;
+    },
+    get battleAssets() {
+      return battleAssets;
+    },
+    get initBattleAssets() {
+      return initBattleAssets;
+    },
+    get isLoadingOverlayOpen() {
+      return isLoadingOverlayOpen;
+    },
+    get addLog() {
+      return typeof addLog === "function" ? addLog : void 0;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get document() {
+      return document;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get cloudState() {
+      return cloudState;
+    },
+    get startupActive() {
+      return startupOverlayActive;
+    },
+    set startupActive(value) {
+      startupOverlayActive = value;
+    },
+    get gameplayStarted() {
+      return gameplayStarted;
+    },
+    get presentation() {
+      return window.GameModules.battlePresentation;
+    },
+    get showNextTutorial() {
+      return typeof showNextTutorial === "function" ? showNextTutorial : void 0;
+    },
+    get _t() {
+      return _t;
+    },
+    get getSaveSlot() {
+      return getSaveSlot;
+    },
+    get readAccountSaveCopy() {
+      return readAccountSaveCopy;
+    },
+    get hasAccountSaveCopy() {
+      return hasAccountSaveCopy;
+    },
+    get getLocalSaveStatus() {
+      return getLocalSaveStatus;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get getStoryActByZoneId() {
+      return getStoryActByZoneId;
+    },
+    get formatStoryActLabel() {
+      return formatStoryActLabel;
+    },
+    get formatCloudTime() {
+      return formatCloudTime;
+    },
+    get getCloudConfig() {
+      return getCloudConfig;
+    },
+    get setStartupRegistrationMode() {
+      return setStartupRegistrationMode;
+    },
+    get setCloudMessage() {
+      return setCloudMessage;
+    },
+    get updateCloudSaveUI() {
+      return updateCloudSaveUI;
+    },
+    get dispatchRuntimeEvent() {
+      return dispatchRuntimeEvent;
+    },
+    get setTimeout() {
+      return windowSetTimeout;
+    },
+    get clearTimeout() {
+      return windowClearTimeout;
+    }
+  });
+  window.GameModules.startupScreen = screen;
+  safeExposeGlobals({
+    startBattleAssetLoadNow: screen.startBattleAssetLoadNow,
+    ensureBattleAssetsLoadedBeforeEntry: screen.ensureBattleAssetsLoadedBeforeEntry,
+    reportFatalError: screen.reportFatalError,
+    isStartupOverlayOpen: screen.isStartupOverlayOpen,
+    setStartupOverlayActive: screen.setStartupOverlayActive,
+    setLoadingOverlayState: screen.setLoadingOverlayState,
+    advanceLoadingOverlay: screen.advanceLoadingOverlay,
+    finishLoadingOverlay: screen.finishLoadingOverlay,
+    openStartupGate: screen.openStartupGate,
+    startupShownSave: screen.startupShownSave,
+    startupSaveCardState: screen.startupSaveCardState,
+    startupEmptyText: screen.startupEmptyText,
+    updateStartupScreenUI: screen.updateStartupScreenUI
+  });
 })();
-
-
-/** The save the card shows: the slot in use, or, while the page is still on the guest slot with an account signed in (a reload with a
- * social login, 2026-11-05 사용자: "이 기기 저장이 아니라 로그인 기준으로"), that account's copy on this device. The copy is read once
- * per account: nothing saves while the login screen shows, and entering the account switches the slot. */
-let startupAccountPreview = null;
-
-// 시작 화면에는 오류·진행 결과만 적는다. 가만히 있을 때의 안내("로그인하면 …")는 버튼만으로 충분하다.
-const STARTUP_IDLE_MESSAGES = new Set(['설정 전', '로그인하면 클라우드 저장을 사용할 수 있습니다.', '시작 화면을 다시 열었습니다.']);

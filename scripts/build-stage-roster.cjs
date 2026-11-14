@@ -35,6 +35,7 @@
  * 원본은 읽기만 한다. RGBA 8비트 PNG만 읽는다.
  */
 'use strict';
+const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -507,7 +508,7 @@ function rosterRowOf(actor, write, tail) {
 
 /** --refresh-motions: 지금 표에서 적은 외형의 걷기와 공격만 제작본으로 바꾼다(머리말). 이름, 걸음새, 떠 있는 높이는 motionBatch가 지금 줄에서 잇는다. */
 function refreshRosterMotions(dir, ids) {
-    const file = path.join(root, 'data/monster-stage-roster.js'), old = fs.readFileSync(file, 'utf8'), outDir = path.join(root, 'assets/enemies/roster');
+    const file = path.join(root, 'data/monster-stage-roster.js'), old = readDataSource(file), outDir = path.join(root, 'assets/enemies/roster');
     const rowPattern = /^ {8}\[['"]([^'"]+)['"].*$/gm, parsed = new Map(), stamp = crypto.createHash('sha1');
     // eslint-disable-next-line no-new-func -- 이 도구가 쓴 표의 한 줄(배열 글)이다
     for (const [line, id] of old.matchAll(rowPattern)) parsed.set(id, { line: line.replace(/\r$/, ''), row: new Function(`return ${line.trim().replace(/,$/, '')}`)() });
@@ -527,7 +528,7 @@ function refreshRosterMotions(dir, ids) {
     }
     if (done !== ids.length) throw new Error(`제작본에 없는 외형이 있습니다: ${done}/${ids.length}`);
     stamp.update(text.replace(/version: '[^']+'/, "version: 'content'"));
-    fs.writeFileSync(file, text.replace(/version: '[^']+'/, `version: '${stamp.digest('hex').slice(0, 10)}'`));
+    writeDataSource(file, text.replace(/version: '[^']+'/, `version: '${stamp.digest('hex').slice(0, 10)}'`));
     console.log(`걷기와 공격을 제작본으로 바꾼 외형 ${done}개`);
 }
 if (refreshMotions) {
@@ -628,7 +629,7 @@ ${rows.join(',\n')}
 
 safeExposeData({ MONSTER_STAGE_ROSTER });
 `;
-fs.writeFileSync(path.join(root, 'data/monster-stage-roster.js'), text);
+writeDataSource(path.join(root, 'data/monster-stage-roster.js'), text);
 // 이번에 쓰지 않은 걷기와 공격 그림(예: 공격 그림이 없어진 몬스터의 옛 공격)만 치운다. 폴더의 다른 파일은 건드리지 않는다.
 for (const folder of folders) for (const name of fs.readdirSync(folder)) {
     if (/-(walk|attack|death)\.png$/.test(name) && !written.has(name)) fs.unlinkSync(path.join(folder, name));

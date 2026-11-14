@@ -20,7 +20,7 @@ async function equipHelmetThroughInspector(page) {
         game.inventory = [helmet];
         switchTab('tab-items'); switchItemSubtab('item-tab-equip'); updateStaticUI();
     });
-    await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().queued && !window.GameModules.uiRuntime.status().running);
     await page.locator('#ui-inventory-list .equipment-grid-item').first().click();
     await page.locator('#ui-equipment-inventory-inspector').getByRole('button', { name: '장착', exact: true }).click();
     await expect.poll(() => page.evaluate(() => (game.equipment['투구'] || {}).baseId)).toBeTruthy();
@@ -33,7 +33,7 @@ async function spendPassiveOnTree(page) {
         game.passivePoints = 2; updateStaticUI();
     });
     await page.locator('#btn-tab-char').click();
-    await page.waitForFunction(() => passiveCameraInitialized && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => window.GameModules.passiveScene.state.passiveCameraInitialized && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.waitForTimeout(200);
     // The helmet queued the first gear guide (TUTORIAL_STARTER_GUIDES in js/tutorial-ui.js). When it opens depends on timing:
     // on a slow run it covers the tree and takes the node click. Close guide cards as the player's '확인' does.
@@ -42,6 +42,7 @@ async function spendPassiveOnTree(page) {
         const id = [...reachableNodes].find(nodeId => getPassiveActivationPath(nodeId).length === 1
             && PASSIVE_TREE.nodes[nodeId].kind !== 'attribute' && (PASSIVE_TREE.nodes[nodeId].effects || []).length > 0);
         const canvas = document.getElementById('tree-canvas'), rect = canvas.getBoundingClientRect();
+        const { passiveCanvasMetrics, camX, camY, camZoom } = window.GameModules.passiveScene.state;
         const viewW = passiveCanvasMetrics.width || rect.width, viewH = passiveCanvasMetrics.height || rect.height;
         const node = PASSIVE_TREE.nodes[id];
         return { id, x: rect.left + (viewW / 2 + camX + node.x * camZoom) * rect.width / viewW,
@@ -60,9 +61,9 @@ test('kept stats follow build edits made through the real UI', async ({ page }, 
     await page.locator('#btn-startup-guest').click();
     await expect(page.locator('#startup-overlay')).not.toHaveClass(/active/, { timeout: 30000 });
     if (await page.evaluate(() => !game.heroSelectionInitialized)) await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(code => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         (0, eval)(code);
     }, SHADOW);

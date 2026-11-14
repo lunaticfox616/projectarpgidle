@@ -8,7 +8,7 @@ async function openRealms(page) {
     await pickClass(page);
     await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/);
     await page.evaluate(()=>{
-        clearInterval(gameTickHandle);gameTickHandle=null;
+        window.GameModules.application.timers.stopCombat();
         game.level=100; game.season=50; game.combatHalted=true;
         game.seenTutorials=[...new Set([...game.seenTutorials,...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)])];
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id); contentProgression.sync();
@@ -23,7 +23,7 @@ async function openRealms(page) {
         switchCosmosInnerTab('route');
     });
     await page.waitForFunction(()=>{
-        if(uiRefreshQueued||uiRefreshRunning)return false;
+        if(window.GameModules.uiRuntime.status().queued||window.GameModules.uiRuntime.status().running)return false;
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;
     });
     // 지도 탭은 전체 탐험(세계 지도)으로 바로 열린다(2026-11-09): 예전의 전체 탐험 단추는 없다.

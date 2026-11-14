@@ -1,5 +1,9 @@
 # 설정과 화면 배율
 
+화면 배율의 현재 원본은 `modules/browser/display*.mjs`이고 `js/ui-display.js`는 생성 출력입니다.
+설정·화면 동작은 아래 계약을 유지하며, 초기화·종료와 저장 교체 시 연결은
+[ES module 브라우저 서비스 계약](../README.md#공용-계산과-브라우저-서비스)을 따릅니다.
+
 ## PSD 테 스킨 (2026-11-07)
 
 - 사용자의 `UI-UX_리그닝.psd`에서 뽑은 테 그림(`assets/ui/psd/`)을 PC 화면(`body.desktop-windowed-ui`)에만 입힌다.

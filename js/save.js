@@ -1,279 +1,109 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/save*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function normalizeCloudUploadProfile(profile) {
-    if (!profile || typeof profile !== 'object') return null;
+  // modules/browser/window-methods.mjs
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
+
+  // modules/persistence/save-values.mjs
+  var OUTDATED_BUILD_ERROR_CODE = "GAME_BUILD_OUTDATED";
+  function normalizeCloudUploadProfile(profile) {
+    if (!profile || typeof profile !== "object") return null;
     return {
-        at: Math.max(0, Math.floor(Number(profile.at) || 0)),
-        serializeMs: Math.max(0, Math.floor(Number(profile.serializeMs) || 0)),
-        uploadMs: Math.max(0, Math.floor(Number(profile.uploadMs) || 0)),
-        totalMs: Math.max(0, Math.floor(Number(profile.totalMs) || 0)),
-        payloadBytes: Math.max(0, Math.floor(Number(profile.payloadBytes) || 0))
+      at: Math.max(0, Math.floor(Number(profile.at) || 0)),
+      serializeMs: Math.max(0, Math.floor(Number(profile.serializeMs) || 0)),
+      uploadMs: Math.max(0, Math.floor(Number(profile.uploadMs) || 0)),
+      totalMs: Math.max(0, Math.floor(Number(profile.totalMs) || 0)),
+      payloadBytes: Math.max(0, Math.floor(Number(profile.payloadBytes) || 0))
     };
-}
-
-function accountSaveKey(userId) {
-    return `${ACCOUNT_SAVE_KEY_PREFIX}${userId}`;
-}
-
-/** Makes an account's slot (userId) or the guest slot (null) the one loadGame and persistLocalSave use. */
-function selectSaveSlot(userId) {
-    saveSlot.kind = userId ? 'account' : 'guest';
-    saveSlot.userId = userId || null;
-    saveSlot.key = userId ? accountSaveKey(userId) : LOCAL_SAVE_KEY;
-}
-
-function getSaveSlot() {
-    return { ...saveSlot };
-}
-
-/** The guest slot's save as parsed data, whichever slot is active; null when there is none or it cannot be read. */
-function readGuestSave() {
-    try {
-        const raw = localStorage.getItem(LOCAL_SAVE_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-        console.warn('guest save could not be read:', error);
-        return null;
-    }
-}
-
-/** An account's copy on this device (its slot) as parsed data, whichever slot is active; null when there is none or it cannot be read.
- * The login screen shows it for a signed-in account before the account is entered (js/startup-screen-ui.js startupShownSave). */
-function readAccountSaveCopy(userId) {
-    try {
-        const raw = userId ? localStorage.getItem(accountSaveKey(userId)) : null;
-        return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-        console.warn('account save copy could not be read:', error);
-        return null;
-    }
-}
-
-/** Whether some account's copy is on this device. The login screen says so over an empty guest slot (js/startup-screen-ui.js startupEmptyText), since
- * a signed-out player whose session ended, or whose pre-slot save moved out of the guest slot at boot (migrateOwnedGuestSave), otherwise
- * reads "저장된 모험이 없습니다" and takes the save for lost (2026-11-08). */
-function hasAccountSaveCopy() {
-    try {
-        return Object.keys(localStorage).some(key => key.startsWith(ACCOUNT_SAVE_KEY_PREFIX) && !key.includes('_corrupt_'));
-    } catch (error) {
-        console.warn('account save copies could not be listed:', error);
-        return false;
-    }
-}
-
-/** Removes the guest save (after it moved into an account), with its earlier key names and corrupt copies. */
-function removeGuestSave() {
-    const earlier = /^[a-z]{3}IdleSaveData_/i;
-    Object.keys(localStorage).filter(key => key === LOCAL_SAVE_KEY || earlier.test(key) || key.startsWith(`${LOCAL_SAVE_KEY}_corrupt_`))
-        .forEach(key => localStorage.removeItem(key));
-}
-
-/** Before the slots (2026-10-30) one key held whichever save was last played, so the guest slot may hold an account's save
- * (saveMeta.cloudUserId). Once, at boot: it moves into that account's slot (unless that slot already exists) and the guest slot
- * empties, so an account save never shows up as a guest save (which could be moved into another account). Returns the moved key or null. */
-function migrateOwnedGuestSave() {
-    try {
-        const raw = localStorage.getItem(LOCAL_SAVE_KEY);
-        const owner = raw ? JSON.parse(raw)?.saveMeta?.cloudUserId : null;
-        if (typeof owner !== 'string' || !owner.trim()) return null;
-        const key = accountSaveKey(owner);
-        if (!localStorage.getItem(key)) localStorage.setItem(key, raw);
-        localStorage.removeItem(LOCAL_SAVE_KEY);
-        return key;
-    } catch (error) {
-        console.warn('owned guest save migration skipped:', error);
-        return null;
-    }
-}
-
-function setLocalSaveRuntimeState(status, options = {}) {
-    localSaveRuntimeState.status = status;
-    localSaveRuntimeState.writable = options.writable !== false;
-    localSaveRuntimeState.sourceKey = options.sourceKey || null;
-    localSaveRuntimeState.backupKey = options.backupKey || null;
-    localSaveRuntimeState.message = options.message || '';
-}
-
-function getLocalSaveStatus() {
-    return { ...localSaveRuntimeState };
-}
-
-/** A game build stamp's time in ms, or 0 for anything else (no stamp, 'dev', a damaged value). */
-function gameBuildTime(stamp) {
-    const time = typeof stamp === 'string' ? Date.parse(stamp) : NaN;
+  }
+  function gameBuildTime(stamp) {
+    const time = typeof stamp === "string" ? Date.parse(stamp) : NaN;
     return Number.isFinite(time) && time > 0 ? time : 0;
-}
-
-/** Why this page must not take saveData (a device or cloud save) in, or null when it may: a later release wrote it, and may have
- * reshaped it or added things this release does not know, which loading here would drop and the next write would carry back
- * (2026-10-28: a store app trails the web by days). Everything is refused while this device's own save is from a later release
- * (loadGame 'newer-build'). The error's code is OUTDATED_BUILD_ERROR_CODE. */
-function outdatedBuildError(saveData) {
-    if (localSaveRuntimeState.status === 'newer-build') return outdatedBuildRefusal(localSaveRuntimeState.message);
-    return laterBuildSaveError(saveData);
-}
-
-/** The refusal for saveData written by a later release than this page's, or null; this device's save status is not read (loadGame). */
-function laterBuildSaveError(saveData) {
-    const saved = gameBuildTime(saveData?.saveMeta?.gameBuild), running = gameBuildTime(RUNNING_GAME_BUILD);
-    if (!running || !saved || saved <= running) return null;
-    return outdatedBuildRefusal(`이 저장은 더 새 버전의 게임(${formatCloudTime(saved)} 판)에서 저장됐습니다. 새로고침하거나 앱을 업데이트한 뒤 이어 하세요.`);
-}
-
-function outdatedBuildRefusal(message) {
+  }
+  function outdatedBuildRefusal(message) {
     return Object.assign(new Error(message), { code: OUTDATED_BUILD_ERROR_CODE });
-}
-
-/** Throws outdatedBuildError(saveData) when there is one. */
-function assertSaveFromKnownBuild(saveData) {
-    const refusal = outdatedBuildError(saveData);
-    if (refusal) throw refusal;
-}
-
-function canPersistLocalSave(options = {}) {
-    // A save from a later release is never written over, not even to repair it from the server (applyExternalSave).
-    const recovery = options.allowRecoveryWrite === true && localSaveRuntimeState.status !== 'newer-build';
-    return (localSaveRuntimeState.writable !== false || recovery) && !isTransientGameState(game)
-        && !(typeof backgroundCombatRuntime !== 'undefined' && (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed));
-}
-
-function readLocalSaveResult() {
-    try {
-        let save = localStorage.getItem(saveSlot.key);
-        if (save) return { status: 'ok', save, sourceKey: saveSlot.key };
-        for (const key of saveSlot.kind === 'guest' ? getLegacySaveKeys() : []) {
-            save = localStorage.getItem(key);
-            if (save) return { status: 'ok', save, sourceKey: key };
-        }
-        return { status: 'missing', save: null, sourceKey: null };
-    } catch (error) {
-        return { status: 'unavailable', save: null, sourceKey: null, error };
+  }
+  function cloudSavePrintSource(saveData) {
+    const stall = saveData.playerStall && typeof saveData.playerStall === "object" ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
+    return { ...saveData, saveMeta: null, talentCardRuntime: void 0, playerStall: stall };
+  }
+  function printOfSaveText(text) {
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+    return `${text.length}:${hash >>> 0}`;
+  }
+  function sortSaveKeys(key, value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.keys(value).sort().map((name) => [name, value[name]]));
+  }
+  function sanitizeForSave(value, seen = /* @__PURE__ */ new WeakSet()) {
+    if (value === null || value === void 0) return value;
+    if (isUnsupportedSaveValue(value)) return void 0;
+    if (typeof value !== "object") return sanitizeSavePrimitive(value);
+    if (seen.has(value)) return void 0;
+    seen.add(value);
+    if (Array.isArray(value)) {
+      let out2 = [];
+      for (let i = 0; i < value.length; i++) {
+        let v = sanitizeForSave(value[i], seen);
+        out2.push(v === void 0 ? null : v);
+      }
+      return out2;
     }
-}
+    let out = {};
+    Object.keys(value).forEach((key) => {
+      let v = sanitizeForSave(value[key], seen);
+      if (v !== void 0) out[key] = v;
+    });
+    return out;
+  }
+  function isUnsupportedSaveValue(value) {
+    return typeof value === "function" || typeof value === "symbol";
+  }
+  function sanitizeSavePrimitive(value) {
+    return Number.isFinite(value) ? value : typeof value === "number" ? 0 : value;
+  }
+  function formatCloudTime(value, locale) {
+    if (!value) return "없음";
+    let date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "없음";
+    return date.toLocaleString(locale);
+  }
 
-/** Guest saves under an earlier key name (LEGACY_SAVE_KEY_PATTERN), the newest key version first. The next save writes LOCAL_SAVE_KEY. */
-function getLegacySaveKeys() {
-    return Object.keys(localStorage).map(key => [key, LEGACY_SAVE_KEY_PATTERN.exec(key)]).filter(([, match]) => match)
-        .sort((a, b) => Number(b[1][1]) - Number(a[1][1])).map(([key]) => key);
-}
-
-function readLocalSaveString() {
-    let result = readLocalSaveResult();
-    if (result.status === 'unavailable') throw result.error;
-    return result.save;
-}
-
-/** Where the active slot's corrupt copies go: its key plus _corrupt_ and the time. */
-function corruptSaveBackupPrefix() {
-    return `${saveSlot.key}_corrupt_`;
-}
-
-/** The active slot's corrupt save backups, newest first. */
-function corruptSaveBackupKeys() {
-    const prefix = corruptSaveBackupPrefix();
-    return Object.keys(localStorage).filter(key => key.startsWith(prefix))
-        .sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)));
-}
-
-/** Keeps a copy of a save that failed to load. The same corrupt save is kept once, and only the two newest copies stay (2026-10-26:
- * every page load with the corrupt save still in place wrote another full copy, until the storage quota was used up). */
-function preserveCorruptLocalSave(rawSave) {
-    if (!rawSave) return null;
-    try {
-        const kept = corruptSaveBackupKeys();
-        const same = kept.find(key => localStorage.getItem(key) === rawSave);
-        if (same) return same;
-        kept.slice(1).forEach(key => localStorage.removeItem(key));
-        let backupKey = `${corruptSaveBackupPrefix()}${Date.now()}`;
-        localStorage.setItem(backupKey, rawSave);
-        return backupKey;
-    } catch (error) {
-        console.error('failed to preserve corrupt local save:', error);
-        return null;
+  // modules/persistence/save-codec.mjs
+  var RUNTIME_ONLY_SAVE_KEYS = Object.freeze(["talentCardRuntime", "lastCombatStats", "lastCombatStatsAt"]);
+  var SaveCodec = class {
+    constructor(owner2, deps) {
+      this.owner = owner2;
+      this.deps = deps;
     }
-}
-
-function ensureSaveMeta(owner = game) {
-    if (!owner.saveMeta || typeof owner.saveMeta !== 'object') owner.saveMeta = JSON.parse(JSON.stringify(defaultGame.saveMeta));
-    const meta = owner.saveMeta;
-    if (!Number.isFinite(meta.lastModifiedAt)) meta.lastModifiedAt = 0;
-    // A save from before 2026-11-10 has one stamp for both times.
-    if (!(meta.playedUntil > 0)) meta.playedUntil = meta.lastModifiedAt;
-    if (!Number.isFinite(meta.lastCloudSyncAt)) meta.lastCloudSyncAt = 0;
-    if (!meta.lastCloudUploadProfile || typeof meta.lastCloudUploadProfile !== 'object') {
-        meta.lastCloudUploadProfile = null;
+    dropRuntimeOnlySaveFields(target) {
+      RUNTIME_ONLY_SAVE_KEYS.forEach((key) => delete target[key]);
     }
-    if (typeof meta.cloudUserId !== 'string' || !meta.cloudUserId.trim()) {
-        meta.cloudUserId = null;
+    createSaveSnapshot(sourceGame) {
+      let snapshot = JSON.parse(JSON.stringify(this.deps.itemSaveSlim.slimTree(sourceGame || this.owner.game || {})));
+      snapshot.craftingWorkspace = this.deps.craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
+      snapshot.actExploration = this.deps.actExplorationRooms.seal(snapshot.actExploration);
+      this.dropRuntimeOnlySaveFields(snapshot);
+      if (!snapshot.saveMeta || typeof snapshot.saveMeta !== "object") snapshot.saveMeta = {};
+      return snapshot;
     }
-    meta.cloudRevision = Math.max(0, Math.floor(Number(meta.cloudRevision) || 0));
-    // cloudPending: an account slot has been written since its last commit to the server (the next account entry uploads it first).
-    meta.cloudPending = meta.cloudPending === true;
-}
-
-/** Persist a fresh save atomically before removing legacy copies; unrelated browser data stays intact. */
-function resetLocalSave(snapshot) {
-    localStorage.setItem(saveSlot.key, serializeSaveState(snapshot));
-    // Once the canonical save exists, legacy copies are never selected by loadGame().
-    try {
-        // This slot's corrupt backups, and for the guest slot its earlier key names (with their corrupt backups).
-        let earlier = /^[a-z]{3}IdleSaveData_/i;
-        Object.keys(localStorage).filter(key => key !== saveSlot.key && (key.startsWith(corruptSaveBackupPrefix()) || (saveSlot.kind === 'guest' && earlier.test(key))))
-            .forEach(key => localStorage.removeItem(key));
-    } catch (error) {
-        console.warn('새 진행은 저장했지만 이전 세이브 사본 정리에 실패했습니다:', error);
+    serializeSaveState(sourceGame) {
+      let root = sourceGame || this.owner.game || {};
+      let serializable = root && typeof root === "object" ? { ...root } : {};
+      serializable.craftingWorkspace = this.deps.craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
+      serializable.actExploration = this.deps.actExplorationRooms.seal(root.actExploration);
+      this.dropRuntimeOnlySaveFields(serializable);
+      return JSON.stringify(this.deps.itemSaveSlim.slimTree(serializable));
     }
-}
-
-function refreshItemIdCounter() {
-    // Every owned or pending item reserves its id.
-    const rift = game.timeRift || {};
-    const presets = ((game.equipmentLoadouts || {}).presets || []).filter(Boolean)
-        .flatMap(preset => Object.values(preset.slots || {}));
-    const items = [game.inventory, Object.values(game.equipment || {}), rift.altarUnique, rift.altarRare,
-        game.equipmentTemporaryStorage, presets,
-        actExplorationLoot.reservedItems(game), actExplorationState.groundLoot.reservedItems(game), coreItems.ownedItems(game), (game.playerStall?.listings || []).map(row => row.item)].flat().filter(Boolean);
-    const jewels=[game.jewelInventory,items.flatMap(item=>equipmentSockets.jewels(item).map(row=>row.jewel))].flat().filter(Boolean);
-    itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));
-}
-
-function dropRuntimeOnlySaveFields(target) {
-    RUNTIME_ONLY_SAVE_KEYS.forEach(key => delete target[key]);
-}
-
-function createSaveSnapshot(sourceGame) {
-    let snapshot = JSON.parse(JSON.stringify(itemSaveSlim.slimTree(sourceGame || game || {})));
-    snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
-    snapshot.actExploration = actExplorationRooms.seal(snapshot.actExploration);
-    dropRuntimeOnlySaveFields(snapshot);
-    if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
-    return snapshot;
-}
-
-function serializeSaveState(sourceGame) {
-    // 로컬 저장은 직렬화된 문자열만 필요하다. 깊은 복제 후 다시 문자열화하면 큰 인벤토리에서
-    // 같은 상태를 두 번 순회하고 대량의 임시 객체를 만들어 주기적인 GC 끊김을 유발한다.
-    let root = sourceGame || game || {};
-    let serializable = root && typeof root === 'object' ? { ...root } : {};
-    serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
-    serializable.actExploration = actExplorationRooms.seal(root.actExploration);   // 방 단위 탐험: 앞선 판이 탐험만 버리고 읽는 모양으로
-    dropRuntimeOnlySaveFields(serializable);
-    return JSON.stringify(itemSaveSlim.slimTree(serializable));   // 장비 줄은 다시 만들 수 있는 칸을 뺀 복사본으로(js/item-save-slim.js)
-}
-
-function createCloudSavePayload(sourceGame) {
-    return createSaveSnapshot(createCloudSaveState(sourceGame || game || {}));
-}
-
-function createCloudSaveState(root) {
-    // Persistent exploration resumes its exact enemies, casts and debuffs on every device.
-    // A shallow projection avoids copying the full roster on every cloud save.
-    if(root.actExploration)return {...root,combatLog:[],battlefieldEnemySprites:{},dotFxThrottle:{}};
-    // 최상위만 얕게 복사하고 런타임 필드를 덮어쓴 뒤 한 번만 문자열화한다.
-    // 중첩 인벤토리/장비를 깊은 복제하지 않으므로 클라우드 자동 저장 순간의 GC 부하도 줄어든다.
-    let payload = {
+    createCloudSavePayload(sourceGame) {
+      return this.createSaveSnapshot(this.createCloudSaveState(sourceGame || this.owner.game || {}));
+    }
+    createCloudSaveState(root) {
+      if (root.actExploration) return { ...root, combatLog: [], battlefieldEnemySprites: {}, dotFxThrottle: {} };
+      let payload = {
         ...root,
-        saveMeta: root.saveMeta && typeof root.saveMeta === 'object' ? root.saveMeta : {},
+        saveMeta: root.saveMeta && typeof root.saveMeta === "object" ? root.saveMeta : {},
         enemies: [],
         encounterPlan: [],
         encounterIndex: Math.max(0, Math.floor(Number(root.encounterIndex) || 0)),
@@ -292,303 +122,584 @@ function createCloudSaveState(root) {
         playerLeechInstances: Array.isArray(root.playerLeechInstances) ? root.playerLeechInstances.slice(0, 80) : [],
         realmDeathWard: null,
         realmInvulnerableBarrierUntil: 0
-    };
-    dropRuntimeOnlySaveFields(payload);
-    return payload;
-}
-
-/** The everyday cloud sync's save data, in the shape of the local save and the leaving upload (serializeSaveState, createSaveSnapshot):
- * the workbench tidied, a room stage run sealed (this body alone skipped both, 2026-10-20) and the runtime-only fields dropped. The
- * "nothing changed" check compares prints of this shape (js/cloud-save-ui.js isCloudSaveUnchangedSinceUpload). */
-function createCloudSyncPayload(sourceGame) {
-    const payload=createCloudSaveState(sourceGame || game || {});
-    payload.craftingWorkspace = craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
-    payload.actExploration = actExplorationRooms.seal(payload.actExploration);
-    dropRuntimeOnlySaveFields(payload);
-    return itemSaveSlim.slimTree(payload);   // 올리는 본문과 그 지문(cloudSaveFingerprint)이 같은 축약 모양을 쓴다
-}
-
-function createCloudSaveRequestBody(userId, sourceGame) {
-    return JSON.stringify({ user_id: userId, save_data: createCloudSyncPayload(sourceGame) });
-}
-
-/** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
- * (playerStall.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
-function cloudSaveFingerprint(saveData) {
-    return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData)));
-}
-
-/** The same print with object keys sorted. The server keeps saves as jsonb, which reorders keys, so a body read back from the server is
- * compared with this device's copy this way (js/cloud-save-ui.js pullAccountSave). Slower than cloudSaveFingerprint: once per account entry. */
-function cloudSaveContentPrint(saveData) {
-    return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData), sortSaveKeys));
-}
-
-function cloudSavePrintSource(saveData) {
-    const stall = saveData.playerStall && typeof saveData.playerStall === 'object' ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
-    return { ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall };
-}
-
-function printOfSaveText(text) {
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
-    return `${text.length}:${hash >>> 0}`;
-}
-
-/** JSON.stringify replacer: every object is written with its keys in sorted order (the same order on both sides of a comparison). */
-function sortSaveKeys(key, value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
-    return Object.fromEntries(Object.keys(value).sort().map(name => [name, value[name]]));
-}
-
-function sanitizeForSave(value, seen = new WeakSet()) {
-    if (value === null || value === undefined) return value;
-    if (typeof value === 'function' || typeof value === 'symbol') return undefined;
-    if (typeof value !== 'object') return Number.isFinite(value) ? value : (typeof value === 'number' ? 0 : value);
-    if (seen.has(value)) return undefined;
-    seen.add(value);
-    if (Array.isArray(value)) {
-        let out = [];
-        for (let i = 0; i < value.length; i++) {
-            let v = sanitizeForSave(value[i], seen);
-            out.push(v === undefined ? null : v);
-        }
-        return out;
+      };
+      this.dropRuntimeOnlySaveFields(payload);
+      return payload;
     }
-    let out = {};
-    Object.keys(value).forEach(key => {
-        let v = sanitizeForSave(value[key], seen);
-        if (v !== undefined) out[key] = v;
-    });
-    return out;
-}
-
-/** The latest device time this save has seen. Moving the clock forward and back leaves it ahead of now, while lastModifiedAt is
- * overwritten by the next save; the guest save check (js/guest-save-check.js) reads it before a guest save moves into an account. */
-function noteSaveClock(meta) {
-    meta.maxSeenAt = Math.max(Number(meta.maxSeenAt) || 0, Date.now());
-}
-
-/** The time play is settled up to (saveMeta.playedUntil): now, or while a hidden page or a paused app holds the game still (js/main.js
- * runForegroundCombat) the time play stopped (backgroundCombatRuntime.hiddenAtMs), so a tab closed while hidden (or dropped by the
- * browser) settles its hidden hours at the next launch instead of losing them. */
-function getPlayedUntil() {
-    const now = Date.now();
-    if (typeof backgroundCombatRuntime === 'undefined' || typeof document === 'undefined') return now;
-    const still = document.hidden || backgroundCombatRuntime.appInactive;
-    const at = Math.floor(Number(backgroundCombatRuntime.hiddenAtMs) || 0);
-    return still && at > 0 ? Math.min(at, now) : now;
-}
-
-/** A write that carries a change stamps two times (2026-11-10; one field held both until then, and a save made while entering the
- * game moved the away settlement's start to now, v0.3.57 to v0.3.59): lastModifiedAt, when the save was written, and playedUntil,
- * the time the next launch settles from. playedUntil stays as loaded until the launch has read it (launchSettlementPending).
- * In an account slot the write is also marked pending (cleared by the commit that carries it, js/cloud-save-ui.js rememberCloudCommit). */
-function touchSaveMeta() {
-    game.saveMeta.lastModifiedAt = Date.now();
-    if (typeof backgroundCombatRuntime === 'undefined' || !backgroundCombatRuntime.launchSettlementPending) game.saveMeta.playedUntil = getPlayedUntil();
-    if (saveSlot.kind === 'account') game.saveMeta.cloudPending = true;
-}
-
-function persistLocalSave(options = {}) {
-    if (!canPersistLocalSave(options)) return false;
-    ensureSaveMeta();
-    noteSaveClock(game.saveMeta);
-    stampGameBuild(game.saveMeta);
-    if (options.touchModifiedAt !== false) touchSaveMeta();
-    try {
-        localStorage.setItem(saveSlot.key, serializeSaveState(game));
-    } catch (error) {
-        try {
-            let sanitized = sanitizeForSave(game || {});
-            if (!sanitized.saveMeta || typeof sanitized.saveMeta !== 'object') sanitized.saveMeta = {};
-            delete sanitized.talentCardRuntime;
-            localStorage.setItem(saveSlot.key, JSON.stringify(sanitized));
-            if (typeof addLog === 'function') addLog(_t('💾 저장 데이터 정리 후 로컬 저장을 복구했습니다.'), 'season-up');
-        } catch (retryError) {
-            console.error('local save failed:', error, retryError);
-            let isQuota = retryError && (retryError.name === 'QuotaExceededError' || /quota|storage/i.test(String(retryError.message || '')));
-            setLocalSaveRuntimeState('write-failed', {
-                writable: false,
-                message: isQuota ? '브라우저 저장공간이 부족합니다. 공간을 확보한 뒤 설정의 지금 저장을 눌러 주세요.' : '기기 저장에 실패했습니다. 설정의 지금 저장으로 다시 시도해 주세요.'
-            });
-            if (typeof addLog === 'function') addLog(isQuota ? '⚠️ 로컬 저장 실패: 브라우저 저장공간을 확인하세요.' : '⚠️ 로컬 저장 실패: 저장 데이터 형식 오류가 발생했습니다.', 'loot-rare');
-            return false;
-        }
+    /** The everyday cloud sync's save data, in the shape of the local save and the leaving upload (serializeSaveState, createSaveSnapshot):
+    * the workbench tidied, a room stage run sealed (this body alone skipped both, 2026-10-20) and the runtime-only fields dropped. The
+    * "nothing changed" check compares prints of this shape (js/cloud-save-ui.js isCloudSaveUnchangedSinceUpload). */
+    createCloudSyncPayload(sourceGame) {
+      const payload = this.createCloudSaveState(sourceGame || this.owner.game || {});
+      payload.craftingWorkspace = this.deps.craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
+      payload.actExploration = this.deps.actExplorationRooms.seal(payload.actExploration);
+      this.dropRuntimeOnlySaveFields(payload);
+      return this.deps.itemSaveSlim.slimTree(payload);
     }
-    setLocalSaveRuntimeState('ok', { writable: true, sourceKey: saveSlot.key });
-    refreshItemIdCounter();
-    return true;
-}
-
-/** Recover an empty ordinary encounter, without restarting a completed sky allowance. */
-function resumeEmptyEncounterAfterLoad(zone) {
-    if (game.actExploration || game.settings.mapCompleteAction === 'stop' || isSkyTowerAtRewardLimit(zone)) return;
-    if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
-}
-
-function normalizeLocalRuntimeAfterLoad() {
-    if (!game) return;
-    if (typeof normalizeCombatTacticsSettings === 'function') {
-        let tactics = normalizeCombatTacticsSettings(game.settings);
-        game.settings.combatTargetPriority = tactics.targetPriority;
-        game.settings.combatPositionMode = tactics.positionMode;
+    createCloudSaveRequestBody(userId, sourceGame) {
+      return JSON.stringify({ user_id: userId, save_data: this.createCloudSyncPayload(sourceGame) });
     }
-    let zone = (typeof getZone === 'function') ? getZone(game.currentZoneId) : null;
-    if (!zone && typeof getAutoProgressZoneId === 'function') {
-        game.currentZoneId = getAutoProgressZoneId(Math.max(0, Math.floor(game.maxZoneId || 0)));
+    /** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
+    * (playerStall.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
+    cloudSaveFingerprint(saveData) {
+      return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData)));
     }
-    // loadGame supplies cloneDefaultGame or mergeDefaults; both own these array shapes.
-    if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
-    resumeEmptyEncounterAfterLoad(zone);
-    if (!game.realmDeathWard || typeof game.realmDeathWard !== 'object') game.realmDeathWard = null;
-    else {
-        game.realmDeathWard.amount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));
-        game.realmDeathWard.maxAmount = Math.max(0, Math.floor(Number(game.realmDeathWard.maxAmount) || 0));
-        game.realmDeathWard.readyAt = Math.max(0, Math.floor(Number(game.realmDeathWard.readyAt) || 0));
+    /** The same print with object keys sorted. The server keeps saves as jsonb, which reorders keys, so a body read back from the server is
+    * compared with this device's copy this way (js/cloud-save-ui.js pullAccountSave). Slower than cloudSaveFingerprint: once per account entry. */
+    cloudSaveContentPrint(saveData) {
+      return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData), sortSaveKeys));
     }
-    game.realmInvulnerableBarrierUntil = Math.max(0, Math.floor(Number(game.realmInvulnerableBarrierUntil) || 0));
-}
+  };
 
-function loadGame() {
-    let result = readLocalSaveResult();
-    if (result.status === 'unavailable') {
-        console.error('local save storage is unavailable:', result.error);
-        setLocalSaveRuntimeState('unavailable', {
-            writable: false,
-            message: '브라우저 저장소에 접근할 수 없어 자동 저장과 클라우드 업로드를 중단했습니다.'
-        });
-        game = cloneDefaultGame();
-    } else if (result.status === 'missing') {
-        setLocalSaveRuntimeState('missing', { writable: true });
-        game = cloneDefaultGame();
-    } else {
-        try {
-            const saved = JSON.parse(result.save);
-            if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('Invalid save root: expected an object.');
-            const refusal = laterBuildSaveError(saved);
-            if (refusal) {
-                // A later release's save stays as it is for that release: this page starts empty and writes nothing (canPersistLocalSave).
-                setLocalSaveRuntimeState('newer-build', { writable: false, sourceKey: result.sourceKey, message: refusal.message });
-                game = cloneDefaultGame();
-            } else {
-                game = mergeDefaults(saved);
-                setLocalSaveRuntimeState('ok', { writable: true, sourceKey: result.sourceKey });
-            }
-        } catch (error) {
-            let backupKey = preserveCorruptLocalSave(result.save);
-            console.error('local save is corrupt; automatic writes are blocked:', error);
-            setLocalSaveRuntimeState('corrupt', {
-                writable: false,
-                sourceKey: result.sourceKey,
-                backupKey,
-                message: backupKey
-                    ? `손상된 저장을 ${backupKey}에 보존했으며 자동 저장과 클라우드 업로드를 중단했습니다.`
-                    : '저장 데이터가 손상되어 자동 저장과 클라우드 업로드를 중단했습니다.'
-            });
-            game = cloneDefaultGame();
-        }
+  // modules/persistence/local-save-slots.mjs
+  var LocalSaveSlots = class {
+    constructor(deps, codec2) {
+      this.deps = deps;
+      this.codec = codec2;
+      this.slot = { kind: "guest", key: deps.LOCAL_SAVE_KEY, userId: null };
+      this.runtime = { status: "uninitialized", writable: true, sourceKey: null, backupKey: null, message: "" };
+      this.runningBuild = deps.runningBuild;
     }
-    ensureSaveMeta();
-    normalizeLocalRuntimeAfterLoad();
-    refreshItemIdCounter();
-    return getLocalSaveStatus();
-}
-
-/** The boot's load (js/main.js init): the one-time move of an account save out of the guest slot, then the guest slot. */
-function loadGameAtBoot() {
-    migrateOwnedGuestSave();
-    return loadGame();
-}
-
-function saveGame(options = {}) {
-    let manual = !!options.manual;
-    // Only a known write failure may be retried. Unread/corrupt saves and ongoing
-    // settlements must stay protected even when the player presses Save.
-    let allowRecoveryWrite = manual && localSaveRuntimeState.status === 'write-failed';
-    let persisted = persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false, allowRecoveryWrite });
-    if (!persisted) {
-        if (manual) setCloudMessage(localSaveRuntimeState.message || '로컬 저장이 차단되어 저장하지 못했습니다.');
+    accountSaveKey(userId) {
+      return `${this.deps.ACCOUNT_SAVE_KEY_PREFIX}${userId}`;
+    }
+    /** Makes an account's slot (userId) or the guest slot (null) the one loadGame and persistLocalSave use. */
+    selectSaveSlot(userId) {
+      this.slot.kind = userId ? "account" : "guest";
+      this.slot.userId = userId || null;
+      this.slot.key = userId ? this.accountSaveKey(userId) : this.deps.LOCAL_SAVE_KEY;
+    }
+    getSaveSlot() {
+      return { ...this.slot };
+    }
+    /** The guest slot's save as parsed data, whichever slot is active; null when there is none or it cannot be read. */
+    readGuestSave() {
+      try {
+        const raw = this.deps.localStorage.getItem(this.deps.LOCAL_SAVE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        this.deps.console.warn("guest save could not be read:", error);
+        return null;
+      }
+    }
+    /** An account's copy on this device (its slot) as parsed data, whichever slot is active; null when there is none or it cannot be read.
+    * The login screen shows it for a signed-in account before the account is entered (js/startup-screen-ui.js startupShownSave). */
+    readAccountSaveCopy(userId) {
+      try {
+        const raw = userId ? this.deps.localStorage.getItem(this.accountSaveKey(userId)) : null;
+        return raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        this.deps.console.warn("account save copy could not be read:", error);
+        return null;
+      }
+    }
+    /** Whether some account's copy is on this device. The login screen says so over an empty guest slot (js/startup-screen-ui.js startupEmptyText), since
+    * a signed-out player whose session ended, or whose pre-slot save moved out of the guest slot at boot (migrateOwnedGuestSave), otherwise
+    * reads "저장된 모험이 없습니다" and takes the save for lost (2026-11-08). */
+    hasAccountSaveCopy() {
+      try {
+        return Object.keys(this.deps.localStorage).some((key) => key.startsWith(this.deps.ACCOUNT_SAVE_KEY_PREFIX) && !key.includes("_corrupt_"));
+      } catch (error) {
+        this.deps.console.warn("account save copies could not be listed:", error);
         return false;
+      }
     }
-    if (!options.skipCloudSync) {
-        if (manual && typeof syncCloudSave === 'function' && cloudState && cloudState.configured && cloudState.user) {
-            syncCloudSave({ automatic: false, force: true, reason: 'manual-save' }).catch(error => {
-                if (typeof setCloudMessage === 'function') setCloudMessage('수동 저장 클라우드 업로드 실패: ' + (error && error.message ? error.message : error));
-            });
-        } else scheduleCloudAutoSync();
+    /** Removes the guest save (after it moved into an account), with its earlier key names and corrupt copies. */
+    removeGuestSave() {
+      const earlier = /^[a-z]{3}IdleSaveData_/i;
+      Object.keys(this.deps.localStorage).filter((key) => key === this.deps.LOCAL_SAVE_KEY || earlier.test(key) || key.startsWith(`${this.deps.LOCAL_SAVE_KEY}_corrupt_`)).forEach((key) => this.deps.localStorage.removeItem(key));
     }
-    updateCloudSaveUI();
-    return true;
-}
+    /** Before the slots (2026-10-30) one key held whichever save was last played, so the guest slot may hold an account's save
+    * (saveMeta.cloudUserId). Once, at boot: it moves into that account's slot (unless that slot already exists) and the guest slot
+    * empties, so an account save never shows up as a guest save (which could be moved into another account). Returns the moved key or null. */
+    migrateOwnedGuestSave() {
+      try {
+        const raw = this.deps.localStorage.getItem(this.deps.LOCAL_SAVE_KEY);
+        const owner2 = raw ? JSON.parse(raw)?.saveMeta?.cloudUserId : null;
+        if (typeof owner2 !== "string" || !owner2.trim()) return null;
+        const key = this.accountSaveKey(owner2);
+        if (!this.deps.localStorage.getItem(key)) this.deps.localStorage.setItem(key, raw);
+        this.deps.localStorage.removeItem(this.deps.LOCAL_SAVE_KEY);
+        return key;
+      } catch (error) {
+        this.deps.console.warn("owned guest save migration skipped:", error);
+        return null;
+      }
+    }
+    setLocalSaveRuntimeState(status, options = {}) {
+      this.runtime.status = status;
+      this.runtime.writable = options.writable !== false;
+      this.runtime.sourceKey = options.sourceKey || null;
+      this.runtime.backupKey = options.backupKey || null;
+      this.runtime.message = options.message || "";
+    }
+    getLocalSaveStatus() {
+      return { ...this.runtime };
+    }
+    /** Why this page must not take saveData (a device or cloud save) in, or null when it may: a later release wrote it, and may have
+    * reshaped it or added things this release does not know, which loading here would drop and the next write would carry back
+    * (2026-10-28: a store app trails the web by days). Everything is refused while this device's own save is from a later release
+    * (loadGame 'newer-build'). The error's code is OUTDATED_BUILD_ERROR_CODE. */
+    outdatedBuildError(saveData) {
+      if (this.runtime.status === "newer-build") return outdatedBuildRefusal(this.runtime.message);
+      return this.laterBuildSaveError(saveData);
+    }
+    /** The refusal for saveData written by a later release than this page's, or null; this device's save status is not read (loadGame). */
+    laterBuildSaveError(saveData) {
+      const saved = gameBuildTime(saveData?.saveMeta?.gameBuild), running = gameBuildTime(this.runningBuild);
+      if (!running || !saved || saved <= running) return null;
+      return outdatedBuildRefusal(`이 저장은 더 새 버전의 게임(${(0, this.deps.formatCloudTime)(saved)} 판)에서 저장됐습니다. 새로고침하거나 앱을 업데이트한 뒤 이어 하세요.`);
+    }
+    /** Throws outdatedBuildError(saveData) when there is one. */
+    assertSaveFromKnownBuild(saveData) {
+      const refusal = this.outdatedBuildError(saveData);
+      if (refusal) throw refusal;
+    }
+    readLocalSaveResult() {
+      try {
+        let save = this.deps.localStorage.getItem(this.slot.key);
+        if (save) return { status: "ok", save, sourceKey: this.slot.key };
+        for (const key of this.slot.kind === "guest" ? this.getLegacySaveKeys() : []) {
+          save = this.deps.localStorage.getItem(key);
+          if (save) return { status: "ok", save, sourceKey: key };
+        }
+        return { status: "missing", save: null, sourceKey: null };
+      } catch (error) {
+        return { status: "unavailable", save: null, sourceKey: null, error };
+      }
+    }
+    /** Guest saves under an earlier key name (LEGACY_SAVE_KEY_PATTERN), the newest key version first. The next save writes LOCAL_SAVE_KEY. */
+    getLegacySaveKeys() {
+      return Object.keys(this.deps.localStorage).map((key) => [key, this.deps.LEGACY_SAVE_KEY_PATTERN.exec(key)]).filter(([, match]) => match).sort((a, b) => Number(b[1][1]) - Number(a[1][1])).map(([key]) => key);
+    }
+    readLocalSaveString() {
+      let result = this.readLocalSaveResult();
+      if (result.status === "unavailable") throw result.error;
+      return result.save;
+    }
+    /** Where the active slot's corrupt copies go: its key plus _corrupt_ and the time. */
+    corruptSaveBackupPrefix() {
+      return `${this.slot.key}_corrupt_`;
+    }
+    /** The active slot's corrupt save backups, newest first. */
+    corruptSaveBackupKeys() {
+      const prefix = this.corruptSaveBackupPrefix();
+      return Object.keys(this.deps.localStorage).filter((key) => key.startsWith(prefix)).sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)));
+    }
+    /** Keeps a copy of a save that failed to load. The same corrupt save is kept once, and only the two newest copies stay (2026-10-26:
+    * every page load with the corrupt save still in place wrote another full copy, until the storage quota was used up). */
+    preserveCorruptLocalSave(rawSave) {
+      if (!rawSave) return null;
+      try {
+        const kept = this.corruptSaveBackupKeys();
+        const same = kept.find((key) => this.deps.localStorage.getItem(key) === rawSave);
+        if (same) return same;
+        kept.slice(1).forEach((key) => this.deps.localStorage.removeItem(key));
+        let backupKey = `${this.corruptSaveBackupPrefix()}${Date.now()}`;
+        this.deps.localStorage.setItem(backupKey, rawSave);
+        return backupKey;
+      } catch (error) {
+        this.deps.console.error("failed to preserve corrupt local save:", error);
+        return null;
+      }
+    }
+    /** Persist a fresh save atomically before removing legacy copies; unrelated browser data stays intact. */
+    resetLocalSave(snapshot) {
+      this.deps.localStorage.setItem(this.slot.key, this.codec.serializeSaveState(snapshot));
+      try {
+        let earlier = /^[a-z]{3}IdleSaveData_/i;
+        Object.keys(this.deps.localStorage).filter((key) => key !== this.slot.key && (key.startsWith(this.corruptSaveBackupPrefix()) || this.slot.kind === "guest" && earlier.test(key))).forEach((key) => this.deps.localStorage.removeItem(key));
+      } catch (error) {
+        this.deps.console.warn("새 진행은 저장했지만 이전 세이브 사본 정리에 실패했습니다:", error);
+      }
+    }
+    /** Every save a release writes names that release, so an older release can tell it apart (outdatedBuildError). */
+    stampGameBuild(meta2) {
+      if (this.runningBuild) meta2.gameBuild = this.runningBuild;
+    }
+  };
 
-function queueImportantSave(delayMs) {
-    if (!canPersistLocalSave()) return;
-    if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return;
-    let delay = Math.max(0, Number.isFinite(delayMs) ? delayMs : 350);
-    if (importantSaveTimer) clearTimeout(importantSaveTimer);
-    importantSaveTimer = setTimeout(() => {
-        importantSaveTimer = null;
-        if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return;
-        saveGame({ skipCloudSync: true });
-    }, delay);
-}
+  // modules/application/game-save.mjs
+  var GameSave = class {
+    constructor(owner2, slots2, codec2, deps) {
+      this.owner = owner2;
+      this.slots = slots2;
+      this.codec = codec2;
+      this.deps = deps;
+      this.importantSaveTimer = null;
+      this.disposed = false;
+    }
+    canPersistLocalSave(options = {}) {
+      if (this.disposed) return false;
+      const recovery = options.allowRecoveryWrite === true && this.slots.runtime.status !== "newer-build";
+      return (this.slots.runtime.writable !== false || recovery) && !(0, this.deps.isTransientGameState)(this.owner.game) && !(typeof this.deps.backgroundCombatRuntime !== "undefined" && (this.deps.backgroundCombatRuntime.processing || this.deps.backgroundCombatRuntime.failed));
+    }
+    ensureSaveMeta(owner2 = this.owner.game) {
+      if (!owner2.saveMeta || typeof owner2.saveMeta !== "object") owner2.saveMeta = JSON.parse(JSON.stringify(this.owner.defaultGame.saveMeta));
+      const meta2 = owner2.saveMeta;
+      if (!Number.isFinite(meta2.lastModifiedAt)) meta2.lastModifiedAt = 0;
+      if (!(meta2.playedUntil > 0)) meta2.playedUntil = meta2.lastModifiedAt;
+      if (!Number.isFinite(meta2.lastCloudSyncAt)) meta2.lastCloudSyncAt = 0;
+      this.repairCloudSaveMetadata(meta2);
+    }
+    repairCloudSaveMetadata(meta2) {
+      if (!meta2.lastCloudUploadProfile || typeof meta2.lastCloudUploadProfile !== "object") {
+        meta2.lastCloudUploadProfile = null;
+      }
+      if (typeof meta2.cloudUserId !== "string" || !meta2.cloudUserId.trim()) {
+        meta2.cloudUserId = null;
+      }
+      meta2.cloudRevision = Math.max(0, Math.floor(Number(meta2.cloudRevision) || 0));
+      meta2.cloudPending = meta2.cloudPending === true;
+    }
+    refreshItemIdCounter() {
+      const rift = this.owner.game.timeRift || {};
+      const presets = ((this.owner.game.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap((preset) => Object.values(preset.slots || {}));
+      const items = [
+        this.owner.game.inventory,
+        Object.values(this.owner.game.equipment || {}),
+        rift.altarUnique,
+        rift.altarRare,
+        this.owner.game.equipmentTemporaryStorage,
+        presets,
+        this.deps.actExplorationLoot.reservedItems(this.owner.game),
+        this.deps.actExplorationState.groundLoot.reservedItems(this.owner.game),
+        this.deps.coreItems.ownedItems(this.owner.game),
+        (this.owner.game.playerStall?.listings || []).map((row) => row.item)
+      ].flat().filter(Boolean);
+      const jewels = [this.owner.game.jewelInventory, items.flatMap((item) => this.deps.equipmentSockets.jewels(item).map((row) => row.jewel))].flat().filter(Boolean);
+      this.owner.session.itemIdCounter = Math.max(0, ...items.concat(jewels).map((item) => item.id || 0));
+    }
+    /** The latest device time this save has seen. Moving the clock forward and back leaves it ahead of now, while lastModifiedAt is
+    * overwritten by the next save; the guest save check (js/guest-save-check.js) reads it before a guest save moves into an account. */
+    noteSaveClock(meta2) {
+      meta2.maxSeenAt = Math.max(Number(meta2.maxSeenAt) || 0, Date.now());
+    }
+    /** The time play is settled up to (saveMeta.playedUntil): now, or while a hidden page or a paused app holds the game still (js/main.js
+    * runForegroundCombat) the time play stopped (backgroundCombatRuntime.hiddenAtMs), so a tab closed while hidden (or dropped by the
+    * browser) settles its hidden hours at the next launch instead of losing them. */
+    getPlayedUntil() {
+      const now = Date.now();
+      if (typeof this.deps.backgroundCombatRuntime === "undefined" || typeof this.deps.document === "undefined") return now;
+      const still = this.deps.document.hidden || this.deps.backgroundCombatRuntime.appInactive;
+      const at = Math.floor(Number(this.deps.backgroundCombatRuntime.hiddenAtMs) || 0);
+      return still && at > 0 ? Math.min(at, now) : now;
+    }
+    /** A write that carries a change stamps two times (2026-11-10; one field held both until then, and a save made while entering the
+    * game moved the away settlement's start to now, v0.3.57 to v0.3.59): lastModifiedAt, when the save was written, and playedUntil,
+    * the time the next launch settles from. playedUntil stays as loaded until the launch has read it (launchSettlementPending).
+    * In an account slot the write is also marked pending (cleared by the commit that carries it, js/cloud-save-ui.js rememberCloudCommit). */
+    touchSaveMeta() {
+      this.owner.game.saveMeta.lastModifiedAt = Date.now();
+      if (typeof this.deps.backgroundCombatRuntime === "undefined" || !this.deps.backgroundCombatRuntime.launchSettlementPending) this.owner.game.saveMeta.playedUntil = this.getPlayedUntil();
+      if (this.slots.slot.kind === "account") this.owner.game.saveMeta.cloudPending = true;
+    }
+    persistLocalSave(options = {}) {
+      if (!this.canPersistLocalSave(options)) return false;
+      this.ensureSaveMeta();
+      this.noteSaveClock(this.owner.game.saveMeta);
+      this.slots.stampGameBuild(this.owner.game.saveMeta);
+      if (options.touchModifiedAt !== false) this.touchSaveMeta();
+      try {
+        this.deps.localStorage.setItem(this.slots.slot.key, this.codec.serializeSaveState(this.owner.game));
+      } catch (error) {
+        if (!this.recoverLocalSave(error)) return false;
+      }
+      this.slots.setLocalSaveRuntimeState("ok", { writable: true, sourceKey: this.slots.slot.key });
+      this.refreshItemIdCounter();
+      return true;
+    }
+    recoverLocalSave(error) {
+      try {
+        let sanitized = sanitizeForSave(this.owner.game || {});
+        if (!sanitized.saveMeta || typeof sanitized.saveMeta !== "object") sanitized.saveMeta = {};
+        delete sanitized.talentCardRuntime;
+        this.deps.localStorage.setItem(this.slots.slot.key, JSON.stringify(sanitized));
+        if (typeof this.deps.addLog === "function") (0, this.deps.addLog)((0, this.deps._t)("💾 저장 데이터 정리 후 로컬 저장을 복구했습니다."), "season-up");
+      } catch (retryError) {
+        this.reportLocalSaveFailure(error, retryError);
+        return false;
+      }
+      return true;
+    }
+    reportLocalSaveFailure(error, retryError) {
+      this.deps.console.error("local save failed:", error, retryError);
+      let isQuota = retryError && (retryError.name === "QuotaExceededError" || /quota|storage/i.test(String(retryError.message || "")));
+      this.slots.setLocalSaveRuntimeState("write-failed", {
+        writable: false,
+        message: isQuota ? "브라우저 저장공간이 부족합니다. 공간을 확보한 뒤 설정의 지금 저장을 눌러 주세요." : "기기 저장에 실패했습니다. 설정의 지금 저장으로 다시 시도해 주세요."
+      });
+      if (typeof this.deps.addLog === "function") (0, this.deps.addLog)(isQuota ? "⚠️ 로컬 저장 실패: 브라우저 저장공간을 확인하세요." : "⚠️ 로컬 저장 실패: 저장 데이터 형식 오류가 발생했습니다.", "loot-rare");
+    }
+    /** Recover an empty ordinary encounter, without restarting a completed sky allowance. */
+    resumeEmptyEncounterAfterLoad(zone) {
+      if (this.owner.game.actExploration || this.owner.game.settings.mapCompleteAction === "stop" || (0, this.deps.isSkyTowerAtRewardLimit)(zone)) return;
+      if (this.owner.game.enemies.length === 0 && this.owner.game.encounterPlan.length === 0) this.owner.game.combatHalted = false;
+    }
+    normalizeLocalRuntimeAfterLoad() {
+      if (!this.owner.game) return;
+      if (typeof this.deps.normalizeCombatTacticsSettings === "function") {
+        let tactics = (0, this.deps.normalizeCombatTacticsSettings)(this.owner.game.settings);
+        this.owner.game.settings.combatTargetPriority = tactics.targetPriority;
+        this.owner.game.settings.combatPositionMode = tactics.positionMode;
+      }
+      let zone = typeof this.deps.getZone === "function" ? (0, this.deps.getZone)(this.owner.game.currentZoneId) : null;
+      if (!zone && typeof this.deps.getAutoProgressZoneId === "function") {
+        this.owner.game.currentZoneId = (0, this.deps.getAutoProgressZoneId)(Math.max(0, Math.floor(this.owner.game.maxZoneId || 0)));
+      }
+      if (!Number.isFinite(this.owner.game.moveTimer)) this.owner.game.moveTimer = 0;
+      this.resumeEmptyEncounterAfterLoad(zone);
+      this.restoreRealmProtection();
+    }
+    restoreRealmProtection() {
+      if (!this.owner.game.realmDeathWard || typeof this.owner.game.realmDeathWard !== "object") this.owner.game.realmDeathWard = null;
+      else {
+        this.owner.game.realmDeathWard.amount = Math.max(0, Math.floor(Number(this.owner.game.realmDeathWard.amount) || 0));
+        this.owner.game.realmDeathWard.maxAmount = Math.max(0, Math.floor(Number(this.owner.game.realmDeathWard.maxAmount) || 0));
+        this.owner.game.realmDeathWard.readyAt = Math.max(0, Math.floor(Number(this.owner.game.realmDeathWard.readyAt) || 0));
+      }
+      this.owner.game.realmInvulnerableBarrierUntil = Math.max(0, Math.floor(Number(this.owner.game.realmInvulnerableBarrierUntil) || 0));
+    }
+    loadGame() {
+      let result = this.slots.readLocalSaveResult();
+      if (result.status === "unavailable") {
+        this.deps.console.error("local save storage is unavailable:", result.error);
+        this.slots.setLocalSaveRuntimeState("unavailable", {
+          writable: false,
+          message: "브라우저 저장소에 접근할 수 없어 자동 저장과 클라우드 업로드를 중단했습니다."
+        });
+        this.owner.game = (0, this.deps.cloneDefaultGame)();
+      } else if (result.status === "missing") {
+        this.slots.setLocalSaveRuntimeState("missing", { writable: true });
+        this.owner.game = (0, this.deps.cloneDefaultGame)();
+      } else {
+        try {
+          const saved = JSON.parse(result.save);
+          if (!saved || typeof saved !== "object" || Array.isArray(saved)) throw new Error("Invalid save root: expected an object.");
+          const refusal = this.slots.laterBuildSaveError(saved);
+          if (refusal) {
+            this.slots.setLocalSaveRuntimeState("newer-build", { writable: false, sourceKey: result.sourceKey, message: refusal.message });
+            this.owner.game = (0, this.deps.cloneDefaultGame)();
+          } else {
+            this.owner.game = (0, this.deps.mergeDefaults)(saved);
+            this.slots.setLocalSaveRuntimeState("ok", { writable: true, sourceKey: result.sourceKey });
+          }
+        } catch (error) {
+          let backupKey = this.slots.preserveCorruptLocalSave(result.save);
+          this.deps.console.error("local save is corrupt; automatic writes are blocked:", error);
+          this.slots.setLocalSaveRuntimeState("corrupt", {
+            writable: false,
+            sourceKey: result.sourceKey,
+            backupKey,
+            message: backupKey ? `손상된 저장을 ${backupKey}에 보존했으며 자동 저장과 클라우드 업로드를 중단했습니다.` : "저장 데이터가 손상되어 자동 저장과 클라우드 업로드를 중단했습니다."
+          });
+          this.owner.game = (0, this.deps.cloneDefaultGame)();
+        }
+      }
+      this.ensureSaveMeta();
+      this.normalizeLocalRuntimeAfterLoad();
+      this.refreshItemIdCounter();
+      return this.slots.getLocalSaveStatus();
+    }
+    /** The boot's load (js/main.js init): the one-time move of an account save out of the guest slot, then the guest slot. */
+    loadGameAtBoot() {
+      this.slots.migrateOwnedGuestSave();
+      return this.loadGame();
+    }
+    saveGame(options = {}) {
+      let manual = !!options.manual;
+      let allowRecoveryWrite = manual && this.slots.runtime.status === "write-failed";
+      let persisted = this.persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false, allowRecoveryWrite });
+      if (!persisted) {
+        if (manual) this.setCloudMessage(this.slots.runtime.message || "로컬 저장이 차단되어 저장하지 못했습니다.");
+        return false;
+      }
+      if (!options.skipCloudSync) this.syncAfterLocalSave(manual);
+      (0, this.deps.updateCloudSaveUI)();
+      return true;
+    }
+    syncAfterLocalSave(manual) {
+      if (manual && typeof this.deps.syncCloudSave === "function" && this.deps.cloudState && this.deps.cloudState.configured && this.deps.cloudState.user) {
+        (0, this.deps.syncCloudSave)({ automatic: false, force: true, reason: "manual-save" }).catch((error) => {
+          if (typeof this.setCloudMessage === "function") this.setCloudMessage("수동 저장 클라우드 업로드 실패: " + (error && error.message ? error.message : error));
+        });
+      } else (0, this.deps.scheduleCloudAutoSync)();
+    }
+    queueImportantSave(delayMs) {
+      if (this.disposed) return;
+      if (!this.canPersistLocalSave()) return;
+      if (typeof this.deps.isStartupOverlayOpen === "function" && (0, this.deps.isStartupOverlayOpen)()) return;
+      let delay = Math.max(0, Number.isFinite(delayMs) ? delayMs : 350);
+      if (this.importantSaveTimer) (0, this.deps.clearTimeout)(this.importantSaveTimer);
+      this.importantSaveTimer = (0, this.deps.setTimeout)(() => {
+        this.importantSaveTimer = null;
+        if (typeof this.deps.isStartupOverlayOpen === "function" && (0, this.deps.isStartupOverlayOpen)()) return;
+        this.saveGame({ skipCloudSync: true });
+      }, delay);
+    }
+    setCloudMessage(message) {
+      this.deps.cloudState.lastMessage = message;
+      (0, this.deps.updateCloudSaveUI)();
+    }
+    /** Terminal shutdown must cancel delayed writes before another tab can claim the save. */
+    dispose() {
+      if (this.disposed) return;
+      this.disposed = true;
+      if (this.importantSaveTimer !== null) (0, this.deps.clearTimeout)(this.importantSaveTimer);
+      this.importantSaveTimer = null;
+    }
+  };
 
-function formatCloudTime(value) {
-    if (!value) return '없음';
-    let date = new Date(value);
-    if (!Number.isFinite(date.getTime())) return '없음';
-    return date.toLocaleString(i18n.locale);
-}
-
-function setCloudMessage(message) {
-    cloudState.lastMessage = message;
-    updateCloudSaveUI();
-}
-
-exposeFileGlobals({ normalizeCloudUploadProfile, accountSaveKey, selectSaveSlot, getSaveSlot, readGuestSave, readAccountSaveCopy, hasAccountSaveCopy, removeGuestSave, migrateOwnedGuestSave, setLocalSaveRuntimeState, getLocalSaveStatus, gameBuildTime, outdatedBuildError, assertSaveFromKnownBuild, canPersistLocalSave, readLocalSaveResult, getLegacySaveKeys, readLocalSaveString, ensureSaveMeta, resetLocalSave, refreshItemIdCounter, dropRuntimeOnlySaveFields, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSyncPayload, createCloudSaveRequestBody, cloudSaveFingerprint, cloudSaveContentPrint, getPlayedUntil, touchSaveMeta, persistLocalSave, normalizeLocalRuntimeAfterLoad, loadGame, loadGameAtBoot, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+  // modules/save-classic.mjs
+  var formatCloudTime2 = (value) => formatCloudTime(value, i18n.locale);
+  var meta = typeof document === "object" && typeof document.querySelector === "function" ? document.querySelector('meta[name="game-build"]') : null;
+  var runningBuild = gameBuildTime(meta && meta.content) ? meta.content : null;
+  var owner = window.GameModules.state;
+  var codec = new SaveCodec(owner, {
+    get actExplorationRooms() {
+      return actExplorationRooms;
+    },
+    get craftingWorkspaceState() {
+      return craftingWorkspaceState;
+    },
+    get itemSaveSlim() {
+      return window.GameModules.itemSaveSlim;
+    }
+  });
+  var slots = new LocalSaveSlots({
+    get ACCOUNT_SAVE_KEY_PREFIX() {
+      return ACCOUNT_SAVE_KEY_PREFIX;
+    },
+    get LEGACY_SAVE_KEY_PATTERN() {
+      return LEGACY_SAVE_KEY_PATTERN;
+    },
+    get LOCAL_SAVE_KEY() {
+      return LOCAL_SAVE_KEY;
+    },
+    get console() {
+      return console;
+    },
+    get localStorage() {
+      return localStorage;
+    },
+    runningBuild,
+    formatCloudTime: formatCloudTime2
+  }, codec);
+  var application = new GameSave(owner, slots, codec, {
+    get _t() {
+      return _t;
+    },
+    get actExplorationLoot() {
+      return actExplorationLoot;
+    },
+    get actExplorationState() {
+      return actExplorationState;
+    },
+    get addLog() {
+      return typeof addLog === "undefined" ? void 0 : addLog;
+    },
+    get backgroundCombatRuntime() {
+      return typeof backgroundCombatRuntime === "undefined" ? void 0 : backgroundCombatRuntime;
+    },
+    get clearTimeout() {
+      return windowClearTimeout;
+    },
+    get cloneDefaultGame() {
+      return cloneDefaultGame;
+    },
+    get cloudState() {
+      return cloudState;
+    },
+    get console() {
+      return console;
+    },
+    get coreItems() {
+      return coreItems;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get equipmentSockets() {
+      return equipmentSockets;
+    },
+    get getAutoProgressZoneId() {
+      return typeof getAutoProgressZoneId === "undefined" ? void 0 : getAutoProgressZoneId;
+    },
+    get getZone() {
+      return typeof getZone === "undefined" ? void 0 : getZone;
+    },
+    get isSkyTowerAtRewardLimit() {
+      return isSkyTowerAtRewardLimit;
+    },
+    get isStartupOverlayOpen() {
+      return typeof isStartupOverlayOpen === "undefined" ? void 0 : isStartupOverlayOpen;
+    },
+    get isTransientGameState() {
+      return isTransientGameState;
+    },
+    get localStorage() {
+      return localStorage;
+    },
+    get mergeDefaults() {
+      return mergeDefaults;
+    },
+    get normalizeCombatTacticsSettings() {
+      return typeof normalizeCombatTacticsSettings === "undefined" ? void 0 : normalizeCombatTacticsSettings;
+    },
+    get scheduleCloudAutoSync() {
+      return scheduleCloudAutoSync;
+    },
+    get setTimeout() {
+      return windowSetTimeout;
+    },
+    get syncCloudSave() {
+      return typeof syncCloudSave === "undefined" ? void 0 : syncCloudSave;
+    },
+    get updateCloudSaveUI() {
+      return updateCloudSaveUI;
+    }
+  });
+  window.GameModules.save = Object.freeze({ dispose: () => application.dispose() });
+  safeExposeGlobals({
+    normalizeCloudUploadProfile,
+    accountSaveKey: (...args) => slots.accountSaveKey(...args),
+    selectSaveSlot: (...args) => slots.selectSaveSlot(...args),
+    getSaveSlot: (...args) => slots.getSaveSlot(...args),
+    readGuestSave: (...args) => slots.readGuestSave(...args),
+    readAccountSaveCopy: (...args) => slots.readAccountSaveCopy(...args),
+    hasAccountSaveCopy: (...args) => slots.hasAccountSaveCopy(...args),
+    removeGuestSave: (...args) => slots.removeGuestSave(...args),
+    migrateOwnedGuestSave: (...args) => slots.migrateOwnedGuestSave(...args),
+    setLocalSaveRuntimeState: (...args) => slots.setLocalSaveRuntimeState(...args),
+    getLocalSaveStatus: (...args) => slots.getLocalSaveStatus(...args),
+    gameBuildTime,
+    outdatedBuildError: (...args) => slots.outdatedBuildError(...args),
+    assertSaveFromKnownBuild: (...args) => slots.assertSaveFromKnownBuild(...args),
+    canPersistLocalSave: (...args) => application.canPersistLocalSave(...args),
+    readLocalSaveResult: (...args) => slots.readLocalSaveResult(...args),
+    getLegacySaveKeys: (...args) => slots.getLegacySaveKeys(...args),
+    readLocalSaveString: (...args) => slots.readLocalSaveString(...args),
+    ensureSaveMeta: (...args) => application.ensureSaveMeta(...args),
+    resetLocalSave: (...args) => slots.resetLocalSave(...args),
+    refreshItemIdCounter: (...args) => application.refreshItemIdCounter(...args),
+    dropRuntimeOnlySaveFields: (...args) => codec.dropRuntimeOnlySaveFields(...args),
+    createSaveSnapshot: (...args) => codec.createSaveSnapshot(...args),
+    serializeSaveState: (...args) => codec.serializeSaveState(...args),
+    createCloudSavePayload: (...args) => codec.createCloudSavePayload(...args),
+    createCloudSyncPayload: (...args) => codec.createCloudSyncPayload(...args),
+    createCloudSaveRequestBody: (...args) => codec.createCloudSaveRequestBody(...args),
+    cloudSaveFingerprint: (...args) => codec.cloudSaveFingerprint(...args),
+    cloudSaveContentPrint: (...args) => codec.cloudSaveContentPrint(...args),
+    getPlayedUntil: (...args) => application.getPlayedUntil(...args),
+    touchSaveMeta: (...args) => application.touchSaveMeta(...args),
+    persistLocalSave: (...args) => application.persistLocalSave(...args),
+    normalizeLocalRuntimeAfterLoad: (...args) => application.normalizeLocalRuntimeAfterLoad(...args),
+    loadGame: (...args) => application.loadGame(...args),
+    loadGameAtBoot: (...args) => application.loadGameAtBoot(...args),
+    saveGame: (...args) => application.saveGame(...args),
+    queueImportantSave: (...args) => application.queueImportantSave(...args),
+    formatCloudTime: formatCloudTime2,
+    setCloudMessage: (...args) => application.setCloudMessage(...args),
+    stampGameBuild: (...args) => slots.stampGameBuild(...args)
+  });
 })();
-
-
-// Phase-2 extracted save helpers and persistence flow.
-
-/** The save slot this page reads and writes (2026-10-30). The guest slot (LOCAL_SAVE_KEY) lives on this device only and never goes to
- * the server. An account's slot (ACCOUNT_SAVE_KEY_PREFIX + account id) holds this device's copy of that account's server save plus
- * what it has not uploaded yet (saveMeta.cloudPending); the account mode reads and writes only that slot. userId is null for the guest. */
-const saveSlot = { kind: 'guest', key: LOCAL_SAVE_KEY, userId: null };
-
-
-const localSaveRuntimeState = {
-    status: 'uninitialized',
-    writable: true,
-    sourceKey: null,
-    backupKey: null,
-    message: ''
-};
-
-
-/** The release this page runs: the time of the commit it was built from (ISO), which scripts/lib/game-build.js writes into
- * <meta name="game-build"> of a release (dist/, www/). An unbuilt page (development server, smoke runtime) has 'dev' or no tag and
- * gets null: it stamps no save and refuses none. */
-const RUNNING_GAME_BUILD = (() => {
-    const meta = typeof document === 'object' && typeof document.querySelector === 'function' ? document.querySelector('meta[name="game-build"]') : null;
-    return gameBuildTime(meta && meta.content) ? meta.content : null;
-})();
-const OUTDATED_BUILD_ERROR_CODE = 'GAME_BUILD_OUTDATED';
-
-
-/** Every save a release writes names that release, so an older release can tell it apart (outdatedBuildError). */
-function stampGameBuild(meta) {
-    if (RUNNING_GAME_BUILD) meta.gameBuild = RUNNING_GAME_BUILD;
-}
-
-
-/** Fields of game that live only while the game runs: the talent card runtime and the last combat tick's stat sheet and time
- * (about a tenth of a save, and stale after a load). Never saved or uploaded; old saves drop them on load (mergeDefaults). */
-const RUNTIME_ONLY_SAVE_KEYS = Object.freeze(['talentCardRuntime', 'lastCombatStats', 'lastCombatStatsAt']);
-
-
-let importantSaveTimer = null;
-
-
-safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, resetLocalSave, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSaveRequestBody, persistLocalSave, loadGame, loadGameAtBoot, saveGame, queueImportantSave, formatCloudTime, setCloudMessage, selectSaveSlot, getSaveSlot, accountSaveKey, readGuestSave, removeGuestSave, migrateOwnedGuestSave });

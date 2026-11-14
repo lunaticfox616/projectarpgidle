@@ -28,7 +28,7 @@
     }
     function seed(mode, snapshot) {
         if (timer) clearInterval(timer);
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         game=mergeDefaults({});window.game=game;
         game.season=10;game.level=100;game.maxZoneId=29;game.combatHalted=true;
         game.pendingLoopHeroSelection=false;game.pendingLoopDecision=false;game.pendingLoopReady=false;

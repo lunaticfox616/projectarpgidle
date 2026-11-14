@@ -1,205 +1,211 @@
-if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/bosses.js');
+// GENERATED from modules/data/bosses.mjs. Edit the ESM source; run npm run build:modules.
+(() => {
+  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\constants.mjs
+  var COMBAT_GRID_CONFIG = globalThis.COMBAT_GRID_CONFIG;
 
-// Phase-1 extracted data block.
-const ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act.bossName]));
+  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\maps.mjs
+  var STORY_ACTS = globalThis.STORY_ACTS;
 
-// Body identity controls ordinary attacks and resistance cues; ocean current rules still take precedence.
-const BOSS_BODY_ELEMENTS = Object.freeze({
-    'atlas-garden-1': 'phys', 'atlas-garden-2': 'cold',
-    'atlas-sanctum-4': 'light', 'atlas-sanctum-5': 'cold',
-    'meteor-heart': 'fire'
-});
-/** 지도 45종 모두 로스터 몸을 쓴다. 전용 그림이 없는 22종의 기존 보스 연결은 로스터 wears가 소유한다. */
-const ATLAS_BOSS_BODIES = Object.freeze(['roots', 'trunk', 'canopy', 'garden', 'sanctum']
-    .flatMap(region => Array.from({ length: 9 }, (_, slot) => `atlas-${region}-${slot}`)));
-
-
-// 액트 10은 새로 그린 '고치에서 태어난 존재'(bossAct10_2, 무대 그림이 있는 하나) 한 장만 쓴다(2026-11-08 사용자: 자꾸 옛 그림으로
-// 되돌아감). 예전에는 다섯 장을 시드로 골라 넷이 옛 정지 그림이었고, 혼돈은 액트를 시드 % 10으로 고른 뒤 같은 시드 % 5로 그림을
-// 골라 액트 10(9)이면 늘 다섯째(옛 그림)였다. 옛 그림 다섯 장은 저장된 적을 위해 BOSS_ASSET_SOURCES에 남긴다.
-const ACT_BOSS_ASSET_KEYS = [
-    'bossAct1', 'bossAct2', 'bossAct3', 'bossAct4_1', 'bossAct5',
-    'bossAct6', 'bossAct7', 'bossAct8_1', 'bossAct9', 'bossAct10_2'
-];
-
-// 원본 보스 그림. 게임은 이것을 실행 중에 정리(배경을 투명하게, js/battle-assets.js sanitizeBattleSheet)하던 것을 미리 해 둔
-// assets/battle-clean 그림을 쓴다(2026-10-07 메모리 검토: 정리 사본이 원본 디코드와 따로 메모리에 남았다). 원본을 고치면
-// scripts/export-clean-battle-sheets.cjs로 다시 만든다.
-const BOSS_ASSET_SOURCES = {
-    bossAct1: 'assets/boss/Act1.png',
-    bossAct2: 'assets/boss/Act2.png',
-    bossAct3: 'assets/boss/Act3.png',
-    bossAct4_1: 'assets/boss/Act4-1.png',
-    bossAct4_2: 'assets/boss/Act4-2.png',
-    bossAct5: 'assets/boss/Act5.png',
-    bossAct6: 'assets/boss/Act6.png',
-    bossAct7: 'assets/boss/Act7.png',
-    bossAct8_1: 'assets/boss/Act8-1.png',
-    bossAct8_2: 'assets/boss/Act8-2.png',
-    bossAct8_3: 'assets/boss/Act8-3.png',
-    bossAct9: 'assets/boss/Act9.png',
-    bossAct10_1: 'assets/boss/Act10(1).png',
-    bossAct10_2: 'assets/boss/Act10(2).png',
-    bossAct10_3: 'assets/boss/Act10(3).png',
-    bossAct10_4: 'assets/boss/Act10(4).png',
-    bossAct10_5: 'assets/boss/Act10(5).png'
-};
-const BOSS_ASSET_MANIFEST = Object.fromEntries(Object.entries(BOSS_ASSET_SOURCES).map(([key, src]) =>
-    [key, `assets/battle-clean/boss-${src.split('/').pop().replace(/\.png$/, '').replace(/\((\d+)\)/, '-$1')}.png`]));
-
-const BOSS_ASSET_VARIANTS_BY_ACT = {
-    4: ['bossAct4_1', 'bossAct4_2'],
-    8: ['bossAct8_1', 'bossAct8_2', 'bossAct8_3']
-};
-
-// 보스 그림은 왼쪽을 보고 그려졌다(2026-10-06 열일곱 장 확인). 정면을 보는 이 셋만 뒤집지 않고,
-// 나머지는 주인공이 오른쪽에 서면 좌우를 뒤집는다(js/canvas-battlefield.js shouldMirrorEnemySprite).
-const BOSS_ASSET_FRONT_FACING = Object.freeze(['bossAct9', 'bossAct10_2', 'bossAct10_5']);
-
-// 영역 몬스터(2026-10-02 다시 그림): 몬스터마다 대기 · 공격 시트 한 장씩(data/monster-sprites.js, 그리기는
-// js/canvas-monster-actors.js), 공격 방식은 그림을 따른다(근접 = 물기 · 할퀴기 · 무기, 원거리 = 주문 · 던지기 · 등불).
-// 2026-10-13: 옆에서 보는 무대의 새 그림이 없어 예전 그림으로 나오던 열한 종류를 지웠다(RETIRED_REALM_MONSTERS). 지하계에는 정예 종류가
-// 남지 않아, 그런 영역의 정예는 그 영역의 일반 몬스터가 맡는다(getRealmMonsterVisualDefinition).
-const REALM_MONSTER_VISUAL_SETS = Object.freeze({
+  // modules/data/bosses.mjs
+  var ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act.bossName]));
+  var BOSS_BODY_ELEMENTS = Object.freeze({
+    "atlas-garden-1": "phys",
+    "atlas-garden-2": "cold",
+    "atlas-sanctum-4": "light",
+    "atlas-sanctum-5": "cold",
+    "meteor-heart": "fire"
+  });
+  var ATLAS_BOSS_BODIES = Object.freeze(["roots", "trunk", "canopy", "garden", "sanctum"].flatMap((region) => Array.from({ length: 9 }, (_, slot) => `atlas-${region}-${slot}`)));
+  var ACT_BOSS_ASSET_KEYS = [
+    "bossAct1",
+    "bossAct2",
+    "bossAct3",
+    "bossAct4_1",
+    "bossAct5",
+    "bossAct6",
+    "bossAct7",
+    "bossAct8_1",
+    "bossAct9",
+    "bossAct10_2"
+  ];
+  var BOSS_ASSET_SOURCES = {
+    bossAct1: "assets/boss/Act1.png",
+    bossAct2: "assets/boss/Act2.png",
+    bossAct3: "assets/boss/Act3.png",
+    bossAct4_1: "assets/boss/Act4-1.png",
+    bossAct4_2: "assets/boss/Act4-2.png",
+    bossAct5: "assets/boss/Act5.png",
+    bossAct6: "assets/boss/Act6.png",
+    bossAct7: "assets/boss/Act7.png",
+    bossAct8_1: "assets/boss/Act8-1.png",
+    bossAct8_2: "assets/boss/Act8-2.png",
+    bossAct8_3: "assets/boss/Act8-3.png",
+    bossAct9: "assets/boss/Act9.png",
+    bossAct10_1: "assets/boss/Act10(1).png",
+    bossAct10_2: "assets/boss/Act10(2).png",
+    bossAct10_3: "assets/boss/Act10(3).png",
+    bossAct10_4: "assets/boss/Act10(4).png",
+    bossAct10_5: "assets/boss/Act10(5).png"
+  };
+  var BOSS_ASSET_MANIFEST = Object.fromEntries(Object.entries(BOSS_ASSET_SOURCES).map(([key, src]) => [key, `assets/battle-clean/boss-${src.split("/").pop().replace(/\.png$/, "").replace(/\((\d+)\)/, "-$1")}.png`]));
+  var BOSS_ASSET_VARIANTS_BY_ACT = {
+    4: ["bossAct4_1", "bossAct4_2"],
+    8: ["bossAct8_1", "bossAct8_2", "bossAct8_3"]
+  };
+  var BOSS_ASSET_FRONT_FACING = Object.freeze(["bossAct9", "bossAct10_2", "bossAct10_5"]);
+  var REALM_MONSTER_VISUAL_SETS = Object.freeze({
     underworld: Object.freeze({
-        id: 'underworld',
-        zoneTypes: Object.freeze(['underworld']), pinnacleTracks: Object.freeze(['underworld']),
-        members: Object.freeze([
-            ['underworld-beetle', '흑요석 갑충', 'normal', 'melee'],
-            ['underworld-hound', '균사 사냥개', 'normal', 'melee'],
-            ['underworld-obsidian-centipede', '흑요석 지네', 'elite', 'melee'],
-            ['underworld-king', '지저 군주', 'boss', 'melee']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "underworld",
+      zoneTypes: Object.freeze(["underworld"]),
+      pinnacleTracks: Object.freeze(["underworld"]),
+      members: Object.freeze([
+        ["underworld-beetle", "흑요석 갑충", "normal", "melee"],
+        ["underworld-hound", "균사 사냥개", "normal", "melee"],
+        ["underworld-obsidian-centipede", "흑요석 지네", "elite", "melee"],
+        ["underworld-king", "지저 군주", "boss", "melee"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     cosmos: Object.freeze({
-        id: 'cosmos',
-        zoneTypes: Object.freeze(['cosmos']), zoneIds: Object.freeze(['cosmos_astra']),
-        members: Object.freeze([
-            ['cosmos-star', '성흔 가시체', 'normal', 'melee'], ['cosmos-ooze', '혜성 점액체', 'normal', 'melee'],
-            ['cosmos-sentinel', '궤도 파수병', 'elite', 'ranged'],
-            ['cosmos-colossus', '성핵 거신', 'boss', 'melee']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "cosmos",
+      zoneTypes: Object.freeze(["cosmos"]),
+      zoneIds: Object.freeze(["cosmos_astra"]),
+      members: Object.freeze([
+        ["cosmos-star", "성흔 가시체", "normal", "melee"],
+        ["cosmos-ooze", "혜성 점액체", "normal", "melee"],
+        ["cosmos-sentinel", "궤도 파수병", "elite", "ranged"],
+        ["cosmos-colossus", "성핵 거신", "boss", "melee"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     ocean: Object.freeze({
-        id: 'ocean',
-        zoneTypes: Object.freeze(['oceanDepth']), pinnacleTracks: Object.freeze(['ocean']),
-        members: Object.freeze([
-            ['ocean-angler', '심해 초롱어', 'normal', 'melee'], ['ocean-crab', '산호 집게', 'normal', 'melee'],
-            ['ocean-shell', '철갑 패각충', 'normal', 'melee'],
-            ['ocean-oracle', '해파리 신탁', 'elite', 'ranged'],
-            ['ocean-leviathan', '해구 레비아탄', 'boss', 'ranged']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "ocean",
+      zoneTypes: Object.freeze(["oceanDepth"]),
+      pinnacleTracks: Object.freeze(["ocean"]),
+      members: Object.freeze([
+        ["ocean-angler", "심해 초롱어", "normal", "melee"],
+        ["ocean-crab", "산호 집게", "normal", "melee"],
+        ["ocean-shell", "철갑 패각충", "normal", "melee"],
+        ["ocean-oracle", "해파리 신탁", "elite", "ranged"],
+        ["ocean-leviathan", "해구 레비아탄", "boss", "ranged"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     // 벌집 원정과 군락지(2026-10-06): 예전엔 벌 그림이 없어 이름만 바꾼 부제사 · 위습 · 뿌리와 붉은 악마 보스로 보였다.
     hive: Object.freeze({
-        id: 'hive',
-        zoneTypes: Object.freeze(['beehive']),
-        members: Object.freeze([
-            ['hive-worker', '벌집 전투벌', 'normal', 'melee'], ['hive-drone', '벌집 수벌', 'normal', 'melee'],
-            ['hive-scout', '벌집 정찰벌', 'normal', 'ranged'], ['hive-nurse', '꿀주머니 벌', 'normal', 'ranged'],
-            ['hive-guard', '정예 수호벌', 'elite', 'melee'], ['hive-royal', '여왕 근위벌', 'elite', 'melee'],
-            ['hive-queen', '벌집 여왕', 'boss', 'ranged']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "hive",
+      zoneTypes: Object.freeze(["beehive"]),
+      members: Object.freeze([
+        ["hive-worker", "벌집 전투벌", "normal", "melee"],
+        ["hive-drone", "벌집 수벌", "normal", "melee"],
+        ["hive-scout", "벌집 정찰벌", "normal", "ranged"],
+        ["hive-nurse", "꿀주머니 벌", "normal", "ranged"],
+        ["hive-guard", "정예 수호벌", "elite", "melee"],
+        ["hive-royal", "여왕 근위벌", "elite", "melee"],
+        ["hive-queen", "벌집 여왕", "boss", "ranged"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     colony: Object.freeze({
-        id: 'colony',
-        zoneTypes: Object.freeze(['colony']),
-        formations: Object.freeze({
-            charge: Object.freeze({ normal: Object.freeze(['act5-ant', 'colony-borer-grub', 'act4-ant']), elite: Object.freeze(['hive-guard']) }),
-            sharpshooters: Object.freeze({ normal: Object.freeze(['hive-scout', 'hive-nurse', 'act5-ant', 'hive-scout']), elite: Object.freeze(['hive-guard']) }),
-            carapace: Object.freeze({ normal: Object.freeze(['act4-ant', 'act5-worm', 'colony-borer-grub']), elite: Object.freeze(['colony-carapace-beetle']) }),
-            mixed: Object.freeze({ normal: Object.freeze(['act5-ant', 'hive-scout', 'act5-worm', 'hive-nurse']), elite: Object.freeze(['hive-guard', 'colony-carapace-beetle']) }),
-            overlord: Object.freeze({ normal: Object.freeze(['act4-ant', 'hive-scout', 'colony-borer-grub']), elite: Object.freeze(['colony-carapace-beetle', 'hive-guard']) })
-        }),
-        members: Object.freeze([
-            ['act5-ant', '군락 일개미', 'normal', 'melee'], ['act4-ant', '군락 병정개미', 'normal', 'melee'],
-            ['colony-borer-grub', '군락 굴착벌레', 'normal', 'melee'], ['act5-worm', '군락 천공벌레', 'normal', 'melee'],
-            ['hive-scout', '군락 독침 사수', 'normal', 'ranged'], ['hive-nurse', '군락 독낭 벌', 'normal', 'ranged'],
-            ['hive-guard', '군락 수호벌', 'elite', 'melee'], ['colony-carapace-beetle', '군락 갑충', 'elite', 'melee'],
-            ['colony-boss', '군락지 지배체', 'boss', 'melee']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "colony",
+      zoneTypes: Object.freeze(["colony"]),
+      formations: Object.freeze({
+        charge: Object.freeze({ normal: Object.freeze(["act5-ant", "colony-borer-grub", "act4-ant"]), elite: Object.freeze(["hive-guard"]) }),
+        sharpshooters: Object.freeze({ normal: Object.freeze(["hive-scout", "hive-nurse", "act5-ant", "hive-scout"]), elite: Object.freeze(["hive-guard"]) }),
+        carapace: Object.freeze({ normal: Object.freeze(["act4-ant", "act5-worm", "colony-borer-grub"]), elite: Object.freeze(["colony-carapace-beetle"]) }),
+        mixed: Object.freeze({ normal: Object.freeze(["act5-ant", "hive-scout", "act5-worm", "hive-nurse"]), elite: Object.freeze(["hive-guard", "colony-carapace-beetle"]) }),
+        overlord: Object.freeze({ normal: Object.freeze(["act4-ant", "hive-scout", "colony-borer-grub"]), elite: Object.freeze(["colony-carapace-beetle", "hive-guard"]) })
+      }),
+      members: Object.freeze([
+        ["act5-ant", "군락 일개미", "normal", "melee"],
+        ["act4-ant", "군락 병정개미", "normal", "melee"],
+        ["colony-borer-grub", "군락 굴착벌레", "normal", "melee"],
+        ["act5-worm", "군락 천공벌레", "normal", "melee"],
+        ["hive-scout", "군락 독침 사수", "normal", "ranged"],
+        ["hive-nurse", "군락 독낭 벌", "normal", "ranged"],
+        ["hive-guard", "군락 수호벌", "elite", "melee"],
+        ["colony-carapace-beetle", "군락 갑충", "elite", "melee"],
+        ["colony-boss", "군락지 지배체", "boss", "melee"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     meteor: Object.freeze({
-        id: 'meteor',
-        zoneTypes: Object.freeze(['meteor']),
-        members: Object.freeze([
-            ['meteor-shard', '별철 가시체', 'normal', 'melee'],
-            ['meteor-melt', '융해 점액체', 'normal', 'melee'],
-            ['meteor-sentinel', '낙하 궤도 파수병', 'elite', 'ranged'],
-            ['meteor-heart', '검은 별의 심장', 'boss', 'ranged']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "meteor",
+      zoneTypes: Object.freeze(["meteor"]),
+      members: Object.freeze([
+        ["meteor-shard", "별철 가시체", "normal", "melee"],
+        ["meteor-melt", "융해 점액체", "normal", "melee"],
+        ["meteor-sentinel", "낙하 궤도 파수병", "elite", "ranged"],
+        ["meteor-heart", "검은 별의 심장", "boss", "ranged"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     sky: Object.freeze({
-        id: 'sky',
-        zoneTypes: Object.freeze(['skyTower']), pinnacleTracks: Object.freeze(['sky']),
-        members: Object.freeze([
-            ['sky-imp', '구름 도깨비', 'normal', 'ranged'], ['sky-roc', '어린 뇌조', 'normal', 'melee'],
-            ['sky-harpy', '질풍 하피', 'normal', 'melee'],
-            ['sky-griffin', '태양 그리핀', 'elite', 'melee'],
-            ['sky-titan', '창공 거신', 'boss', 'melee']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "sky",
+      zoneTypes: Object.freeze(["skyTower"]),
+      pinnacleTracks: Object.freeze(["sky"]),
+      members: Object.freeze([
+        ["sky-imp", "구름 도깨비", "normal", "ranged"],
+        ["sky-roc", "어린 뇌조", "normal", "melee"],
+        ["sky-harpy", "질풍 하피", "normal", "melee"],
+        ["sky-griffin", "태양 그리핀", "elite", "melee"],
+        ["sky-titan", "창공 거신", "boss", "melee"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     grandBreach: Object.freeze({
-        id: 'grandBreach',
-        zoneTypes: Object.freeze(['grandBreach']),
-        members: Object.freeze([
-            ['breach-scout', '균열 척후', 'normal', 'melee'],
-            ['breach-reflux', '역류 사수', 'normal', 'ranged'],
-            ['breach-veil', '장막 봉합자', 'elite', 'ranged'],
-            ['breach-venom', '독낭 파열체', 'elite', 'melee'],
-            ['grand_breach_guardian', '대균열의 지배자', 'boss', 'ranged']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "grandBreach",
+      zoneTypes: Object.freeze(["grandBreach"]),
+      members: Object.freeze([
+        ["breach-scout", "균열 척후", "normal", "melee"],
+        ["breach-reflux", "역류 사수", "normal", "ranged"],
+        ["breach-veil", "장막 봉합자", "elite", "ranged"],
+        ["breach-venom", "독낭 파열체", "elite", "melee"],
+        ["grand_breach_guardian", "대균열의 지배자", "boss", "ranged"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     // 시간의 균열(2026-10-25 Codex 그림): 과거와 미래가 제 무리를 쓰고 지배자는 같다. 정예는 일반 외형을 쓴다.
     riftPast: Object.freeze({
-        id: 'riftPast',
-        zoneTypes: Object.freeze([]), zoneIds: Object.freeze(['time_rift_past']),
-        members: Object.freeze([
-            ['rift-oath-warden', '멈춘 서약의 파수병', 'normal', 'melee'], ['rift-seed-lantern', '멈춘 씨앗 등불', 'normal', 'ranged'],
-            ['time_rift_guardian', '시간의 균열 지배자', 'boss', 'melee']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "riftPast",
+      zoneTypes: Object.freeze([]),
+      zoneIds: Object.freeze(["time_rift_past"]),
+      members: Object.freeze([
+        ["rift-oath-warden", "멈춘 서약의 파수병", "normal", "melee"],
+        ["rift-seed-lantern", "멈춘 씨앗 등불", "normal", "ranged"],
+        ["time_rift_guardian", "시간의 균열 지배자", "boss", "melee"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     riftFuture: Object.freeze({
-        id: 'riftFuture',
-        zoneTypes: Object.freeze([]), zoneIds: Object.freeze(['time_rift_future']),
-        members: Object.freeze([
-            ['rift-ashen-hound', '퇴색한 순찰수', 'normal', 'melee'], ['rift-archive-moth', '갈라진 기록나방', 'normal', 'ranged'],
-            ['rift-seed-lantern', '멈춘 씨앗 등불', 'normal', 'ranged'],
-            ['time_rift_guardian', '시간의 균열 지배자', 'boss', 'melee']
-        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+      id: "riftFuture",
+      zoneTypes: Object.freeze([]),
+      zoneIds: Object.freeze(["time_rift_future"]),
+      members: Object.freeze([
+        ["rift-ashen-hound", "퇴색한 순찰수", "normal", "melee"],
+        ["rift-archive-moth", "갈라진 기록나방", "normal", "ranged"],
+        ["rift-seed-lantern", "멈춘 씨앗 등불", "normal", "ranged"],
+        ["time_rift_guardian", "시간의 균열 지배자", "boss", "melee"]
+      ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     })
-});
-
-// 위습형 몬스터 규칙: 일반·정예 외형 뽑기에서 다섯에 하나(다른 몬스터보다 조금 드묾), 생명력 70%,
-// 회피 조금 높음 · 방어도 낮음, 스킬룬 드랍 확률 3배. 원소 저항·피해 감소는 getWispEnemyDefenseBonuses(js/combat.js).
-const WISP_ENEMY_RULES = Object.freeze({ spawnOneIn: 5, hpMul: 0.7, evasionMul: 1.3, armorMul: 0.5, gemDropMul: 3 });
-const WISP_NEUTRAL_RULES = Object.freeze({ spawnOneIn: 0, hpMul: 1, evasionMul: 1, armorMul: 1, gemDropMul: 1 });
-
-const WISP_MONSTER_ASSET_MANIFEST = Object.freeze({
-    wispEnemyAttack: 'assets/enemies/wisps/wisp-attack-v1.webp',
-    wispEnemyGlow: 'assets/enemies/wisps/wisp-glow-v1.webp'
-});
-
-const WISP_MONSTER_VISUALS = Object.freeze([
-    ['B01', 'sediment-core', '침전핵 위습', 'basic', ['phys']],
-    ['B02', 'ember', '불씨 위습', 'basic', ['fire']],
-    ['B03', 'frost-core', '서리핵 위습', 'basic', ['cold']],
-    ['B04', 'lightning', '뇌전 위습', 'basic', ['light']],
-    ['B05', 'chaos-rift', '혼돈균열 위습', 'basic', ['chaos']],
-    ['B06', 'poison-sac', '독낭 위습', 'basic', ['chaos']],
-    ['H01', 'thermal-shock', '열충격 위습', 'hybrid', ['fire', 'cold']],
-    ['H02', 'thunder-flame', '뇌화 위습', 'hybrid', ['fire', 'light']],
-    ['H03', 'frost-thunder', '빙뢰 위습', 'hybrid', ['cold', 'light']],
-    ['H04', 'charred-core', '탄화핵 위습', 'hybrid', ['phys', 'fire']],
-    ['H05', 'frozen-sediment', '동결침전 위습', 'hybrid', ['phys', 'cold']],
-    ['H06', 'storm-sediment', '낙뢰침전 위습', 'hybrid', ['phys', 'light']],
-    ['H07', 'blight-chaos', '괴독 위습', 'hybrid', ['chaos']],
-    ['S01', 'sacred-sap', '성수액 위습', 'special', ['phys', 'fire']],
-    ['S02', 'sealed-necrosis', '봉인괴저 위습', 'special', ['chaos']],
-    ['S03', 'depleted-backflow', '고갈역류 위습', 'special', ['cold', 'chaos']],
-    ['S04', 'veil-fold', '장막접힘 위습', 'special', ['chaos']],
-    ['S05', 'convergence-ring', '수렴륜 위습', 'special', ['phys', 'light']]
-].map((entry, cell) => Object.freeze({
+  });
+  var WISP_ENEMY_RULES = Object.freeze({ spawnOneIn: 5, hpMul: 0.7, evasionMul: 1.3, armorMul: 0.5, gemDropMul: 3 });
+  var WISP_NEUTRAL_RULES = Object.freeze({ spawnOneIn: 0, hpMul: 1, evasionMul: 1, armorMul: 1, gemDropMul: 1 });
+  var WISP_MONSTER_ASSET_MANIFEST = Object.freeze({
+    wispEnemyAttack: "assets/enemies/wisps/wisp-attack-v1.webp",
+    wispEnemyGlow: "assets/enemies/wisps/wisp-glow-v1.webp"
+  });
+  var WISP_MONSTER_VISUALS = Object.freeze([
+    ["B01", "sediment-core", "침전핵 위습", "basic", ["phys"]],
+    ["B02", "ember", "불씨 위습", "basic", ["fire"]],
+    ["B03", "frost-core", "서리핵 위습", "basic", ["cold"]],
+    ["B04", "lightning", "뇌전 위습", "basic", ["light"]],
+    ["B05", "chaos-rift", "혼돈균열 위습", "basic", ["chaos"]],
+    ["B06", "poison-sac", "독낭 위습", "basic", ["chaos"]],
+    ["H01", "thermal-shock", "열충격 위습", "hybrid", ["fire", "cold"]],
+    ["H02", "thunder-flame", "뇌화 위습", "hybrid", ["fire", "light"]],
+    ["H03", "frost-thunder", "빙뢰 위습", "hybrid", ["cold", "light"]],
+    ["H04", "charred-core", "탄화핵 위습", "hybrid", ["phys", "fire"]],
+    ["H05", "frozen-sediment", "동결침전 위습", "hybrid", ["phys", "cold"]],
+    ["H06", "storm-sediment", "낙뢰침전 위습", "hybrid", ["phys", "light"]],
+    ["H07", "blight-chaos", "괴독 위습", "hybrid", ["chaos"]],
+    ["S01", "sacred-sap", "성수액 위습", "special", ["phys", "fire"]],
+    ["S02", "sealed-necrosis", "봉인괴저 위습", "special", ["chaos"]],
+    ["S03", "depleted-backflow", "고갈역류 위습", "special", ["cold", "chaos"]],
+    ["S04", "veil-fold", "장막접힘 위습", "special", ["chaos"]],
+    ["S05", "convergence-ring", "수렴륜 위습", "special", ["phys", "light"]]
+  ].map((entry, cell) => Object.freeze({
     id: `wisp-${entry[0].toLowerCase()}`,
     code: entry[0],
     slug: entry[1],
@@ -207,312 +213,377 @@ const WISP_MONSTER_VISUALS = Object.freeze([
     category: entry[3],
     elements: Object.freeze(entry[4]),
     cell
-})));
-
-function getRealmMonsterVisualSet(zone) {
+  })));
+  function getRealmMonsterVisualSet(zone) {
     if (!zone) return null;
-    const zoneId = String(zone.id || '');
-    return Object.values(REALM_MONSTER_VISUAL_SETS).find(set =>
-        set.zoneTypes.includes(zone.type) || (set.zoneIds || []).includes(zoneId)
-        || (set.pinnacleTracks || []).includes(zone.pinnacleTrack)) || null;
-}
-
-function getRealmMonsterVisualDefinition(set, role, variantSeed) {
+    const zoneId = String(zone.id || "");
+    return Object.values(REALM_MONSTER_VISUAL_SETS).find((set) => set.zoneTypes.includes(zone.type) || (set.zoneIds || []).includes(zoneId) || (set.pinnacleTracks || []).includes(zone.pinnacleTrack)) || null;
+  }
+  function getRealmMonsterVisualDefinition(set, role, variantSeed) {
     if (!set) return null;
-    const ofRole = wanted => set.members.filter(member => member.role === wanted);
-    const pool = role === 'elite' && ofRole(role).length === 0 ? ofRole('normal') : ofRole(role);
+    const ofRole = (wanted) => set.members.filter((member) => member.role === wanted);
+    const pool = role === "elite" && ofRole(role).length === 0 ? ofRole("normal") : ofRole(role);
     if (pool.length === 0) return null;
     return pool[Math.abs(Math.floor(Number(variantSeed) || 0)) % pool.length];
-}
-
-function getRealmMonsterVisualDefinitionById(id) {
+  }
+  function getRealmMonsterVisualDefinitionById(id) {
     for (const set of Object.values(REALM_MONSTER_VISUAL_SETS)) {
-        const member = set.members.find(entry => entry.id === id);
-        if (member) return member;
+      const member = set.members.find((entry) => entry.id === id);
+      if (member) return member;
     }
     return null;
-}
-
-/** Explicit story stages preserve actor identity; other encounters retain visual variants. */
-function getStoryBossStage(zone, stageIndex) {
-    if (zone?.type !== 'act' || !Number.isInteger(stageIndex)) return null;
+  }
+  function getStoryBossStage(zone, stageIndex) {
+    if (zone?.type !== "act" || !Number.isInteger(stageIndex)) return null;
     const stages = STORY_ACTS[zone.id]?.bossStages;
     return stages?.[Math.max(0, Math.min(stageIndex, stages.length - 1))] || null;
-}
-
-function getBossNameForZone(zone, stageIndex = 0) {
+  }
+  function getBossNameForZone(zone, stageIndex = 0) {
     const stage = getStoryBossStage(zone, stageIndex);
     if (stage) return stage.name;
     const names = {
-        outsideChaos: '혼돈 밖의 나무꾼', trial: `${zone.name} 수호자`, seasonBoss: zone.name,
-        meteor: '검은 별의 심장', oceanDepth: `심해 가디언 ${Math.floor(zone.depthM || 0)}m`, atlasMap: zone.bossName
+      outsideChaos: "혼돈 밖의 나무꾼",
+      trial: `${zone.name} 수호자`,
+      seasonBoss: zone.name,
+      meteor: "검은 별의 심장",
+      oceanDepth: `심해 가디언 ${Math.floor(zone.depthM || 0)}m`,
+      atlasMap: zone.bossName
     };
-    return names[zone.type] || ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`;
-}
-
-function getBossAssetKeyForZone(zone, variantSeed, stageIndex) {
-    if (!zone || (zone.type && zone.type !== 'act') || !Number.isInteger(Number(zone.id))) return null;
+    return names[zone.type] || ACT_BOSS_NAMES[zone.id] || `${zone.name.split(":")[0]} 지배자`;
+  }
+  function getBossAssetKeyForZone(zone, variantSeed, stageIndex) {
+    if (!zone || zone.type && zone.type !== "act" || !Number.isInteger(Number(zone.id))) return null;
     const stage = getStoryBossStage(zone, stageIndex);
     if (stage) return stage.assetKey;
     const actNumber = Number(zone.id) + 1;
     const variants = BOSS_ASSET_VARIANTS_BY_ACT[actNumber];
     if (variants && variants.length > 0) {
-        const index = Math.abs(Math.floor(Number(variantSeed) || 0)) % variants.length;
-        return variants[index];
+      const index = Math.abs(Math.floor(Number(variantSeed) || 0)) % variants.length;
+      return variants[index];
     }
     return ACT_BOSS_ASSET_KEYS[actNumber - 1] || null;
-}
-
-const ENEMY_TRAIT_POOL = [
-    { id: 'rapid', name: '광폭 연타', outlineColor: '#ef6a45', atkMul: 1.35 },
-    { id: 'fortified', name: '강철 피부', outlineColor: '#86a8c4', hpMul: 1.35, dr: 8 },
-    { id: 'bulwark', name: '수문장 비늘', outlineColor: '#5fa6bb', firstHitGuard: 0.75 },
-    { id: 'duelist', name: '반격 태세', outlineColor: '#d8aa55', hitRateGuard: 0.12 },
-    { id: 'leechResist', name: '흡혈저항', outlineColor: '#b98aab', leechEffMul: 0.45, expMul: 1.06, dropMul: 1.04 },
-    { id: 'bloodless', name: '무혈', outlineColor: '#d9d4cc', leechEffMul: 0, expMul: 1.10, dropMul: 1.08 },
-    { id: 'swiftHands', name: '고속 공세', outlineColor: '#eadb72', attackSpeedVarMul: 1.18, expMul: 1.05, dropMul: 1.03 },
-    { id: 'veryFast', name: '매우 빠름', outlineColor: '#82d8de', attackSpeedVarMul: 1.26, expMul: 1.08, dropMul: 1.06 },
-    { id: 'strong', name: '강함', outlineColor: '#d97845', atkMul: 1.2, expMul: 1.07, dropMul: 1.05 },
-    { id: 'veryStrong', name: '매우 강함', outlineColor: '#f14f43', atkMul: 1.5, hpMul: 1.12, expMul: 1.12, dropMul: 1.08 },
-    { id: 'deadly', name: '치명적', outlineColor: '#d13d77', critChanceBonus: 18, expMul: 1.08, dropMul: 1.06 },
-    { id: 'tenacious', name: '끈질김', outlineColor: '#85b96b', hpMul: 1.45, expMul: 1.08, dropMul: 1.06 },
-    { id: 'fireWard', name: '화염 장막', outlineColor: '#f06436', resF: 28 },
-    { id: 'coldWard', name: '서리 장막', outlineColor: '#6ac6ee', resC: 28 },
-    { id: 'lightWard', name: '뇌전 장막', outlineColor: '#f2d95b', resL: 28 },
-    { id: 'chaosWard', name: '심연 장막', outlineColor: '#9b65dc', resChaos: 22 },
-    { id: 'physWard', name: '중갑 전개', outlineColor: '#9aa1aa', dr: 14 },
-    { id: 'pressureCrush', name: '수압 압살', outlineColor: '#4a8fc7', oceanPressureGainMul: 1.6 },
-    { id: 'oxygenLeech', name: '산소 갈취', outlineColor: '#57c7ac', oceanOxygenLeechOnHit: 4 },
-    { id: 'accuracyWard', name: '탁한 물막', outlineColor: '#738d9d', hitRateGuard: 0.18 },
-    { id: 'currentSwift', name: '급류 가속', outlineColor: '#46b7cf', atkMul: 1.2, attackSpeedVarMul: 1.16 }
-];
-
-// 액트 일반·정예 몬스터(2026-10-02, 받은 묶음 둘): 뿌리층 슬라임 · 웜 · 개미(rignin-monsters-idle-attack-v1, 액트 1 · 3 · 4 · 5)와
-// 철퇴 부제사 · 성수 부제녀(rignin-deacons-idle-attack-v2, 액트 2 · 6 · 7 · 8 팔레트). 액트 9 · 10은 장막(액트 8) 팔레트,
-// 혼돈 이후 콘텐츠(액트도 영역 세트도 아닌 곳 전부)는 부제 네 팔레트를 섞는다. 공격 방식은 그림을 따른다(사용자 결정
-// 2026-10-02): 근접 = 몸통 돌진 · 물기 · 철퇴, 원거리 = 성수. 그림 시트 규격은 data/monster-sprites.js.
-// 무기 뿌리촉수(rignin-weapon-root-tentacles-idle-attack-v1): 뿌리가 무기 대분류(data/weapon-categories.js) 하나를 든 몬스터.
-// 영역 세트가 아닌 모든 지역에서 적 spawnOneIn에 하나꼴로 나오고, 처치마다 weaponDropChance 확률로 제 대분류 무기를 하나
-// 떨군다(보통 장비 드랍과 따로, js/combat-kill-rewards.js grantRootWeaponPick). 그 무기와 보통 드랍의 무기는 제 대분류 바탕에서 고른다
-// (js/item-rolls.js chooseItemBase). 대검 · 한손검 · 향로는 근접, 나머지는 원거리.
-// 2026-10-07 사용자 요청: 너무 자주 나와(위습이 아닌 적 여덟에 하나) 흔하고, 무기는 거의 주지 않았다(장비 드랍의 절반이 무기였지만
-// 장비 드랍 자체가 처치의 1% 안팎). 마흔에 하나로 드물게 하고, 대신 제 무기를 넷에 하나꼴로 떨군다.
-const ROOT_MONSTER_RULES = Object.freeze({ spawnOneIn: 40, weaponDropChance: 0.25 });
-const ROOT_MONSTER_VISUALS = Object.freeze([
-    ['greatsword', '대검 뿌리촉수', 'melee'], ['scimitar', '한손검 뿌리촉수', 'melee'], ['shortbow', '단궁 뿌리촉수', 'ranged'],
-    ['orb', '오브 뿌리촉수', 'ranged'], ['flask', '플라스크 뿌리촉수', 'ranged'], ['censer', '향로 뿌리촉수', 'melee']
-].map(([weapon, name, attack]) => Object.freeze({ id: `root-${weapon}`, name, attack, weapon })));
-const ACT_MONSTER_VISUALS = Object.freeze([
-    ['act7-crackback-tick', '균열등 진드기', 'melee'], ['act7-husk-stag', '껍질마른 사슴', 'melee'],
-    ['act8-veil-moth', '장막나방', 'ranged'], ['act8-shroud-toad', '장막 두꺼비', 'melee'],
-    ['act9-dirge-crane', '만가 두루미', 'ranged'], ['act9-chorus-bulbs', '합창 구근', 'ranged'],
-    ['act10-graft-beast', '접목수', 'melee'], ['postchaos-inverted-sapling', '역생 묘목', 'ranged'],
-    ['atlas-canopy-leafglider', '잎막 활공쥐', 'melee'], ['atlas-garden-bonsai-snail', '분재 달팽이', 'melee'],
-    ['act1-slime', '수액 슬라임', 'melee'], ['act1-worm', '뿌리 웜', 'melee'], ['act1-ant', '뿌리 일개미', 'melee'],
-    ['act3-slime', '포자 슬라임', 'melee'], ['act3-worm', '부패 웜', 'melee'], ['act3-ant', '균사 개미', 'melee'],
-    ['act4-slime', '수지 슬라임', 'melee'], ['act4-worm', '수피 웜', 'melee'], ['act4-ant', '뿌리 병정개미', 'melee'],
-    ['act5-slime', '심핵 슬라임', 'melee'], ['act5-worm', '고대 천공웜', 'melee'], ['act5-ant', '고목 개미', 'melee'],
-    ['deacon-act2-melee', '중정 철퇴 부제사', 'melee'], ['deacon-act2-ranged', '중정 성수 부제녀', 'ranged'],
-    ['deacon-act6-melee', '고갈 철퇴 부제사', 'melee'], ['deacon-act6-ranged', '고갈 성수 부제녀', 'ranged'],
-    ['deacon-act7-melee', '고목 철퇴 부제사', 'melee'], ['deacon-act7-ranged', '고목 성수 부제녀', 'ranged'],
-    ['deacon-act8-melee', '장막 철퇴 부제사', 'melee'], ['deacon-act8-ranged', '장막 성수 부제녀', 'ranged'],
-    ['ashveil-stalker', '잿빛 장막의 추적자', 'melee']
-].map(([id, name, attack]) => Object.freeze({ id, name, attack })).concat(ROOT_MONSTER_VISUALS));
-const ACT_MONSTER_VISUAL_BY_ID = Object.freeze(Object.fromEntries(ACT_MONSTER_VISUALS.map(def => [def.id, def])));
-
-/** 기습 정예(2026-11-08 사용자: Codex가 만든 기습 몬스터, 정예 이상에서만. 그림 artifacts/elite-blink-ambush-20261107): species의 외형이
- * 정예면 minCells칸 이상 떨어진 목표에게 걸어가지 않고 사라졌다가 옆 칸에 나타나 친다(js/enemy-ambush.js). 처음 싸움에 든 뒤 firstDelayMs,
- * 그 뒤로 cooldownMs마다. windUp: 나타난 몬스터의 공격 게이지(습격방의 windUp처럼 곧 친다). vanishMs, hiddenMs, appearMs: 사라짐 효과,
- * 숨은 동안, 나타남 효과(js/canvas-enemy-ambush.js). 잿빛 장막의 추적자는 정예로만 나오는 새 몬스터로, stalkerPools(장막 액트 8~10과
- * 혼돈 이후)의 정예 가운데 stalkerShare만큼을 맡는다. 균열 척후, 장막접힘 위습, 장막 두꺼비는 제 자리 그대로 나오고 정예일 때만 기습한다. */
-const ELITE_AMBUSH = Object.freeze({
-    species: Object.freeze(['ashveil-stalker', 'breach-scout', 'wisp-s04', 'act8-shroud-toad']),
-    stalker: 'ashveil-stalker', stalkerPools: Object.freeze([8, 9, 10, 'postChaos']), stalkerShare: 0.25,
-    minCells: 3, firstDelayMs: 700, cooldownMs: 6000, windUp: 0.7, vanishMs: 220, hiddenMs: 105, appearMs: 220
-});
-/** 정예 자리에 잿빛 장막의 추적자가 서는가: 장막 액트와 혼돈 이후의 무리에서 시드의 stalkerShare만큼(같은 시드는 늘 같다). */
-function getEliteStalkerVisual(zone, seed) {
+  }
+  var ENEMY_TRAIT_POOL = [
+    { id: "rapid", name: "광폭 연타", outlineColor: "#ef6a45", atkMul: 1.35 },
+    { id: "fortified", name: "강철 피부", outlineColor: "#86a8c4", hpMul: 1.35, dr: 8 },
+    { id: "bulwark", name: "수문장 비늘", outlineColor: "#5fa6bb", firstHitGuard: 0.75 },
+    { id: "duelist", name: "반격 태세", outlineColor: "#d8aa55", hitRateGuard: 0.12 },
+    { id: "leechResist", name: "흡혈저항", outlineColor: "#b98aab", leechEffMul: 0.45, expMul: 1.06, dropMul: 1.04 },
+    { id: "bloodless", name: "무혈", outlineColor: "#d9d4cc", leechEffMul: 0, expMul: 1.1, dropMul: 1.08 },
+    { id: "swiftHands", name: "고속 공세", outlineColor: "#eadb72", attackSpeedVarMul: 1.18, expMul: 1.05, dropMul: 1.03 },
+    { id: "veryFast", name: "매우 빠름", outlineColor: "#82d8de", attackSpeedVarMul: 1.26, expMul: 1.08, dropMul: 1.06 },
+    { id: "strong", name: "강함", outlineColor: "#d97845", atkMul: 1.2, expMul: 1.07, dropMul: 1.05 },
+    { id: "veryStrong", name: "매우 강함", outlineColor: "#f14f43", atkMul: 1.5, hpMul: 1.12, expMul: 1.12, dropMul: 1.08 },
+    { id: "deadly", name: "치명적", outlineColor: "#d13d77", critChanceBonus: 18, expMul: 1.08, dropMul: 1.06 },
+    { id: "tenacious", name: "끈질김", outlineColor: "#85b96b", hpMul: 1.45, expMul: 1.08, dropMul: 1.06 },
+    { id: "fireWard", name: "화염 장막", outlineColor: "#f06436", resF: 28 },
+    { id: "coldWard", name: "서리 장막", outlineColor: "#6ac6ee", resC: 28 },
+    { id: "lightWard", name: "뇌전 장막", outlineColor: "#f2d95b", resL: 28 },
+    { id: "chaosWard", name: "심연 장막", outlineColor: "#9b65dc", resChaos: 22 },
+    { id: "physWard", name: "중갑 전개", outlineColor: "#9aa1aa", dr: 14 },
+    { id: "pressureCrush", name: "수압 압살", outlineColor: "#4a8fc7", oceanPressureGainMul: 1.6 },
+    { id: "oxygenLeech", name: "산소 갈취", outlineColor: "#57c7ac", oceanOxygenLeechOnHit: 4 },
+    { id: "accuracyWard", name: "탁한 물막", outlineColor: "#738d9d", hitRateGuard: 0.18 },
+    { id: "currentSwift", name: "급류 가속", outlineColor: "#46b7cf", atkMul: 1.2, attackSpeedVarMul: 1.16 }
+  ];
+  var ROOT_MONSTER_RULES = Object.freeze({ spawnOneIn: 40, weaponDropChance: 0.25 });
+  var ROOT_MONSTER_VISUALS = Object.freeze([
+    ["greatsword", "대검 뿌리촉수", "melee"],
+    ["scimitar", "한손검 뿌리촉수", "melee"],
+    ["shortbow", "단궁 뿌리촉수", "ranged"],
+    ["orb", "오브 뿌리촉수", "ranged"],
+    ["flask", "플라스크 뿌리촉수", "ranged"],
+    ["censer", "향로 뿌리촉수", "melee"]
+  ].map(([weapon, name, attack]) => Object.freeze({ id: `root-${weapon}`, name, attack, weapon })));
+  var ACT_MONSTER_VISUALS = Object.freeze([
+    ["act7-crackback-tick", "균열등 진드기", "melee"],
+    ["act7-husk-stag", "껍질마른 사슴", "melee"],
+    ["act8-veil-moth", "장막나방", "ranged"],
+    ["act8-shroud-toad", "장막 두꺼비", "melee"],
+    ["act9-dirge-crane", "만가 두루미", "ranged"],
+    ["act9-chorus-bulbs", "합창 구근", "ranged"],
+    ["act10-graft-beast", "접목수", "melee"],
+    ["postchaos-inverted-sapling", "역생 묘목", "ranged"],
+    ["atlas-canopy-leafglider", "잎막 활공쥐", "melee"],
+    ["atlas-garden-bonsai-snail", "분재 달팽이", "melee"],
+    ["act1-slime", "수액 슬라임", "melee"],
+    ["act1-worm", "뿌리 웜", "melee"],
+    ["act1-ant", "뿌리 일개미", "melee"],
+    ["act3-slime", "포자 슬라임", "melee"],
+    ["act3-worm", "부패 웜", "melee"],
+    ["act3-ant", "균사 개미", "melee"],
+    ["act4-slime", "수지 슬라임", "melee"],
+    ["act4-worm", "수피 웜", "melee"],
+    ["act4-ant", "뿌리 병정개미", "melee"],
+    ["act5-slime", "심핵 슬라임", "melee"],
+    ["act5-worm", "고대 천공웜", "melee"],
+    ["act5-ant", "고목 개미", "melee"],
+    ["deacon-act2-melee", "중정 철퇴 부제사", "melee"],
+    ["deacon-act2-ranged", "중정 성수 부제녀", "ranged"],
+    ["deacon-act6-melee", "고갈 철퇴 부제사", "melee"],
+    ["deacon-act6-ranged", "고갈 성수 부제녀", "ranged"],
+    ["deacon-act7-melee", "고목 철퇴 부제사", "melee"],
+    ["deacon-act7-ranged", "고목 성수 부제녀", "ranged"],
+    ["deacon-act8-melee", "장막 철퇴 부제사", "melee"],
+    ["deacon-act8-ranged", "장막 성수 부제녀", "ranged"],
+    ["ashveil-stalker", "잿빛 장막의 추적자", "melee"]
+  ].map(([id, name, attack]) => Object.freeze({ id, name, attack })).concat(ROOT_MONSTER_VISUALS));
+  var ACT_MONSTER_VISUAL_BY_ID = Object.freeze(Object.fromEntries(ACT_MONSTER_VISUALS.map((def) => [def.id, def])));
+  var ELITE_AMBUSH = Object.freeze({
+    species: Object.freeze(["ashveil-stalker", "breach-scout", "wisp-s04", "act8-shroud-toad"]),
+    stalker: "ashveil-stalker",
+    stalkerPools: Object.freeze([8, 9, 10, "postChaos"]),
+    stalkerShare: 0.25,
+    minCells: 3,
+    firstDelayMs: 700,
+    cooldownMs: 6e3,
+    windUp: 0.7,
+    vanishMs: 220,
+    hiddenMs: 105,
+    appearMs: 220
+  });
+  function getEliteStalkerVisual(zone, seed) {
     const pool = getActMonsterPool(zone);
-    if (!ELITE_AMBUSH.stalkerPools.some(key => ACT_MONSTER_POOLS[key] === pool)) return null;
+    if (!ELITE_AMBUSH.stalkerPools.some((key) => ACT_MONSTER_POOLS[key] === pool)) return null;
     return Math.floor(seed / 11) % 100 < ELITE_AMBUSH.stalkerShare * 100 ? ACT_MONSTER_VISUAL_BY_ID[ELITE_AMBUSH.stalker] : null;
-}
-
-/** 액트 번호(1~10) → 그 액트의 몬스터 외형. postChaos = 혼돈 이후. */
-const ACT_MONSTER_POOLS = (() => {
-    const bugs = act => Object.freeze([`act${act}-slime`, `act${act}-worm`, `act${act}-ant`]);
-    const deacons = act => Object.freeze([`deacon-act${act}-melee`, `deacon-act${act}-ranged`]);
+  }
+  var ACT_MONSTER_POOLS = (() => {
+    const bugs = (act) => Object.freeze([`act${act}-slime`, `act${act}-worm`, `act${act}-ant`]);
+    const deacons = (act) => Object.freeze([`deacon-act${act}-melee`, `deacon-act${act}-ranged`]);
     return Object.freeze({
-        1: bugs(1), 2: deacons(2), 3: bugs(3), 4: bugs(4), 5: bugs(5),
-        6: Object.freeze([...deacons(6), 'act7-husk-stag']),
-        7: Object.freeze([...deacons(7), 'act7-husk-stag', 'act7-crackback-tick']),
-        8: Object.freeze([...deacons(8), 'act8-veil-moth', 'act8-shroud-toad']),
-        9: Object.freeze([...deacons(8), 'act9-dirge-crane', 'act9-chorus-bulbs']),
-        10: Object.freeze(['deacon-act8-melee', 'act10-graft-beast', 'act9-chorus-bulbs']),
-        // 2026-10-26 사용자(혼돈 1~10에서 맞힌 적의 절반 넘게가 부제 계열): "몬스터 무리도 몇몇개를 추가해서 랜덤으로". 액트 7~10의 일곱을 섞는다.
-        postChaos: Object.freeze([... [2, 6, 7, 8].flatMap(deacons), 'postchaos-inverted-sapling', 'act7-husk-stag', 'act7-crackback-tick',
-            'act8-veil-moth', 'act8-shroud-toad', 'act9-dirge-crane', 'act9-chorus-bulbs', 'act10-graft-beast'])
+      1: bugs(1),
+      2: deacons(2),
+      3: bugs(3),
+      4: bugs(4),
+      5: bugs(5),
+      6: Object.freeze([...deacons(6), "act7-husk-stag"]),
+      7: Object.freeze([...deacons(7), "act7-husk-stag", "act7-crackback-tick"]),
+      8: Object.freeze([...deacons(8), "act8-veil-moth", "act8-shroud-toad"]),
+      9: Object.freeze([...deacons(8), "act9-dirge-crane", "act9-chorus-bulbs"]),
+      10: Object.freeze(["deacon-act8-melee", "act10-graft-beast", "act9-chorus-bulbs"]),
+      // 2026-10-26 사용자(혼돈 1~10에서 맞힌 적의 절반 넘게가 부제 계열): "몬스터 무리도 몇몇개를 추가해서 랜덤으로". 액트 7~10의 일곱을 섞는다.
+      postChaos: Object.freeze([
+        ...[2, 6, 7, 8].flatMap(deacons),
+        "postchaos-inverted-sapling",
+        "act7-husk-stag",
+        "act7-crackback-tick",
+        "act8-veil-moth",
+        "act8-shroud-toad",
+        "act9-dirge-crane",
+        "act9-chorus-bulbs",
+        "act10-graft-beast"
+      ])
     });
-})();
-
-/** 예전 목재 몬스터(수액 응집체 · 뿌리 거미 · 수액 흡충 · 목각 인형) → 그림이 가장 닮은 새 몬스터. 저장 변환(js/save-migrations.js)이 쓴다. */
-const RETIRED_WOOD_MONSTER_SKINS = Object.freeze({
-    woodSlime: 'act1-slime', rootSpider: 'act1-ant', sapLeech: 'act1-worm', woodPuppet: 'deacon-act2-melee'
-});
-
-/** 2026-10-13에 지운 영역 몬스터 열하나 → 같은 영역에 남은 몬스터 (사용자: "필요없는 몬스터 종류는 삭제시켜". 옆에서 보는 무대의 새 그림이
- * 없어 예전 그림으로 나오던 종류다). 모아 둔 외형과, 저장에 든 싸우던 적이 이 표대로 바뀐다(js/save-migrations.js
- * migrateRetiredRealmMonsters). 같은 구실과 공격 방식의 몬스터를 먼저 골랐고, 그 영역에 남은 것이 없으면 가장 가까운 몬스터다. */
-const RETIRED_REALM_MONSTERS = Object.freeze({
-    'underworld-crawler': 'underworld-beetle', 'underworld-miner': 'underworld-hound', 'underworld-executioner': 'underworld-hound', 'underworld-wraith': 'underworld-beetle',
-    'cosmos-wisp': 'cosmos-star', 'cosmos-wanderer': 'cosmos-ooze', 'cosmos-seer': 'cosmos-sentinel',
-    'ocean-cultist': 'ocean-angler', 'ocean-knight': 'ocean-oracle',
-    'sky-sentinel': 'sky-harpy', 'sky-lancer': 'sky-griffin'
-});
-
-const MONSTER_VARIANT_DEFS = Object.freeze([
+  })();
+  var RETIRED_WOOD_MONSTER_SKINS = Object.freeze({
+    woodSlime: "act1-slime",
+    rootSpider: "act1-ant",
+    sapLeech: "act1-worm",
+    woodPuppet: "deacon-act2-melee"
+  });
+  var RETIRED_REALM_MONSTERS = Object.freeze({
+    "underworld-crawler": "underworld-beetle",
+    "underworld-miner": "underworld-hound",
+    "underworld-executioner": "underworld-hound",
+    "underworld-wraith": "underworld-beetle",
+    "cosmos-wisp": "cosmos-star",
+    "cosmos-wanderer": "cosmos-ooze",
+    "cosmos-seer": "cosmos-sentinel",
+    "ocean-cultist": "ocean-angler",
+    "ocean-knight": "ocean-oracle",
+    "sky-sentinel": "sky-harpy",
+    "sky-lancer": "sky-griffin"
+  });
+  var MONSTER_VARIANT_DEFS = Object.freeze([
     ...ACT_MONSTER_VISUALS,
-    ...WISP_MONSTER_VISUALS.map(wisp => Object.freeze({ id: wisp.id, name: wisp.name, attack: 'ranged' }))
-]);
-
-function getWispMonsterVisualDefinition(variantSeed, element) {
+    ...WISP_MONSTER_VISUALS.map((wisp) => Object.freeze({ id: wisp.id, name: wisp.name, attack: "ranged" }))
+  ]);
+  function getWispMonsterVisualDefinition(variantSeed, element) {
     const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
-    const pool = WISP_MONSTER_VISUALS.filter(wisp => wisp.elements.includes(element));
+    const pool = WISP_MONSTER_VISUALS.filter((wisp) => wisp.elements.includes(element));
     const candidates = pool.length > 0 ? pool : WISP_MONSTER_VISUALS;
     return candidates[Math.floor(seed / WISP_ENEMY_RULES.spawnOneIn) % candidates.length];
-}
-
-/** 아틀라스는 지역의 생물군을 쓴다. 위습과 무기 뿌리는 기존 희귀 등장 굴림에서만 고른다. */
-const ATLAS_MONSTER_POOLS = Object.freeze({
-    roots: Object.freeze(['act1-ant', 'colony-borer-grub', 'colony-carapace-beetle', 'postchaos-inverted-sapling']),
-    trunk: Object.freeze(['act7-husk-stag', 'act7-crackback-tick', 'act8-shroud-toad', 'postchaos-inverted-sapling']),
-    canopy: Object.freeze(['atlas-canopy-leafglider', 'act8-veil-moth', 'act9-dirge-crane']),
-    garden: Object.freeze(['underworld-beetle', 'underworld-hound', 'underworld-obsidian-centipede']),
-    sanctum: Object.freeze(['ocean-angler', 'ocean-crab', 'ocean-shell', 'ocean-oracle'])
-});
-/** 이 지역의 일반·정예 외형 목록: 스토리 액트와 아틀라스는 지역 몫, 그 밖은 혼돈 목록. */
-function getActMonsterPool(zone) {
-    const act = zone && zone.type === 'act' && Number.isInteger(Number(zone.id)) ? Number(zone.id) + 1 : 0;
+  }
+  var ATLAS_MONSTER_POOLS = Object.freeze({
+    roots: Object.freeze(["act1-ant", "colony-borer-grub", "colony-carapace-beetle", "postchaos-inverted-sapling"]),
+    trunk: Object.freeze(["act7-husk-stag", "act7-crackback-tick", "act8-shroud-toad", "postchaos-inverted-sapling"]),
+    canopy: Object.freeze(["atlas-canopy-leafglider", "act8-veil-moth", "act9-dirge-crane"]),
+    garden: Object.freeze(["underworld-beetle", "underworld-hound", "underworld-obsidian-centipede"]),
+    sanctum: Object.freeze(["ocean-angler", "ocean-crab", "ocean-shell", "ocean-oracle"])
+  });
+  function getActMonsterPool(zone) {
+    const act = zone && zone.type === "act" && Number.isInteger(Number(zone.id)) ? Number(zone.id) + 1 : 0;
     if (ATLAS_MONSTER_POOLS[zone?.atlasRegion]) return ATLAS_MONSTER_POOLS[zone.atlasRegion];
     return ACT_MONSTER_POOLS[act] || ACT_MONSTER_POOLS.postChaos;
-}
-
-/** 뿌리촉수 자리(시드 나머지 1, 위습 자리와 겹치면 위습)면 시드로 고른 뿌리촉수, 아니면 null. */
-function getRootMonsterVisualDefinition(seed) {
+  }
+  function getRootMonsterVisualDefinition(seed) {
     const every = ROOT_MONSTER_RULES.spawnOneIn;
     return seed % every === 1 ? ROOT_MONSTER_VISUALS[Math.floor(seed / every) % ROOT_MONSTER_VISUALS.length] : null;
-}
-
-/** 뿌리촉수가 든 무기 대분류(드랍이 그쪽으로 쏠린다). 다른 적은 null. */
-function getRootMonsterWeapon(enemy) {
+  }
+  function getRootMonsterWeapon(enemy) {
     const def = enemy ? ACT_MONSTER_VISUAL_BY_ID[enemy.spriteVariantId] : null;
-    return (def && def.weapon) || null;
-}
-
-/** 일반·정예 외형: 다섯에 하나는 원소 위습, 마흔에 하나는 무기 뿌리촉수, 나머지는 지역 목록에서 시드와 원소로 고른다. */
-/** marker.ownLook: a content room that draws its own sheet (the atlas hive's bees, js/atlas-encounters.js) rolls none. */
-/** 무리가 정한 일반 배역, 아니면 정예 자리의 잿빛 장막의 추적자(getEliteStalkerVisual). 둘 다 아니면 null. */
-function chosenMonsterVisual(zone, seed, marker) {
+    return def && def.weapon || null;
+  }
+  function chosenMonsterVisual(zone, seed, marker) {
     if (marker?.packVisualId) return ACT_MONSTER_VISUAL_BY_ID[marker.packVisualId];
     return marker?.elite ? getEliteStalkerVisual(zone, seed) : null;
-}
-function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
+  }
+  function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
     if (marker && marker.ownLook) return null;
     const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
     if (seed % WISP_ENEMY_RULES.spawnOneIn === 0) return getWispMonsterVisualDefinition(seed, element);
     const root = getRootMonsterVisualDefinition(seed);
     if (root) return root;
-    // 무리의 일반 배역만 지정한다. 위습/무기 뿌리와 그 방어·드랍 규칙은 위의 기존 굴림을 따른다.
     const chosen = chosenMonsterVisual(zone, seed, marker);
     if (chosen) return chosen;
-    const elementOffset = Math.max(0, ['phys', 'fire', 'cold', 'light', 'chaos'].indexOf(element));
+    const elementOffset = Math.max(0, ["phys", "fire", "cold", "light", "chaos"].indexOf(element));
     const pool = getActMonsterPool(zone);
     return ACT_MONSTER_VISUAL_BY_ID[pool[(seed + elementOffset) % pool.length]];
-}
-
-/** 그림이 정한 공격 방식('melee' · 'ranged'): 액트 몬스터 · 뿌리촉수 · 영역 세트는 표에서, 위습은 원거리. 모르는 외형은 null. */
-function getMonsterVisualAttackKind(visualId) {
+  }
+  function getMonsterVisualAttackKind(visualId) {
     const def = ACT_MONSTER_VISUAL_BY_ID[visualId] || getRealmMonsterVisualDefinitionById(visualId);
     if (def) return def.attack;
-    return typeof visualId === 'string' && visualId.startsWith('wisp-') ? 'ranged' : null;
-}
-
-// 보스의 싸우는 거리 (2026-10-14 사용자: "보스 몬스터의 특성별로 근접, 사거리 있음, 사거리 무한 등 특징을 만들고 전투 AI 적용이
-// 필요함"). 전에는 모든 보스가 제자리에서 방 어디든 닿았다(COMBAT_GRID_CONFIG.bossAttackRange).
-//   melee  근접: 붙어야 친다. 닿지 않으면 주인공에게 걸어온다.
-//   ranged 사거리 있음: range칸 안에서 쏜다. 사거리 밖이면 사거리 안까지 걸어 들어온다.
-//   far    사거리 무한: 제자리에서 방 어디든 닿는다(전과 같다).
-// 전투 규칙은 js/combat-grid.js(사거리 배정)와 js/combat.js(다가가기, 떨어진 곳에서 쓰는 특수기)가 읽는다.
-/** 난입 보스(2026-11-02 사용자: 디아블로의 도살자처럼 방을 넘어갈 때 아주 낮은 확률로, js/combat-room-invader.js). roomChance: 처음 들어서는 방마다.
- * 들이닥치는 보스는 otherBosses의 그림에 그 구역 보스의 수치이고, grinderShare만큼만 뿌리 절단자다(사용자: 보스 난입 중에서도 낮은 확률로). 보스 방의 불청객도 같다.
- * 아래는 뿌리 절단자의 값이다. hpMul, damageMul: 그 구역 보스의 수치에 곱한다. stepSec: 한 칸 걷는 시간(주인공 0.4초, 다른 보스 0.3초). grind: 공격, 다단 히트는 js/boss-moves.js rules.grind.
- * lootRolls: 보스 드랍을 굴리는 횟수, 장비도 재화도 없는 결과는 다시 굴려 장비와 재화의 비율은 드랍 표 그대로다(사용자: 노드랍 없는 드랍 10개, 장비만 10개는 아니다).
- * emptyRollRetries: 그만큼 비면(주인공이 구역보다 너무 높아 표가 거의 빌 때) 장비 하나를 준다. expMul: 경험치.
- * zoneTypes: 나오는 구역. 시련, 벌집, 군락, 대균열, 나무꾼, 심해처럼 제 규칙으로 싸우는 곳은 뺐다. */
-const ROOM_INVADER = Object.freeze({
-    actor: 'root-grinder', name: '뿌리 절단자', fromLoop: 2, roomChance: 0.003, grinderShare: 0.05,
-    zoneTypes: Object.freeze(['act', 'abyss', 'chaosRealm', 'skyTower', 'underworld', 'atlasMap', 'meteor', 'timeRift', 'cosmos']),
-    hpMul: 15, damageMul: 4.5, expMul: 15, stepSec: 0.2, entranceMs: 2400, outline: '#ff3a24',
-    grind: Object.freeze({ label: '회전 톱날', damageMul: 1, warningMs: 500, recoveryMs: 500 }),
-    lootRolls: 10, emptyRollRetries: 100,
-    otherBosses: Object.freeze(['guardian-roots', 'guardian-trunk', 'guardian-canopy', 'guardian-garden', 'guardian-sanctum', 'league_breach', 'league_treasure', 'league_ember', 'league_sap',
-        'league_withered', 'league_nursery', 'famine_beast', 'atlas-roots-1', 'atlas-roots-3', 'atlas-roots-6', 'atlas-roots-7', 'atlas-trunk-0', 'atlas-trunk-4', 'atlas-trunk-6', 'atlas-trunk-7',
-        'atlas-canopy-0', 'atlas-canopy-4', 'atlas-canopy-7', 'atlas-garden-1', 'atlas-garden-2', 'atlas-garden-7', 'atlas-sanctum-0', 'atlas-sanctum-4', 'atlas-sanctum-5', 'atlas-sanctum-7'])
-});
-/** 보스 방의 불청객(2026-11-02 사용자: 높은 루프로 갈수록 확률이 조금씩). 확률은 fromLoop부터 루프마다 perLoop씩, cap까지(0~1). twinShare: 그 가운데 보스가 둘인 몫, 나머지는
- * 싸우는 도중 난입 보스(ROOM_INVADER)가 들이닥친다(보스 생명력이 extraAtHpShare 아래로 내려갈 때). twinHpMul: 둘일 때 하나의 생명력. */
-const BOSS_ROOM_SURPRISE = Object.freeze({ fromLoop: 10, perLoop: 0.0005, cap: 0.03, twinShare: 0.5, extraAtHpShare: 0.6, twinHpMul: 0.8 });
-const BOSS_REACH = Object.freeze({
+    return typeof visualId === "string" && visualId.startsWith("wisp-") ? "ranged" : null;
+  }
+  var ROOM_INVADER = Object.freeze({
+    actor: "root-grinder",
+    name: "뿌리 절단자",
+    fromLoop: 2,
+    roomChance: 3e-3,
+    grinderShare: 0.05,
+    zoneTypes: Object.freeze(["act", "abyss", "chaosRealm", "skyTower", "underworld", "atlasMap", "meteor", "timeRift", "cosmos"]),
+    hpMul: 15,
+    damageMul: 4.5,
+    expMul: 15,
+    stepSec: 0.2,
+    entranceMs: 2400,
+    outline: "#ff3a24",
+    grind: Object.freeze({ label: "회전 톱날", damageMul: 1, warningMs: 500, recoveryMs: 500 }),
+    lootRolls: 10,
+    emptyRollRetries: 100,
+    otherBosses: Object.freeze([
+      "guardian-roots",
+      "guardian-trunk",
+      "guardian-canopy",
+      "guardian-garden",
+      "guardian-sanctum",
+      "league_breach",
+      "league_treasure",
+      "league_ember",
+      "league_sap",
+      "league_withered",
+      "league_nursery",
+      "famine_beast",
+      "atlas-roots-1",
+      "atlas-roots-3",
+      "atlas-roots-6",
+      "atlas-roots-7",
+      "atlas-trunk-0",
+      "atlas-trunk-4",
+      "atlas-trunk-6",
+      "atlas-trunk-7",
+      "atlas-canopy-0",
+      "atlas-canopy-4",
+      "atlas-canopy-7",
+      "atlas-garden-1",
+      "atlas-garden-2",
+      "atlas-garden-7",
+      "atlas-sanctum-0",
+      "atlas-sanctum-4",
+      "atlas-sanctum-5",
+      "atlas-sanctum-7"
+    ])
+  });
+  var BOSS_ROOM_SURPRISE = Object.freeze({ fromLoop: 10, perLoop: 5e-4, cap: 0.03, twinShare: 0.5, extraAtHpShare: 0.6, twinHpMul: 0.8 });
+  var BOSS_REACH = Object.freeze({
     kinds: Object.freeze({
-        melee: Object.freeze({ id: 'melee', label: '근접', range: COMBAT_GRID_CONFIG.meleeAttackRange }),
-        polearm: Object.freeze({ id: 'melee', label: '장병기', range: 2 }),
-        ranged: Object.freeze({ id: 'ranged', label: '원거리', range: 4 }),
-        far: Object.freeze({ id: 'far', label: '사거리 무한', range: COMBAT_GRID_CONFIG.bossAttackRange })
+      melee: Object.freeze({ id: "melee", label: "근접", range: COMBAT_GRID_CONFIG.meleeAttackRange }),
+      polearm: Object.freeze({ id: "melee", label: "장병기", range: 2 }),
+      ranged: Object.freeze({ id: "ranged", label: "원거리", range: 4 }),
+      far: Object.freeze({ id: "far", label: "사거리 무한", range: COMBAT_GRID_CONFIG.bossAttackRange })
     }),
     /** 그림 열쇠 → 싸우는 거리. 그림을 보고 정했다: 네 발 짐승, 철퇴를 든 기사, 거미 다리, 사슬과 낫을 든 순례자는 근접.
      * 지팡이와 종을 든 자, 나비는 원거리. 정원사, 접목의 어머니, 고치에서 태어난 존재는 제자리에서 방 전체를 다스린다. */
     byAsset: Object.freeze({
-        bossAct1: 'melee', bossAct2: 'ranged', bossAct3: 'ranged', bossAct4_1: 'melee', bossAct4_2: 'melee', bossAct5: 'ranged',
-        bossAct6: 'far', bossAct7: 'ranged', bossAct8_1: 'ranged', bossAct8_2: 'melee', bossAct8_3: 'melee', bossAct9: 'far',
-        bossAct10_1: 'far', bossAct10_2: 'far', bossAct10_3: 'far', bossAct10_4: 'far', bossAct10_5: 'far'
+      bossAct1: "melee",
+      bossAct2: "ranged",
+      bossAct3: "ranged",
+      bossAct4_1: "melee",
+      bossAct4_2: "melee",
+      bossAct5: "ranged",
+      bossAct6: "far",
+      bossAct7: "ranged",
+      bossAct8_1: "ranged",
+      bossAct8_2: "melee",
+      bossAct8_3: "melee",
+      bossAct9: "far",
+      bossAct10_1: "far",
+      bossAct10_2: "far",
+      bossAct10_3: "far",
+      bossAct10_4: "far",
+      bossAct10_5: "far"
     }),
-    byVisual: Object.freeze({ 'root-grinder': 'polearm', 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
-        'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
-        // 제 그림으로 나오는 지도, 수호자, 리그 보스: 공격 효과 종류(data/boss-fx.js)대로. 효과가 없는 꼭대기 보스 다섯과 정점은 액트 그림의 거리를 잇는다.
-        'atlas-roots-1': 'melee', 'atlas-roots-3': 'melee', 'atlas-roots-6': 'melee', 'atlas-roots-7': 'melee',
-        'atlas-trunk-0': 'melee', 'atlas-trunk-4': 'melee', 'atlas-trunk-6': 'melee', 'atlas-trunk-7': 'ranged',
-        'atlas-canopy-0': 'melee', 'atlas-canopy-4': 'ranged', 'atlas-canopy-7': 'melee', 'atlas-garden-7': 'melee',
-        'atlas-sanctum-0': 'melee', 'atlas-sanctum-7': 'ranged',
-        'guardian-roots': 'melee', 'guardian-canopy': 'melee', 'guardian-sanctum': 'ranged',
-        league_nursery: 'melee', 'league_nursery-stage2': 'melee', league_meteor: 'far', 'league_meteor-stage2': 'far', 'league_hive-stage2': 'ranged',
-        // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
-        trial_1: 'melee', trial_5: 'melee', labyrinth_guardian: 'melee',
-        // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.
-        s2_boss_flame: 'melee', s2_boss_frost: 'ranged', s2_boss_storm: 'polearm',
-        // 전용 외형으로 교체해도 영역 보스를 빌려 쓰던 때의 싸우는 거리는 유지한다.
-        cosmos_astra: 'melee', pinnacle_underking: 'melee', pinnacle_leviathan: 'ranged', pinnacle_sky: 'melee',
-        'cerberus-head': 'ranged', 'cerberus-fang': 'melee', s6_beast_cerberus: 'melee' }),
+    byVisual: Object.freeze({
+      "root-grinder": "polearm",
+      "atlas-garden-1": "melee",
+      "atlas-garden-2": "ranged",
+      "atlas-sanctum-4": "ranged",
+      "atlas-sanctum-5": "far",
+      "colony-boss": "melee",
+      // 제 그림으로 나오는 지도, 수호자, 리그 보스: 공격 효과 종류(data/boss-fx.js)대로. 효과가 없는 꼭대기 보스 다섯과 정점은 액트 그림의 거리를 잇는다.
+      "atlas-roots-1": "melee",
+      "atlas-roots-3": "melee",
+      "atlas-roots-6": "melee",
+      "atlas-roots-7": "melee",
+      "atlas-trunk-0": "melee",
+      "atlas-trunk-4": "melee",
+      "atlas-trunk-6": "melee",
+      "atlas-trunk-7": "ranged",
+      "atlas-canopy-0": "melee",
+      "atlas-canopy-4": "ranged",
+      "atlas-canopy-7": "melee",
+      "atlas-garden-7": "melee",
+      "atlas-sanctum-0": "melee",
+      "atlas-sanctum-7": "ranged",
+      "guardian-roots": "melee",
+      "guardian-canopy": "melee",
+      "guardian-sanctum": "ranged",
+      league_nursery: "melee",
+      "league_nursery-stage2": "melee",
+      league_meteor: "far",
+      "league_meteor-stage2": "far",
+      "league_hive-stage2": "ranged",
+      // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
+      trial_1: "melee",
+      trial_5: "melee",
+      labyrinth_guardian: "melee",
+      // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.
+      s2_boss_flame: "melee",
+      s2_boss_frost: "ranged",
+      s2_boss_storm: "polearm",
+      // 전용 외형으로 교체해도 영역 보스를 빌려 쓰던 때의 싸우는 거리는 유지한다.
+      cosmos_astra: "melee",
+      pinnacle_underking: "melee",
+      pinnacle_leviathan: "ranged",
+      pinnacle_sky: "melee",
+      "cerberus-head": "ranged",
+      "cerberus-fang": "melee",
+      s6_beast_cerberus: "melee"
+    }),
     /** 예고하는 특수기(지면 강타, 충격파 등)는 대상이 이 칸 수 안이면 사거리 밖이어도 그 자리에서 쓴다: 근접 보스에게서 달아나기만
      * 하면 아무것도 맞지 않는 싸움이 되지 않게. */
     castRange: 6,
     /** 사거리 밖의 대상에게 다가가는 한 걸음(초): 방 단위 무대에서 주인공의 기본 걸음(0.4초)보다 빠르다. 전투는 0.1초 단위로
      * 흐르므로 0.1의 배수로 적는다(0.34로 적으면 0.4초에 한 걸음이 된다). */
     stepSec: 0.3
-});
-/** 보스의 싸우는 거리(BOSS_REACH.kinds의 하나): 그림 열쇠로 정해 둔 것, 없으면 외형이 정한 공격 방식(영역의 보스), 그것도 없으면
- * 사거리 무한. */
-function getBossReach(enemy) {
+  });
+  function getBossReach(enemy) {
     const look = enemy.spriteVariantId || enemy.monsterVisualId;
     const kind = BOSS_REACH.byVisual[look] || BOSS_REACH.byAsset[enemy.bossAssetKey] || getMonsterVisualAttackKind(look);
     return BOSS_REACH.kinds[kind] || BOSS_REACH.kinds.far;
-}
+  }
 
-safeExposeData({
-    BOSS_REACH, getBossReach, BOSS_BODY_ELEMENTS, ATLAS_BOSS_BODIES,
-    ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_SOURCES, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING,
-    getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
-    ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, RETIRED_REALM_MONSTERS, getActMonsterPool,
-    getMonsterVisualAttackKind, ROOT_MONSTER_RULES, ROOT_MONSTER_VISUALS, getRootMonsterVisualDefinition, getRootMonsterWeapon,
-    WISP_ENEMY_RULES, WISP_NEUTRAL_RULES, WISP_MONSTER_ASSET_MANIFEST, WISP_MONSTER_VISUALS, getWispMonsterVisualDefinition,
-    REALM_MONSTER_VISUAL_SETS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition,
-    getRealmMonsterVisualDefinitionById, ELITE_AMBUSH, getEliteStalkerVisual
-});
+  // modules/data/bosses.mjs:classic
+  Object.assign(globalThis, { ACT_BOSS_NAMES, BOSS_BODY_ELEMENTS, ATLAS_BOSS_BODIES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_SOURCES, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING, REALM_MONSTER_VISUAL_SETS, WISP_ENEMY_RULES, WISP_NEUTRAL_RULES, WISP_MONSTER_ASSET_MANIFEST, WISP_MONSTER_VISUALS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition, getRealmMonsterVisualDefinitionById, getStoryBossStage, getBossNameForZone, getBossAssetKeyForZone, ENEMY_TRAIT_POOL, ROOT_MONSTER_RULES, ROOT_MONSTER_VISUALS, ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ELITE_AMBUSH, getEliteStalkerVisual, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, RETIRED_REALM_MONSTERS, MONSTER_VARIANT_DEFS, getWispMonsterVisualDefinition, ATLAS_MONSTER_POOLS, getActMonsterPool, getRootMonsterVisualDefinition, getRootMonsterWeapon, chosenMonsterVisual, getMonsterVariantDefinition, getMonsterVisualAttackKind, ROOM_INVADER, BOSS_ROOM_SURPRISE, BOSS_REACH, getBossReach });
+  if (typeof safeExposeData === "function") safeExposeData({ ACT_BOSS_NAMES, BOSS_BODY_ELEMENTS, ATLAS_BOSS_BODIES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_SOURCES, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING, REALM_MONSTER_VISUAL_SETS, WISP_ENEMY_RULES, WISP_NEUTRAL_RULES, WISP_MONSTER_ASSET_MANIFEST, WISP_MONSTER_VISUALS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition, getRealmMonsterVisualDefinitionById, getStoryBossStage, getBossNameForZone, getBossAssetKeyForZone, ENEMY_TRAIT_POOL, ROOT_MONSTER_RULES, ROOT_MONSTER_VISUALS, ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ELITE_AMBUSH, getEliteStalkerVisual, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, RETIRED_REALM_MONSTERS, MONSTER_VARIANT_DEFS, getWispMonsterVisualDefinition, ATLAS_MONSTER_POOLS, getActMonsterPool, getRootMonsterVisualDefinition, getRootMonsterWeapon, chosenMonsterVisual, getMonsterVariantDefinition, getMonsterVisualAttackKind, ROOM_INVADER, BOSS_ROOM_SURPRISE, BOSS_REACH, getBossReach });
+})();

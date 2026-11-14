@@ -240,7 +240,7 @@ async function checkRestoreAccountBoundary(phase) {
     release(); await pending;
     assert.deepStrictEqual([d.runtime.game, d.storage.getItem(d.key), d.storage.getItem(d.accountKey), d.cloud().lastRemoteRevision], before);
     assert.strictEqual(restores, 0);
-    assert.ok(d.toasts.some(text => text.includes('복구 실패')), 'late restore completion is refused instead of reporting success');
+    assert.ok(!d.toasts.some(text => text.includes('선택한 클라우드 저장을 복구했습니다.')), 'stale confirmation cannot report a successful restore in the replacement account session');
 }
 
 function checkSdkTokenWatch() {
@@ -252,9 +252,13 @@ function checkSdkTokenWatch() {
     d.runtime.applyCloudSession(null);
     assert.strictEqual(d.cloud().sessionEpoch, 0, 'normalizing an empty session does not create an account entry');
     d.signIn(); const first = d.cloud().sessionEpoch;
+    d.cloud().busy = true;
+    d.runtime.applyCloudSession(session(USER));
+    assert.strictEqual(d.cloud().busy, true, 'refreshing the current account keeps its pending operation locked');
     tokenEvent('TOKEN_REFRESHED', session(OTHER));
     assert.strictEqual(d.runtime.getActiveCloudUserId(), USER, 'SDK refresh events cannot switch accounts');
     d.runtime.applyCloudSession(null); const left = d.cloud().sessionEpoch;
+    assert.strictEqual(d.cloud().busy, false, 'leaving an account releases its obsolete operation lock');
     tokenEvent('TOKEN_REFRESHED', session(USER));
     assert.strictEqual(d.runtime.getActiveCloudUserId(), null, 'SDK refresh events cannot undo logout');
     d.signIn(); const returned = d.cloud().sessionEpoch;

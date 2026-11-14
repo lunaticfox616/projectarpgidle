@@ -1,91 +1,251 @@
-// 기름 바르기 창(12번 루프 36, js/garden-oils.js): 장비 상세의 '기름' 단추로 연다. 기름 셋을 그릇에 담으면 그 조합이 이번 루프에 부르는
-// 패시브 노드 셋이 보이고, 하나를 골라 확인하면 목걸이에 새겨진다. 툴팁과 프로필의 기름 줄도 여기서 만든다.
-const gardenOilsUi = (() => {
-    const OVERLAY_ID = 'garden-oil-overlay';
-    const TONE = '#cfe0a0';
-    const esc = value => escapeHTML(String(value));
-    let bowl = [], slot = 0;
+// GENERATED from modules/garden-oils-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
+    }
+    runtime.listeners = retained;
+  }
 
-    /** The detail popover's button: amulets from loop 36 (or one already anointed). */
-    function actionHtml(item, slot) {
-        if (!item || item.slot !== '목걸이' || !(gardenOils.open(game) || item.anoint)) return '';
-        const ref = slot ? `'${slot}',true` : `${item.id},false`;
-        return `<button type="button" data-content-action="anoint" onclick="equipmentInventoryInteraction.focus(null);gardenOilsUi.open(${ref})"><span class="px-center">${_t('기름')}</span></button>`;
+  // modules/ui/garden-oils-view.mjs
+  var GardenOilsView = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.active = true;
+      this.listeners = [];
+      this.OVERLAY_ID = "garden-oil-overlay";
+      this.TONE = "#cfe0a0";
+      this.esc = (value) => this.deps.escapeHTML(String(value));
+      this.bowl = [];
+      this.slot = 0;
+      this.effectText = (node) => node.effects.map((effect) => `${this.deps.getStatName(effect.stat)} ${effect.val >= 0 ? "+" : ""}${this.deps.formatValue(effect.stat, effect.val)}`).join(", ");
+      for (const name of ["actionHtml", "open", "chipsHtml", "bowlHtml", "offersHtml", "render", "slotsHtml", "pickSlot", "add", "remove", "choose", "tooltipHtml"]) this[name] = this[name].bind(this);
+      this.context = null;
+      this.revision = 0;
+      this.pending = false;
     }
-    function open(ref, isEquip) {
-        if (!selectForCrafting(ref, isEquip)) return;
-        bowl = [];
-        slot = 0;
-        render();
+    actionHtml(item, slot) {
+      if (!item || item.slot !== "목걸이" || !(this.deps.gardenOils.open(this.deps.game) || item.anoint)) return "";
+      const ref = slot ? `'${slot}',true` : `${item.id},false`;
+      return `<button type="button" data-content-action="anoint" onclick="equipmentInventoryInteraction.focus(null);gardenOilsUi.open(${ref})"><span class="px-center">${this.deps._t("기름")}</span></button>`;
     }
-    const effectText = node => node.effects.map(effect => `${getStatName(effect.stat)} ${effect.val >= 0 ? '+' : ''}${formatValue(effect.stat, effect.val)}`).join(', ');
-    function chipsHtml() {
-        return gardenOils.keys.map(key => {
-            const left = (game.currencies[key] || 0) - bowl.filter(entry => entry === key).length;
-            return `<button type="button" onclick="gardenOilsUi.add('${key}')" ${left > 0 && bowl.length < GARDEN_OILS.perAnoint ? '' : 'disabled'}>${esc(gardenOils.oil(key).name)} ${left}</button>`;
-        }).join('');
+    open(ref, isEquip) {
+      if (!this.active) return;
+      if (!this.deps.selectForCrafting(ref, isEquip)) return;
+      const owner = this.deps.game;
+      this.context = { owner, season: owner.season, loop: owner.loopCount, item: this.deps.getSelectedCraftItem() };
+      this.revision++;
+      this.bowl = [];
+      this.slot = 0;
+      this.render();
     }
-    function bowlHtml() {
-        return Array.from({ length: GARDEN_OILS.perAnoint }, (_, index) => bowl[index]
-            ? `<button type="button" class="is-on" onclick="gardenOilsUi.remove(${index})" aria-label="${_t('{name} 빼기', { name: esc(gardenOils.oil(bowl[index]).name) })}">${esc(gardenOils.oil(bowl[index]).name)}</button>`
-            : '<span class="garden-oil-empty">빈 자리</span>').join('');
+    chipsHtml() {
+      return this.deps.gardenOils.keys.map((key) => {
+        const left = (this.deps.game.currencies[key] || 0) - this.bowl.filter((entry) => entry === key).length;
+        return `<button type="button" data-oil-add="${key}" ${left > 0 && this.bowl.length < this.deps.GARDEN_OILS.perAnoint ? "" : "disabled"}>${this.esc(this.deps.gardenOils.oil(key).name)} ${left}</button>`;
+      }).join("");
     }
-    function offersHtml(item) {
-        if (bowl.length < GARDEN_OILS.perAnoint) return '<p class="selection-overlay-help">기름 셋을 담으면 이 조합이 이번 루프에 부르는 노드 셋이 보입니다.</p>';
-        const reason = gardenOils.anointReason(game, item, bowl);
-        return `<div class="selection-overlay-grid">${gardenOils.offers(game, bowl).map(node => {
-            const why = reason || gardenOils.slotReason(game, item, node.id, slot);
-            return `<button type="button" class="selection-overlay-option" onclick="gardenOilsUi.choose('${node.id}')" ${why ? `disabled data-tip="${esc(why)}"` : ''}>
-                ${esc(_t(node.title))}<br><span>${esc(effectText(node))}</span></button>`;
-        }).join('')}</div>`;
+    bowlHtml() {
+      return Array.from({ length: this.deps.GARDEN_OILS.perAnoint }, (_, index) => this.bowl[index] ? `<button type="button" class="is-on" data-oil-remove="${index}" aria-label="${this.deps._t("{name} 빼기", { name: this.esc(this.deps.gardenOils.oil(this.bowl[index]).name) })}">${this.esc(this.deps.gardenOils.oil(this.bowl[index]).name)}</button>` : '<span class="garden-oil-empty">빈 자리</span>').join("");
     }
-    function render() {
-        const item = getSelectedCraftItem();
-        if (!item) return selectionDialog.close(OVERLAY_ID);
-        const nodes = gardenOils.nodesOf(item).slice(0, gardenOils.slotCount(game));
-        const current = nodes.map((node, index) => `<p class="garden-oil-current">${nodes.length > 1 ? _t('{value} 자리: ', { value: index ? _t('둘째') : _t('첫째') }) : _t('지금 새겨진 노드: ')}${node
-            ? `<strong>${esc(_t(node.title))}</strong> (${esc(effectText(node))})` : _t('없음')}</p>`).join('');
-        selectionDialog.show({ id: OVERLAY_ID, title: _t('기름 바르기'), panelClass: 'garden-oil-panel', body: `<div class="selection-overlay-help"><strong>[${esc(getItemDisplayName(item))}]</strong>
-            ${_t('기름 셋을 바르면 고른 패시브 노드 하나가 목걸이에 새겨집니다(다시 바르면 바뀝니다). 조합 표는 루프마다 바뀝니다.')}</div>${current}
-            ${slotsHtml()}<div class="garden-oil-row" aria-label="${_t('기름')}">${chipsHtml()}</div><div class="garden-oil-row garden-oil-bowl" aria-label="${_t('그릇')}">${bowlHtml()}</div>${offersHtml(item)}` });
+    offersHtml(item) {
+      if (this.bowl.length < this.deps.GARDEN_OILS.perAnoint) return '<p class="selection-overlay-help">기름 셋을 담으면 이 조합이 이번 루프에 부르는 노드 셋이 보입니다.</p>';
+      const reason = this.deps.gardenOils.anointReason(this.deps.game, item, this.bowl);
+      return `<div class="selection-overlay-grid">${this.deps.gardenOils.offers(this.deps.game, this.bowl).map((node) => {
+        const why = reason || this.deps.gardenOils.slotReason(this.deps.game, item, node.id, this.slot);
+        return `<button type="button" class="selection-overlay-option" data-oil-choose="${node.id}" ${why ? `disabled data-tip="${this.esc(why)}"` : ""}>
+                ${this.esc(this.deps._t(node.title))}<br><span>${this.esc(this.effectText(node))}</span></button>`;
+      }).join("")}</div>`;
     }
-    /** From loop 48: which slot the next anointment fills. */
-    function slotsHtml() {
-        if (gardenOils.slotCount(game) < 2) return '';
-        return `<div class="garden-oil-row" aria-label="${_t('자리')}">${['첫째 자리', '둘째 자리'].map((label, index) => `<button type="button" class="${index === slot ? 'is-on' : ''}"
-            aria-pressed="${index === slot}" onclick="gardenOilsUi.pickSlot(${index})">${label}</button>`).join('')}</div>`;
+    render() {
+      if (!this.contextCurrent()) return this.close();
+      const item = this.deps.getSelectedCraftItem();
+      if (!item) return this.deps.selectionDialog.close(this.OVERLAY_ID);
+      const nodes = this.deps.gardenOils.nodesOf(item).slice(0, this.deps.gardenOils.slotCount(this.deps.game));
+      const current = nodes.map((node, index) => `<p class="garden-oil-current">${nodes.length > 1 ? this.deps._t("{value} 자리: ", { value: index ? this.deps._t("둘째") : this.deps._t("첫째") }) : this.deps._t("지금 새겨진 노드: ")}${node ? `<strong>${this.esc(this.deps._t(node.title))}</strong> (${this.esc(this.effectText(node))})` : this.deps._t("없음")}</p>`).join("");
+      const panel = this.deps.selectionDialog.show({ id: this.OVERLAY_ID, title: this.deps._t("기름 바르기"), panelClass: "garden-oil-panel", body: `<div class="selection-overlay-help"><strong>[${this.esc(this.deps.getItemDisplayName(item))}]</strong>
+            ${this.deps._t("기름 셋을 바르면 고른 패시브 노드 하나가 목걸이에 새겨집니다(다시 바르면 바뀝니다). 조합 표는 루프마다 바뀝니다.")}</div>${current}
+            ${this.slotsHtml()}<div class="garden-oil-row" aria-label="${this.deps._t("기름")}">${this.chipsHtml()}</div><div class="garden-oil-row garden-oil-bowl" aria-label="${this.deps._t("그릇")}">${this.bowlHtml()}</div>${this.offersHtml(item)}` });
+      this.bindControls(panel);
     }
-    function pickSlot(index) {
-        slot = index === 1 ? 1 : 0;
-        render();
+    slotsHtml() {
+      if (this.deps.gardenOils.slotCount(this.deps.game) < 2) return "";
+      return `<div class="garden-oil-row" aria-label="${this.deps._t("자리")}">${["첫째 자리", "둘째 자리"].map((label, index) => `<button type="button" class="${index === this.slot ? "is-on" : ""}"
+            aria-pressed="${index === this.slot}" data-oil-slot="${index}">${label}</button>`).join("")}</div>`;
     }
-    function add(key) {
-        if (bowl.length < GARDEN_OILS.perAnoint && (game.currencies[key] || 0) > bowl.filter(entry => entry === key).length) bowl.push(key);
-        render();
+    pickSlot(index) {
+      if (!this.contextCurrent()) return this.close();
+      this.revision++;
+      this.slot = index === 1 ? 1 : 0;
+      this.render();
     }
-    function remove(index) {
-        bowl.splice(index, 1);
-        render();
+    add(key) {
+      if (!this.contextCurrent()) return this.close();
+      if (!this.deps.gardenOils.keys.includes(key)) return;
+      this.revision++;
+      if (this.bowl.length < this.deps.GARDEN_OILS.perAnoint && (this.deps.game.currencies[key] || 0) > this.bowl.filter((entry) => entry === key).length) this.bowl.push(key);
+      this.render();
     }
-    async function choose(nodeId) {
-        const item = getSelectedCraftItem(), node = gardenOils.offers(game, bowl).find(row => row.id === nodeId);
-        if (!item || !node) return;
-        if (game.woodsmanBuildLock) return addLog(_t('나무꾼 전투 중에는 바를 수 없습니다.'), 'attack-monster');
-        const was = gardenOils.nodesOf(item)[slot], message = `[${item.name}]에 ${withObjectParticle(node.title)} 새깁니다(기름 ${GARDEN_OILS.perAnoint}개).${was ? `\n지금 새겨진 ${was.title}${pickParticle(was.title, '은', '는')} 사라집니다.` : ''}`;
-        if (!await requestGameConfirmation(message, { title: _t('기름 바르기'), confirmLabel: _t('바르기') })) return;
-        if (getSelectedCraftItem() !== item) return addLog(_t('확인 중 대상 장비가 바뀌어 바르지 않았습니다.'), 'attack-monster');
-        const result = gardenOils.anoint(game, item, bowl, nodeId, slot);
-        if (!result.ok) return addLog(result.reason, 'attack-monster');
-        addLog(_t('🌿 [{item}]에 기름을 발라 {title} 새겨졌습니다: {node}', { item: esc(getItemDisplayName(item)), title: esc(withSubjectParticle(node.title)), node: esc(effectText(node)) }), 'loot-unique', { toast: true });
-        bowl = [];
-        updateStaticUI();
-        queueImportantSave(200);
-        render();
+    remove(index) {
+      if (!this.contextCurrent()) return this.close();
+      if (!Number.isInteger(index) || index < 0 || index >= this.bowl.length) return;
+      this.revision++;
+      this.bowl.splice(index, 1);
+      this.render();
     }
-    /** The item tooltip's anointment line. '' when nothing is engraved. */
-    function tooltipHtml(item) {
-        return gardenOils.nodesOf(item).filter(Boolean).map((node, index) => `<div class="tooltip-line" style="${index ? '' : 'margin-top:6px; '}color:${TONE};">${_t("🌿 기름: {title}\n            ({node})", { title: esc(_t(node.title)), node: esc(effectText(node)) })}</div>`).join('');
+    async choose(nodeId) {
+      if (!this.contextCurrent() || this.pending) return;
+      const item = this.deps.getSelectedCraftItem(), node = this.deps.gardenOils.offers(this.deps.game, this.bowl).find((row) => row.id === nodeId);
+      if (!item || !node) return;
+      if (this.deps.game.woodsmanBuildLock) return this.deps.addLog(this.deps._t("나무꾼 전투 중에는 바를 수 없습니다."), "attack-monster");
+      const message = this.choiceMessage(item, node);
+      const snapshot = { revision: this.revision, bowl: [...this.bowl], slot: this.slot, context: this.context, panel: this.panel };
+      this.pending = true;
+      try {
+        if (!await this.deps.requestGameConfirmation(message, { title: this.deps._t("기름 바르기"), confirmLabel: this.deps._t("바르기") })) return;
+        if (!this.active) return;
+        if (this.deps.getSelectedCraftItem() !== item) return this.deps.addLog(this.deps._t("확인 중 대상 장비가 바뀌어 바르지 않았습니다."), "attack-monster");
+        if (!this.confirmationCurrent(snapshot)) return;
+        this.applyChoice(item, node, snapshot);
+      } finally {
+        this.pending = false;
+      }
     }
-    return Object.freeze({ actionHtml, open, add, remove, choose, pickSlot, tooltipHtml, close: () => selectionDialog.close(OVERLAY_ID) });
+    choiceMessage(item, node) {
+      const was = this.deps.gardenOils.nodesOf(item)[this.slot];
+      return `[${item.name}]에 ${this.deps.withObjectParticle(node.title)} 새깁니다(기름 ${this.deps.GARDEN_OILS.perAnoint}개).${was ? `
+지금 새겨진 ${was.title}${this.deps.pickParticle(was.title, "은", "는")} 사라집니다.` : ""}`;
+    }
+    applyChoice(item, node, snapshot) {
+      const result = this.deps.gardenOils.anoint(snapshot.context.owner, item, snapshot.bowl, node.id, snapshot.slot);
+      if (!result.ok) return this.deps.addLog(result.reason, "attack-monster");
+      this.deps.addLog(this.deps._t("🌿 [{item}]에 기름을 발라 {title} 새겨졌습니다: {node}", { item: this.esc(this.deps.getItemDisplayName(item)), title: this.esc(this.deps.withSubjectParticle(node.title)), node: this.esc(this.effectText(node)) }), "loot-unique", { toast: true });
+      this.bowl = [];
+      this.revision++;
+      this.deps.updateStaticUI();
+      this.deps.queueImportantSave(200);
+      this.render();
+    }
+    tooltipHtml(item) {
+      return this.deps.gardenOils.nodesOf(item).filter(Boolean).map((node, index) => `<div class="tooltip-line" style="${index ? "" : "margin-top:6px; "}color:${this.TONE};">${this.deps._t("🌿 기름: {title}\n            ({node})", { title: this.esc(this.deps._t(node.title)), node: this.esc(this.effectText(node)) })}</div>`).join("");
+    }
+    contextCurrent() {
+      const context = this.context, owner = this.deps.game;
+      if (!this.active || !context || context.owner !== owner) return false;
+      return context.season === owner.season && context.loop === owner.loopCount && context.item === this.deps.getSelectedCraftItem();
+    }
+    confirmationCurrent(snapshot) {
+      if (!this.contextCurrent() || snapshot.context !== this.context) return false;
+      return snapshot.revision === this.revision && snapshot.panel === this.panel && !!snapshot.panel?.isConnected;
+    }
+    bindControls(panel) {
+      if (this.panel === panel) return;
+      releaseViewTarget(this, this.panel);
+      this.panel = panel;
+      if (panel) listenView(this, panel, "click", (event) => this.onClick(event));
+    }
+    onClick(event) {
+      const button = event.target.closest("button");
+      if (!button || !this.panel.contains(button) || button.disabled) return;
+      const actions = {
+        oilAdd: (key) => this.add(key),
+        oilRemove: (index) => this.remove(Number(index)),
+        oilChoose: (id) => this.choose(id),
+        oilSlot: (index) => this.pickSlot(Number(index))
+      };
+      for (const [key, action] of Object.entries(actions)) if (Object.hasOwn(button.dataset, key)) return action(button.dataset[key]);
+    }
+    close() {
+      this.revision++;
+      this.context = null;
+      this.bowl = [];
+      releaseViewTarget(this, this.panel);
+      this.panel = null;
+      this.deps.selectionDialog.close(this.OVERLAY_ID);
+    }
+    api() {
+      return Object.freeze({ actionHtml: this.actionHtml, open: this.open, add: this.add, remove: this.remove, choose: this.choose, pickSlot: this.pickSlot, tooltipHtml: this.tooltipHtml, close: () => this.close() });
+    }
+    dispose() {
+      releaseViewEvents(this);
+      this.close();
+    }
+  };
+  function createGardenOilsView(deps) {
+    const view = new GardenOilsView(deps);
+    return Object.freeze({ ...view.api(), dispose: () => view.dispose() });
+  }
+
+  // modules/garden-oils-ui-classic.mjs
+  var gardenOilsUi = createGardenOilsView({
+    get GARDEN_OILS() {
+      return GARDEN_OILS;
+    },
+    get _t() {
+      return _t;
+    },
+    get addLog() {
+      return addLog;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get formatValue() {
+      return formatValue;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get gardenOils() {
+      return gardenOils;
+    },
+    get getItemDisplayName() {
+      return getItemDisplayName;
+    },
+    get getSelectedCraftItem() {
+      return getSelectedCraftItem;
+    },
+    get getStatName() {
+      return getStatName;
+    },
+    get pickParticle() {
+      return pickParticle;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    },
+    get requestGameConfirmation() {
+      return requestGameConfirmation;
+    },
+    get selectForCrafting() {
+      return selectForCrafting;
+    },
+    get selectionDialog() {
+      return selectionDialog;
+    },
+    get updateStaticUI() {
+      return updateStaticUI;
+    },
+    get withObjectParticle() {
+      return withObjectParticle;
+    },
+    get withSubjectParticle() {
+      return withSubjectParticle;
+    }
+  });
+  safeExposeGlobals({ gardenOilsUi });
 })();
-safeExposeGlobals({ gardenOilsUi });

@@ -25,7 +25,7 @@
 | `js/canvas-hana-actors.js` | 플레이어·위습 소환수 시트 그리기(장치 픽셀 맞춤, 타격 프레임을 impactAt에 맞춤, 피격·흡혈 물들임) |
 | `js/canvas-battle-units.js` | 전장의 플레이어 모습(Hana → 없으면 기존 스트립)과 소환수 그리기(위습 시트, 방어 소환수는 기존 summon1.png) |
 | `js/canvas-fx-remake.js` | 리메이크 패스: v3.38 이펙트를 전장 좌표 버퍼에 그린 뒤 3×3 블록마다 한 도트로 다시 찍음 |
-| `js/canvas-redrawn-skill-art.js` | 인계 `void_fx.js` 17개 모듈을 규칙에 맞게 옮긴 것(그림만) |
+| `modules/rendering/redrawn/art.mjs`와 같은 폴더의 그림 모듈 | 인계 `void_fx.js`의 도트 그림 공식. 2026-11-14 ESM 전환 후 렌더러가 직접 import |
 | `js/canvas-redrawn-skill-fx.js` | 새로 그린 17젬을 실제 전투 이벤트에 연결(아래) |
 | `js/canvas-act-title-card.js` | 액트·보스 제목 카드 |
 | `js/dev-test-panel-ui.js` | `127.0.0.1/?dev=1` 전용 테스트 패널 |
@@ -56,8 +56,10 @@
 
 ### 젬을 하나 더 새로 그리려면
 
-`canvas-redrawn-skill-art.js`에 그림 모듈 추가 → `scripts/smoke-redrawn-skill-art.js`에 원본 대비 검사 추가 →
-`canvas-redrawn-skill-fx.js`의 `IDS`·`REPLACED`(대신할 이벤트 종류)·`DRAWERS`(ground/fore)에 등록.
+`modules/rendering/redrawn/`에 그림을 추가하고 `skill-renderer.mjs`의 `IDS`·`REPLACED`(대신할 이벤트 종류),
+`base-cast-drawers.mjs` 또는 `supplement-cast-drawers.mjs`의 ground/fore 연결을 수정한다.
+그림은 작업 중 원본 대비 비교하고 실제 전투에서 확인한다. 젬마다 새 영구 스모크를 늘리지 않는다.
+이 폴더의 import에는 전역 등록 부작용이 없으며, `createRedrawnSkillRenderer`가 그리기 표를 조립한다.
 
 ## 설정 키
 
@@ -67,7 +69,7 @@
 | `game.settings.skillFxStyle` | `'remake'` · `'original'` | 리메이크 |
 | `game.settings.heroWeaponMode` | `'auto'` · `'class'` · 무기 slug | auto |
 
-## 검증
+## 당시 검증 기록 (현재 검사 목록은 README 기준)
 
 - `npm test` — `smoke-hana-actors`(시트 규격·타격 프레임), `smoke-redrawn-skill-art`(원본과 도트 단위 동일),
   `smoke-redrawn-skill-fx`(대신하는 이벤트·시전 묶기·회전/물들임 시각), `smoke-story-quotes`.

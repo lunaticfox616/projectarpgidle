@@ -1,1573 +1,1749 @@
-(function () {
-    'use strict';
+// GENERATED from modules/ui-window-manager*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/window-methods.mjs
+  var windowCancelAnimationFrame = (...args) => globalThis.cancelAnimationFrame(...args);
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowGetComputedStyle = (...args) => globalThis.getComputedStyle(...args);
+  var windowRequestAnimationFrame = (...args) => globalThis.requestAnimationFrame(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
+  var windowStructuredClone = (...args) => globalThis.structuredClone(...args);
 
-    const DESKTOP_MEDIA = '(min-width: 1081px)';
-    const UI_LAYOUT_STORAGE_KEY = 'project-arpg-idle-ui-layout-v1';
-    const UI_LAYOUT_VERSION = 1;
-    const PASSIVE_TREE_PRESENTATION_VERSION = 1;
-    const WORKSPACE_PRESENTATION_VERSION = 2;
-    // 도킹 작업대: 장비·스킬·지도 창은 전장을 덮지 않고 오른쪽에 붙어 전투를 계속 보여 준다.
-    // 전장이 이 폭보다 좁아지는 화면에서는 기존처럼 작업 영역 전체를 쓴다.
-    const DOCK_MIN_BATTLE_WIDTH = 380;
-    const DOCK_MIN_WIDTH = 720;
-    const DOCK_MAX_WIDTH = 1100;
-    const DOCK_RATIO = 0.62;
-    const COMMUNITY_MIN_WIDTH = 280;
-    const COMMUNITY_MAX_WIDTH = 520;
-    const DEFAULT_COMMUNITY_WIDTH = 360;
-    const DESKTOP_RAIL_WIDTH = 140;
-    const WORKSPACE_GAP = 10;
-    const WORKSPACE_EDGE = 8;
-    // 바에 다 못 실을 때 기타로 보내는 순서: 나중에 열리는 부가 메뉴(뒤쪽부터)가 먼저, 이 핵심 창들은 마지막까지 바에 남는다.
-    const RAIL_CORE_TAB_IDS = new Set(['btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-map', 'btn-tab-journal']);
-    const RAIL_EXTERNAL_TAB_IDS = new Set([
-        'btn-tab-battle', 'btn-tab-settings', 'btn-map-complete-action-picker'
-    ]);
-    const WINDOW_DEFS = {
-        'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
-        // 2026-10-13: 스킬룬은 장비 창 안의 화면, 해금은 루프 창 안의 화면이 됐다(js/ui.js MERGED_TAB_GROUPS: 창 머리의 탭으로 오간다).
-        // 제 창이 없으므로 여기에 줄이 없다(저장된 옛 창 자리는 쓰이지 않는다).
-        'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
-        'tab-char': { title: '스킬트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
-        'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
-        'tab-settings': { title: '설정', x: 230, y: 40, width: 1000, height: 800, minWidth: 460, minHeight: 420 },
-        // 2026-10-11: 아래 창들은 기본 높이가 낮아 1080p 화면에서 원환 아래 절반, 조합창 끝 줄, 연대기가 잘렸다(재능은 2026-10-16부터 스킬트리 창 안).
-        // 높이는 작업 영역(HUD 위)까지만 쓰이므로 작은 화면에서는 전처럼 줄어든다. 사용자가 옮기거나 키운 창은 저장된 크기를 따른다.
-        'tab-season': { title: '루프 패시브', x: 210, y: 20, width: 980, height: 920, minWidth: 500, minHeight: 380 },
-        'tab-journal': { title: '기록', x: 300, y: 30, width: 820, height: 900, minWidth: 500, minHeight: 380 },
-        'tab-stump': { title: '그루터기 함', x: 240, y: 30, width: 940, height: 880, minWidth: 560, minHeight: 440 },
-        // 2026-11-06: 거래(NPC, 가판대, 장비 전당)는 장비 창의 칸에서 제 창이 됐다(js/market-ui.js).
-        'tab-trade': { title: '거래', x: 200, y: 40, width: 1000, height: 840, minWidth: 600, minHeight: 440 },
+  // modules/ui/window-layout-store.mjs
+  function getDefaultLayoutState(runtime) {
+    return { version: runtime.state.UI_LAYOUT_VERSION, passiveTreePresentationVersion: runtime.state.PASSIVE_TREE_PRESENTATION_VERSION, workspacePresentationVersion: runtime.state.WORKSPACE_PRESENTATION_VERSION, windows: {}, community: { open: false, width: runtime.state.DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
+  }
+  function readStoredLayout(runtime) {
+    try {
+      let raw = runtime.deps.window.localStorage && runtime.deps.window.localStorage.getItem(runtime.state.UI_LAYOUT_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      runtime.deps.console.warn("UI layout state ignored:", error);
+      return null;
+    }
+  }
+  function normalizeLayoutState(runtime, raw) {
+    let base = getDefaultLayoutState(runtime);
+    let next = raw && typeof raw === "object" ? raw : {};
+    let state = { ...base, ...next, version: runtime.state.UI_LAYOUT_VERSION };
+    state.windows = next.windows && typeof next.windows === "object" ? next.windows : {};
+    applyWindowPresentationUpdates(runtime, state, next);
+    state.community = { ...base.community, ...next.community && typeof next.community === "object" ? next.community : {} };
+    state.community.width = clampNumberLocal(runtime, state.community.width, runtime.state.COMMUNITY_MIN_WIDTH, runtime.state.COMMUNITY_MAX_WIDTH, runtime.state.DEFAULT_COMMUNITY_WIDTH);
+    state.goals = { ...base.goals, ...next.goals && typeof next.goals === "object" ? next.goals : {} };
+    state.combatLog = normalizeCombatLogLayout(runtime, base.combatLog, next.combatLog);
+    return state;
+  }
+  function normalizeCombatLogLayout(runtime, base, stored) {
+    const combatLog = { ...base, ...stored && typeof stored === "object" ? stored : {} };
+    if (combatLog.reserve != null) combatLog.reserve = clampNumberLocal(runtime, combatLog.reserve, runtime.state.COMBAT_LOG_RESERVE_MIN, 4e3, runtime.state.COMBAT_LOG_RESERVE_MIN);
+    return combatLog;
+  }
+  function applyWindowPresentationUpdates(runtime, state, next) {
+    if ((Number(next.passiveTreePresentationVersion) || 0) < runtime.state.PASSIVE_TREE_PRESENTATION_VERSION) {
+      state.windows = { ...state.windows, "tab-char": { ...state.windows["tab-char"] || {}, maximized: true } };
+    }
+    state.passiveTreePresentationVersion = runtime.state.PASSIVE_TREE_PRESENTATION_VERSION;
+    let previousWorkspaceVersion = Number(next.workspacePresentationVersion) || 0;
+    if (previousWorkspaceVersion < runtime.state.WORKSPACE_PRESENTATION_VERSION) {
+      state.windows = { ...state.windows };
+      ["tab-items", "tab-skills", "tab-map"].forEach((id) => {
+        state.windows[id] = { ...state.windows[id], maximized: false, docked: true, restoreRect: null };
+      });
+    }
+    state.workspacePresentationVersion = runtime.state.WORKSPACE_PRESENTATION_VERSION;
+  }
+  function closePersistedSurfacesForBoot(runtime) {
+    Object.keys(runtime.state.layoutState.windows).forEach((tabId) => {
+      let stored = runtime.state.layoutState.windows[tabId];
+      if (!stored || typeof stored !== "object") return;
+      runtime.state.layoutState.windows[tabId] = { ...stored, open: false, minimized: false };
+    });
+    runtime.state.layoutState.community.open = false;
+    saveLayoutState(runtime);
+  }
+  function saveLayoutState(runtime) {
+    if (runtime.deps.game.isGuideReplay) return;
+    try {
+      if (runtime.deps.window.localStorage) runtime.deps.window.localStorage.setItem(runtime.state.UI_LAYOUT_STORAGE_KEY, JSON.stringify(runtime.state.layoutState));
+    } catch (error) {
+      runtime.deps.console.warn("UI layout state save failed:", error);
+    }
+  }
+  function clampNumberLocal(runtime, value, min, max, fallback) {
+    let num = Number(value);
+    if (!Number.isFinite(num)) num = fallback;
+    return Math.max(min, Math.min(max, Math.round(num)));
+  }
+
+  // modules/ui/window-geometry.mjs
+  function getDesktopRailInset(runtime) {
+    if (runtime.state.railDockHome) return runtime.state.WORKSPACE_EDGE;
+    let rail = runtime.deps.document.querySelector(".tab-header");
+    let rect = rail && typeof rail.getBoundingClientRect === "function" ? rail.getBoundingClientRect() : null;
+    if (!rect || !Number.isFinite(rect.right) || rect.right <= 0) return runtime.state.DESKTOP_RAIL_WIDTH;
+    return Math.ceil(rect.right / runtime.deps.uiDisplay.factor + runtime.state.WORKSPACE_GAP / 2);
+  }
+  function getHudBarTop(runtime, shell) {
+    let rect = shell.getBoundingClientRect();
+    let bar = runtime.deps.window.getComputedStyle(shell, "::before");
+    let top = (0, runtime.deps.parseFloat)(bar.top);
+    if (!(rect.height > 0) || !(shell.offsetHeight > 0) || bar.position !== "absolute" || !Number.isFinite(top)) return NaN;
+    return rect.top + top * rect.height / shell.offsetHeight;
+  }
+  function getDockedHudTop(runtime, hud) {
+    let shell = hud.querySelector(".player-hud-shell");
+    let barTop = shell ? getHudBarTop(runtime, shell) : NaN;
+    if (barTop > 0) return barTop;
+    let rect = hud.getBoundingClientRect();
+    return rect.height > 0 ? rect.top : NaN;
+  }
+  function getDockedHudInset(runtime, viewHeight) {
+    let hud = runtime.state.railDockHome ? runtime.deps.document.querySelector(".player-hud") : null;
+    let top = hud ? getDockedHudTop(runtime, hud) : NaN;
+    if (!(top > 0)) return runtime.state.WORKSPACE_EDGE;
+    return Math.ceil(viewHeight - top / runtime.deps.uiDisplay.factor + runtime.state.WORKSPACE_GAP / 2);
+  }
+  function getWorkspaceRect(runtime) {
+    let width = Math.max(320, runtime.deps.window.innerWidth / runtime.deps.uiDisplay.factor || 1280);
+    let height = Math.max(260, runtime.deps.window.innerHeight / runtime.deps.uiDisplay.factor || 720);
+    let railInset = getDesktopRailInset(runtime);
+    let hudInset = getDockedHudInset(runtime, height);
+    return { left: railInset, top: runtime.state.WORKSPACE_EDGE, width: Math.max(240, width - railInset - runtime.state.WORKSPACE_GAP), height: Math.max(260, height - runtime.state.WORKSPACE_EDGE - hudInset) };
+  }
+  function getFreeWindowRect(runtime) {
+    let rect = getWorkspaceRect(runtime);
+    let viewBottom = Math.max(260, runtime.deps.window.innerHeight / runtime.deps.uiDisplay.factor || 720) - runtime.state.WORKSPACE_EDGE;
+    return { ...rect, height: Math.max(rect.height, viewBottom - rect.top) };
+  }
+  function getDockFitWidth(runtime, tabId) {
+    const el = tabId && runtime.deps.document.getElementById(tabId), fit = el && el.querySelector("[data-dock-fit]");
+    if (!fit || !fit.getClientRects().length) return null;
+    const need = (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(fit).getPropertyValue("--dock-fit-width"));
+    if (!(need > 0)) return null;
+    return need + (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(el).width) - (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(fit).width);
+  }
+  function getDockRect(runtime, tabId) {
+    let rect = getWorkspaceRect(runtime);
+    let width = clampNumberLocal(runtime, rect.width * runtime.state.DOCK_RATIO, runtime.state.DOCK_MIN_WIDTH, runtime.state.DOCK_MAX_WIDTH, runtime.state.DOCK_MIN_WIDTH);
+    let fit = getDockFitWidth(runtime, tabId);
+    if (fit) width = Math.max(runtime.state.DOCK_MIN_WIDTH, Math.min(width, Math.ceil(fit)));
+    if (rect.width - width - runtime.state.WORKSPACE_GAP < runtime.state.DOCK_MIN_BATTLE_WIDTH) return null;
+    return { x: rect.left + rect.width - width, y: rect.top, width, height: rect.height };
+  }
+  function createResolveWindowPlacement(runtime) {
+    return function resolveWindowPlacement(box, rect, maximized, docked, tabId) {
+      let dockRect = docked && !maximized ? getDockRect(runtime, tabId) : null;
+      if (dockRect) return { box: dockRect, dockActive: true };
+      let area = maximized ? getFreeWindowRect(runtime) : rect;
+      if (maximized || docked) return { box: { x: area.left, y: area.top, width: area.width, height: area.height }, dockActive: false };
+      return { box, dockActive: false };
     };
-
-    let layoutState = getDefaultLayoutState();
-    let originalSwitchTab = null;
-    let zOrder = Object.keys(WINDOW_DEFS);
-    let initialized = false;
-    let previousDesktopMode = null;
-
-    function getDefaultLayoutState() {
-        return { version: UI_LAYOUT_VERSION, passiveTreePresentationVersion: PASSIVE_TREE_PRESENTATION_VERSION, workspacePresentationVersion: WORKSPACE_PRESENTATION_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
-    }
-
-    function readStoredLayout() {
-        try {
-            let raw = window.localStorage && window.localStorage.getItem(UI_LAYOUT_STORAGE_KEY);
-            return raw ? JSON.parse(raw) : null;
-        } catch (error) {
-            console.warn('UI layout state ignored:', error);
-            return null;
-        }
-    }
-
-    function normalizeLayoutState(raw) {
-        let base = getDefaultLayoutState();
-        let next = raw && typeof raw === 'object' ? raw : {};
-        let state = { ...base, ...next, version: UI_LAYOUT_VERSION };
-        state.windows = (next.windows && typeof next.windows === 'object') ? next.windows : {};
-        applyWindowPresentationUpdates(state, next);
-        state.community = { ...base.community, ...((next.community && typeof next.community === 'object') ? next.community : {}) };
-        state.community.width = clampNumberLocal(state.community.width, COMMUNITY_MIN_WIDTH, COMMUNITY_MAX_WIDTH, DEFAULT_COMMUNITY_WIDTH);
-        state.goals = { ...base.goals, ...((next.goals && typeof next.goals === 'object') ? next.goals : {}) };
-        state.combatLog = normalizeCombatLogLayout(base.combatLog, next.combatLog);
-        return state;
-    }
-
-    /** { expanded, reserve? }: the stacked layout's log share (setupCombatLogResize) stays a sane pixel count. */
-    function normalizeCombatLogLayout(base, stored) {
-        const combatLog = { ...base, ...((stored && typeof stored === 'object') ? stored : {}) };
-        if (combatLog.reserve != null) combatLog.reserve = clampNumberLocal(combatLog.reserve, COMBAT_LOG_RESERVE_MIN, 4000, COMBAT_LOG_RESERVE_MIN);
-        return combatLog;
-    }
-
-    function applyWindowPresentationUpdates(state, next) {
-        if ((Number(next.passiveTreePresentationVersion) || 0) < PASSIVE_TREE_PRESENTATION_VERSION) {
-            state.windows = { ...state.windows, 'tab-char': { ...(state.windows['tab-char'] || {}), maximized: true } };
-        }
-        state.passiveTreePresentationVersion = PASSIVE_TREE_PRESENTATION_VERSION;
-        // 기존에 아래로 밀린 주요 창만 최초 한 번 새 작업 영역에 맞춘다.
-        // 이후 사용자가 복원·이동한 배치는 그대로 존중한다.
-        let previousWorkspaceVersion = Number(next.workspacePresentationVersion) || 0;
-        if (previousWorkspaceVersion < WORKSPACE_PRESENTATION_VERSION) {
-            state.windows = { ...state.windows };
-            ['tab-items', 'tab-skills', 'tab-map'].forEach(id => {
-                state.windows[id] = { ...state.windows[id], maximized: false, docked: true, restoreRect: null };
-            });
-        }
-        state.workspacePresentationVersion = WORKSPACE_PRESENTATION_VERSION;
-    }
-
-    function closePersistedSurfacesForBoot() {
-        Object.keys(layoutState.windows).forEach(tabId => {
-            let stored = layoutState.windows[tabId];
-            if (!stored || typeof stored !== 'object') return;
-            layoutState.windows[tabId] = { ...stored, open: false, minimized: false };
-        });
-        layoutState.community.open = false;
-        saveLayoutState();
-    }
-
-    function saveLayoutState() {
-        if (game.isGuideReplay) return;
-        try {
-            if (window.localStorage) window.localStorage.setItem(UI_LAYOUT_STORAGE_KEY, JSON.stringify(layoutState));
-        } catch (error) {
-            console.warn('UI layout state save failed:', error);
-        }
-    }
-
-    function clampNumberLocal(value, min, max, fallback) {
-        let num = Number(value);
-        if (!Number.isFinite(num)) num = fallback;
-        return Math.max(min, Math.min(max, Math.round(num)));
-    }
-
-    function getDesktopRailInset() {
-        if (railDockHome) return WORKSPACE_EDGE;
-        let rail = document.querySelector('.tab-header');
-        let rect = rail && typeof rail.getBoundingClientRect === 'function' ? rail.getBoundingClientRect() : null;
-        if (!rect || !Number.isFinite(rect.right) || rect.right <= 0) return DESKTOP_RAIL_WIDTH;
-        return Math.ceil(rect.right / uiDisplay.factor + WORKSPACE_GAP / 2);
-    }
-
-    // 하단 HUD 판(.player-hud-shell::before, 메뉴 단추 줄의 바탕)의 윗변. 솟은 미니맵과 구슬은 이보다 위로 나온다.
-    function getHudBarTop(shell) {
-        let rect = shell.getBoundingClientRect();
-        let bar = window.getComputedStyle(shell, '::before');
-        let top = parseFloat(bar.top);
-        if (!(rect.height > 0) || !(shell.offsetHeight > 0) || bar.position !== 'absolute' || !Number.isFinite(top)) return NaN;
-        return rect.top + top * rect.height / shell.offsetHeight;
-    }
-
-    // 창은 하단 HUD 판 윗변까지 내려온다(2026-10-03 사용자 요청). 솟은 미니맵과 구슬은 창이 덮고(css/themes/pixel-menu.css의
-    // HUD 층), 메뉴 단추 줄은 늘 보인다. 판을 못 찾으면 예전처럼 HUD 상자 윗변 위까지다.
-    function getDockedHudTop(hud) {
-        let shell = hud.querySelector('.player-hud-shell');
-        let barTop = shell ? getHudBarTop(shell) : NaN;
-        if (barTop > 0) return barTop;
-        let rect = hud.getBoundingClientRect();
-        return rect.height > 0 ? rect.top : NaN;
-    }
-
-    function getDockedHudInset(viewHeight) {
-        let hud = railDockHome ? document.querySelector('.player-hud') : null;
-        let top = hud ? getDockedHudTop(hud) : NaN;
-        if (!(top > 0)) return WORKSPACE_EDGE;
-        return Math.ceil(viewHeight - top / uiDisplay.factor + WORKSPACE_GAP / 2);
-    }
-
-    // 관리 창은 전투 기록 위까지 확장할 수 있으며 메뉴(왼쪽 레일 또는 하단 HUD의 단추 줄)는 항상 남겨 둔다.
-    // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
-    function getWorkspaceRect() {
-        let width = Math.max(320, window.innerWidth / uiDisplay.factor || 1280);
-        let height = Math.max(260, window.innerHeight / uiDisplay.factor || 720);
-        let railInset = getDesktopRailInset();
-        let hudInset = getDockedHudInset(height);
-        return { left: railInset, top: WORKSPACE_EDGE, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - WORKSPACE_EDGE - hudInset) };
-    }
-
-    // 떠 있는 창과 최대화한 창은 하단 HUD를 덮고 화면 아래 끝까지 간다(2026-10-04 사용자 요청: "hud 위에 덮어서 hud 아래 전체까지",
-    // "최대화 하면 당연히 다 덮어야지"). 창 층(#right-pane)이 HUD보다 위라 겹치면 창이 HUD를 가린다. 오른쪽에 붙인 창은
-    // getWorkspaceRect(HUD 판 윗변까지)라 전투 화면 옆에 둔 채로 HUD가 보인다. 채팅과 전투 기록 창(js/message-frames-ui.js)도 이 범위다.
-    function getFreeWindowRect() {
-        let rect = getWorkspaceRect();
-        let viewBottom = Math.max(260, window.innerHeight / uiDisplay.factor || 720) - WORKSPACE_EDGE;
-        return { ...rect, height: Math.max(rect.height, viewBottom - rect.top) };
-    }
-
-    // 도킹 창은 내용에 맞는 폭까지 좁아진다(2026-10-24 사용자: "창 기본 폭을 내용에 맞춰 줄여줘"). 창 안의 [data-dock-fit] 요소가 내용에
-    // 필요한 폭을 등록된 길이 --dock-fit-width로 알리고(css/equipment-window.css), 창은 그 폭에 테두리와 여백을 더한 폭을 넘지 않는다.
-    // 그 요소가 보이지 않으면(다른 탭, 닫힌 창) 기본 도킹 폭이다.
-    function getDockFitWidth(tabId) {
-        const el = tabId && document.getElementById(tabId), fit = el && el.querySelector('[data-dock-fit]');
-        if (!fit || !fit.getClientRects().length) return null;
-        const need = parseFloat(getComputedStyle(fit).getPropertyValue('--dock-fit-width'));
-        if (!(need > 0)) return null;
-        // 내용 바깥(테두리, 창 몸통 여백): 지금 창 폭에서 그 요소의 폭을 뺀 값이라 창 폭과 상관없다
-        return need + parseFloat(getComputedStyle(el).width) - parseFloat(getComputedStyle(fit).width);
-    }
-    // 창 높이, 임시 보관함, 탭이 바뀌어 필요한 폭이 달라지면 다음 그리기에서 다시 맞춘다(같은 그리기에서 고치면 ResizeObserver 고리 경고가 난다).
-    let dockFitWatch = null, dockFitFrame = 0;
-    function watchDockFit(el) {
-        const fit = el.querySelector('[data-dock-fit]');
-        if (!fit || typeof ResizeObserver !== 'function') return;
-        dockFitWatch = dockFitWatch || new ResizeObserver(() => {
-            if (dockFitFrame) return;
-            dockFitFrame = requestAnimationFrame(() => {
-                dockFitFrame = 0;
-                refitDockedWindows();
-            });
-        });
-        dockFitWatch.observe(fit);
-    }
-    /** Fits every docked window to what it shows now. A subtab switch calls it at once: left to the watcher, the new subtab drew once
-     * at the old width and its cards lined up again a frame later (2026-10-27 사용자: 장비 전당을 열 때 카드가 순간 재정렬). */
-    function refitDockedWindows() {
-        Object.keys(WINDOW_DEFS).forEach(id => { if (getWindowState(id).dockActive) applyWindowState(id); });
-        syncWorkspacePresentation();
-    }
-
-    function getDockRect(tabId) {
-        let rect = getWorkspaceRect();
-        let width = clampNumberLocal(rect.width * DOCK_RATIO, DOCK_MIN_WIDTH, DOCK_MAX_WIDTH, DOCK_MIN_WIDTH);
-        let fit = getDockFitWidth(tabId);
-        if (fit) width = Math.max(DOCK_MIN_WIDTH, Math.min(width, Math.ceil(fit)));
-        if (rect.width - width - WORKSPACE_GAP < DOCK_MIN_BATTLE_WIDTH) return null;
-        return { x: rect.left + rect.width - width, y: rect.top, width, height: rect.height };
-    }
-
-    // 최대화 > 도킹 > 떠 있는 창 순. 도킹을 원하지만 전장 폭이 모자란 화면에서는 작업 영역 전체를 쓴다.
-    function resolveWindowPlacement(box, rect, maximized, docked, tabId) {
-        let dockRect = docked && !maximized ? getDockRect(tabId) : null;
-        if (dockRect) return { box: dockRect, dockActive: true };
-        // 최대화는 HUD까지 다 덮는다. 붙이려는데 전장 폭이 모자란 창은 작업 영역 전체(HUD 판 윗변까지)다.
-        let area = maximized ? getFreeWindowRect() : rect;
-        if (maximized || docked) return { box: { x: area.left, y: area.top, width: area.width, height: area.height }, dockActive: false };
-        return { box, dockActive: false };
-    }
-
-    function isDockPreferred(tabId, stored) {
-        return stored.docked === undefined ? !!WINDOW_DEFS[tabId].dock : !!stored.docked;
-    }
-
-    function getWindowState(tabId) {
-        let def = WINDOW_DEFS[tabId];
-        let stored = layoutState.windows[tabId] || {};
-        let rect = getWorkspaceRect(), free = getFreeWindowRect();
-        let minWidth = Math.min(def.minWidth, free.width);
-        let minHeight = Math.min(def.minHeight, free.height);
-        let width = clampNumberLocal(stored.width, minWidth, free.width, Math.min(def.width, rect.width));
-        let height = clampNumberLocal(stored.height, minHeight, free.height, Math.min(def.height, rect.height));
-        let x = clampNumberLocal(stored.x, free.left, free.left + free.width - width, Math.min(def.x, rect.left + rect.width - width));
-        let y = clampNumberLocal(stored.y, free.top, free.top + free.height - height, Math.min(def.y, rect.top + rect.height - height));
-        let maximized = stored.maximized === undefined ? !!def.defaultMaximized : !!stored.maximized;
-        let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
-        let docked = isDockPreferred(tabId, stored);
-        let placement = resolveWindowPlacement({ x, y, width, height }, rect, maximized, docked, tabId);
-        return { open: !!stored.open, minimized: !!stored.minimized, maximized, docked, dockActive: placement.dockActive, restoreRect, ...placement.box };
-    }
-
-    function persistWindowState(tabId, patch) {
-        let cur = getWindowState(tabId);
-        delete cur.dockActive; // 화면 폭에 따라 계산되는 값이라 저장하지 않는다.
-        layoutState.windows[tabId] = { ...cur, ...patch };
-        saveLayoutState();
-    }
-
-    // 창 크기는 네 변과 네 모서리 어디서든 바꾼다(2026-10-16 사용자 "창 오른쪽 밑의 늘렸다 줄이는거 표시 삭제하고 창 어느 변을 눌러도 축소
-    // 확대가 가능하도록"). 창의 테두리(장식 테두리, 적어도 EDGE_GRAB_PX)를 누르면 그 변이나 모서리를 잡고, 커서도 그에 맞게 바뀐다.
-    // 채팅과 로그 창(js/message-frames-ui.js)과 같다. 테두리 바깥은 잘리므로(overflow) 띠를 따로 두지 않고 창이 누른 자리를 가린다.
-    const EDGE_GRAB_PX = 8;
-    const EDGE_CURSORS = Object.freeze({ n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize', nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize' });
-    /** The sides (n, s, e, w or a corner such as nw) under a pointer on a free PC window's frame, or ''. */
-    function windowEdgesAt(el, event) {
-        if (!el.classList.contains('ui-window') || el.classList.contains('ui-window-maximized') || el.classList.contains('ui-window-minimized')) return '';
-        const rect = el.getBoundingClientRect(), band = Math.max(EDGE_GRAB_PX, parseFloat(getComputedStyle(el).borderTopWidth) || 0);
-        const x = event.clientX - rect.left, y = event.clientY - rect.top;
-        return (y < band ? 'n' : y > rect.height - band ? 's' : '') + (x < band ? 'w' : x > rect.width - band ? 'e' : '');
-    }
-    function prepareWindow(tabId) {
-        let el = document.getElementById(tabId);
-        let def = WINDOW_DEFS[tabId];
-        if (!el || !def || el.dataset.windowPrepared === '1') return;
-        let body = document.createElement('div');
-        body.className = 'ui-window-body';
-        while (el.firstChild) body.appendChild(el.firstChild);
-        let titlebar = document.createElement('div');
-        titlebar.className = 'ui-window-titlebar';
-        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}" data-i18n>${_t(def.title)}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="${_t('창 위치와 크기 되돌리기')}" data-tip="${_t('창 위치와 크기 되돌리기')}">↺</button><button type="button" data-window-action="minimize" aria-label="${_t('최소화')}" data-tip="${_t('최소화')}">—</button><button type="button" data-window-action="maximize" aria-label="${_t('최대화 또는 원래 크기')}" data-tip="${_t('최대화 / 원래 크기')}">□</button><button type="button" data-window-action="close" aria-label="${_t('닫기')}" data-tip="${_t('닫기 (Esc)')}">✕</button></div>`;
-        el.classList.add('ui-window');
-        el.setAttribute('role', 'dialog');
-        el.setAttribute('aria-labelledby', `ui-window-title-${tabId}`);
-        el.tabIndex = -1;
-        el.dataset.windowPrepared = '1';
-        el.prepend(titlebar);
-        el.appendChild(body);
-        titlebar.addEventListener('pointerdown', event => beginWindowDrag(event, tabId));
-        titlebar.addEventListener('dblclick', () => toggleMaximizeWindow(tabId));
-        // The panel survives mobile layout changes; only its title bar is rebuilt.
-        // Rebinding here would toggle maximize twice after one breakpoint round trip.
-        if (el.dataset.windowInputBound !== '1') {
-            el.addEventListener('pointerdown', event => {
-                focusWindow(tabId);
-                const edges = event.target === el ? windowEdgesAt(el, event) : '';
-                if (edges) beginWindowResize(event, tabId, edges);
-            });
-            el.addEventListener('pointermove', event => {
-                if (event.buttons) return;
-                const cursor = event.target === el ? EDGE_CURSORS[windowEdgesAt(el, event)] || '' : '';
-                if (el.style.cursor !== cursor) el.style.cursor = cursor;
-            });
-            el.addEventListener('click', event => handleWindowActionClick(event, tabId));
-            watchDockFit(el);
-            el.dataset.windowInputBound = '1';
-        }
-    }
-
-    function applyWindowState(tabId) {
-        let el = document.getElementById(tabId);
-        if (!el) return;
-        let st = getWindowState(tabId);
-        el.style.left = `${st.x}px`;
-        el.style.top = `${st.y}px`;
-        el.style.width = `${st.width}px`;
-        el.style.height = `${st.height}px`;
-        el.classList.toggle('ui-window-open', st.open && !st.minimized);
-        el.classList.toggle('ui-window-minimized', st.minimized);
-        el.classList.toggle('ui-window-maximized', st.maximized);
-        el.classList.toggle('ui-window-docked', st.dockActive);
-        // 막 열린 도킹 창은 이제 보여서 내용에 맞는 폭을 잴 수 있다: 같은 그리기 안에서 한 번 더 맞춰 넓은 창이 한 번 비치지 않게 한다
-        if (st.dockActive && st.open && !st.minimized) {
-            let fitted = getWindowState(tabId);
-            if (fitted.width !== st.width) { el.style.left = `${fitted.x}px`; el.style.width = `${fitted.width}px`; }
-        }
-        let btn = document.getElementById('btn-' + tabId);
-        if (btn) {
-            btn.classList.toggle('ui-window-open', st.open);
-            btn.classList.toggle('ui-window-minimized-btn', st.minimized);
-            btn.setAttribute('aria-pressed', st.open && !st.minimized ? 'true' : 'false');
-        }
-    }
-
-    function syncWorkspacePresentation() {
-        let activeWindowId = zOrder.slice().reverse().find(id => {
-            let state = layoutState.windows[id];
-            return state && state.open && !state.minimized;
-        }) || '';
-        // 채팅은 전투 로그와 같은 자리를 공유하므로 전투를 가리는 관리 창으로 취급하지 않는다.
-        let managementMode = isDesktopWindowed() && !!activeWindowId;
-        document.body.classList.toggle('ui-management-mode', managementMode);
-        syncWorkspaceDock(managementMode ? activeWindowId : '');
-        document.body.classList.toggle('ui-combat-mode', isDesktopWindowed() && !managementMode);
-        if (document.body.dataset) {
-            if (activeWindowId) document.body.dataset.activeGameWindow = activeWindowId;
-            else delete document.body.dataset.activeGameWindow;
-        }
-    }
-
-    // 도킹된 창이 맨 위에 있으면 전장 열을 창 폭만큼 비워 두 화면이 겹치지 않게 한다.
-    function syncWorkspaceDock(activeWindowId) {
-        let state = activeWindowId && WINDOW_DEFS[activeWindowId] ? getWindowState(activeWindowId) : null;
-        let docked = !!(state && state.dockActive);
-        document.body.classList.toggle('ui-workspace-docked', docked);
-        // 폭 변수는 .ui-workspace-docked 아래에서만 읽히므로 도킹이 풀릴 때 지울 필요가 없다.
-        if (docked) document.body.style.setProperty('--workspace-dock-width', `${state.width}px`);
-    }
-
-    function focusWindow(tabId) {
-        // Prepared panels retain pointer listeners after returning to mobile tabs.
-        if (!isDesktopWindowed()) return;
-        zOrder = zOrder.filter(id => id !== tabId).concat(tabId);
-        zOrder.forEach((id, index) => {
-            let el = document.getElementById(id);
-            if (el) el.style.zIndex = String(1200 + index);
-        });
-        let el = document.getElementById(tabId);
-        document.querySelectorAll('.ui-window-active').forEach(node => node.classList.remove('ui-window-active'));
-        if (el) {
-            el.classList.add('ui-window-active');
-            el.focus && el.focus({ preventScroll: true });
-        }
-        syncWorkspacePresentation();
-    }
-
-    // 도킹 자리는 하나다. 새 도킹 창을 열면 같은 자리에 겹쳐 숨어 있던 도킹 창은 닫는다.
-    function closeOtherDockedWindows(tabId) {
-        if (!getWindowState(tabId).dockActive) return;
-        Object.keys(WINDOW_DEFS).forEach(id => {
-            if (id === tabId || !layoutState.windows[id] || !layoutState.windows[id].open) return;
-            if (!getWindowState(id).dockActive) return;
-            persistWindowState(id, { open: false, minimized: false });
-            applyWindowState(id);
-        });
-    }
-
-    function openWindow(tabId) {
-        if (!WINDOW_DEFS[tabId]) return false;
-        prepareWindow(tabId);
-        closeOtherDockedWindows(tabId);
-        persistWindowState(tabId, { open: true, minimized: false });
-        applyWindowState(tabId);
-        focusWindow(tabId);
-        requestCanvasResize();
-        syncWorkspacePresentation();
-        return true;
-    }
-
-    function closeWindow(tabId) {
-        persistWindowState(tabId, { open: false, minimized: false });
-        applyWindowState(tabId);
-        let el = document.getElementById(tabId);
-        if (el) el.classList.remove('ui-window-active');
-        // 닫힌 뒤에는 남아 있는 창 중 최상단 창으로 포커스를 넘긴다.
-        let nextTop = zOrder.slice().reverse().find(id => {
-            let st = layoutState.windows[id];
-            return id !== tabId && st && st.open && !st.minimized;
-        });
-        if (nextTop) focusWindow(nextTop);
-        requestCanvasResize();
-        syncWorkspacePresentation();
-    }
-
-    function closeAllWindows() {
-        Object.keys(WINDOW_DEFS).forEach(tabId => {
-            let st = layoutState.windows[tabId];
-            if (!st || (!st.open && !st.minimized)) return;
-            layoutState.windows[tabId] = { ...st, open: false, minimized: false };
-            applyWindowState(tabId);
-            let el = document.getElementById(tabId);
-            if (el) el.classList.remove('ui-window-active');
-        });
-        saveLayoutState();
-        requestCanvasResize();
-        syncWorkspacePresentation();
-    }
-
-    /** The guide opens only its exercise window. Keep the player's window positions and open panels. */
-    function beginGuideWindowLayout() {
-        if (!isDesktopWindowed()) return null;
-        const previousLayout = layoutState, previousOrder = zOrder;
-        const previousActive = document.querySelector('.ui-window-active')?.id;
-        layoutState = structuredClone(layoutState);
-        closeAllWindows();
-        return () => {
-            layoutState = previousLayout;
-            zOrder = previousOrder;
-            document.querySelectorAll('.ui-window[data-window-prepared]').forEach(windowNode => {
-                windowNode.classList.remove('ui-window-active');
-                applyWindowState(windowNode.id);
-            });
-            if (previousActive) focusWindow(previousActive);
-            else syncWorkspacePresentation();
-        };
-    }
-
-    function minimizeWindow(tabId) {
-        persistWindowState(tabId, { open: true, minimized: true });
-        applyWindowState(tabId);
-        syncWorkspacePresentation();
-    }
-
-    function toggleMaximizeWindow(tabId) {
-        let st = getWindowState(tabId);
-        let rect = getFreeWindowRect();
-        if (st.maximized) {
-            persistWindowState(tabId, { ...(st.restoreRect || {}), maximized: false, restoreRect: null });
-        } else {
-            persistWindowState(tabId, { x: rect.left, y: rect.top, width: rect.width, height: rect.height, maximized: true, restoreRect: { x: st.x, y: st.y, width: st.width, height: st.height } });
-        }
-        applyWindowState(tabId);
-        focusWindow(tabId);
-    }
-
-    // ↺는 처음 자리와 크기로 되돌리되 최대화는 푼다(2026-11-08 사용자: 최대화한 창은 되돌리기를 3번쯤 눌러야 했다). 처음 열 때
-    // 최대화로 뜨는 창(defaultMaximized)도 기본값을 따르면 다시 최대화라 아무 일도 없어 보였다.
-    function resetWindow(tabId) {
-        layoutState.windows[tabId] = { maximized: false };
-        saveLayoutState();
-        openWindow(tabId);
-    }
-
-    function handleWindowActionClick(event, tabId) {
-        let button = event.target.closest('[data-window-action]');
-        if (!button) return;
-        event.stopPropagation();
-        let action = button.dataset.windowAction;
-        if (action === 'close') closeWindow(tabId);
-        if (action === 'minimize') minimizeWindow(tabId);
-        if (action === 'maximize') toggleMaximizeWindow(tabId);
-        if (action === 'reset') resetWindow(tabId);
-    }
-
-    // 도킹된 창을 실제로 끌거나 크기를 바꾸면 그 자리에서 떠 있는 창으로 전환한다.
-    function undockPatch(state, pendingValue) {
-        return state.dockActive && pendingValue !== undefined ? { docked: false } : {};
-    }
-
-    /** While a window moves or resizes the page selects and drags no text (2026-11-04 사용자: 창을 늘리고 줄이면 캐릭터 탭의 글이
-     * 끌렸고, 끌린 글이 포인터를 가져가 대각선 늘리기도 끊겼다). on: the gesture starts; false: it ends. */
-    const stopTextDrag = event => event.preventDefault();
-    function holdTextStill(on) {
-        document.documentElement.classList.toggle('ui-window-gesture', on);
-        document[on ? 'addEventListener' : 'removeEventListener']('selectstart', stopTextDrag, true);
-        document[on ? 'addEventListener' : 'removeEventListener']('dragstart', stopTextDrag, true);
-        if (on) window.getSelection()?.removeAllRanges();
-    }
-    function beginWindowDrag(event, tabId) {
-        if (event.button !== undefined && event.button !== 0) return;
-        if (event.target.closest('button,input,select,textarea,a')) return;
-        // 이벤트 디스패치가 끝나면 currentTarget이 null이 되므로, 클로저에서 쓸 대상을 먼저 잡아둔다.
-        let titlebar = event.currentTarget;
-        let el = document.getElementById(tabId);
-        let st = getWindowState(tabId);
-        if (st.maximized) return;
-        let startX = event.clientX;
-        let startY = event.clientY;
-        delete el.dataset.pendingX;
-        delete el.dataset.pendingY;
-        focusWindow(tabId);
-        titlebar.setPointerCapture(event.pointerId);
-        event.preventDefault();
-        holdTextStill(true);
-        let move = moveEvent => {
-            let rect = getFreeWindowRect();
-            let x = clampNumberLocal(st.x + (moveEvent.clientX - startX) / uiDisplay.factor, rect.left, rect.left + rect.width - st.width, st.x);
-            let y = clampNumberLocal(st.y + (moveEvent.clientY - startY) / uiDisplay.factor, rect.top, rect.top + rect.height - st.height, st.y);
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
-            el.dataset.pendingX = String(x);
-            el.dataset.pendingY = String(y);
-        };
-        let up = upEvent => {
-            if (titlebar.hasPointerCapture && titlebar.hasPointerCapture(upEvent.pointerId)) titlebar.releasePointerCapture(upEvent.pointerId);
-            titlebar.removeEventListener('pointermove', move);
-            titlebar.removeEventListener('pointerup', up);
-            titlebar.removeEventListener('pointercancel', up);
-            holdTextStill(false);
-            persistWindowState(tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y), ...undockPatch(st, el.dataset.pendingX) });
-            applyWindowState(tabId);
-            syncWorkspacePresentation();
-        };
-        titlebar.addEventListener('pointermove', move);
-        titlebar.addEventListener('pointerup', up);
-        titlebar.addEventListener('pointercancel', up);
-    }
-
-    /** One axis of a resize: the dragged side moves, the other stays; the size keeps its minimum and the free workspace [lo, hi]. */
-    function windowResizeAxis(pos, size, delta, movesStart, limits) {
-        const [min, lo, hi] = limits;
-        if (!movesStart) return [pos, clampNumberLocal(size + delta, Math.min(min, hi - pos), hi - pos, size)];
-        const end = pos + size, start = clampNumberLocal(pos + delta, lo, end - min, pos);
-        return [start, end - start];
-    }
-    /** The window's rect after dragging the given sides (n, s, e, w or a corner such as nw) by dx, dy (CSS px of the layout). */
-    function windowResizedRect(st, def, edges, dx, dy) {
-        const rect = getFreeWindowRect();
-        const [x, width] = /[ew]/.test(edges) ? windowResizeAxis(st.x, st.width, dx, edges.includes('w'), [Math.min(def.minWidth, rect.width), rect.left, rect.left + rect.width]) : [st.x, st.width];
-        const [y, height] = /[ns]/.test(edges) ? windowResizeAxis(st.y, st.height, dy, edges.includes('n'), [Math.min(def.minHeight, rect.height), rect.top, rect.top + rect.height]) : [st.y, st.height];
-        return { x, y, width, height };
-    }
-    function beginWindowResize(event, tabId, edges = 'se') {
-        if (event.button !== undefined && event.button !== 0) return;
-        // beginWindowDrag와 동일하게 디스패치 종료 후 currentTarget이 null이 되는 것을 방지한다.
-        let handle = event.currentTarget;
-        let el = document.getElementById(tabId);
-        let def = WINDOW_DEFS[tabId];
-        let st = getWindowState(tabId);
-        if (st.maximized) return;
-        let startX = event.clientX;
-        let startY = event.clientY;
-        let next = { x: st.x, y: st.y, width: st.width, height: st.height };
-        delete el.dataset.pendingWidth;
-        handle.setPointerCapture(event.pointerId);
-        event.preventDefault();
-        holdTextStill(true);
-        let move = moveEvent => {
-            next = windowResizedRect(st, def, edges, (moveEvent.clientX - startX) / uiDisplay.factor, (moveEvent.clientY - startY) / uiDisplay.factor);
-            Object.assign(el.style, { left: `${next.x}px`, top: `${next.y}px`, width: `${next.width}px`, height: `${next.height}px` });
-            el.dataset.pendingWidth = String(next.width);
-        };
-        let up = upEvent => {
-            if (handle.hasPointerCapture && handle.hasPointerCapture(upEvent.pointerId)) handle.releasePointerCapture(upEvent.pointerId);
-            handle.removeEventListener('pointermove', move);
-            handle.removeEventListener('pointerup', up);
-            handle.removeEventListener('pointercancel', up);
-            holdTextStill(false);
-            persistWindowState(tabId, { ...next, ...undockPatch(st, el.dataset.pendingWidth) });
-            applyWindowState(tabId);
-            syncWorkspacePresentation();
-        };
-        handle.addEventListener('pointermove', move);
-        handle.addEventListener('pointerup', up);
-        handle.addEventListener('pointercancel', up);
-    }
-
-    // 채팅은 전투 기록과 같은 판의 탭이다(js/message-frames-ui.js): PC는 기록 창, 휴대폰은 전투 화면의 기록 판(2026-11-07, 커뮤니티 탭 없앰).
-    function openCommunityDock() {
-        if (typeof messageFrames !== 'object' || window.isTabSurfaceAvailable('tab-social') === false) return;
-        if (isDesktopWindowed()) { messageFrames.showTab('chat'); return; }
-        window.switchTab('tab-battle');
-        messageFrames.showPhoneTab('chat');
-    }
-
-    function closeCommunityDock() {
-        // Startup closes the community dock too: switching back must not unfold the saved/default combat log.
-        if (typeof messageFrames !== 'object') return;
-        if (isDesktopWindowed()) messageFrames.showTab('log', false);
-        else messageFrames.showPhoneTab('log');
-    }
-
-
-    // Keep the saved order when tabs move between the rail and its overflow menu.
-    function getOrderedRailButtons(header) {
-        let buttons = Array.from(header.querySelectorAll('.tab-btn'))
-            .filter(button => !RAIL_EXTERNAL_TAB_IDS.has(button.id));
-        let savedTabOrder = [...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder];
-        let originalRank = new Map(buttons.map((button, index) => [
-            button.id, Number(button.dataset.railOriginalOrder ?? index)
-        ]));
-        let ordered = buttons.sort((left, right) => {
-            let leftSaved = savedTabOrder.indexOf(left.id);
-            let rightSaved = savedTabOrder.indexOf(right.id);
-            if (leftSaved >= 0 || rightSaved >= 0) {
-                if (leftSaved < 0) return 1;
-                if (rightSaved < 0) return -1;
-                return leftSaved - rightSaved;
-            }
-            return originalRank.get(left.id) - originalRank.get(right.id);
-        });
-        return ordered;
-    }
-
-    // PC HUD 메뉴 이름(아이콘 아래 한 줄)은 네 글자 폭에 맞춘다(tabLayoutUi.shortCaptions). 전체 이름은 올려 두면 뜨는 이름표에 남는다.
-    function railCaption(id, label) {
-        return tabLayoutUi.shortCaptions[id] || label;
-    }
-
-    function wrapRailButtonLabel(button) {
-        if (!button || !button.childNodes || button.querySelector(':scope > .ui-rail-label')) return;
-        let textNodes = Array.from(button.childNodes)
-            .filter(node => node.nodeType === 3 && node.textContent.trim());
-        if (textNodes.length === 0) return;
-        let label = document.createElement('span');
-        label.className = 'ui-rail-label';
-        // 한국어 원문을 적고 data-i18n으로 두면 지금과 언어가 바뀔 때 i18n이 옮긴다(글 마디가 이미 옮겨져 있어도 원문을 쓴다).
-        label.dataset.i18n = '';
-        label.textContent = textNodes.map(node => i18n.sourceOf(node).trim()).join(' ');
-        // 아래 바의 짧은 이름: 다른 언어에서는 '|하단 메뉴' 문맥의 짧은 번역을 쓰고, 없으면 그 글의 보통 번역을 쓴다(js/i18n.js).
-        button.dataset.caption = `${railCaption(button.id, label.textContent)}|하단 메뉴`;
-        button.dataset.i18nAttr = 'data-caption';
-        // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬룬)는 묶음 이름 하나만 적는다(스킬트리, 장비, 루프, 기록). 화면들을 모두 나열하면
-        // 좁은 화면의 아래 탭에 "스킬트리, 전직, 재능"처럼 길게 보였다(사용자 2026-10-27). 안의 화면은 창 머리의 탭에서 고른다.
-        let merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
-        if (merged) label.textContent = _t(merged.title);
-        if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
-        textNodes.forEach(node => button.removeChild(node));
-        button.insertBefore(label, button.firstChild);
-        i18n.applyStatic(button);
-    }
-
-    function createRailMiscButton() {
-        let button = document.createElement('button');
-        button.id = 'btn-ui-rail-misc';
-        button.type = 'button';
-        button.className = 'ui-rail-external-btn ui-rail-misc-btn';
-        // 글과 이름표는 원문으로 두고 data-i18n이 옮긴다: 이 단추는 저장의 언어가 정해지기 전에 만들어진다
-        button.setAttribute('aria-label', '기타 메뉴 열기');
-        button.dataset.i18n = '';
-        button.dataset.i18nAttr = 'aria-label';
-        button.setAttribute('aria-controls', 'ui-rail-misc-panel');
-        button.setAttribute('aria-expanded', 'false');
-        button.innerHTML = '기타|하단 메뉴<span id="noti-ui-rail-misc" class="noti-dot"></span>';
-        i18n.applyStatic(button);
-        button.addEventListener('click', toggleRailMiscPanel);
-        return button;
-    }
-
-    function installRailLayers(header) {
-        let tabLayer = document.createElement('div');
-        tabLayer.className = 'ui-rail-tab-layer';
-        tabLayer.setAttribute('aria-label', _t('메뉴'));
-        header.appendChild(tabLayer);
-        let controls = document.createElement('div');
-        controls.className = 'ui-rail-external-controls';
-        controls.appendChild(createRailMiscButton());
-        header.appendChild(controls);
-        let miscPanel = document.createElement('div');
-        miscPanel.id = 'ui-rail-misc-panel';
-        miscPanel.className = 'ui-rail-misc-panel';
-        miscPanel.hidden = true;
-        header.addEventListener('click', closeRailMiscPanelAfterSelection);
-        document.addEventListener('pointerdown', closeRailMiscPanelFromOutside, true);
-        document.addEventListener('keydown', closeRailMiscPanelOnEscape, true);
-        header.appendChild(miscPanel);
-    }
-
-    function isRailButtonVisible(button) {
-        return button.style.display !== 'none' && !button.hidden && button.dataset.mergedTabMember !== '1';
-    }
-
-    function toggleRailMiscPanel() {
-        let panel = document.getElementById('ui-rail-misc-panel');
-        let trigger = document.getElementById('btn-ui-rail-misc');
-        if (!panel || !trigger) return;
-        panel.hidden = !panel.hidden;
-        trigger.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
-        let drawer = document.getElementById('ui-goal-drawer');
-        if (!panel.hidden && drawer && drawer.classList.contains('expanded')) toggleGoalDrawer(false);
-    }
-
-    function closeRailMiscPanel() {
-        let panel = document.getElementById('ui-rail-misc-panel');
-        let trigger = document.getElementById('btn-ui-rail-misc');
-        if (panel) panel.hidden = true;
-        if (trigger) trigger.setAttribute('aria-expanded', 'false');
-    }
-
-    // 펼친 기타 목록은 바깥을 누르거나 Esc로 닫는다(목록 · 기타 단추 안의 누름은 그대로 둔다).
-    function closeRailMiscPanelFromOutside(event) {
-        let panel = document.getElementById('ui-rail-misc-panel');
-        if (!panel || panel.hidden || !event.target.closest) return;
-        if (event.target.closest('#ui-rail-misc-panel, #btn-ui-rail-misc')) return;
-        closeRailMiscPanel();
-    }
-
-    function closeRailMiscPanelOnEscape(event) {
-        let panel = document.getElementById('ui-rail-misc-panel');
-        if (event.key !== 'Escape' || !panel || panel.hidden) return;
-        closeRailMiscPanel();
-        event.stopPropagation();
-    }
-
-    function closeRailMiscPanelAfterSelection(event) {
-        if (!event.target.closest || !event.target.closest('.tab-btn')) return;
-        closeRailMiscPanel();
-    }
-
-    function hasVisibleRailNotice(button) {
-        if (button.classList.contains('starter-equip-tutorial-pending')) return true;
-        return Array.from(button.querySelectorAll('.noti-dot, .inventory-full-warning'))
-            .some(notice => {
-                let style = window.getComputedStyle ? window.getComputedStyle(notice) : notice.style;
-                return style.display !== 'none' && style.visibility !== 'hidden';
-            });
-    }
-
-    function moveRailAuxiliaryTabs(miscPanel) {
-        ['btn-tab-settings', 'btn-map-complete-action-picker'].forEach(id => {
-            let button = document.getElementById(id);
-            if (button) miscPanel.appendChild(button);
-        });
-    }
-
-    function updateRailMiscNotice(miscPanel) {
-        let notice = document.getElementById('noti-ui-rail-misc');
-        if (!notice) return;
-        let visible = Array.from(miscPanel.querySelectorAll('.tab-btn')).filter(isRailButtonVisible);
-        notice.style.display = visible.some(hasVisibleRailNotice) ? 'block' : 'none';
-    }
-
-    function installDesktopRailMenu() {
-        let header = document.querySelector('.tab-header');
-        if (!header) return;
-        if (!header.querySelector(':scope > .ui-rail-tab-layer')) {
-            Array.from(header.querySelectorAll('.tab-btn')).forEach((button, index) => {
-                button.dataset.railOriginalOrder = String(index);
-            });
-            installRailLayers(header);
-        }
-        installCloseAllButton();
-        dockRailIntoHud(header);
-        syncDesktopRailGroups();
-    }
-
-    // ─── 하단 HUD 메뉴(2026-09-30) ─────────────────────────────────────────────────────────
-    // 데스크톱에서는 레일(#tab-header-main)을 하단 HUD 돌판(.player-hud-shell) 안으로 옮긴다. 탭은 미니맵 양옆 두 날개
-    // (.ui-rail-tab-layer 둘)에 고르게 나눠 싣고, 기타·정리(.ui-rail-external-controls)는 오른쪽 날개 끝에 둔다.
-    // 모바일로 바뀌면 원래 자리로 되돌린다. HUD가 없는 문서에서는 예전처럼 왼쪽 기둥 레일이다.
-    let railDockHome = null;
-
-    function dockRailIntoHud(header) {
-        let shell = document.querySelector('.player-hud-shell');
-        if (!shell || railDockHome) return;
-        railDockHome = { parent: header.parentElement, next: header.nextElementSibling };
-        let rightWing = document.createElement('div');
-        rightWing.className = 'ui-rail-tab-layer ui-rail-wing-right';
-        rightWing.setAttribute('aria-label', _t('메뉴'));
-        header.querySelector(':scope > .ui-rail-tab-layer').classList.add('ui-rail-wing-left');
-        header.insertBefore(rightWing, header.querySelector(':scope > .ui-rail-external-controls'));
-        shell.appendChild(header);
-        header.classList.add('ui-rail-docked');
-        document.body.classList.add('hud-menu-docked');
-        observeDockedHud([document.querySelector('.player-hud'), header.querySelector(':scope > .ui-rail-wing-left'), rightWing]);
-    }
-
-    function undockRailFromHud(header) {
-        if (!railDockHome) return;
-        railDockHome.parent.insertBefore(header, railDockHome.next);
-        railDockHome = null;
-        header.classList.remove('ui-rail-docked');
-        document.body.classList.remove('hud-menu-docked');
-        if (dockedHudWatch) dockedHudWatch.disconnect();
-        dockedHudSizes.clear();
-    }
-
-    // HUD 크기가 바뀌면(미니맵이 나타나거나 룬 칸이 늘면) 날개에 싣는 단추 수와 열린 창의 아래 끝을 다시 맞춘다.
-    // 날개 폭은 격자의 남는 자리(minmax(0, 1fr))라 단추를 옮겨도 다시 바뀌지 않는다.
-    let dockedHudWatch = null;
-    const dockedHudSizes = new Map();
-    function observeDockedHud(targets) {
-        if (typeof ResizeObserver !== 'function') return;
-        dockedHudWatch = dockedHudWatch || new ResizeObserver(noteDockedHudResize);
-        targets.forEach(target => { if (target) dockedHudWatch.observe(target); });
-    }
-
-    function noteDockedHudResize(entries) {
-        let changed = entries.filter(entry => {
-            let size = Math.round(entry.contentRect.width) + 'x' + Math.round(entry.contentRect.height);
-            if (dockedHudSizes.get(entry.target) === size) return false;
-            dockedHudSizes.set(entry.target, size);
-            return true;
-        });
-        if (railDockHome && changed.length) requestAnimationFrame(relayoutDockedHud);
-    }
-
-    function relayoutDockedHud() {
-        if (!railDockHome) return;
-        syncDesktopRailGroups();
-        Object.keys(WINDOW_DEFS).forEach(applyWindowState);
-        // 전투 기록 창의 기본 자리(HUD 상자 바로 위)와 작업 영역도 HUD 높이를 따른다(탐험 지도가 나타나면 HUD가 솟는다).
-        if (typeof messageFrames === 'object') messageFrames.sync();
-    }
-
-    /** Shown on screen: a tab can be unlocked (no inline display: none) yet still hidden by a stylesheet (해금 before its first unlock). */
-    function isRailButtonDisplayed(button) {
-        return typeof button.getClientRects !== 'function' || button.getClientRects().length > 0;
-    }
-
-    /** How many of the buttons sit on the wing's single row (the rest wrap below its bottom edge). */
-    function countRailWingRoom(wing, buttons) {
-        let bottom = wing.getBoundingClientRect().bottom;
-        return buttons.filter(button => button.getBoundingClientRect().bottom <= bottom + 0.5).length;
-    }
-
-    // 두 날개에 고르게(왼쪽이 하나 더 많게), 한쪽이 모자라면 다른 쪽이 더 받는다. 둘 다 넘치는 탭은 기타로.
-    function spreadRailWings(header, visible) {
-        let left = header.querySelector(':scope > .ui-rail-wing-left');
-        let right = header.querySelector(':scope > .ui-rail-wing-right');
-        if (!left || !right) return [];
-        let shown = visible.filter(isRailButtonDisplayed);
-        let leftRoom = countRailWingRoom(left, shown);
-        shown.forEach(button => right.appendChild(button));
-        let rightRoom = countRailWingRoom(right, shown);
-        let overflow = pickRailOverflow(shown, leftRoom + rightRoom);
-        let kept = shown.filter(button => !overflow.includes(button));
-        let leftCount = Math.min(leftRoom, Math.max(Math.ceil(kept.length / 2), kept.length - rightRoom));
-        kept.slice(0, leftCount).forEach(button => left.appendChild(button));
-        return overflow;
-    }
-
-    /** The buttons that go to 기타 when only `room` fit on the bar: auxiliary tabs from the back first, core windows last. */
-    function pickRailOverflow(shown, room) {
-        let spare = shown.length - room;
-        if (spare <= 0) return [];
-        let auxiliary = shown.filter(button => !RAIL_CORE_TAB_IDS.has(button.id)).reverse();
-        let core = shown.filter(button => RAIL_CORE_TAB_IDS.has(button.id)).reverse();
-        return [...auxiliary, ...core].slice(0, spare);
-    }
-
-    function measureRailOverflow(tabLayer, visible) {
-        // Measure in viewport coordinates so UI scale and actual row/gap sizes agree.
-        tabLayer.scrollTop = 0;
-        const bottom = tabLayer.getBoundingClientRect().bottom;
-        return visible.filter(button => button.getBoundingClientRect().bottom > bottom + 0.5);
-    }
-
-    // 공개 함수명은 기존 ui.js 호출 계약을 유지하지만, 실제 배치는 상위 그룹 없는 단일 레일(또는 HUD의 두 날개)이다.
-    function syncDesktopRailGroups() {
-        let header = document.querySelector('.tab-header');
-        let tabLayer = header && header.querySelector(':scope > .ui-rail-tab-layer');
-        let miscPanel = header && header.querySelector(':scope > .ui-rail-misc-panel');
-        if (!tabLayer || !miscPanel) return;
-        let buttons = getOrderedRailButtons(header);
-        let visible = buttons.filter(button => isRailButtonVisible(button) && !tabLayoutUi.isMisc(button.id));
-        buttons.forEach(button => {
-            wrapRailButtonLabel(button);
-            tabLayer.appendChild(button);
-        });
-        buttons.filter(button => tabLayoutUi.isMisc(button.id)).forEach(button => miscPanel.appendChild(button));
-        moveRailAuxiliaryTabs(miscPanel);
-        const overflow = railDockHome ? spreadRailWings(header, visible) : measureRailOverflow(tabLayer, visible);
-        overflow.forEach(button => miscPanel.appendChild(button));
-        miscPanel.dataset.railOverflow = String(overflow.length);
-        updateRailMiscNotice(miscPanel);
-    }
-
-    function installCloseAllButton() {
-        let header = document.querySelector('.tab-header');
-        if (!header || document.getElementById('btn-close-all-windows')) return;
-        let btn = document.createElement('button');
-        btn.id = 'btn-close-all-windows';
-        btn.type = 'button';
-        btn.className = 'ui-rail-external-btn ui-close-all-btn';
-        btn.textContent = '정리|하단 메뉴';
-        btn.setAttribute('aria-label', '열린 창 모두 닫기');
-        btn.dataset.i18n = '';
-        btn.dataset.i18nAttr = 'aria-label';
-        i18n.applyStatic(btn);
-        btn.addEventListener('click', closeAllWindows);
-        let logo = document.createElement('button');
-        logo.id = 'ui-rail-logo';
-        logo.type = 'button';
-        logo.setAttribute('aria-label', _t('RIGNIN, 열린 창 모두 닫기'));
-        logo.dataset.tip = _t('열린 창 모두 닫기');
-        logo.innerHTML = '<img src="assets/ui/pixel/rignin-logo-52.png" alt="" width="52" height="52">';
-        logo.addEventListener('click', closeAllWindows);
-        header.prepend(logo);
-        let controls = header.querySelector(':scope > .ui-rail-external-controls');
-        (controls || header).appendChild(btn);
-    }
-
-    const GOAL_AUTO_COLLAPSE_MS = 7000;
-    const GOAL_FLASH_MS = 1400;   // the goal-flash animation (1.3s) and a little more
-    let goalRuntime = { signature: '', collapseTimer: null, flashTimer: null, currentGoal: null, pendingAutoExpand: false };
-
-    function mountGoalDrawer(drawer) {
-        let battlefield = isDesktopWindowed() ? document.getElementById('battlefield-wrap') : null;
-        if (!battlefield) {
-            document.body.appendChild(drawer);
-            return;
-        }
-        battlefield.appendChild(drawer);
-    }
-
-    function installGoalDrawer() {
-        let existing = document.getElementById('ui-goal-drawer');
-        if (existing) {
-            mountGoalDrawer(existing);
-            return;
-        }
-        let drawer = document.createElement('div');
-        drawer.id = 'ui-goal-drawer';
-        drawer.className = 'ui-goal-drawer';
-        // 목표 데이터가 presentGoalDrawer로 전달되기 전에는 손잡이도 노출하지 않는다.
-        drawer.style.display = 'none';
-        drawer.innerHTML = '<div class="ui-goal-panel">'
-            + '<div id="ui-goal-body">'
-            + '<div class="ui-goal-head-row">'
-            + '<span id="ui-goal-badge" class="ui-goal-badge"></span>'
-            + '<button type="button" id="ui-goal-pin" aria-pressed="false" aria-label="목표 서랍 고정">고정</button>'
-            + '</div>'
-            + '<div id="ui-goal-title" class="ui-goal-title"></div>'
-            + '<div id="ui-goal-desc" class="ui-goal-desc"></div>'
-            + '<div id="ui-goal-bar" class="ui-goal-bar"><span id="ui-goal-bar-fill" class="ui-goal-bar-fill"></span></div>'
-            + '<div id="ui-goal-progress" class="ui-goal-progress"></div>'
-            + '<button type="button" id="ui-goal-action" class="ui-goal-action"></button>'
-            + '<div id="ui-goal-notices" class="ui-goal-notices"></div>'
-            + '</div>'
-            + '<button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기">'
-            + '<span id="ui-goal-handle-icon" class="ui-goal-handle-icon"></span>'
-            + '<span id="ui-goal-handle-title" class="ui-goal-handle-title">목표</span>'
-            + '<span class="ui-goal-chevron" aria-hidden="true"></span>'
-            + '</button>'
-            + '<div id="ui-goal-handle-bar" class="ui-goal-handle-bar"><span id="ui-goal-handle-fill" class="ui-goal-handle-fill"></span></div>'
-            + '</div>';
-        mountGoalDrawer(drawer);
-        drawer.querySelector('#ui-goal-toggle').addEventListener('click', () => toggleGoalDrawer());
-        drawer.querySelector('#ui-goal-pin').addEventListener('click', toggleGoalPin);
-        drawer.querySelector('#ui-goal-pin').setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
-        drawer.querySelector('#ui-goal-action').addEventListener('click', openGoalDrawerTarget);
-    }
-
-    /** 휴대폰에서 다른 화면으로 옮기면 열린 서랍을 접는다(고정했으면 그대로) — 펼친 서랍이 탭을 바꿔도 화면 절반을 덮은 채
-     * 남았다(검토 2026-10-01). 전투 화면에서 다른 곳을 누르는 것으로는 닫지 않는다. */
-    function collapseGoalDrawerUnlessPinned() {
-        let drawer = document.getElementById('ui-goal-drawer');
-        if (!drawer || !drawer.classList.contains('expanded') || layoutState.goals.pinned) return;
-        toggleGoalDrawer(false);
-    }
-
-    function toggleGoalDrawer(force) {
-        let drawer = document.getElementById('ui-goal-drawer');
-        if (!drawer) return;
-        let expanded = force === undefined ? !drawer.classList.contains('expanded') : !!force;
-        if (expanded) closeRailMiscPanel();
-        drawer.classList.toggle('expanded', expanded);
-        let toggle = drawer.querySelector('#ui-goal-toggle');
-        if (toggle) toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        syncGoalAccessButtons(goalRuntime.currentGoal);
-        layoutState.goals.expanded = expanded;
-        saveLayoutState();
-    }
-
-    function syncGoalAccessButtons(goal) {
-        let drawer = document.getElementById('ui-goal-drawer');
-        let expanded = !!(drawer && drawer.classList.contains('expanded'));
-        ['btn-combat-goal-toggle'].forEach(id => {
-            let access = document.getElementById(id);
-            if (!access) return;
-            access.hidden = !goal;
-            access.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-            access.classList.toggle('mandatory', !!(goal && goal.mandatory));
-            if (goal) access.style.setProperty('--goal-tone', goalTone(goal));
-        });
-    }
-
-    function toggleGoalPin() {
-        layoutState.goals.pinned = !layoutState.goals.pinned;
-        saveLayoutState();
-        let pin = document.getElementById('ui-goal-pin');
-        if (pin) pin.setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
-        if (layoutState.goals.pinned && goalRuntime.collapseTimer) {
-            clearTimeout(goalRuntime.collapseTimer);
-            goalRuntime.collapseTimer = null;
-        }
-        if (!layoutState.goals.pinned) scheduleGoalAutoCollapse();
-    }
-
-    // 자동 수납은 사용자가 '고정'했을 때만 영구히 막는다.
-    // mandatory는 시각 강조와 우선순위 용도이며 수납을 막지 않는다(필수 상태는
-    // 목표 선정 계층이 계속 같은 목표를 유지하므로 손잡이 한 줄로 충분히 안내된다).
-    function isGoalAutoCollapseBlocked() {
-        let goal = goalRuntime.currentGoal;
-        return !goal || !!layoutState.goals.pinned;
-    }
-
-    // 차단형 오버레이(선택 모달, 백그라운드 복귀 진행)가 떠 있는 동안에는
-    // 같은 내용을 중복 안내하지 않도록 서랍을 자동으로 펼치지 않는다.
-    function isBlockingOverlayVisible() {
-        return !!document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay), .background-combat-progress-overlay');
-    }
-
-    function scheduleGoalAutoCollapse() {
-        if (goalRuntime.collapseTimer) clearTimeout(goalRuntime.collapseTimer);
-        goalRuntime.collapseTimer = null;
-        if (isGoalAutoCollapseBlocked()) return;
-        goalRuntime.collapseTimer = setTimeout(() => {
-            goalRuntime.collapseTimer = null;
-            let drawer = document.getElementById('ui-goal-drawer');
-            if (!drawer || !drawer.classList.contains('expanded') || isGoalAutoCollapseBlocked()) return;
-            // 사용자가 서랍을 보고 있는 동안에는 수납을 미룬다.
-            if (drawer.matches(':hover') || drawer.contains(document.activeElement)) {
-                scheduleGoalAutoCollapse();
-                return;
-            }
-            toggleGoalDrawer(false);
-        }, GOAL_AUTO_COLLAPSE_MS);
-    }
-
-    function openGoalTarget(target) {
-        if (!target || !target.actionTabId) return;
-        // 데스크톱 창 모드에서는 탭 재클릭이 창 닫기로 동작하므로, 목표 바로가기는
-        // 원본 탭 갱신 뒤 항상 창을 열고 포커스하는 단방향 동작으로 처리한다.
-        if (isDesktopWindowed() && originalSwitchTab && WINDOW_DEFS[target.actionTabId]) {
-            // 기록·보조장비처럼 병합 그룹의 런처인 탭은 안쪽 패널 선택까지 맞춰야
-            // 누른 화면(저널)이 실제로 보인다. 아니면 마지막에 보던 패널(도감)이 열린다.
-            let merged = typeof getMergedTabGroup === 'function' ? getMergedTabGroup(target.actionTabId) : null;
-            if (merged && typeof window.switchMergedTabSubtab === 'function') window.switchMergedTabSubtab(merged[0], target.actionTabId, { keepWindowOpen: true });
-            else originalSwitchTab(target.actionTabId);
-            openWindow(target.actionTabId);
-        } else if (typeof window.switchTab === 'function') {
-            window.switchTab(target.actionTabId);
-        } else {
-            return;
-        }
-        openGoalSubtab(target);
-    }
-
-    /** The screen inside the opened window: a story act on the world map (actionMapAct, js/goal-system.js), else the sub-tab. */
-    function openGoalSubtab(target) {
-        if (Number.isInteger(target.actionMapAct) && window.explorationAtlasUi) { window.explorationAtlasUi.openAct(target.actionMapAct); return; }
-        const subtab = target.actionSubtabId;
-        if (!subtab) return;
-        if (subtab.startsWith('map-explore-')) {
-            callGlobalIfPresent('switchMapSubtab', 'map-tab-zones');
-            callGlobalIfPresent('switchMapExploreSubtab', subtab);
-            return;
-        }
-        const row = GOAL_SUBTAB_SWITCHES.find(([prefix]) => subtab.startsWith(prefix));
-        if (row) callGlobalIfPresent(row[1], subtab);
-    }
-    const GOAL_SUBTAB_SWITCHES = [['item-tab-', 'switchItemSubtab'], ['skill-tab-', 'switchSkillSubtab'], ['map-tab-', 'switchMapSubtab']];
-    function callGlobalIfPresent(name, arg) {
-        if (typeof window[name] === 'function') window[name](arg);
-    }
-
-    function openGoalDrawerTarget() {
-        // 목표 버튼은 관련 화면을 열기만 한다. 재화 소비/입장/실행은 하지 않는다.
-        openGoalTarget(goalRuntime.currentGoal);
-    }
-
-    function openGoalNoticeTarget(index) {
-        let goal = goalRuntime.currentGoal;
-        let notices = goal && Array.isArray(goal.notices) ? goal.notices : [];
-        let notice = notices[Math.max(0, Math.floor(Number(index) || 0))];
-        if (notice && typeof notice === 'object') openGoalTarget(notice);
-    }
-
-    function escapeGoalText(value) {
-        return escapeHTML(stripDecorativeEmoji(value));
-    }
-
-    /** 같은 알림이면 다시 그리지 않는다 — 1~10초마다 같은 두 단추를 새로 만들었다(검토 4차). */
-    function setGoalNoticesHtml(notices, html) {
-        if (notices.__goalHtml !== html) { notices.innerHTML = html; notices.__goalHtml = html; }
-        notices.style.display = html ? '' : 'none';
-    }
-
-    function setGoalDrawerText(id, text) {
-        let el = document.getElementById(id);
-        if (!el) return;
-        let cleanText = stripDecorativeEmoji(text);
-        el.textContent = cleanText;
-        el.style.display = cleanText ? '' : 'none';
-    }
-
-    function getGoalProgressPct(goal) {
-        if (Number.isFinite(goal.progressPct)) return Math.max(0, Math.min(100, Math.round(goal.progressPct)));
-        if (Number.isFinite(goal.current) && Number.isFinite(goal.target) && goal.target > 0) {
-            return Math.max(0, Math.min(100, Math.round((goal.current / goal.target) * 100)));
-        }
-        return null;
-    }
-
-    function setGoalDrawerBar(barId, fillId, pct) {
-        let bar = document.getElementById(barId);
-        let fill = document.getElementById(fillId);
-        if (!bar || !fill) return;
-        bar.style.display = pct === null ? 'none' : '';
-        if (pct !== null) fill.style.width = `${pct}%`;
-    }
-
-    function renderGoalDrawerContent(goal) {
-        let hasProgress = Number.isFinite(goal.current) && Number.isFinite(goal.target);
-        let pct = getGoalProgressPct(goal);
-        let rows = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 2);
-        // 펼친 상태: 배지 → 제목 → 설명 → 진행도 바 → 수치 → 버튼 → 보조 안내.
-        let badge = document.getElementById('ui-goal-badge');
-        if (badge) {
-            let icon = goal.iconKind === 'attack' && typeof renderCombatLogIcon === 'function'
-                ? renderCombatLogIcon('attack') : '';
-            badge.innerHTML = `${icon}${escapeGoalText(stripDecorativeEmoji(goal.categoryLabel || ''))}`;
-            badge.style.display = badge.innerHTML ? '' : 'none';
-        }
-        setGoalDrawerText('ui-goal-title', goal.title);
-        setGoalDrawerText('ui-goal-desc', goal.description);
-        setGoalDrawerBar('ui-goal-bar', 'ui-goal-bar-fill', pct);
-        let progressText = Object.prototype.hasOwnProperty.call(goal, 'progressText')
-            ? goal.progressText
-            : (hasProgress ? _t('현재 {current} / {target}', { current: goal.current, target: goal.target }) : '');
-        setGoalDrawerText('ui-goal-progress', progressText);
-        let action = document.getElementById('ui-goal-action');
-        if (action) {
-            let usable = !!(goal.actionLabel && goal.actionTabId);
-            action.textContent = usable ? goal.actionLabel : '';
-            action.style.display = usable ? '' : 'none';
-        }
-        let notices = document.getElementById('ui-goal-notices');
-        if (notices) setGoalNoticesHtml(notices, rows.map((notice, index) => {
-                let normalized = typeof notice === 'string' ? { text: notice } : (notice || {});
-                let label = escapeGoalText(normalized.text || normalized.label || '');
-                if (!label) return '';
-                return normalized.actionTabId
-                    ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span></button>`
-                    : `<div class="ui-goal-notice-text">${label}</div>`;
-            }).join(''));
-        // 접힌 상태에는 목표 개수만 남겨 화면을 가리지 않는다. 제목과 진행도는 펼친 목록에서 본다.
-        setGoalDrawerText('ui-goal-handle-icon', '');
-        setGoalDrawerText('ui-goal-handle-title', '목표');
-        setGoalDrawerBar('ui-goal-handle-bar', 'ui-goal-handle-fill', pct);
-        let drawer = document.getElementById('ui-goal-drawer');
-        if (drawer) {
-            drawer.classList.toggle('ui-goal-mandatory', !!goal.mandatory);
-            drawer.style.setProperty('--goal-tone', goalTone(goal));
-        }
-        syncGoalAccessButtons(goal);
-    }
-
-    // 목표 판의 빛깔(2026-10-27 사용자: "목표 탭 눌러서 나오는 카드에 색감좀넣어"): 머리 꼬리표(categoryLabel)마다 하나, 반드시 고를 목표는
-    // 주황, 그 밖은 금색. 판 바탕, 위 띠, 꼬리표, 제목, 진행 막대, 이동 단추가 이 빛깔을 쓴다(css/themes/pixel.css).
-    const GOAL_TONES = Object.freeze({ '필수 선택': '#f0a04a', '첫 룬': '#f0a04a', '보상': '#8fd17a', '이야기': '#d6a8ff',
-        '루프': '#b7a3e0', '루프 조건': '#b7a3e0', '다음 주요 해금': '#7fd1c4', '기록 갱신': '#7fb6ef', '저널': '#7fb6ef', '지하계': '#ff8a5c', '우주계': '#8fb8ff' });
-    const goalTone = goal => GOAL_TONES[stripDecorativeEmoji(goal.categoryLabel || '')] || (goal.mandatory ? '#f0a04a' : '#d9b066');
-
-    /**
-     * 목표 안내 서랍의 단일 진입점. 목표 선정 로직(후속 PR)이 결과를 전달하는 마운트 지점이다.
-     * @param {?{id: string, title: string, description?: string, current?: number, target?: number,
-     *           actionLabel?: string, actionTabId?: string, mandatory?: boolean, stage?: string,
-     *           notices?: Array<string|{text: string, actionTabId?: string, actionSubtabId?: string}>}} goal null/불완전 값이면 서랍 전체를 숨긴다.
-     */
-    function presentGoalDrawer(goal) {
-        let drawer = document.getElementById('ui-goal-drawer');
-        if (!drawer) return;
-        if (!goal || typeof goal !== 'object' || !goal.id || !goal.title) {
-            goalRuntime.currentGoal = null;
-            goalRuntime.signature = '';
-            drawer.style.display = 'none';
-            syncGoalAccessButtons(null);
-            return;
-        }
-        goalRuntime.currentGoal = goal;
-        drawer.style.display = '';
-        renderGoalDrawerContent(goal);
-        // 진행 숫자 변화가 아니라 목표 자체(id)/단계(stage)/필수 여부가 바뀔 때만 자동으로 펼친다.
-        let signature = [goal.id, goal.stage || '', goal.mandatory ? 1 : 0].join('|');
-        if (signature !== goalRuntime.signature) {
-            goalRuntime.signature = signature;
-            goalRuntime.pendingAutoExpand = true;
-        }
-        if (!goalRuntime.pendingAutoExpand) return;
-        // 선택 모달 등 차단형 오버레이가 같은 내용을 안내 중이면 펼침을 보류했다가,
-        // 오버레이가 닫힌 뒤의 다음 갱신에서 실행한다.
-        if (isBlockingOverlayVisible()) return;
-        goalRuntime.pendingAutoExpand = false;
-        // 휴대폰에서는 새 목표마다 하단 시트가 화면 대부분을 가리지 않도록 손잡이만 갱신한다.
-        // 사용자가 손잡이를 누른 경우에만 상세 목표를 펼친다.
-        if (!isDesktopWindowed()) return;
-        toggleGoalDrawer(true);
-        flashImportantGoal(drawer, goal);
-        scheduleGoalAutoCollapse();
-    }
-
-    /** 반드시 할 목표가 새로 펼쳐지면 판이 두 번 반짝인다(css/themes/pixel.css .ui-goal-flash). 이어서 오면 처음부터 다시 반짝인다. */
-    function flashImportantGoal(drawer, goal) {
-        if (!goal.mandatory) return;
-        clearTimeout(goalRuntime.flashTimer);
-        drawer.classList.remove('ui-goal-flash');
-        void drawer.offsetWidth;
-        drawer.classList.add('ui-goal-flash');
-        goalRuntime.flashTimer = setTimeout(() => drawer.classList.remove('ui-goal-flash'), GOAL_FLASH_MS);
-    }
-
-    function installSettingsReset() {
-        let host = document.getElementById('settings-window-actions');
-        if (!host || document.getElementById('btn-reset-window-layout')) return;
-        let button = document.createElement('button');
-        button.id = 'btn-reset-window-layout';
-        button.className = 'cfg-btn cfg-btn--neutral';
-        button.type = 'button';
-        button.textContent = _t('UI 배치 초기화');
-        button.addEventListener('click', resetWindowLayout);
-        host.appendChild(button);
-    }
-
-    function resetWindowLayout() {
-        layoutState = getDefaultLayoutState();
-        saveLayoutState();
-        Object.keys(WINDOW_DEFS).forEach(id => applyWindowState(id));
-        if (typeof messageFrames === 'object') messageFrames.reset();
-        toggleGoalDrawer(false);
-        requestCanvasResize();
-        syncWorkspacePresentation();
-    }
-
-    function requestCanvasResize() {
-        requestAnimationFrame(() => {
-            if (typeof scheduleStableResize === 'function') scheduleStableResize();
-            else if (typeof resizeCanvas === 'function') resizeCanvas();
-        });
-    }
-
-
-    function patchCombatLogToggle() {
-        if (typeof window.toggleCombatLogCollapse !== 'function' || window.toggleCombatLogCollapse.__uiLayoutPatched) return;
-        let originalToggle = window.toggleCombatLogCollapse;
-        window.toggleCombatLogCollapse = function uiLayoutCombatLogToggle() {
-            originalToggle();
-            layoutState.combatLog.expanded = !(window.game && window.game.settings && window.game.settings.combatLogCollapsed);
-            saveLayoutState();
-            requestCanvasResize();
-            syncWorkspacePresentation();
-        };
-        window.toggleCombatLogCollapse.__uiLayoutPatched = true;
-        if (window.game && window.game.settings) {
-            window.game.settings.combatLogCollapsed = !layoutState.combatLog.expanded;
-            if (typeof window.applyPanelLayoutSettings === 'function') window.applyPanelLayoutSettings();
-        }
-    }
-
-    /** 닫았던 같은 창을 다시 열면 원본 switchTab은 이미 활성인 탭이라 여는 일과 다시 그리기를 건너뛴다: 장비 분석에 창이 열렸다고
-     * 알리고 한 번 다시 그린다. 분석은 그 다시 그리기에서 시작한다(2026-11-07: 다시 열 때마다 300ms를 기다렸고, 전투가 없어 화면을
-     * 다시 그릴 일이 없으면 분석이 시작되지 않았다). */
-    function noteEquipmentReopen(tabId, st) {
-        if (tabId !== 'tab-items' || (st && st.open && !st.minimized) || !window.equipmentTriage) return;
-        window.equipmentTriage.onOpen();
-        if (typeof window.updateStaticUI === 'function') window.updateStaticUI();
-    }
-
-    function patchSwitchTab() {
-        if (originalSwitchTab || typeof window.switchTab !== 'function') return;
-        originalSwitchTab = window.switchTab;
-        window.switchTab = function windowedSwitchTab(tabId, options = {}) {
-            if (window.isTabSurfaceAvailable(tabId) === false) return originalSwitchTab(tabId);
-            // 채팅은 따로 여는 화면이 아니라 기록 판의 탭이다(PC 기록 창, 휴대폰 전투 화면의 기록 판)
-            if (tabId === 'tab-social') {
-                openCommunityDock();
-                return;
-            }
-            if (!isDesktopWindowed()) {
-                collapseGoalDrawerUnlessPinned();
-                return originalSwitchTab(tabId);
-            }
-            if (tabId === 'tab-battle') {
-                closeAllWindows();
-                return originalSwitchTab(tabId);
-            }
-            // 이미 열려 있고 최상단(포커스)인 창의 탭을 다시 누르면 창을 닫는다(토글).
-            // 열려 있지만 포커스가 없으면 기존처럼 최상단으로 가져온다.
-            let el = document.getElementById(tabId);
-            let st = layoutState.windows[tabId];
-            if (!options.keepWindowOpen && WINDOW_DEFS[tabId] && st && st.open && !st.minimized && el && el.classList.contains('ui-window-active')) {
-                closeWindow(tabId);
-                return;
-            }
-            noteEquipmentReopen(tabId, st);
-            let result = originalSwitchTab(tabId);
-            openWindow(tabId);
-            return result;
-        };
-    }
-
-    function isDesktopWindowed() {
-        return !!(window.matchMedia && uiDisplay.matches(DESKTOP_MEDIA));
-    }
-
-
-
-    function restoreDesktopMenuForMobile() {
-        let header = document.querySelector('.tab-header');
-        if (!header) return;
-        undockRailFromHud(header);
-        // 데스크톱 목록에서 원래 탭 버튼을 꺼내 모바일 헤더 순서로 복원한다.
-        header.querySelectorAll(':scope > .ui-rail-tab-layer .tab-btn, :scope > .ui-rail-misc-panel .tab-btn')
-            .forEach(btn => header.appendChild(btn));
-        header.querySelectorAll(':scope > .ui-rail-tab-layer').forEach(layer => layer.remove());
-        let miscPanel = header.querySelector(':scope > .ui-rail-misc-panel');
-        if (miscPanel) miscPanel.remove();
-        let externalControls = header.querySelector(':scope > .ui-rail-external-controls');
-        if (externalControls) externalControls.remove();
-        Array.from(header.querySelectorAll('.tab-btn'))
-            .sort((left, right) => Number(left.dataset.railOriginalOrder) - Number(right.dataset.railOriginalOrder))
-            .forEach(button => { delete button.dataset.railOriginalOrder; header.appendChild(button); });
-        let closeAllBtn = document.getElementById('btn-close-all-windows');
-        if (closeAllBtn) closeAllBtn.remove();
-        header.querySelectorAll(':scope > #ui-rail-logo').forEach(logo => logo.remove());
-        let toggle = document.getElementById('ui-community-toggle');
-        if (toggle) toggle.remove();
-    }
-
-    function restoreWindowMarkupForMobile() {
-        restoreDesktopMenuForMobile();
-        Object.keys(WINDOW_DEFS).forEach(tabId => {
-            let el = document.getElementById(tabId);
-            if (!el || el.dataset.windowPrepared !== '1') return;
-            let body = el.querySelector(':scope > .ui-window-body');
-            let titlebar = el.querySelector(':scope > .ui-window-titlebar');
-            if (body) {
-                while (body.firstChild) el.insertBefore(body.firstChild, body);
-                body.remove();
-            }
-            if (titlebar) titlebar.remove();
-            el.style.cursor = '';
-            el.classList.remove('ui-window', 'ui-window-open', 'ui-window-minimized');
-            el.removeAttribute('data-window-prepared');
-            // The phone panel no longer has the desktop dialog's title bar.
-            ['role', 'aria-labelledby', 'tabindex'].forEach(name => el.removeAttribute(name));
-            ['left', 'top', 'width', 'height', 'zIndex'].forEach(prop => { el.style[prop] = ''; });
-        });
-        let social = document.getElementById('tab-social');
-        if (social) {
-            social.classList.remove('ui-community-dock', 'ui-community-overlay');
-            ['left', 'top', 'right', 'bottom', 'width', 'height'].forEach(property => { social.style[property] = ''; });
-            let dockHeader = social.querySelector(':scope > .ui-community-dock-header');
-            if (dockHeader) dockHeader.remove();
-        }
-        document.body.classList.remove('community-dock-open', 'community-overlay-open');
-        syncWorkspacePresentation();
-    }
-
-    function restoreSelectedMobileWindow() {
-        let mobileTab = Object.keys(WINDOW_DEFS).concat('tab-battle').find(id => {
-            let el = document.getElementById(id);
-            return el && el.classList.contains('active');
-        });
-        if (!mobileTab) return;
-        if (WINDOW_DEFS[mobileTab]) { openWindow(mobileTab); return; }
-        closeAllWindows();
-    }
-
-    function restoreSelectedDesktopTab() {
-        if (!originalSwitchTab) return;
-        let tabId = zOrder.slice().reverse().find(id => {
-            let state = layoutState.windows[id];
-            return state && state.open && !state.minimized;
-        });
-        originalSwitchTab(tabId || 'tab-battle');
-    }
-
-    /** 세로 화면에서 지역 줄은 전장 위쪽에 겹친다(css/themes/rift-stage.css): 그 아래 끝(전장 위에서 px)을 #tab-battle의 --zone-row-bottom에
-     * 적어 적 생명력 게이지가 그 밑에 선다. 줄이 두 줄로 접히거나 루프 진행 단추가 나타나면 다시 잰다. */
-    let zoneRowWatch = null;
-    function watchZoneRowClearance() {
-        // 줄은 부팅 뒤에 전투 탭 안으로 옮겨질 수 있어 자리와 상관없이 그 요소를 지켜본다
-        let row = document.querySelector('.combat-zone-row'), tab = document.getElementById('tab-battle');
-        if (zoneRowWatch || !row || !tab || typeof ResizeObserver !== 'function') return;
-        zoneRowWatch = new ResizeObserver(() => tab.style.setProperty('--zone-row-bottom', `${Math.ceil(row.offsetTop + row.offsetHeight)}px`));
-        zoneRowWatch.observe(row);
-    }
-
-    function applyResponsiveMode() {
-        watchZoneRowClearance();
-        let desktop = isDesktopWindowed();
-        // Mobile selection does not write desktop window state. Transfer it
-        // only when crossing the breakpoint, never on boot/ordinary resize.
-        let enteringDesktop = desktop && previousDesktopMode === false;
-        let enteringMobile = !desktop && previousDesktopMode === true;
-        previousDesktopMode = desktop;
-        document.body.classList.toggle('desktop-windowed-ui', desktop);
-        if (!desktop) {
-            if (typeof messageFrames === 'object') messageFrames.sync({ desktop: false });
-            restoreWindowMarkupForMobile();
-            if (enteringMobile) restoreSelectedDesktopTab();
-            syncWorkspacePresentation();
-            // 목표 서랍은 모바일에서도 같은 선정 로직을 공유하고 표시(배너/하단 시트)만 다르다.
-            installGoalDrawer();
-            return;
-        }
-        Object.keys(WINDOW_DEFS).forEach(id => { prepareWindow(id); applyWindowState(id); });
-        installGoalDrawer();
-        installSettingsReset();
-        installDesktopRailMenu();
-        if (layoutState.goals.expanded) toggleGoalDrawer(true);
-        // 전투 기록과 채팅 창은 메뉴가 HUD에 들어간 뒤 놓는다(작업 영역의 아래 끝이 HUD 메뉴 줄로 정해진 뒤).
-        if (typeof messageFrames === 'object') messageFrames.sync({ desktop: true, workspaceRect: getFreeWindowRect });
-        if (enteringDesktop) restoreSelectedMobileWindow();
-        requestCanvasResize();
-        syncWorkspacePresentation();
-    }
-
-
-    function closeTopWindowOnEscape(event) {
-        // 글을 치는 칸에서만 Esc를 그 칸에 둔다(js/utils.js isTextEntryTarget): 고른 셀렉박스나 체크박스에 포커스가 남아도 창은 닫힌다.
-        if (event.key !== 'Escape' || isTextEntryTarget(event.target)) return;
-        if (document.querySelector('dialog:modal')) return;
-        // 선택 창은 selection-dialog-ui.js가 Esc를 먼저 받아 맨 위 것만 닫는다. 선택 창이 남아 있으면 그 뒤의 창은 그대로 둔다.
-        if (document.querySelector('.selection-overlay')) return;
-        if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
-        let open = zOrder.slice().reverse().find(id => {
-            let st = layoutState.windows[id];
-            return st && st.open && !st.minimized;
-        });
-        if (open) closeWindow(open);
-    }
-
-    // PC 단축키(ARPG 관례): 누르면 해당 창을 열고, 이미 맨 위에 열려 있으면 닫는다.
-    // 입력 중·모달·튜토리얼·시작 화면·모바일 배치이거나 아직 해금되지 않은 메뉴면 무시한다.
-    function isMenuUnlocked(tabId) {
-        let button = document.getElementById('btn-' + tabId);
-        return !!button && !button.hidden && button.style.display !== 'none';
-    }
-
-    /** PC 창 단축키(js/hotkeys-ui.js가 키를 해석): 맨 위에 열려 있으면 닫고, 아니면 연다. 잠긴 메뉴는 false. */
-    function toggleWindowFromHotkey(tabId) {
-        if (!document.body.classList.contains('desktop-windowed-ui') || !isMenuUnlocked(tabId)) return false;
-        // 묶음 창 안의 화면(스킬룬은 장비 창, 해금은 루프 창): 그 화면이 맨 위에 보이고 있으면 창을 닫고, 아니면 그 화면을 연다
-        let merged = mergedWindowOf(tabId), windowId = merged ? merged.windowId : tabId;
-        let state = layoutState.windows[windowId];
-        let onTop = zOrder[zOrder.length - 1] === windowId, showing = !merged || merged.shownId === tabId;
-        if (state && state.open && !state.minimized && onTop && showing) closeWindow(windowId);
-        // 묶음 창이 다른 화면을 보이며 열려 있으면 닫지 않고 화면만 바꾼다(창을 여닫는 것은 위의 줄이 맡는다)
-        else window.switchTab(tabId, { keepWindowOpen: !!merged });
-        return true;
-    }
-    /** 그 화면이 묶음 창에 들어 있으면 그 창과 지금 보이는 화면, 아니면 null. 묶음은 메뉴 단추의 표시에서 읽는다(index.html:
-     * 문을 여는 단추의 data-merged-tab-launcher, 그 안의 화면 단추의 data-merged-tab-group). */
-    function mergedWindowOf(tabId) {
-        let button = document.getElementById('btn-' + tabId), groupKey = button ? button.dataset.mergedTabGroup || button.dataset.mergedTabLauncher : '';
-        let launcher = groupKey ? document.querySelector('.tab-btn[data-merged-tab-launcher="' + groupKey + '"]') : null;
-        if (!launcher) return null;
-        let windowId = launcher.id.replace(/^btn-/, ''), pane = document.querySelector('#' + windowId + ' .merged-subtab-pane.active');
-        return { windowId, shownId: pane ? pane.dataset.tabId : '' };
-    }
-
-    // 좁은 전투 화면(css/themes/rift-stage.css 세로 배치)의 기록 판 높이(2026-11-09 사용자: 중간 크기 화면에서 전투 로그가 너무 작아 위아래로 크기 조절):
-    // 판 위 가장자리의 손잡이를 끌면 전장 높이 한도에서 빼는 몫(--combat-log-reserve, 기본 176px)이 바뀐다. 이 기기의 배치 저장에 남고, 두 번 누르면 기본으로.
-    const COMBAT_LOG_RESERVE_MIN = 176;
-    const COMBAT_LOG_MIN_STAGE = 160;
-    const COMBAT_LOG_KEY_STEP = 24;
-    let combatLogResizeFrame = 0;
-
-    function applyCombatLogReserve(px) {
-        document.documentElement.style.setProperty('--combat-log-reserve', Math.round(px) + 'px');
-        const log = document.getElementById('log');
-        if (log && log.combatLogAtBottom !== false && typeof window.scrollCombatLogToLatest === 'function') window.scrollCombatLogToLatest(log);
-    }
-
-    function saveCombatLogReserve(px) {
-        layoutState.combatLog.reserve = clampNumberLocal(px, COMBAT_LOG_RESERVE_MIN, 4000, COMBAT_LOG_RESERVE_MIN);
-        applyCombatLogReserve(layoutState.combatLog.reserve);
-        saveLayoutState();
-    }
-
-    /** What the stage leaves now (CSS px; a stage held by its 4:3 width leaves more than the stored share) and the most it may leave.
-     * The stage's limit read with a zero share is the whole height the stage and the log split. Null outside the stacked layout. */
-    function measureCombatLogShare() {
-        const stage = document.querySelector('#tab-battle .combat-stage');
-        if (!stage) return null;
-        const root = document.documentElement.style, stored = layoutState.combatLog.reserve || COMBAT_LOG_RESERVE_MIN;
-        root.setProperty('--combat-log-reserve', '0px');
-        const whole = parseFloat(getComputedStyle(stage).maxHeight);
-        root.setProperty('--combat-log-reserve', stored + 'px');
-        if (!Number.isFinite(whole)) return null;
-        const factor = (window.uiDisplay && window.uiDisplay.factor) || 1;
-        return { now: whole - stage.getBoundingClientRect().height / factor, most: Math.max(COMBAT_LOG_RESERVE_MIN, whole - COMBAT_LOG_MIN_STAGE), factor };
-    }
-
-    function startCombatLogResize(event) {
-        if (event.button > 0) return;
-        const share = measureCombatLogShare();
-        if (!share) return;
-        const handle = event.currentTarget, startY = event.clientY;
-        let reserve = share.now;
-        event.preventDefault();
-        handle.setPointerCapture(event.pointerId);
-        handle.classList.add('is-dragging');
-        const move = moved => {
-            reserve = Math.min(share.most, Math.max(COMBAT_LOG_RESERVE_MIN, share.now + (startY - moved.clientY) / share.factor));
-            if (combatLogResizeFrame) return;
-            combatLogResizeFrame = requestAnimationFrame(() => { combatLogResizeFrame = 0; applyCombatLogReserve(reserve); });
-        };
-        const end = () => {
-            ['pointermove', 'pointerup', 'pointercancel'].forEach((type, i) => handle.removeEventListener(type, i ? end : move));
-            handle.classList.remove('is-dragging');
-            saveCombatLogReserve(reserve);
-        };
-        handle.addEventListener('pointermove', move);
-        handle.addEventListener('pointerup', end);
-        handle.addEventListener('pointercancel', end);
-    }
-
-    function nudgeCombatLogResize(event) {
-        const step = { ArrowUp: COMBAT_LOG_KEY_STEP, ArrowDown: -COMBAT_LOG_KEY_STEP }[event.key];
-        const share = step ? measureCombatLogShare() : null;
-        if (!share) return;
-        event.preventDefault();
-        saveCombatLogReserve(Math.min(share.most, Math.max(COMBAT_LOG_RESERVE_MIN, share.now + step)));
-    }
-
-    function setupCombatLogResize() {
-        // #battle-column moves into #tab-battle after boot (index.html keeps it outside), so the feed is found on its own.
-        const feed = document.querySelector('.combat-feed');
-        if (!feed || document.getElementById('combat-log-resize')) return;
-        const handle = document.createElement('div');
-        handle.id = 'combat-log-resize';
-        handle.className = 'combat-log-resize';
-        handle.tabIndex = 0;
-        handle.setAttribute('role', 'separator');
-        handle.setAttribute('aria-orientation', 'horizontal');
-        handle.setAttribute('aria-label', typeof _t === 'function' ? _t('전투 기록 높이 조절') : '전투 기록 높이 조절');
-        feed.parentNode.insertBefore(handle, feed);
-        handle.addEventListener('pointerdown', startCombatLogResize);
-        handle.addEventListener('keydown', nudgeCombatLogResize);
-        handle.addEventListener('dblclick', () => saveCombatLogReserve(COMBAT_LOG_RESERVE_MIN));
-        if (layoutState.combatLog.reserve) applyCombatLogReserve(layoutState.combatLog.reserve);
-    }
-
-    function initWindowManager() {
-        if (initialized) return;
-        initialized = true;
-        layoutState = normalizeLayoutState(readStoredLayout());
-        closePersistedSurfacesForBoot();
-        patchSwitchTab();
-        patchCombatLogToggle();
-        setupCombatLogResize();
-        applyResponsiveMode();
-        window.addEventListener('resize', applyResponsiveMode);
-        document.addEventListener('keydown', closeTopWindowOnEscape);
-    }
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
-    else initWindowManager();
-
-    safeExposeGlobals({ toggleWindowFromHotkey, openWindow, closeWindow, closeAllWindows, beginGuideWindowLayout, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation, refitDockedWindows });
-}());
+  }
+  function isDockPreferred(runtime, tabId, stored) {
+    return stored.docked === void 0 ? !!runtime.state.WINDOW_DEFS[tabId].dock : !!stored.docked;
+  }
+  function getWindowState(runtime, tabId) {
+    let def = runtime.state.WINDOW_DEFS[tabId];
+    let stored = runtime.state.layoutState.windows[tabId] || {};
+    let rect = getWorkspaceRect(runtime), free = getFreeWindowRect(runtime);
+    let minWidth = Math.min(def.minWidth, free.width);
+    let minHeight = Math.min(def.minHeight, free.height);
+    let width = clampNumberLocal(runtime, stored.width, minWidth, free.width, Math.min(def.width, rect.width));
+    let height = clampNumberLocal(runtime, stored.height, minHeight, free.height, Math.min(def.height, rect.height));
+    let x = clampNumberLocal(runtime, stored.x, free.left, free.left + free.width - width, Math.min(def.x, rect.left + rect.width - width));
+    let y = clampNumberLocal(runtime, stored.y, free.top, free.top + free.height - height, Math.min(def.y, rect.top + rect.height - height));
+    let maximized = stored.maximized === void 0 ? !!def.defaultMaximized : !!stored.maximized;
+    let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
+    let docked = isDockPreferred(runtime, tabId, stored);
+    let placement = runtime.handlers.resolveWindowPlacement({ x, y, width, height }, rect, maximized, docked, tabId);
+    return { open: !!stored.open, minimized: !!stored.minimized, maximized, docked, dockActive: placement.dockActive, restoreRect, ...placement.box };
+  }
+  function persistWindowState(runtime, tabId, patch) {
+    let cur = getWindowState(runtime, tabId);
+    delete cur.dockActive;
+    runtime.state.layoutState.windows[tabId] = { ...cur, ...patch };
+    saveLayoutState(runtime);
+  }
+
+  // modules/ui/window-queries.mjs
+  function closeRailMiscPanel(runtime) {
+    let panel = runtime.deps.document.getElementById("ui-rail-misc-panel");
+    let trigger = runtime.deps.document.getElementById("btn-ui-rail-misc");
+    if (panel) panel.hidden = true;
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+  }
+  function isDesktopWindowed(runtime) {
+    return !!(runtime.deps.window.matchMedia && runtime.deps.uiDisplay.matches(runtime.state.DESKTOP_MEDIA));
+  }
+  function isMenuUnlocked(runtime, tabId) {
+    let button = runtime.deps.document.getElementById("btn-" + tabId);
+    return !!button && !button.hidden && button.style.display !== "none";
+  }
+  function mergedWindowOf(runtime, tabId) {
+    let button = runtime.deps.document.getElementById("btn-" + tabId), groupKey = button ? button.dataset.mergedTabGroup || button.dataset.mergedTabLauncher : "";
+    let launcher = groupKey ? runtime.deps.document.querySelector('.tab-btn[data-merged-tab-launcher="' + groupKey + '"]') : null;
+    if (!launcher) return null;
+    let windowId = launcher.id.replace(/^btn-/, ""), pane = runtime.deps.document.querySelector("#" + windowId + " .merged-subtab-pane.active");
+    return { windowId, shownId: pane ? pane.dataset.tabId : "" };
+  }
+
+  // modules/ui/window-frame-queue.mjs
+  function requestCanvasResize(runtime) {
+    queueWindowFrame(runtime, "canvasResizeFrame", () => {
+      if (typeof runtime.deps.scheduleStableResize === "function") (0, runtime.deps.scheduleStableResize)();
+      else if (typeof runtime.deps.resizeCanvas === "function") (0, runtime.deps.resizeCanvas)();
+    });
+  }
+  function queueWindowFrame(runtime, key, callback) {
+    if (!runtime.active || runtime.state[key]) return;
+    const owner = runtime.deps.game;
+    runtime.state[key] = runtime.deps.requestAnimationFrame(() => {
+      runtime.frames.delete(key);
+      runtime.state[key] = 0;
+      if (runtime.active && owner === runtime.deps.game) callback();
+    });
+    runtime.frames.add(key);
+  }
+  function cancelWindowFrame(runtime, key) {
+    if (runtime.state[key]) runtime.deps.cancelAnimationFrame(runtime.state[key]);
+    runtime.state[key] = 0;
+    runtime.frames.delete(key);
+  }
+  function cancelWindowFrames(runtime) {
+    for (const key of runtime.frames) cancelWindowFrame(runtime, key);
+  }
+
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
+    }
+    runtime.listeners = retained;
+  }
+
+  // modules/ui/window-gesture-lifetime.mjs
+  function beginCapturedWindowGesture(runtime, handle, pointerId, callbacks) {
+    cancelWindowGesture(runtime);
+    const owner = runtime.deps.game;
+    const gesture = { active: true, listeners: [], handle, cancelWindowPointer: () => finishWindowPointer(false) };
+    const finishWindowPointer = (commit) => {
+      if (!gesture.active) return;
+      releaseViewEvents(gesture);
+      runtime.state.gesture = null;
+      if (handle.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
+      if (callbacks.text) holdTextStill(runtime, false);
+      callbacks.finish(commit && runtime.active && owner === runtime.deps.game && handle.isConnected);
+    };
+    runtime.state.gesture = gesture;
+    handle.setPointerCapture(pointerId);
+    if (callbacks.text) holdTextStill(runtime, true);
+    listenView(gesture, handle, "pointermove", (event) => {
+      if (event.pointerId !== pointerId) return;
+      if (!runtime.active || owner !== runtime.deps.game || !handle.isConnected) {
+        finishWindowPointer(false);
+        return;
+      }
+      callbacks.move(event);
+    });
+    listenView(gesture, handle, "pointerup", (event) => {
+      if (event.pointerId === pointerId) finishWindowPointer(true);
+    });
+    listenView(gesture, handle, "pointercancel", (event) => {
+      if (event.pointerId === pointerId) finishWindowPointer(false);
+    });
+    listenView(gesture, handle, "lostpointercapture", (event) => {
+      if (event.pointerId === pointerId) finishWindowPointer(false);
+    });
+  }
+  function cancelWindowGesture(runtime, root) {
+    const gesture = runtime.state.gesture;
+    if (!gesture || root && !root.contains(gesture.handle)) return;
+    gesture.cancelWindowPointer();
+  }
+  function stopTextDrag(runtime, event) {
+    return event.preventDefault();
+  }
+  function holdTextStill(runtime, on) {
+    runtime.deps.document.documentElement.classList.toggle("ui-window-gesture", on);
+    runtime.deps.document[on ? "addEventListener" : "removeEventListener"]("selectstart", runtime.handlers.stopTextDrag, true);
+    runtime.deps.document[on ? "addEventListener" : "removeEventListener"]("dragstart", runtime.handlers.stopTextDrag, true);
+    if (on) runtime.deps.window.getSelection()?.removeAllRanges();
+  }
+
+  // modules/ui/window-view-lifetime.mjs
+  function syncWindowOwner(runtime) {
+    if (runtime.state.owner === runtime.deps.game) return;
+    runtime.state.owner = runtime.deps.game;
+    const guide = runtime.state.guideLayout;
+    if (guide && guide.example !== runtime.deps.game) {
+      if (runtime.state.layoutState === guide.guideLayout) {
+        runtime.state.layoutState = guide.previousLayout;
+        runtime.state.zOrder = guide.previousOrder;
+      }
+      runtime.state.guideLayout = null;
+    }
+    clearWindowWork(runtime);
+    const goal = runtime.state.goalRuntime;
+    goal.currentGoal = null;
+    goal.signature = "";
+    goal.pendingAutoExpand = false;
+    const drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (drawer) drawer.style.display = "none";
+  }
+  function clearWindowWork(runtime) {
+    cancelWindowGesture(runtime);
+    cancelWindowFrames(runtime);
+    const goal = runtime.state.goalRuntime;
+    runtime.deps.clearTimeout(goal.collapseTimer);
+    runtime.deps.clearTimeout(goal.flashTimer);
+    goal.collapseTimer = goal.flashTimer = null;
+    runtime.deps.document.getElementById("ui-goal-drawer")?.classList.remove("ui-goal-flash");
+  }
+  function listenWindow(runtime, target, type, callback, options) {
+    if (runtime.listeners.some((b) => b.target === target && b.type === type && b.listener.windowCallback === callback)) return;
+    const listener = (...args) => {
+      if (!runtime.active) return;
+      syncWindowOwner(runtime);
+      return callback(...args);
+    };
+    listener.windowCallback = callback;
+    listenView(runtime, target, type, listener, options);
+  }
+  function releaseWindowTree(runtime, root) {
+    const targets = new Set(runtime.listeners.filter((b) => b.target === root || b.target.nodeType && root.contains(b.target)).map((b) => b.target));
+    for (const target of targets) releaseViewTarget(runtime, target);
+  }
+
+  // modules/ui/window-panels.mjs
+  function watchDockFit(runtime, el) {
+    const fit = el.querySelector("[data-dock-fit]");
+    if (!fit || typeof runtime.deps.ResizeObserver !== "function") return;
+    runtime.state.dockFitWatch = runtime.state.dockFitWatch || new runtime.deps.ResizeObserver(() => {
+      queueWindowFrame(runtime, "dockFitFrame", () => refitDockedWindows(runtime));
+    });
+    runtime.state.dockFitWatch.observe(fit);
+  }
+  function refitDockedWindows(runtime) {
+    Object.keys(runtime.state.WINDOW_DEFS).forEach((id) => {
+      if (getWindowState(runtime, id).dockActive) applyWindowState(runtime, id);
+    });
+    syncWorkspacePresentation(runtime);
+  }
+  function windowEdgesAt(runtime, el, event) {
+    if (!el.classList.contains("ui-window") || el.classList.contains("ui-window-maximized") || el.classList.contains("ui-window-minimized")) return "";
+    const rect = el.getBoundingClientRect(), band = Math.max(runtime.state.EDGE_GRAB_PX, (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(el).borderTopWidth) || 0);
+    const x = event.clientX - rect.left, y = event.clientY - rect.top;
+    return (y < band ? "n" : y > rect.height - band ? "s" : "") + (x < band ? "w" : x > rect.width - band ? "e" : "");
+  }
+  function prepareWindow(runtime, tabId) {
+    let el = runtime.deps.document.getElementById(tabId);
+    let def = runtime.state.WINDOW_DEFS[tabId];
+    if (!el || !def || el.dataset.windowPrepared === "1") return;
+    let body = runtime.deps.document.createElement("div");
+    body.className = "ui-window-body";
+    while (el.firstChild) body.appendChild(el.firstChild);
+    let titlebar = runtime.deps.document.createElement("div");
+    titlebar.className = "ui-window-titlebar";
+    titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}" data-i18n>${(0, runtime.deps._t)(def.title)}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="${(0, runtime.deps._t)("창 위치와 크기 되돌리기")}" data-tip="${(0, runtime.deps._t)("창 위치와 크기 되돌리기")}">↺</button><button type="button" data-window-action="minimize" aria-label="${(0, runtime.deps._t)("최소화")}" data-tip="${(0, runtime.deps._t)("최소화")}">—</button><button type="button" data-window-action="maximize" aria-label="${(0, runtime.deps._t)("최대화 또는 원래 크기")}" data-tip="${(0, runtime.deps._t)("최대화 / 원래 크기")}">□</button><button type="button" data-window-action="close" aria-label="${(0, runtime.deps._t)("닫기")}" data-tip="${(0, runtime.deps._t)("닫기 (Esc)")}">✕</button></div>`;
+    el.classList.add("ui-window");
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-labelledby", `ui-window-title-${tabId}`);
+    el.tabIndex = -1;
+    el.dataset.windowPrepared = "1";
+    el.prepend(titlebar);
+    el.appendChild(body);
+    listenWindow(runtime, titlebar, "pointerdown", (event) => beginWindowDrag(runtime, event, tabId));
+    listenWindow(runtime, titlebar, "dblclick", () => toggleMaximizeWindow(runtime, tabId));
+    if (el.dataset.windowInputBound !== "1") {
+      listenWindow(runtime, el, "pointerdown", (event) => {
+        focusWindow(runtime, tabId);
+        const edges = event.target === el ? windowEdgesAt(runtime, el, event) : "";
+        if (edges) beginWindowResize(runtime, event, tabId, edges);
+      });
+      listenWindow(runtime, el, "pointermove", (event) => {
+        if (event.buttons) return;
+        const cursor = event.target === el ? runtime.state.EDGE_CURSORS[windowEdgesAt(runtime, el, event)] || "" : "";
+        if (el.style.cursor !== cursor) el.style.cursor = cursor;
+      });
+      listenWindow(runtime, el, "click", (event) => handleWindowActionClick(runtime, event, tabId));
+      watchDockFit(runtime, el);
+      el.dataset.windowInputBound = "1";
+    }
+  }
+  function applyWindowState(runtime, tabId) {
+    let el = runtime.deps.document.getElementById(tabId);
+    if (!el) return;
+    let st = getWindowState(runtime, tabId);
+    el.style.left = `${st.x}px`;
+    el.style.top = `${st.y}px`;
+    el.style.width = `${st.width}px`;
+    el.style.height = `${st.height}px`;
+    el.classList.toggle("ui-window-open", st.open && !st.minimized);
+    el.classList.toggle("ui-window-minimized", st.minimized);
+    el.classList.toggle("ui-window-maximized", st.maximized);
+    el.classList.toggle("ui-window-docked", st.dockActive);
+    if (st.dockActive && st.open && !st.minimized) {
+      let fitted = getWindowState(runtime, tabId);
+      if (fitted.width !== st.width) {
+        el.style.left = `${fitted.x}px`;
+        el.style.width = `${fitted.width}px`;
+      }
+    }
+    let btn = runtime.deps.document.getElementById("btn-" + tabId);
+    if (btn) {
+      btn.classList.toggle("ui-window-open", st.open);
+      btn.classList.toggle("ui-window-minimized-btn", st.minimized);
+      btn.setAttribute("aria-pressed", st.open && !st.minimized ? "true" : "false");
+    }
+  }
+  function syncWorkspacePresentation(runtime) {
+    let activeWindowId = runtime.state.zOrder.slice().reverse().find((id) => {
+      let state = runtime.state.layoutState.windows[id];
+      return state && state.open && !state.minimized;
+    }) || "";
+    let managementMode = isDesktopWindowed(runtime) && !!activeWindowId;
+    runtime.deps.document.body.classList.toggle("ui-management-mode", managementMode);
+    syncWorkspaceDock(runtime, managementMode ? activeWindowId : "");
+    runtime.deps.document.body.classList.toggle("ui-combat-mode", isDesktopWindowed(runtime) && !managementMode);
+    if (runtime.deps.document.body.dataset) {
+      if (activeWindowId) runtime.deps.document.body.dataset.activeGameWindow = activeWindowId;
+      else delete runtime.deps.document.body.dataset.activeGameWindow;
+    }
+  }
+  function syncWorkspaceDock(runtime, activeWindowId) {
+    let state = activeWindowId && runtime.state.WINDOW_DEFS[activeWindowId] ? getWindowState(runtime, activeWindowId) : null;
+    let docked = !!(state && state.dockActive);
+    runtime.deps.document.body.classList.toggle("ui-workspace-docked", docked);
+    if (docked) runtime.deps.document.body.style.setProperty("--workspace-dock-width", `${state.width}px`);
+  }
+  function focusWindow(runtime, tabId) {
+    if (!isDesktopWindowed(runtime)) return;
+    runtime.state.zOrder = runtime.state.zOrder.filter((id) => id !== tabId).concat(tabId);
+    runtime.state.zOrder.forEach((id, index) => {
+      let el2 = runtime.deps.document.getElementById(id);
+      if (el2) el2.style.zIndex = String(1200 + index);
+    });
+    let el = runtime.deps.document.getElementById(tabId);
+    runtime.deps.document.querySelectorAll(".ui-window-active").forEach((node) => node.classList.remove("ui-window-active"));
+    if (el) {
+      el.classList.add("ui-window-active");
+      el.focus && el.focus({ preventScroll: true });
+    }
+    syncWorkspacePresentation(runtime);
+  }
+  function closeOtherDockedWindows(runtime, tabId) {
+    if (!getWindowState(runtime, tabId).dockActive) return;
+    Object.keys(runtime.state.WINDOW_DEFS).forEach((id) => {
+      if (id === tabId || !runtime.state.layoutState.windows[id] || !runtime.state.layoutState.windows[id].open) return;
+      if (!getWindowState(runtime, id).dockActive) return;
+      persistWindowState(runtime, id, { open: false, minimized: false });
+      applyWindowState(runtime, id);
+    });
+  }
+  function openWindow(runtime, tabId) {
+    if (!runtime.state.WINDOW_DEFS[tabId]) return false;
+    prepareWindow(runtime, tabId);
+    closeOtherDockedWindows(runtime, tabId);
+    persistWindowState(runtime, tabId, { open: true, minimized: false });
+    applyWindowState(runtime, tabId);
+    focusWindow(runtime, tabId);
+    requestCanvasResize(runtime);
+    syncWorkspacePresentation(runtime);
+    return true;
+  }
+  function closeWindow(runtime, tabId) {
+    const panel = runtime.deps.document.getElementById(tabId);
+    if (panel) cancelWindowGesture(runtime, panel);
+    persistWindowState(runtime, tabId, { open: false, minimized: false });
+    applyWindowState(runtime, tabId);
+    let el = runtime.deps.document.getElementById(tabId);
+    if (el) el.classList.remove("ui-window-active");
+    let nextTop = runtime.state.zOrder.slice().reverse().find((id) => {
+      let st = runtime.state.layoutState.windows[id];
+      return id !== tabId && st && st.open && !st.minimized;
+    });
+    if (nextTop) focusWindow(runtime, nextTop);
+    requestCanvasResize(runtime);
+    syncWorkspacePresentation(runtime);
+  }
+  function closeAllWindows(runtime) {
+    cancelWindowGesture(runtime);
+    Object.keys(runtime.state.WINDOW_DEFS).forEach((tabId) => {
+      let st = runtime.state.layoutState.windows[tabId];
+      if (!st || !st.open && !st.minimized) return;
+      runtime.state.layoutState.windows[tabId] = { ...st, open: false, minimized: false };
+      applyWindowState(runtime, tabId);
+      let el = runtime.deps.document.getElementById(tabId);
+      if (el) el.classList.remove("ui-window-active");
+    });
+    saveLayoutState(runtime);
+    requestCanvasResize(runtime);
+    syncWorkspacePresentation(runtime);
+  }
+  function beginGuideWindowLayout(runtime, liveOwner) {
+    if (!isDesktopWindowed(runtime)) return null;
+    const previousLayout = runtime.state.layoutState, previousOrder = runtime.state.zOrder;
+    const previousActive = runtime.deps.document.querySelector(".ui-window-active")?.id;
+    runtime.state.layoutState = (0, runtime.deps.structuredClone)(runtime.state.layoutState);
+    const guideLayout = runtime.state.layoutState;
+    const lease = { example: runtime.deps.game, previousLayout, previousOrder, guideLayout, restored: false };
+    runtime.state.guideLayout = lease;
+    closeAllWindows(runtime);
+    return () => {
+      if (!runtime.active || runtime.deps.game !== liveOwner || lease.restored) return;
+      if (runtime.state.layoutState !== guideLayout && runtime.state.layoutState !== previousLayout) return;
+      lease.restored = true;
+      runtime.state.guideLayout = null;
+      runtime.state.layoutState = previousLayout;
+      runtime.state.zOrder = previousOrder;
+      runtime.deps.document.querySelectorAll(".ui-window[data-window-prepared]").forEach((windowNode) => {
+        windowNode.classList.remove("ui-window-active");
+        applyWindowState(runtime, windowNode.id);
+      });
+      if (previousActive) focusWindow(runtime, previousActive);
+      else syncWorkspacePresentation(runtime);
+    };
+  }
+  function minimizeWindow(runtime, tabId) {
+    const panel = runtime.deps.document.getElementById(tabId);
+    if (panel) cancelWindowGesture(runtime, panel);
+    persistWindowState(runtime, tabId, { open: true, minimized: true });
+    applyWindowState(runtime, tabId);
+    syncWorkspacePresentation(runtime);
+  }
+  function toggleMaximizeWindow(runtime, tabId) {
+    const panel = runtime.deps.document.getElementById(tabId);
+    if (panel) cancelWindowGesture(runtime, panel);
+    let st = getWindowState(runtime, tabId);
+    let rect = getFreeWindowRect(runtime);
+    if (st.maximized) {
+      persistWindowState(runtime, tabId, { ...st.restoreRect || {}, maximized: false, restoreRect: null });
+    } else {
+      persistWindowState(runtime, tabId, { x: rect.left, y: rect.top, width: rect.width, height: rect.height, maximized: true, restoreRect: { x: st.x, y: st.y, width: st.width, height: st.height } });
+    }
+    applyWindowState(runtime, tabId);
+    focusWindow(runtime, tabId);
+  }
+  function resetWindow(runtime, tabId) {
+    runtime.state.layoutState.windows[tabId] = { maximized: false };
+    saveLayoutState(runtime);
+    openWindow(runtime, tabId);
+  }
+  function handleWindowActionClick(runtime, event, tabId) {
+    let button = event.target.closest("[data-window-action]");
+    if (!button) return;
+    event.stopPropagation();
+    let action = button.dataset.windowAction;
+    if (action === "close") closeWindow(runtime, tabId);
+    if (action === "minimize") minimizeWindow(runtime, tabId);
+    if (action === "maximize") toggleMaximizeWindow(runtime, tabId);
+    if (action === "reset") resetWindow(runtime, tabId);
+  }
+  function undockPatch(runtime, state, pendingValue) {
+    return state.dockActive && pendingValue !== void 0 ? { docked: false } : {};
+  }
+  function beginWindowDrag(runtime, event, tabId) {
+    if (event.button !== void 0 && event.button !== 0) return;
+    if (event.target.closest("button,input,select,textarea,a")) return;
+    cancelWindowGesture(runtime);
+    let titlebar = event.currentTarget;
+    let el = runtime.deps.document.getElementById(tabId);
+    let st = getWindowState(runtime, tabId);
+    if (st.maximized) return;
+    let startX = event.clientX;
+    let startY = event.clientY;
+    delete el.dataset.pendingX;
+    delete el.dataset.pendingY;
+    focusWindow(runtime, tabId);
+    event.preventDefault();
+    let move = (moveEvent) => {
+      let rect = getFreeWindowRect(runtime);
+      let x = clampNumberLocal(runtime, st.x + (moveEvent.clientX - startX) / runtime.deps.uiDisplay.factor, rect.left, rect.left + rect.width - st.width, st.x);
+      let y = clampNumberLocal(runtime, st.y + (moveEvent.clientY - startY) / runtime.deps.uiDisplay.factor, rect.top, rect.top + rect.height - st.height, st.y);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.dataset.pendingX = String(x);
+      el.dataset.pendingY = String(y);
+    };
+    let finish = (commit) => {
+      if (commit) persistWindowState(runtime, tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y), ...undockPatch(runtime, st, el.dataset.pendingX) });
+      delete el.dataset.pendingX;
+      delete el.dataset.pendingY;
+      applyWindowState(runtime, tabId);
+      syncWorkspacePresentation(runtime);
+    };
+    beginCapturedWindowGesture(runtime, titlebar, event.pointerId, { move, finish, text: true });
+  }
+  function createWindowResizeAxis(runtime) {
+    return function windowResizeAxis(pos, size, delta, movesStart, limits) {
+      const [min, lo, hi] = limits;
+      if (!movesStart) return [pos, clampNumberLocal(runtime, size + delta, Math.min(min, hi - pos), hi - pos, size)];
+      const end = pos + size, start = clampNumberLocal(runtime, pos + delta, lo, end - min, pos);
+      return [start, end - start];
+    };
+  }
+  function createWindowResizedRect(runtime) {
+    return function windowResizedRect(st, def, edges, dx, dy) {
+      const rect = getFreeWindowRect(runtime);
+      const [x, width] = /[ew]/.test(edges) ? runtime.handlers.windowResizeAxis(st.x, st.width, dx, edges.includes("w"), [Math.min(def.minWidth, rect.width), rect.left, rect.left + rect.width]) : [st.x, st.width];
+      const [y, height] = /[ns]/.test(edges) ? runtime.handlers.windowResizeAxis(st.y, st.height, dy, edges.includes("n"), [Math.min(def.minHeight, rect.height), rect.top, rect.top + rect.height]) : [st.y, st.height];
+      return { x, y, width, height };
+    };
+  }
+  function beginWindowResize(runtime, event, tabId, edges = "se") {
+    if (event.button !== void 0 && event.button !== 0) return;
+    cancelWindowGesture(runtime);
+    let handle = event.currentTarget;
+    let el = runtime.deps.document.getElementById(tabId);
+    let def = runtime.state.WINDOW_DEFS[tabId];
+    let st = getWindowState(runtime, tabId);
+    if (st.maximized) return;
+    let startX = event.clientX;
+    let startY = event.clientY;
+    let next = { x: st.x, y: st.y, width: st.width, height: st.height };
+    delete el.dataset.pendingWidth;
+    event.preventDefault();
+    let move = (moveEvent) => {
+      next = runtime.handlers.windowResizedRect(st, def, edges, (moveEvent.clientX - startX) / runtime.deps.uiDisplay.factor, (moveEvent.clientY - startY) / runtime.deps.uiDisplay.factor);
+      Object.assign(el.style, { left: `${next.x}px`, top: `${next.y}px`, width: `${next.width}px`, height: `${next.height}px` });
+      el.dataset.pendingWidth = String(next.width);
+    };
+    let finish = (commit) => {
+      if (commit) persistWindowState(runtime, tabId, { ...next, ...undockPatch(runtime, st, el.dataset.pendingWidth) });
+      delete el.dataset.pendingWidth;
+      applyWindowState(runtime, tabId);
+      syncWorkspacePresentation(runtime);
+    };
+    beginCapturedWindowGesture(runtime, handle, event.pointerId, { move, finish, text: true });
+  }
+  function openCommunityDock(runtime) {
+    if (typeof runtime.deps.messageFrames !== "object" || runtime.deps.window.isTabSurfaceAvailable("tab-social") === false) return;
+    if (isDesktopWindowed(runtime)) {
+      runtime.deps.messageFrames.showTab("chat");
+      return;
+    }
+    runtime.deps.window.switchTab("tab-battle");
+    runtime.deps.messageFrames.showPhoneTab("chat");
+  }
+
+  // modules/ui/tab-definitions.mjs
+  var MERGED_TAB_GROUPS = Object.freeze({
+    growth: { launcher: "tab-char", title: "스킬트리", tabs: [{ id: "tab-char", label: "스킬트리", icon: 2, count: (game) => game.passivePoints, detail: "스킬트리 노드에 포인트를 씁니다." }, { id: "tab-traits", label: "전직", icon: 16, detail: "전직을 고르고 노드와 키스톤을 할당합니다." }, { id: "tab-talent", gate: "talent", label: "재능", icon: 17, detail: "재능 개화 카드를 고르고 키웁니다." }] },
+    gear: { launcher: "tab-items", title: "장비", tabs: [{ id: "tab-items", label: "장비", icon: 6, detail: "장비와 가방을 봅니다." }, { id: "tab-skills", label: "스킬룬", icon: 9, detail: "룬을 장착하고 키웁니다." }] },
+    loop: { launcher: "tab-season", title: "루프", tabs: [{ id: "tab-season", label: "루프 패시브", icon: 4, count: (game) => game.seasonPoints, detail: "루프 포인트로 영구 노드에 투자합니다." }, { id: "tab-unlocks", label: "해금", icon: 3, count: (game, contentProgression) => contentProgression.points(game).balance, detail: "해금 포인트로 다음 콘텐츠를 고릅니다." }] },
+    records: { launcher: "tab-journal", title: "기록", tabs: [{ id: "tab-journal", gate: "journal", label: "이야기 저널", icon: 10, detail: "진행 기록과 안내를 확인합니다." }, { id: "tab-guide", gate: "journal", label: "가이드", icon: 10, detail: "주요 조작을 다시 따라 하거나 용어를 확인합니다." }, { id: "tab-codex", gate: "codex", label: "도감", icon: 13, detail: "발견한 항목과 수집 현황을 확인합니다." }, { id: "tab-records", gate: "journal", label: "기록", icon: 20, detail: "루프 소요 시간과 최고 기록을 확인합니다." }] }
+  });
+
+  // modules/ui/window-goal-drawer.mjs
+  function mountGoalDrawer(runtime, drawer) {
+    let battlefield = isDesktopWindowed(runtime) ? runtime.deps.document.getElementById("battlefield-wrap") : null;
+    if (!battlefield) {
+      runtime.deps.document.body.appendChild(drawer);
+      return;
+    }
+    battlefield.appendChild(drawer);
+  }
+  function installGoalDrawer(runtime) {
+    let existing = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (existing) {
+      mountGoalDrawer(runtime, existing);
+      return;
+    }
+    let drawer = runtime.deps.document.createElement("div");
+    drawer.id = "ui-goal-drawer";
+    drawer.className = "ui-goal-drawer";
+    drawer.style.display = "none";
+    drawer.innerHTML = '<div class="ui-goal-panel"><div id="ui-goal-body"><div class="ui-goal-head-row"><span id="ui-goal-badge" class="ui-goal-badge"></span><button type="button" id="ui-goal-pin" aria-pressed="false" aria-label="목표 서랍 고정">고정</button></div><div id="ui-goal-title" class="ui-goal-title"></div><div id="ui-goal-desc" class="ui-goal-desc"></div><div id="ui-goal-bar" class="ui-goal-bar"><span id="ui-goal-bar-fill" class="ui-goal-bar-fill"></span></div><div id="ui-goal-progress" class="ui-goal-progress"></div><button type="button" id="ui-goal-action" class="ui-goal-action"></button><div id="ui-goal-notices" class="ui-goal-notices"></div></div><button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기"><span id="ui-goal-handle-icon" class="ui-goal-handle-icon"></span><span id="ui-goal-handle-title" class="ui-goal-handle-title">목표</span><span class="ui-goal-chevron" aria-hidden="true"></span></button><div id="ui-goal-handle-bar" class="ui-goal-handle-bar"><span id="ui-goal-handle-fill" class="ui-goal-handle-fill"></span></div></div>';
+    mountGoalDrawer(runtime, drawer);
+    listenWindow(runtime, drawer.querySelector("#ui-goal-toggle"), "click", () => toggleGoalDrawer(runtime));
+    listenWindow(runtime, drawer.querySelector("#ui-goal-pin"), "click", runtime.handlers.toggleGoalPin);
+    drawer.querySelector("#ui-goal-pin").setAttribute("aria-pressed", runtime.state.layoutState.goals.pinned ? "true" : "false");
+    listenWindow(runtime, drawer.querySelector("#ui-goal-action"), "click", runtime.handlers.openGoalDrawerTarget);
+  }
+  function collapseGoalDrawerUnlessPinned(runtime) {
+    let drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (!drawer || !drawer.classList.contains("expanded") || runtime.state.layoutState.goals.pinned) return;
+    toggleGoalDrawer(runtime, false);
+  }
+  function toggleGoalDrawer(runtime, force) {
+    let drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (!drawer) return;
+    let expanded = force === void 0 ? !drawer.classList.contains("expanded") : !!force;
+    if (expanded) closeRailMiscPanel(runtime);
+    drawer.classList.toggle("expanded", expanded);
+    let toggle = drawer.querySelector("#ui-goal-toggle");
+    if (toggle) toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    syncGoalAccessButtons(runtime, runtime.state.goalRuntime.currentGoal);
+    runtime.state.layoutState.goals.expanded = expanded;
+    saveLayoutState(runtime);
+  }
+  function syncGoalAccessButtons(runtime, goal) {
+    let drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    let expanded = !!(drawer && drawer.classList.contains("expanded"));
+    ["btn-combat-goal-toggle"].forEach((id) => {
+      let access = runtime.deps.document.getElementById(id);
+      if (!access) return;
+      access.hidden = !goal;
+      access.setAttribute("aria-expanded", expanded ? "true" : "false");
+      access.classList.toggle("mandatory", !!(goal && goal.mandatory));
+      if (goal) access.style.setProperty("--goal-tone", goalTone(runtime, goal));
+    });
+  }
+  function toggleGoalPin(runtime) {
+    runtime.state.layoutState.goals.pinned = !runtime.state.layoutState.goals.pinned;
+    saveLayoutState(runtime);
+    let pin = runtime.deps.document.getElementById("ui-goal-pin");
+    if (pin) pin.setAttribute("aria-pressed", runtime.state.layoutState.goals.pinned ? "true" : "false");
+    if (runtime.state.layoutState.goals.pinned && runtime.state.goalRuntime.collapseTimer) {
+      (0, runtime.deps.clearTimeout)(runtime.state.goalRuntime.collapseTimer);
+      runtime.state.goalRuntime.collapseTimer = null;
+    }
+    if (!runtime.state.layoutState.goals.pinned) scheduleGoalAutoCollapse(runtime);
+  }
+  function isGoalAutoCollapseBlocked(runtime) {
+    let goal = runtime.state.goalRuntime.currentGoal;
+    return !goal || !!runtime.state.layoutState.goals.pinned;
+  }
+  function isBlockingOverlayVisible(runtime) {
+    return !!runtime.deps.document.querySelector(".tutorial-overlay.active:not(#tutorial-overlay), .background-combat-progress-overlay");
+  }
+  function scheduleGoalAutoCollapse(runtime) {
+    if (runtime.state.goalRuntime.collapseTimer) (0, runtime.deps.clearTimeout)(runtime.state.goalRuntime.collapseTimer);
+    runtime.state.goalRuntime.collapseTimer = null;
+    if (isGoalAutoCollapseBlocked(runtime)) return;
+    const owner = runtime.deps.game;
+    runtime.state.goalRuntime.collapseTimer = (0, runtime.deps.setTimeout)(() => {
+      runtime.state.goalRuntime.collapseTimer = null;
+      if (!runtime.active || owner !== runtime.deps.game) return;
+      let drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+      if (!drawer || !drawer.classList.contains("expanded") || isGoalAutoCollapseBlocked(runtime)) return;
+      if (drawer.matches(":hover") || drawer.contains(runtime.deps.document.activeElement)) {
+        scheduleGoalAutoCollapse(runtime);
+        return;
+      }
+      toggleGoalDrawer(runtime, false);
+    }, runtime.state.GOAL_AUTO_COLLAPSE_MS);
+  }
+  function openGoalTarget(runtime, target) {
+    if (!target || !target.actionTabId) return;
+    if (isDesktopWindowed(runtime) && runtime.state.originalSwitchTab && runtime.state.WINDOW_DEFS[target.actionTabId]) {
+      let merged = typeof runtime.deps.getMergedTabGroup === "function" ? (0, runtime.deps.getMergedTabGroup)(target.actionTabId) : null;
+      if (merged && typeof runtime.deps.window.switchMergedTabSubtab === "function") runtime.deps.window.switchMergedTabSubtab(merged[0], target.actionTabId, { keepWindowOpen: true });
+      else runtime.state.originalSwitchTab(target.actionTabId);
+      openWindow(runtime, target.actionTabId);
+    } else if (typeof runtime.deps.window.switchTab === "function") {
+      runtime.deps.window.switchTab(target.actionTabId);
+    } else {
+      return;
+    }
+    openGoalSubtab(runtime, target);
+  }
+  function openGoalSubtab(runtime, target) {
+    if (Number.isInteger(target.actionMapAct) && runtime.deps.window.explorationAtlasUi) {
+      runtime.deps.window.explorationAtlasUi.openAct(target.actionMapAct);
+      return;
+    }
+    const subtab = target.actionSubtabId;
+    if (!subtab) return;
+    if (subtab.startsWith("map-explore-")) {
+      callGlobalIfPresent(runtime, "switchMapSubtab", "map-tab-zones");
+      callGlobalIfPresent(runtime, "switchMapExploreSubtab", subtab);
+      return;
+    }
+    const row = runtime.state.GOAL_SUBTAB_SWITCHES.find(([prefix]) => subtab.startsWith(prefix));
+    if (row) callGlobalIfPresent(runtime, row[1], subtab);
+  }
+  function callGlobalIfPresent(runtime, name, arg) {
+    if (typeof runtime.deps.window[name] === "function") runtime.deps.window[name](arg);
+  }
+  function openGoalDrawerTarget(runtime) {
+    openGoalTarget(runtime, runtime.state.goalRuntime.currentGoal);
+  }
+  function openGoalNoticeTarget(runtime, index) {
+    let goal = runtime.state.goalRuntime.currentGoal;
+    let notices = goal && Array.isArray(goal.notices) ? goal.notices : [];
+    let notice = notices[Math.max(0, Math.floor(Number(index) || 0))];
+    if (notice && typeof notice === "object") openGoalTarget(runtime, notice);
+  }
+  function escapeGoalText(runtime, value) {
+    return (0, runtime.deps.escapeHTML)((0, runtime.deps.stripDecorativeEmoji)(value));
+  }
+  function setGoalNoticesHtml(runtime, notices, html) {
+    if (notices.__goalHtml !== html) {
+      notices.innerHTML = html;
+      notices.__goalHtml = html;
+    }
+    notices.style.display = html ? "" : "none";
+  }
+  function setGoalDrawerText(runtime, id, text) {
+    let el = runtime.deps.document.getElementById(id);
+    if (!el) return;
+    let cleanText = (0, runtime.deps.stripDecorativeEmoji)(text);
+    el.textContent = cleanText;
+    el.style.display = cleanText ? "" : "none";
+  }
+  function getGoalProgressPct(runtime, goal) {
+    if (Number.isFinite(goal.progressPct)) return Math.max(0, Math.min(100, Math.round(goal.progressPct)));
+    if (Number.isFinite(goal.current) && Number.isFinite(goal.target) && goal.target > 0) {
+      return Math.max(0, Math.min(100, Math.round(goal.current / goal.target * 100)));
+    }
+    return null;
+  }
+  function setGoalDrawerBar(runtime, barId, fillId, pct) {
+    let bar = runtime.deps.document.getElementById(barId);
+    let fill = runtime.deps.document.getElementById(fillId);
+    if (!bar || !fill) return;
+    bar.style.display = pct === null ? "none" : "";
+    if (pct !== null) fill.style.width = `${pct}%`;
+  }
+  function renderGoalDrawerContent(runtime, goal) {
+    let hasProgress = Number.isFinite(goal.current) && Number.isFinite(goal.target);
+    let pct = getGoalProgressPct(runtime, goal);
+    renderGoalBadge(runtime, goal);
+    setGoalDrawerText(runtime, "ui-goal-title", goal.title);
+    setGoalDrawerText(runtime, "ui-goal-desc", goal.description);
+    setGoalDrawerBar(runtime, "ui-goal-bar", "ui-goal-bar-fill", pct);
+    let progressText = Object.prototype.hasOwnProperty.call(goal, "progressText") ? goal.progressText : hasProgress ? (0, runtime.deps._t)("현재 {current} / {target}", { current: goal.current, target: goal.target }) : "";
+    setGoalDrawerText(runtime, "ui-goal-progress", progressText);
+    let action = runtime.deps.document.getElementById("ui-goal-action");
+    if (action) {
+      let usable = !!(goal.actionLabel && goal.actionTabId);
+      action.textContent = usable ? goal.actionLabel : "";
+      action.style.display = usable ? "" : "none";
+    }
+    renderGoalNotices(runtime, goal);
+    setGoalDrawerText(runtime, "ui-goal-handle-icon", "");
+    setGoalDrawerText(runtime, "ui-goal-handle-title", "목표");
+    setGoalDrawerBar(runtime, "ui-goal-handle-bar", "ui-goal-handle-fill", pct);
+    let drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (drawer) {
+      drawer.classList.toggle("ui-goal-mandatory", !!goal.mandatory);
+      drawer.style.setProperty("--goal-tone", goalTone(runtime, goal));
+    }
+    syncGoalAccessButtons(runtime, goal);
+  }
+  function renderGoalBadge(runtime, goal) {
+    const badge = runtime.deps.document.getElementById("ui-goal-badge");
+    if (!badge) return;
+    const icon = goal.iconKind === "attack" && typeof runtime.deps.renderCombatLogIcon === "function" ? (0, runtime.deps.renderCombatLogIcon)("attack") : "";
+    badge.innerHTML = `${icon}${escapeGoalText(runtime, (0, runtime.deps.stripDecorativeEmoji)(goal.categoryLabel || ""))}`;
+    badge.style.display = badge.innerHTML ? "" : "none";
+  }
+  function renderGoalNotices(runtime, goal) {
+    const rows = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 2);
+    const notices = runtime.deps.document.getElementById("ui-goal-notices");
+    if (!notices) return;
+    setGoalNoticesHtml(runtime, notices, rows.map((notice, index) => {
+      const normalized = typeof notice === "string" ? { text: notice } : notice || {};
+      const label = escapeGoalText(runtime, normalized.text || normalized.label || "");
+      if (!label) return "";
+      return normalized.actionTabId ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span></button>` : `<div class="ui-goal-notice-text">${label}</div>`;
+    }).join(""));
+  }
+  function presentGoalDrawer(runtime, goal) {
+    let drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (!drawer) return;
+    if (!goal || typeof goal !== "object" || !goal.id || !goal.title) {
+      runtime.state.goalRuntime.currentGoal = null;
+      runtime.state.goalRuntime.signature = "";
+      drawer.style.display = "none";
+      syncGoalAccessButtons(runtime, null);
+      return;
+    }
+    runtime.state.goalRuntime.currentGoal = goal;
+    drawer.style.display = "";
+    renderGoalDrawerContent(runtime, goal);
+    markGoalAutoExpand(runtime, goal);
+    if (!runtime.state.goalRuntime.pendingAutoExpand) return;
+    if (isBlockingOverlayVisible(runtime)) return;
+    runtime.state.goalRuntime.pendingAutoExpand = false;
+    if (!isDesktopWindowed(runtime)) return;
+    toggleGoalDrawer(runtime, true);
+    flashImportantGoal(runtime, drawer, goal);
+    scheduleGoalAutoCollapse(runtime);
+  }
+  function markGoalAutoExpand(runtime, goal) {
+    const signature = [goal.id, goal.stage || "", goal.mandatory ? 1 : 0].join("|");
+    if (signature !== runtime.state.goalRuntime.signature) {
+      runtime.state.goalRuntime.signature = signature;
+      runtime.state.goalRuntime.pendingAutoExpand = true;
+    }
+  }
+  function flashImportantGoal(runtime, drawer, goal) {
+    if (!goal.mandatory) return;
+    (0, runtime.deps.clearTimeout)(runtime.state.goalRuntime.flashTimer);
+    drawer.classList.remove("ui-goal-flash");
+    void drawer.offsetWidth;
+    drawer.classList.add("ui-goal-flash");
+    const owner = runtime.deps.game;
+    runtime.state.goalRuntime.flashTimer = (0, runtime.deps.setTimeout)(() => {
+      runtime.state.goalRuntime.flashTimer = null;
+      if (runtime.active && owner === runtime.deps.game && drawer.isConnected) drawer.classList.remove("ui-goal-flash");
+    }, runtime.state.GOAL_FLASH_MS);
+  }
+  function installSettingsReset(runtime) {
+    let host = runtime.deps.document.getElementById("settings-window-actions");
+    if (!host || runtime.deps.document.getElementById("btn-reset-window-layout")) return;
+    let button = runtime.deps.document.createElement("button");
+    button.id = "btn-reset-window-layout";
+    button.className = "cfg-btn cfg-btn--neutral";
+    button.type = "button";
+    button.textContent = (0, runtime.deps._t)("UI 배치 초기화");
+    listenWindow(runtime, button, "click", runtime.handlers.resetWindowLayout);
+    host.appendChild(button);
+  }
+  function goalTone(runtime, goal) {
+    return runtime.state.GOAL_TONES[(0, runtime.deps.stripDecorativeEmoji)(goal.categoryLabel || "")] || (goal.mandatory ? "#f0a04a" : "#d9b066");
+  }
+
+  // modules/ui/window-rail.mjs
+  function closeCommunityDock(runtime) {
+    if (typeof runtime.deps.messageFrames !== "object") return;
+    if (isDesktopWindowed(runtime)) runtime.deps.messageFrames.showTab("log", false);
+    else runtime.deps.messageFrames.showPhoneTab("log");
+  }
+  function getOrderedRailButtons(runtime, header) {
+    let buttons = Array.from(header.querySelectorAll(".tab-btn")).filter((button) => !runtime.state.RAIL_EXTERNAL_TAB_IDS.has(button.id));
+    let savedTabOrder = [...runtime.deps.tabLayoutUi.current().tabOrder, ...runtime.deps.tabLayoutUi.defaultOrder];
+    let originalRank = new Map(buttons.map((button, index) => [
+      button.id,
+      Number(button.dataset.railOriginalOrder ?? index)
+    ]));
+    let ordered = buttons.sort((left, right) => {
+      let leftSaved = savedTabOrder.indexOf(left.id);
+      let rightSaved = savedTabOrder.indexOf(right.id);
+      if (leftSaved >= 0 || rightSaved >= 0) {
+        if (leftSaved < 0) return 1;
+        if (rightSaved < 0) return -1;
+        return leftSaved - rightSaved;
+      }
+      return originalRank.get(left.id) - originalRank.get(right.id);
+    });
+    return ordered;
+  }
+  function railCaption(runtime, id, label) {
+    return runtime.deps.tabLayoutUi.shortCaptions[id] || label;
+  }
+  function wrapRailButtonLabel(runtime, button) {
+    if (!button || !button.childNodes || button.querySelector(":scope > .ui-rail-label")) return;
+    let textNodes = Array.from(button.childNodes).filter((node) => node.nodeType === 3 && node.textContent.trim());
+    if (textNodes.length === 0) return;
+    let label = runtime.deps.document.createElement("span");
+    label.className = "ui-rail-label";
+    label.dataset.i18n = "";
+    label.textContent = textNodes.map((node) => runtime.deps.i18n.sourceOf(node).trim()).join(" ");
+    button.dataset.caption = `${railCaption(runtime, button.id, label.textContent)}|하단 메뉴`;
+    button.dataset.i18nAttr = "data-caption";
+    let merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === "object" ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
+    if (merged) label.textContent = (0, runtime.deps._t)(merged.title);
+    if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
+    textNodes.forEach((node) => button.removeChild(node));
+    button.insertBefore(label, button.firstChild);
+    runtime.deps.i18n.applyStatic(button);
+  }
+  function createRailMiscButton(runtime) {
+    let button = runtime.deps.document.createElement("button");
+    button.id = "btn-ui-rail-misc";
+    button.type = "button";
+    button.className = "ui-rail-external-btn ui-rail-misc-btn";
+    button.setAttribute("aria-label", "기타 메뉴 열기");
+    button.dataset.i18n = "";
+    button.dataset.i18nAttr = "aria-label";
+    button.setAttribute("aria-controls", "ui-rail-misc-panel");
+    button.setAttribute("aria-expanded", "false");
+    button.innerHTML = '기타|하단 메뉴<span id="noti-ui-rail-misc" class="noti-dot"></span>';
+    runtime.deps.i18n.applyStatic(button);
+    listenWindow(runtime, button, "click", runtime.handlers.toggleRailMiscPanel);
+    return button;
+  }
+  function installRailLayers(runtime, header) {
+    let tabLayer = runtime.deps.document.createElement("div");
+    tabLayer.className = "ui-rail-tab-layer";
+    tabLayer.setAttribute("aria-label", (0, runtime.deps._t)("메뉴"));
+    header.appendChild(tabLayer);
+    let controls = runtime.deps.document.createElement("div");
+    controls.className = "ui-rail-external-controls";
+    controls.appendChild(createRailMiscButton(runtime));
+    header.appendChild(controls);
+    let miscPanel = runtime.deps.document.createElement("div");
+    miscPanel.id = "ui-rail-misc-panel";
+    miscPanel.className = "ui-rail-misc-panel";
+    miscPanel.hidden = true;
+    listenWindow(runtime, header, "click", runtime.handlers.closeRailMiscPanelAfterSelection);
+    listenWindow(runtime, runtime.deps.document, "pointerdown", runtime.handlers.closeRailMiscPanelFromOutside, true);
+    listenWindow(runtime, runtime.deps.document, "keydown", runtime.handlers.closeRailMiscPanelOnEscape, true);
+    header.appendChild(miscPanel);
+  }
+  function isRailButtonVisible(runtime, button) {
+    return button.style.display !== "none" && !button.hidden && button.dataset.mergedTabMember !== "1";
+  }
+  function toggleRailMiscPanel(runtime) {
+    let panel = runtime.deps.document.getElementById("ui-rail-misc-panel");
+    let trigger = runtime.deps.document.getElementById("btn-ui-rail-misc");
+    if (!panel || !trigger) return;
+    panel.hidden = !panel.hidden;
+    trigger.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+    let drawer = runtime.deps.document.getElementById("ui-goal-drawer");
+    if (!panel.hidden && drawer && drawer.classList.contains("expanded")) toggleGoalDrawer(runtime, false);
+  }
+  function closeRailMiscPanelFromOutside(runtime, event) {
+    let panel = runtime.deps.document.getElementById("ui-rail-misc-panel");
+    if (!panel || panel.hidden || !event.target.closest) return;
+    if (event.target.closest("#ui-rail-misc-panel, #btn-ui-rail-misc")) return;
+    closeRailMiscPanel(runtime);
+  }
+  function closeRailMiscPanelOnEscape(runtime, event) {
+    let panel = runtime.deps.document.getElementById("ui-rail-misc-panel");
+    if (event.key !== "Escape" || !panel || panel.hidden) return;
+    closeRailMiscPanel(runtime);
+    event.stopPropagation();
+  }
+  function closeRailMiscPanelAfterSelection(runtime, event) {
+    if (!event.target.closest || !event.target.closest(".tab-btn")) return;
+    closeRailMiscPanel(runtime);
+  }
+  function hasVisibleRailNotice(runtime, button) {
+    if (button.classList.contains("starter-equip-tutorial-pending")) return true;
+    return Array.from(button.querySelectorAll(".noti-dot, .inventory-full-warning")).some((notice) => {
+      let style = runtime.deps.window.getComputedStyle ? runtime.deps.window.getComputedStyle(notice) : notice.style;
+      return style.display !== "none" && style.visibility !== "hidden";
+    });
+  }
+  function moveRailAuxiliaryTabs(runtime, miscPanel) {
+    ["btn-tab-settings", "btn-map-complete-action-picker"].forEach((id) => {
+      let button = runtime.deps.document.getElementById(id);
+      if (button) miscPanel.appendChild(button);
+    });
+  }
+  function updateRailMiscNotice(runtime, miscPanel) {
+    let notice = runtime.deps.document.getElementById("noti-ui-rail-misc");
+    if (!notice) return;
+    let visible = Array.from(miscPanel.querySelectorAll(".tab-btn")).filter(runtime.handlers.isRailButtonVisible);
+    notice.style.display = visible.some(runtime.handlers.hasVisibleRailNotice) ? "block" : "none";
+  }
+  function installDesktopRailMenu(runtime) {
+    let header = runtime.deps.document.querySelector(".tab-header");
+    if (!header) return;
+    if (!header.querySelector(":scope > .ui-rail-tab-layer")) {
+      Array.from(header.querySelectorAll(".tab-btn")).forEach((button, index) => {
+        button.dataset.railOriginalOrder = String(index);
+      });
+      installRailLayers(runtime, header);
+    }
+    installCloseAllButton(runtime);
+    dockRailIntoHud(runtime, header);
+    syncDesktopRailGroups(runtime);
+  }
+  function dockRailIntoHud(runtime, header) {
+    let shell = runtime.deps.document.querySelector(".player-hud-shell");
+    if (!shell || runtime.state.railDockHome) return;
+    runtime.state.railDockHome = { parent: header.parentElement, next: header.nextElementSibling };
+    let rightWing = runtime.deps.document.createElement("div");
+    rightWing.className = "ui-rail-tab-layer ui-rail-wing-right";
+    rightWing.setAttribute("aria-label", (0, runtime.deps._t)("메뉴"));
+    header.querySelector(":scope > .ui-rail-tab-layer").classList.add("ui-rail-wing-left");
+    header.insertBefore(rightWing, header.querySelector(":scope > .ui-rail-external-controls"));
+    shell.appendChild(header);
+    header.classList.add("ui-rail-docked");
+    runtime.deps.document.body.classList.add("hud-menu-docked");
+    observeDockedHud(runtime, [runtime.deps.document.querySelector(".player-hud"), header.querySelector(":scope > .ui-rail-wing-left"), rightWing]);
+  }
+  function undockRailFromHud(runtime, header) {
+    if (!runtime.state.railDockHome) return;
+    runtime.state.railDockHome.parent.insertBefore(header, runtime.state.railDockHome.next);
+    runtime.state.railDockHome = null;
+    header.classList.remove("ui-rail-docked");
+    runtime.deps.document.body.classList.remove("hud-menu-docked");
+    if (runtime.state.dockedHudWatch) runtime.state.dockedHudWatch.disconnect();
+    cancelWindowFrame(runtime, "hudLayoutFrame");
+    runtime.state.dockedHudSizes.clear();
+  }
+  function observeDockedHud(runtime, targets) {
+    if (typeof runtime.deps.ResizeObserver !== "function") return;
+    runtime.state.dockedHudWatch = runtime.state.dockedHudWatch || new runtime.deps.ResizeObserver(runtime.handlers.noteDockedHudResize);
+    targets.forEach((target) => {
+      if (target) runtime.state.dockedHudWatch.observe(target);
+    });
+  }
+  function noteDockedHudResize(runtime, entries) {
+    if (!runtime.active) return;
+    let changed = entries.filter((entry) => {
+      let size = Math.round(entry.contentRect.width) + "x" + Math.round(entry.contentRect.height);
+      if (runtime.state.dockedHudSizes.get(entry.target) === size) return false;
+      runtime.state.dockedHudSizes.set(entry.target, size);
+      return true;
+    });
+    if (runtime.state.railDockHome && changed.length) queueWindowFrame(runtime, "hudLayoutFrame", runtime.handlers.relayoutDockedHud);
+  }
+  function relayoutDockedHud(runtime) {
+    if (!runtime.state.railDockHome) return;
+    syncDesktopRailGroups(runtime);
+    Object.keys(runtime.state.WINDOW_DEFS).forEach(runtime.handlers.applyWindowState);
+    if (typeof runtime.deps.messageFrames === "object") runtime.deps.messageFrames.sync();
+  }
+  function isRailButtonDisplayed(runtime, button) {
+    return typeof button.getClientRects !== "function" || button.getClientRects().length > 0;
+  }
+  function countRailWingRoom(runtime, wing, buttons) {
+    let bottom = wing.getBoundingClientRect().bottom;
+    return buttons.filter((button) => button.getBoundingClientRect().bottom <= bottom + 0.5).length;
+  }
+  function spreadRailWings(runtime, header, visible) {
+    let left = header.querySelector(":scope > .ui-rail-wing-left");
+    let right = header.querySelector(":scope > .ui-rail-wing-right");
+    if (!left || !right) return [];
+    let shown = visible.filter(runtime.handlers.isRailButtonDisplayed);
+    let leftRoom = countRailWingRoom(runtime, left, shown);
+    shown.forEach((button) => right.appendChild(button));
+    let rightRoom = countRailWingRoom(runtime, right, shown);
+    let overflow = pickRailOverflow(runtime, shown, leftRoom + rightRoom);
+    let kept = shown.filter((button) => !overflow.includes(button));
+    let leftCount = Math.min(leftRoom, Math.max(Math.ceil(kept.length / 2), kept.length - rightRoom));
+    kept.slice(0, leftCount).forEach((button) => left.appendChild(button));
+    return overflow;
+  }
+  function pickRailOverflow(runtime, shown, room) {
+    let spare = shown.length - room;
+    if (spare <= 0) return [];
+    let auxiliary = shown.filter((button) => !runtime.state.RAIL_CORE_TAB_IDS.has(button.id)).reverse();
+    let core = shown.filter((button) => runtime.state.RAIL_CORE_TAB_IDS.has(button.id)).reverse();
+    return [...auxiliary, ...core].slice(0, spare);
+  }
+  function measureRailOverflow(runtime, tabLayer, visible) {
+    tabLayer.scrollTop = 0;
+    const bottom = tabLayer.getBoundingClientRect().bottom;
+    return visible.filter((button) => button.getBoundingClientRect().bottom > bottom + 0.5);
+  }
+  function syncDesktopRailGroups(runtime) {
+    let header = runtime.deps.document.querySelector(".tab-header");
+    let tabLayer = header && header.querySelector(":scope > .ui-rail-tab-layer");
+    let miscPanel = header && header.querySelector(":scope > .ui-rail-misc-panel");
+    if (!tabLayer || !miscPanel) return;
+    let buttons = getOrderedRailButtons(runtime, header);
+    let visible = buttons.filter((button) => isRailButtonVisible(runtime, button) && !runtime.deps.tabLayoutUi.isMisc(button.id));
+    buttons.forEach((button) => {
+      wrapRailButtonLabel(runtime, button);
+      tabLayer.appendChild(button);
+    });
+    buttons.filter((button) => runtime.deps.tabLayoutUi.isMisc(button.id)).forEach((button) => miscPanel.appendChild(button));
+    moveRailAuxiliaryTabs(runtime, miscPanel);
+    const overflow = runtime.state.railDockHome ? spreadRailWings(runtime, header, visible) : measureRailOverflow(runtime, tabLayer, visible);
+    overflow.forEach((button) => miscPanel.appendChild(button));
+    miscPanel.dataset.railOverflow = String(overflow.length);
+    updateRailMiscNotice(runtime, miscPanel);
+  }
+  function installCloseAllButton(runtime) {
+    let header = runtime.deps.document.querySelector(".tab-header");
+    if (!header || runtime.deps.document.getElementById("btn-close-all-windows")) return;
+    let btn = runtime.deps.document.createElement("button");
+    btn.id = "btn-close-all-windows";
+    btn.type = "button";
+    btn.className = "ui-rail-external-btn ui-close-all-btn";
+    btn.textContent = "정리|하단 메뉴";
+    btn.setAttribute("aria-label", "열린 창 모두 닫기");
+    btn.dataset.i18n = "";
+    btn.dataset.i18nAttr = "aria-label";
+    runtime.deps.i18n.applyStatic(btn);
+    listenWindow(runtime, btn, "click", runtime.handlers.closeAllWindows);
+    let logo = runtime.deps.document.createElement("button");
+    logo.id = "ui-rail-logo";
+    logo.type = "button";
+    logo.setAttribute("aria-label", (0, runtime.deps._t)("RIGNIN, 열린 창 모두 닫기"));
+    logo.dataset.tip = (0, runtime.deps._t)("열린 창 모두 닫기");
+    logo.innerHTML = '<img src="assets/ui/pixel/rignin-logo-52.png" alt="" width="52" height="52">';
+    listenWindow(runtime, logo, "click", runtime.handlers.closeAllWindows);
+    header.prepend(logo);
+    let controls = header.querySelector(":scope > .ui-rail-external-controls");
+    (controls || header).appendChild(btn);
+  }
+
+  // modules/ui/window-combat-log.mjs
+  function saveCombatLogReserve(runtime, px) {
+    runtime.state.layoutState.combatLog.reserve = clampNumberLocal(runtime, px, runtime.state.COMBAT_LOG_RESERVE_MIN, 4e3, runtime.state.COMBAT_LOG_RESERVE_MIN);
+    applyCombatLogReserve(runtime, runtime.state.layoutState.combatLog.reserve);
+    saveLayoutState(runtime);
+  }
+  function measureCombatLogShare(runtime) {
+    const stage = runtime.deps.document.querySelector("#tab-battle .combat-stage");
+    if (!stage) return null;
+    const root = runtime.deps.document.documentElement.style, stored = runtime.state.layoutState.combatLog.reserve || runtime.state.COMBAT_LOG_RESERVE_MIN;
+    root.setProperty("--combat-log-reserve", "0px");
+    const whole = (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(stage).maxHeight);
+    root.setProperty("--combat-log-reserve", stored + "px");
+    if (!Number.isFinite(whole)) return null;
+    const factor = runtime.deps.window.uiDisplay && runtime.deps.window.uiDisplay.factor || 1;
+    return { now: whole - stage.getBoundingClientRect().height / factor, most: Math.max(runtime.state.COMBAT_LOG_RESERVE_MIN, whole - runtime.state.COMBAT_LOG_MIN_STAGE), factor };
+  }
+  function startCombatLogResize(runtime, event) {
+    if (event.button > 0) return;
+    cancelWindowGesture(runtime);
+    const share = measureCombatLogShare(runtime);
+    if (!share) return;
+    const handle = event.currentTarget, startY = event.clientY;
+    let reserve = share.now;
+    event.preventDefault();
+    handle.classList.add("is-dragging");
+    const move = (moved) => {
+      reserve = Math.min(share.most, Math.max(runtime.state.COMBAT_LOG_RESERVE_MIN, share.now + (startY - moved.clientY) / share.factor));
+      queueWindowFrame(runtime, "combatLogResizeFrame", () => applyCombatLogReserve(runtime, reserve));
+    };
+    const finish = (commit) => {
+      cancelWindowFrame(runtime, "combatLogResizeFrame");
+      handle.classList.remove("is-dragging");
+      if (commit) saveCombatLogReserve(runtime, reserve);
+      else applyCombatLogReserve(runtime, runtime.state.layoutState.combatLog.reserve || runtime.state.COMBAT_LOG_RESERVE_MIN);
+    };
+    beginCapturedWindowGesture(runtime, handle, event.pointerId, { move, finish });
+  }
+  function nudgeCombatLogResize(runtime, event) {
+    const step = { ArrowUp: runtime.state.COMBAT_LOG_KEY_STEP, ArrowDown: -runtime.state.COMBAT_LOG_KEY_STEP }[event.key];
+    const share = step ? measureCombatLogShare(runtime) : null;
+    if (!share) return;
+    event.preventDefault();
+    saveCombatLogReserve(runtime, Math.min(share.most, Math.max(runtime.state.COMBAT_LOG_RESERVE_MIN, share.now + step)));
+  }
+  function setupCombatLogResize(runtime) {
+    const feed = runtime.deps.document.querySelector(".combat-feed");
+    if (!feed || runtime.deps.document.getElementById("combat-log-resize")) return;
+    const handle = runtime.deps.document.createElement("div");
+    handle.id = "combat-log-resize";
+    handle.className = "combat-log-resize";
+    handle.tabIndex = 0;
+    handle.setAttribute("role", "separator");
+    handle.setAttribute("aria-orientation", "horizontal");
+    handle.setAttribute("aria-label", typeof runtime.deps._t === "function" ? (0, runtime.deps._t)("전투 기록 높이 조절") : "전투 기록 높이 조절");
+    feed.parentNode.insertBefore(handle, feed);
+    listenWindow(runtime, handle, "pointerdown", runtime.handlers.startCombatLogResize);
+    listenWindow(runtime, handle, "keydown", runtime.handlers.nudgeCombatLogResize);
+    listenWindow(runtime, handle, "dblclick", () => saveCombatLogReserve(runtime, runtime.state.COMBAT_LOG_RESERVE_MIN));
+    if (runtime.state.layoutState.combatLog.reserve) applyCombatLogReserve(runtime, runtime.state.layoutState.combatLog.reserve);
+  }
+  function applyCombatLogReserve(runtime, px) {
+    runtime.deps.document.documentElement.style.setProperty("--combat-log-reserve", Math.round(px) + "px");
+    const log = runtime.deps.document.getElementById("log");
+    if (log && log.combatLogAtBottom !== false && typeof runtime.deps.window.scrollCombatLogToLatest === "function") runtime.deps.window.scrollCombatLogToLatest(log);
+  }
+
+  // modules/ui/window-responsive.mjs
+  function resetWindowLayout(runtime) {
+    runtime.state.layoutState = getDefaultLayoutState(runtime);
+    saveLayoutState(runtime);
+    Object.keys(runtime.state.WINDOW_DEFS).forEach((id) => applyWindowState(runtime, id));
+    if (typeof runtime.deps.messageFrames === "object") runtime.deps.messageFrames.reset();
+    toggleGoalDrawer(runtime, false);
+    requestCanvasResize(runtime);
+    syncWorkspacePresentation(runtime);
+  }
+  function patchCombatLogToggle(runtime) {
+    if (typeof runtime.deps.window.toggleCombatLogCollapse !== "function" || runtime.deps.window.toggleCombatLogCollapse.__uiLayoutPatched) return;
+    let originalToggle = runtime.deps.window.toggleCombatLogCollapse;
+    runtime.state.originalCombatLogToggle = originalToggle;
+    runtime.deps.window.toggleCombatLogCollapse = function uiLayoutCombatLogToggle() {
+      if (!runtime.active) return originalToggle();
+      syncWindowOwner(runtime);
+      originalToggle();
+      runtime.state.layoutState.combatLog.expanded = !(runtime.deps.window.game && runtime.deps.window.game.settings && runtime.deps.window.game.settings.combatLogCollapsed);
+      saveLayoutState(runtime);
+      requestCanvasResize(runtime);
+      syncWorkspacePresentation(runtime);
+    };
+    runtime.deps.window.toggleCombatLogCollapse.__uiLayoutPatched = true;
+    runtime.state.combatLogToggleWrapper = runtime.deps.window.toggleCombatLogCollapse;
+    if (runtime.deps.window.game && runtime.deps.window.game.settings) {
+      runtime.deps.window.game.settings.combatLogCollapsed = !runtime.state.layoutState.combatLog.expanded;
+      if (typeof runtime.deps.window.applyPanelLayoutSettings === "function") runtime.deps.window.applyPanelLayoutSettings();
+    }
+  }
+  function noteEquipmentReopen(runtime, tabId, st) {
+    if (tabId !== "tab-items" || st && st.open && !st.minimized || !runtime.deps.window.equipmentTriage) return;
+    runtime.deps.window.equipmentTriage.onOpen();
+    if (typeof runtime.deps.window.updateStaticUI === "function") runtime.deps.window.updateStaticUI();
+  }
+  function patchSwitchTab(runtime) {
+    if (runtime.state.originalSwitchTab || typeof runtime.deps.window.switchTab !== "function") return;
+    runtime.state.originalSwitchTab = runtime.deps.window.switchTab;
+    runtime.deps.window.switchTab = function windowedSwitchTab(tabId, options = {}) {
+      if (!runtime.active) return runtime.state.originalSwitchTab(tabId, options);
+      syncWindowOwner(runtime);
+      if (runtime.deps.window.isTabSurfaceAvailable(tabId) === false) return runtime.state.originalSwitchTab(tabId);
+      if (tabId === "tab-social") {
+        openCommunityDock(runtime);
+        return;
+      }
+      if (!isDesktopWindowed(runtime)) {
+        collapseGoalDrawerUnlessPinned(runtime);
+        return runtime.state.originalSwitchTab(tabId);
+      }
+      if (tabId === "tab-battle") {
+        closeAllWindows(runtime);
+        return runtime.state.originalSwitchTab(tabId);
+      }
+      let el = runtime.deps.document.getElementById(tabId);
+      let st = runtime.state.layoutState.windows[tabId];
+      if (shouldCloseWindowTab(runtime, tabId, options, el)) {
+        closeWindow(runtime, tabId);
+        return;
+      }
+      noteEquipmentReopen(runtime, tabId, st);
+      let result = runtime.state.originalSwitchTab(tabId);
+      openWindow(runtime, tabId);
+      return result;
+    };
+    runtime.state.switchTabWrapper = runtime.deps.window.switchTab;
+  }
+  function shouldCloseWindowTab(runtime, tabId, options, el) {
+    const st = runtime.state.layoutState.windows[tabId];
+    return !options.keepWindowOpen && runtime.state.WINDOW_DEFS[tabId] && st && st.open && !st.minimized && el && el.classList.contains("ui-window-active");
+  }
+  function restoreDesktopMenuForMobile(runtime) {
+    let header = runtime.deps.document.querySelector(".tab-header");
+    if (!header) return;
+    undockRailFromHud(runtime, header);
+    header.querySelectorAll(":scope > .ui-rail-tab-layer .tab-btn, :scope > .ui-rail-misc-panel .tab-btn").forEach((btn) => header.appendChild(btn));
+    header.querySelectorAll(":scope > .ui-rail-tab-layer").forEach((layer) => {
+      releaseWindowTree(runtime, layer);
+      layer.remove();
+    });
+    let miscPanel = header.querySelector(":scope > .ui-rail-misc-panel");
+    if (miscPanel) {
+      releaseWindowTree(runtime, miscPanel);
+      miscPanel.remove();
+    }
+    let externalControls = header.querySelector(":scope > .ui-rail-external-controls");
+    if (externalControls) {
+      releaseWindowTree(runtime, externalControls);
+      externalControls.remove();
+    }
+    Array.from(header.querySelectorAll(".tab-btn")).sort((left, right) => Number(left.dataset.railOriginalOrder) - Number(right.dataset.railOriginalOrder)).forEach((button) => {
+      delete button.dataset.railOriginalOrder;
+      header.appendChild(button);
+    });
+    let closeAllBtn = runtime.deps.document.getElementById("btn-close-all-windows");
+    if (closeAllBtn) {
+      releaseWindowTree(runtime, closeAllBtn);
+      closeAllBtn.remove();
+    }
+    header.querySelectorAll(":scope > #ui-rail-logo").forEach((logo) => {
+      releaseWindowTree(runtime, logo);
+      logo.remove();
+    });
+    let toggle = runtime.deps.document.getElementById("ui-community-toggle");
+    if (toggle) {
+      releaseWindowTree(runtime, toggle);
+      toggle.remove();
+    }
+  }
+  function restoreWindowMarkupForMobile(runtime) {
+    restoreDesktopMenuForMobile(runtime);
+    Object.keys(runtime.state.WINDOW_DEFS).forEach((tabId) => {
+      let el = runtime.deps.document.getElementById(tabId);
+      if (!el || el.dataset.windowPrepared !== "1") return;
+      let body = el.querySelector(":scope > .ui-window-body");
+      let titlebar = el.querySelector(":scope > .ui-window-titlebar");
+      if (body) {
+        while (body.firstChild) el.insertBefore(body.firstChild, body);
+        body.remove();
+      }
+      if (titlebar) {
+        releaseWindowTree(runtime, titlebar);
+        titlebar.remove();
+      }
+      el.style.cursor = "";
+      el.classList.remove("ui-window", "ui-window-open", "ui-window-minimized");
+      el.removeAttribute("data-window-prepared");
+      ["role", "aria-labelledby", "tabindex"].forEach((name) => el.removeAttribute(name));
+      ["left", "top", "width", "height", "zIndex"].forEach((prop) => {
+        el.style[prop] = "";
+      });
+    });
+    let social = runtime.deps.document.getElementById("tab-social");
+    if (social) {
+      social.classList.remove("ui-community-dock", "ui-community-overlay");
+      ["left", "top", "right", "bottom", "width", "height"].forEach((property) => {
+        social.style[property] = "";
+      });
+      let dockHeader = social.querySelector(":scope > .ui-community-dock-header");
+      if (dockHeader) dockHeader.remove();
+    }
+    runtime.deps.document.body.classList.remove("community-dock-open", "community-overlay-open");
+    syncWorkspacePresentation(runtime);
+  }
+  function restoreSelectedMobileWindow(runtime) {
+    let mobileTab = Object.keys(runtime.state.WINDOW_DEFS).concat("tab-battle").find((id) => {
+      let el = runtime.deps.document.getElementById(id);
+      return el && el.classList.contains("active");
+    });
+    if (!mobileTab) return;
+    if (runtime.state.WINDOW_DEFS[mobileTab]) {
+      openWindow(runtime, mobileTab);
+      return;
+    }
+    closeAllWindows(runtime);
+  }
+  function restoreSelectedDesktopTab(runtime) {
+    if (!runtime.state.originalSwitchTab) return;
+    let tabId = runtime.state.zOrder.slice().reverse().find((id) => {
+      let state = runtime.state.layoutState.windows[id];
+      return state && state.open && !state.minimized;
+    });
+    runtime.state.originalSwitchTab(tabId || "tab-battle");
+  }
+  function watchZoneRowClearance(runtime) {
+    let row = runtime.deps.document.querySelector(".combat-zone-row"), tab = runtime.deps.document.getElementById("tab-battle");
+    if (!row || !tab || typeof runtime.deps.ResizeObserver !== "function") return;
+    if (runtime.state.zoneRowTarget === row && runtime.state.zoneRowTab === tab) return;
+    runtime.state.zoneRowWatch?.disconnect();
+    runtime.state.zoneRowTarget = row;
+    runtime.state.zoneRowTab = tab;
+    runtime.state.zoneRowWatch = new runtime.deps.ResizeObserver(() => {
+      if (runtime.active && row.isConnected && tab.isConnected) tab.style.setProperty("--zone-row-bottom", `${Math.ceil(row.offsetTop + row.offsetHeight)}px`);
+    });
+    runtime.state.zoneRowWatch.observe(row);
+  }
+  function applyResponsiveMode(runtime) {
+    watchZoneRowClearance(runtime);
+    let desktop = isDesktopWindowed(runtime);
+    let enteringDesktop = desktop && runtime.state.previousDesktopMode === false;
+    let enteringMobile = !desktop && runtime.state.previousDesktopMode === true;
+    if (enteringDesktop || enteringMobile) cancelWindowGesture(runtime);
+    runtime.state.previousDesktopMode = desktop;
+    runtime.deps.document.body.classList.toggle("desktop-windowed-ui", desktop);
+    if (!desktop) {
+      syncMessageFrameMode(runtime, false);
+      restoreWindowMarkupForMobile(runtime);
+      if (enteringMobile) restoreSelectedDesktopTab(runtime);
+      syncWorkspacePresentation(runtime);
+      installGoalDrawer(runtime);
+      return;
+    }
+    Object.keys(runtime.state.WINDOW_DEFS).forEach((id) => {
+      prepareWindow(runtime, id);
+      applyWindowState(runtime, id);
+    });
+    installGoalDrawer(runtime);
+    installSettingsReset(runtime);
+    installDesktopRailMenu(runtime);
+    if (runtime.state.layoutState.goals.expanded) toggleGoalDrawer(runtime, true);
+    syncMessageFrameMode(runtime, true);
+    if (enteringDesktop) restoreSelectedMobileWindow(runtime);
+    requestCanvasResize(runtime);
+    syncWorkspacePresentation(runtime);
+  }
+  function syncMessageFrameMode(runtime, desktop) {
+    if (typeof runtime.deps.messageFrames !== "object") return;
+    runtime.deps.messageFrames.sync(desktop ? { desktop: true, workspaceRect: runtime.handlers.getFreeWindowRect } : { desktop: false });
+  }
+  function closeTopWindowOnEscape(runtime, event) {
+    if (event.key !== "Escape" || (0, runtime.deps.isTextEntryTarget)(event.target)) return;
+    if (runtime.deps.document.querySelector("dialog:modal")) return;
+    if (runtime.deps.document.querySelector(".selection-overlay")) return;
+    if (runtime.deps.document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
+    let open = runtime.state.zOrder.slice().reverse().find((id) => {
+      let st = runtime.state.layoutState.windows[id];
+      return st && st.open && !st.minimized;
+    });
+    if (open) closeWindow(runtime, open);
+  }
+  function toggleWindowFromHotkey(runtime, tabId) {
+    if (!runtime.deps.document.body.classList.contains("desktop-windowed-ui") || !isMenuUnlocked(runtime, tabId)) return false;
+    let merged = mergedWindowOf(runtime, tabId), windowId = merged ? merged.windowId : tabId;
+    let state = runtime.state.layoutState.windows[windowId];
+    let onTop = runtime.state.zOrder[runtime.state.zOrder.length - 1] === windowId, showing = !merged || merged.shownId === tabId;
+    if (state && state.open && !state.minimized && onTop && showing) closeWindow(runtime, windowId);
+    else runtime.deps.window.switchTab(tabId, { keepWindowOpen: !!merged });
+    return true;
+  }
+  function initWindowManager(runtime) {
+    if (runtime.state.initialized) return;
+    runtime.state.initialized = true;
+    runtime.state.layoutState = normalizeLayoutState(runtime, readStoredLayout(runtime));
+    closePersistedSurfacesForBoot(runtime);
+    patchSwitchTab(runtime);
+    patchCombatLogToggle(runtime);
+    setupCombatLogResize(runtime);
+    applyResponsiveMode(runtime);
+    listenWindow(runtime, runtime.deps.window, "resize", runtime.handlers.applyResponsiveMode);
+    listenWindow(runtime, runtime.deps.document, "keydown", runtime.handlers.closeTopWindowOnEscape);
+  }
+
+  // modules/ui/window-manager-disposal.mjs
+  function disposeWindowManager(runtime) {
+    if (!runtime.active) return;
+    runtime.active = false;
+    clearWindowWork(runtime);
+    releaseViewEvents(runtime);
+    for (const key of ["dockFitWatch", "dockedHudWatch", "zoneRowWatch"]) {
+      runtime.state[key]?.disconnect();
+      runtime.state[key] = null;
+    }
+    runtime.state.dockedHudSizes.clear();
+    restoreWindowHooks(runtime);
+    if (runtime.state.initialized) restoreWindowMarkupForMobile(runtime);
+    releaseWindowPresentation(runtime);
+    runtime.state.goalRuntime.currentGoal = null;
+    runtime.state.guideLayout = null;
+  }
+  function restoreWindowHooks(runtime) {
+    const target = runtime.deps.window;
+    if (runtime.state.switchTabWrapper && target.switchTab === runtime.state.switchTabWrapper) {
+      target.switchTab = runtime.state.originalSwitchTab;
+    }
+    if (runtime.state.combatLogToggleWrapper && target.toggleCombatLogCollapse === runtime.state.combatLogToggleWrapper) {
+      target.toggleCombatLogCollapse = runtime.state.originalCombatLogToggle;
+    }
+  }
+  function releaseWindowPresentation(runtime) {
+    const doc = runtime.deps.document;
+    for (const id of Object.keys(runtime.state.WINDOW_DEFS)) {
+      const panel = doc.getElementById(id);
+      if (!panel) continue;
+      delete panel.dataset.windowInputBound;
+      panel.classList.remove("ui-window-active", "ui-window-docked", "ui-window-maximized");
+    }
+    if (!runtime.state.initialized) return;
+    for (const id of ["ui-goal-drawer", "btn-reset-window-layout", "combat-log-resize"]) doc.getElementById(id)?.remove();
+    const access = doc.getElementById("btn-combat-goal-toggle");
+    if (access) {
+      access.hidden = true;
+      access.setAttribute("aria-expanded", "false");
+    }
+    doc.body.classList.remove("desktop-windowed-ui", "ui-management-mode", "ui-workspace-docked", "ui-combat-mode");
+    delete doc.body.dataset.activeGameWindow;
+  }
+
+  // modules/ui/window-manager-view.mjs
+  function createWindowManagerView(deps) {
+    const runtime = { deps, state: { owner: deps.game, gesture: null }, handlers: {}, api: null, active: true, listeners: [], frames: /* @__PURE__ */ new Set() };
+    initialize(runtime);
+    bindWindowHandlers(runtime);
+    runtime.handlers.resolveWindowPlacement = createResolveWindowPlacement(runtime);
+    runtime.handlers.windowResizeAxis = createWindowResizeAxis(runtime);
+    runtime.handlers.windowResizedRect = createWindowResizedRect(runtime);
+    runtime.api = windowApi(runtime);
+    if (deps.document.readyState === "loading") listenWindow(runtime, deps.document, "DOMContentLoaded", runtime.handlers.initWindowManager, { once: true });
+    else initWindowManager(runtime);
+    return runtime.api;
+  }
+  function bindWindowHandlers(runtime) {
+    const handlers = { stopTextDrag, toggleRailMiscPanel, closeRailMiscPanelAfterSelection, closeRailMiscPanelFromOutside, closeRailMiscPanelOnEscape, isRailButtonVisible, hasVisibleRailNotice, noteDockedHudResize, relayoutDockedHud, applyWindowState, isRailButtonDisplayed, closeAllWindows, toggleGoalPin, openGoalDrawerTarget, resetWindowLayout, getFreeWindowRect, startCombatLogResize, nudgeCombatLogResize, applyResponsiveMode, closeTopWindowOnEscape, toggleWindowFromHotkey, openWindow, closeWindow, beginGuideWindowLayout, minimizeWindow, toggleMaximizeWindow, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation, refitDockedWindows, initWindowManager };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(void 0, runtime);
+  }
+  function windowApi(runtime) {
+    const names = [
+      "toggleWindowFromHotkey",
+      "openWindow",
+      "closeWindow",
+      "closeAllWindows",
+      "beginGuideWindowLayout",
+      "minimizeWindow",
+      "toggleMaximizeWindow",
+      "resetWindowLayout",
+      "openCommunityDock",
+      "closeCommunityDock",
+      "toggleGoalDrawer",
+      "presentGoalDrawer",
+      "openGoalNoticeTarget",
+      "syncDesktopRailGroups",
+      "syncWorkspacePresentation",
+      "refitDockedWindows"
+    ];
+    const api = {};
+    for (const name of names) api[name] = (...args) => {
+      if (!runtime.active) return;
+      syncWindowOwner(runtime);
+      return runtime.handlers[name](...args);
+    };
+    api.dispose = () => disposeWindowManager(runtime);
+    return Object.freeze(api);
+  }
+  function initialize(runtime) {
+    runtime.state.DESKTOP_MEDIA = "(min-width: 1081px)";
+    runtime.state.UI_LAYOUT_STORAGE_KEY = "project-arpg-idle-ui-layout-v1";
+    runtime.state.UI_LAYOUT_VERSION = 1;
+    runtime.state.PASSIVE_TREE_PRESENTATION_VERSION = 1;
+    runtime.state.WORKSPACE_PRESENTATION_VERSION = 2;
+    runtime.state.DOCK_MIN_BATTLE_WIDTH = 380;
+    runtime.state.DOCK_MIN_WIDTH = 720;
+    runtime.state.DOCK_MAX_WIDTH = 1100;
+    runtime.state.DOCK_RATIO = 0.62;
+    runtime.state.COMMUNITY_MIN_WIDTH = 280;
+    runtime.state.COMMUNITY_MAX_WIDTH = 520;
+    runtime.state.DEFAULT_COMMUNITY_WIDTH = 360;
+    runtime.state.DESKTOP_RAIL_WIDTH = 140;
+    runtime.state.WORKSPACE_GAP = 10;
+    runtime.state.WORKSPACE_EDGE = 8;
+    runtime.state.RAIL_CORE_TAB_IDS = /* @__PURE__ */ new Set(["btn-tab-character", "btn-tab-char", "btn-tab-items", "btn-tab-map", "btn-tab-journal"]);
+    runtime.state.RAIL_EXTERNAL_TAB_IDS = /* @__PURE__ */ new Set([
+      "btn-tab-battle",
+      "btn-tab-settings",
+      "btn-map-complete-action-picker"
+    ]);
+    initializeWindowDefinitions(runtime);
+    initializeWindowState(runtime);
+    initializeGoalState(runtime);
+  }
+  function initializeWindowDefinitions(runtime) {
+    runtime.state.WINDOW_DEFS = {
+      "tab-character": { title: "캐릭터 능력치", x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
+      // 2026-10-13: 스킬룬은 장비 창 안의 화면, 해금은 루프 창 안의 화면이 됐다(js/ui.js MERGED_TAB_GROUPS: 창 머리의 탭으로 오간다).
+      // 제 창이 없으므로 여기에 줄이 없다(저장된 옛 창 자리는 쓰이지 않는다).
+      "tab-items": { title: "장비 및 인벤토리", defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
+      "tab-char": { title: "스킬트리", x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
+      "tab-map": { title: "지도 및 콘텐츠", defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
+      "tab-settings": { title: "설정", x: 230, y: 40, width: 1e3, height: 800, minWidth: 460, minHeight: 420 },
+      // 2026-10-11: 아래 창들은 기본 높이가 낮아 1080p 화면에서 원환 아래 절반, 조합창 끝 줄, 연대기가 잘렸다(재능은 2026-10-16부터 스킬트리 창 안).
+      // 높이는 작업 영역(HUD 위)까지만 쓰이므로 작은 화면에서는 전처럼 줄어든다. 사용자가 옮기거나 키운 창은 저장된 크기를 따른다.
+      "tab-season": { title: "루프 패시브", x: 210, y: 20, width: 980, height: 920, minWidth: 500, minHeight: 380 },
+      "tab-journal": { title: "기록", x: 300, y: 30, width: 820, height: 900, minWidth: 500, minHeight: 380 },
+      "tab-stump": { title: "그루터기 함", x: 240, y: 30, width: 940, height: 880, minWidth: 560, minHeight: 440 },
+      // 2026-11-06: 거래(NPC, 가판대, 장비 전당)는 장비 창의 칸에서 제 창이 됐다(js/market-ui.js).
+      "tab-trade": { title: "거래", x: 200, y: 40, width: 1e3, height: 840, minWidth: 600, minHeight: 440 }
+    };
+  }
+  function initializeWindowState(runtime) {
+    runtime.state.layoutState = getDefaultLayoutState(runtime);
+    runtime.state.originalSwitchTab = null;
+    runtime.state.zOrder = Object.keys(runtime.state.WINDOW_DEFS);
+    runtime.state.initialized = false;
+    runtime.state.previousDesktopMode = null;
+    runtime.state.dockFitWatch = null;
+    runtime.state.dockFitFrame = 0;
+    runtime.state.EDGE_GRAB_PX = 8;
+    runtime.state.EDGE_CURSORS = Object.freeze({ n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize" });
+    runtime.state.railDockHome = null;
+    runtime.state.dockedHudWatch = null;
+    runtime.state.dockedHudSizes = /* @__PURE__ */ new Map();
+    runtime.state.zoneRowWatch = null;
+    runtime.state.COMBAT_LOG_RESERVE_MIN = 176;
+    runtime.state.COMBAT_LOG_MIN_STAGE = 160;
+    runtime.state.COMBAT_LOG_KEY_STEP = 24;
+    runtime.state.combatLogResizeFrame = 0;
+  }
+  function initializeGoalState(runtime) {
+    runtime.state.GOAL_AUTO_COLLAPSE_MS = 7e3;
+    runtime.state.GOAL_FLASH_MS = 1400;
+    runtime.state.goalRuntime = { signature: "", collapseTimer: null, flashTimer: null, currentGoal: null, pendingAutoExpand: false };
+    runtime.state.GOAL_SUBTAB_SWITCHES = [["item-tab-", "switchItemSubtab"], ["skill-tab-", "switchSkillSubtab"], ["map-tab-", "switchMapSubtab"]];
+    runtime.state.GOAL_TONES = Object.freeze({
+      "필수 선택": "#f0a04a",
+      "첫 룬": "#f0a04a",
+      "보상": "#8fd17a",
+      "이야기": "#d6a8ff",
+      "루프": "#b7a3e0",
+      "루프 조건": "#b7a3e0",
+      "다음 주요 해금": "#7fd1c4",
+      "기록 갱신": "#7fb6ef",
+      "저널": "#7fb6ef",
+      "지하계": "#ff8a5c",
+      "우주계": "#8fb8ff"
+    });
+  }
+
+  // modules/ui-window-manager-classic.mjs
+  var windowManagerView = createWindowManagerView({
+    get window() {
+      return window;
+    },
+    get console() {
+      return console;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get document() {
+      return document;
+    },
+    get uiDisplay() {
+      return uiDisplay;
+    },
+    get parseFloat() {
+      return parseFloat;
+    },
+    get getComputedStyle() {
+      return windowGetComputedStyle;
+    },
+    get ResizeObserver() {
+      return typeof ResizeObserver === "undefined" ? void 0 : ResizeObserver;
+    },
+    get requestAnimationFrame() {
+      return windowRequestAnimationFrame;
+    },
+    get cancelAnimationFrame() {
+      return windowCancelAnimationFrame;
+    },
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get structuredClone() {
+      return windowStructuredClone;
+    },
+    get messageFrames() {
+      return typeof messageFrames === "undefined" ? void 0 : messageFrames;
+    },
+    get tabLayoutUi() {
+      return tabLayoutUi;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get clearTimeout() {
+      return windowClearTimeout;
+    },
+    get setTimeout() {
+      return windowSetTimeout;
+    },
+    get getMergedTabGroup() {
+      return typeof getMergedTabGroup === "undefined" ? void 0 : getMergedTabGroup;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get stripDecorativeEmoji() {
+      return stripDecorativeEmoji;
+    },
+    get renderCombatLogIcon() {
+      return typeof renderCombatLogIcon === "undefined" ? void 0 : renderCombatLogIcon;
+    },
+    get scheduleStableResize() {
+      return typeof scheduleStableResize === "undefined" ? void 0 : scheduleStableResize;
+    },
+    get resizeCanvas() {
+      return typeof resizeCanvas === "undefined" ? void 0 : resizeCanvas;
+    },
+    get isTextEntryTarget() {
+      return isTextEntryTarget;
+    }
+  });
+  window.GameModules.windowManagerView = windowManagerView;
+  safeExposeGlobals({
+    toggleWindowFromHotkey: windowManagerView.toggleWindowFromHotkey,
+    openWindow: windowManagerView.openWindow,
+    closeWindow: windowManagerView.closeWindow,
+    closeAllWindows: windowManagerView.closeAllWindows,
+    beginGuideWindowLayout: windowManagerView.beginGuideWindowLayout,
+    minimizeWindow: windowManagerView.minimizeWindow,
+    toggleMaximizeWindow: windowManagerView.toggleMaximizeWindow,
+    resetWindowLayout: windowManagerView.resetWindowLayout,
+    openCommunityDock: windowManagerView.openCommunityDock,
+    closeCommunityDock: windowManagerView.closeCommunityDock,
+    toggleGoalDrawer: windowManagerView.toggleGoalDrawer,
+    presentGoalDrawer: windowManagerView.presentGoalDrawer,
+    openGoalNoticeTarget: windowManagerView.openGoalNoticeTarget,
+    syncDesktopRailGroups: windowManagerView.syncDesktopRailGroups,
+    syncWorkspacePresentation: windowManagerView.syncWorkspacePresentation,
+    refitDockedWindows: windowManagerView.refitDockedWindows
+  });
+})();

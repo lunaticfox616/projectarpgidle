@@ -6,16 +6,11 @@ const fixture = require('./lib/replay-fixture');
 const durationMs = Number(process.env.REPLAY_DURATION_MS || 180000);
 const output = process.argv[2] || 'artifacts/offline-replay-benchmark.json';
 const cases = ['starter', 'summoner', 'void-passives', 'endgame'].filter(name => !process.env.REPLAY_CASE || name === process.env.REPLAY_CASE);
-const sourceOverrides = {};
-if (process.argv.includes('--baseline')) {
-    for (const file of ['js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-replay.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
-        sourceOverrides[file] = require('node:child_process').execFileSync('git', ['show', `HEAD:${file}`], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
-    }
-}
+const baselineRuntime = process.argv.includes('--baseline') ? require('./lib/head-runtime.cjs').createHeadRuntime() : undefined;
 if (!cases.length) throw new Error('Unknown REPLAY_CASE');
 
 async function measure(name) {
-    const { runtime: r, run } = fixture(17, sourceOverrides);
+    const { runtime: r, run } = fixture(17, undefined, baselineRuntime);
     if (name === 'endgame') run(`(${require('./lib/offline-endgame-fixture').toString()})()`);
     if (name === 'summoner') run(`
         game.selectedClassId='occultist';game.selectedHeroId='hero9';game.level=8;
@@ -29,7 +24,7 @@ async function measure(name) {
             game.voidPassives[id]={rarity:'magic',stats:[{id:'flatHp',val:12}],transcendent:null};
         });
     `);
-    run('lastTime=Date.now();game.playerHp=getPlayerStats().maxHp;');
+    run('window.GameModules.state.session.lastTime=Date.now();game.playerHp=getPlayerStats().maxHp;');
     const original = JSON.stringify(run('game'));
     let callbacks = 0, maxSliceMs = 0, previous = performance.now();
     let lastReport = previous;

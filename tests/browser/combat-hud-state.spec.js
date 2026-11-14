@@ -4,9 +4,9 @@ test('attacking with life leech keeps health finite and visible through recovery
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));
     await page.goto('/');await page.locator('#btn-startup-guest').click();await pickClass(page,'warrior');
-    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.waitForFunction(()=>battleAssets.ready&&!window.GameModules.uiRuntime.status().running&&!window.GameModules.uiRuntime.status().queued);
     const result=await page.evaluate(()=>{
-        clearInterval(gameTickHandle);gameTickHandle=null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
         game.settings.pauseGameOnOverlay=false;game.currentZoneId=1;game.moveTimer=0;
         game.gridPlayer={gx:3,gy:4,gridMoveTimer:0};
@@ -17,7 +17,7 @@ test('attacking with life leech keeps health finite and visible through recovery
             armor:0,evasion:0,evasionChance:0,firstHitGuard:0,hitRateGuard:0});
         game.enemies=[enemy];game.playerHp=60;
         performPlayerAttack(getPlayerStats(),{forcedCrit:false});
-        pendingSkillStageHits.forEach(row=>{row.at=0;});processPendingSkillStageHits();
+        window.GameModules.state.combat.pendingSkillStageHits.forEach(row=>{row.at=0;});processPendingSkillStageHits();
         const hasLeech=game.playerLeechInstances.length>0;
         const hp=[];
         for(let tick=0;tick<5;tick++) {
@@ -37,9 +37,9 @@ test('painting combat HUD never changes player health or applies a stale recover
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));
     await page.goto('/');await page.locator('#btn-startup-guest').click();await pickClass(page,'warrior');
-    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.waitForFunction(()=>battleAssets.ready&&!window.GameModules.uiRuntime.status().running&&!window.GameModules.uiRuntime.status().queued);
     const result=await page.evaluate(()=>{
-        clearInterval(gameTickHandle);gameTickHandle=null;
+        window.GameModules.application.timers.stopCombat();
         const stats=getPlayerStats();
         game.playerHp=stats.maxHp*2;const before=game.playerHp;
         for(let i=0;i<5;i++)updateCombatUI({...stats,lifeRecoveryCap:1});
@@ -62,9 +62,9 @@ test('effect timers tick in place and the shield text changes only its numbers',
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));
     await page.goto('/');await page.locator('#btn-startup-guest').click();await pickClass(page,'warrior');
-    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.waitForFunction(()=>battleAssets.ready&&!window.GameModules.uiRuntime.status().running&&!window.GameModules.uiRuntime.status().queued);
     const result=await page.evaluate(()=>{
-        clearInterval(gameTickHandle);gameTickHandle=null;
+        window.GameModules.application.timers.stopCombat();
         const host=document.getElementById('ui-player-ailments-under'),stats=getUiPlayerStats();
         const paint=ailments=>{game.playerAilments=ailments;updatePlayerCombatEffectHud(stats,null);return [...host.children];};
         const read=el=>({angle:el.style.getPropertyValue('--effect-remaining-angle'),time:el.querySelector('.combat-effect-time').textContent});

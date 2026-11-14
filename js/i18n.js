@@ -1,255 +1,239 @@
-/**
- * 언어(2026-11-03, docs/i18n.md). 코드와 index.html에 적힌 한국어 원문이 열쇠고, 다른 언어는 data/locales/<언어>.js의 팩이 그 원문을
- * 번역한다(gettext 방식). 팩에 없는 글은 한국어 원문 그대로 보인다. 장비 부위('무기')나 아이템 이름처럼 저장 키로도 쓰는 한국어는
- * 바꾸지 않고, 보여 줄 때 _t()로만 옮긴다. utils 층: 게임 상태를 모르고, DOM은 data-i18n 요소를 옮기는 applyStatic만 만진다.
- *
- *   _t('보유 {count}개', { count: 3 })   {이름} 자리에 매개변수를 넣는다(번역 뒤에).
- *   _t('접기|기록')                       같은 한국어가 문맥마다 다르게 번역되면 '|문맥'을 붙인다. 한국어로는 문맥을 떼고 보이고, 그 문맥의
- *                                         번역이 없으면 원문('접기')의 번역을 쓴다.
- *   팩 값이 { one: '...', other: '...' }면 params.count로 복수형을 고른다(Intl.PluralRules).
- *   <b data-i18n>화면</b>                 정적 HTML. 그 요소의 바로 아래 글 마디마다 옮긴다(자식 요소 사이의 글도, 자식 요소 안은 아니다).
- *                                         data-i18n-attr="data-tip placeholder"는 그 속성도 옮긴다.
- *   ?lang=en                              그 판에서만 언어를 덮는다(검사·갈무리용). 저장은 바뀌지 않는다.
- *   window 'game:languagechange'          언어가 바뀌면 보낸다. 번역한 글을 제 손으로 그려 둔 UI는 이 이벤트에서 다시 그린다.
- */
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/i18n*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/** 현재 언어의 글: _t('한국어 원문', { 매개변수 }). 세부는 i18n의 머리말. */
-function _t(key, params) {
-    return i18n.t(key, params);
-}
+  // modules/browser/localization.mjs
+  var Localization = class {
+    constructor(source, catalog2, environment) {
+      this.environment = environment;
+      this.LANGUAGE_PACKS = [source, ...catalog2];
+      this.SOURCE = source;
+      this.packs = new Map(this.LANGUAGE_PACKS.map((pack) => [pack.code, pack]));
+      this.pendingPacks = /* @__PURE__ */ new Map();
+      this.languageRequest = 0;
+      this.missing = /* @__PURE__ */ new Set();
+      this.current = this.SOURCE;
+      this.pluralRules = null;
+      this.textSources = /* @__PURE__ */ new WeakMap();
+      this.NAME_FORMS = Object.freeze([
+        [/^나이테 길잡이: (.+)$/, "나이테 길잡이: {name}"],
+        [/^뿌리를 품은 (.+)$/, "뿌리를 품은 {name}"],
+        [/^(.+)의 기억$/, "{name}의 기억"]
+      ]);
+      this.cjkFamily = null;
+    }
+    normalizeLanguage(value) {
+      return this.packs.has(value) ? value : this.SOURCE.code;
+    }
+    sourceText(key) {
+      const at = key.lastIndexOf("|");
+      return at > 0 ? key.slice(0, at) : key;
+    }
+    interpolate(text, params) {
+      if (!params) return text;
+      return text.replace(/\{(\w+)\}/g, (whole, name) => name in params ? String(params[name]) : whole);
+    }
+    pluralText(key, entry, params) {
+      const count = params && Number.isFinite(Number(params.count)) ? Number(params.count) : null;
+      const category = count === null || !this.pluralRules ? "other" : this.pluralRules.select(count);
+      const text = entry[category] ?? entry.other;
+      if (typeof text === "string") return text;
+      this.noteMissing(key);
+      return this.sourceText(key);
+    }
+    noteMissing(key) {
+      if (this.current === this.SOURCE || this.missing.has(key) || !/[가-힣]/.test(this.sourceText(key))) return;
+      this.missing.add(key);
+      this.environment.console.warn(`[i18n] ${this.current.code} 번역 없음: ${key}`);
+    }
+    translate(key, params) {
+      const text = String(key);
+      const entry = this.current.strings[text] ?? this.current.strings[this.sourceText(text)];
+      if (entry === void 0) {
+        const numbered = this.translateNumbered(this.sourceText(text), params);
+        if (numbered !== null) return numbered;
+        this.noteMissing(text);
+        return this.interpolate(this.sourceText(text), params);
+      }
+      return this.interpolate(typeof entry === "string" ? entry : this.pluralText(text, entry, params), params);
+    }
+    translateNumbered(text, params) {
+      if (!/\d/.test(text) || !/[가-힣]/.test(text)) return null;
+      const numbers = [];
+      const pattern = text.replace(/\d[\d,.]*/g, (match) => {
+        numbers.push(match);
+        return `{n${numbers.length === 1 ? "" : numbers.length}}`;
+      });
+      const entry = this.current.strings[pattern];
+      if (typeof entry !== "string") return null;
+      const values = Object.fromEntries(numbers.map((value, index) => [`n${index === 0 ? "" : index + 1}`, value]));
+      return this.interpolate(entry, params ? { ...values, ...params } : values);
+    }
+    translateTextNode(node) {
+      if (!this.textSources.has(node)) this.textSources.set(node, node.nodeValue);
+      const source = this.textSources.get(node);
+      const key = source.trim();
+      if (/[가-힣]/.test(key)) node.nodeValue = source.replace(key, this.translate(key));
+    }
+    translateElement(element) {
+      element.childNodes.forEach((node) => {
+        if (node.nodeType === 3) this.translateTextNode(node);
+      });
+    }
+    translateAttributes(element) {
+      for (const name of element.dataset.i18nAttr.split(/\s+/).filter(Boolean)) {
+        const store = `data-i18n-source-${name}`;
+        if (!element.hasAttribute(store)) element.setAttribute(store, element.getAttribute(name) || "");
+        element.setAttribute(name, this.translate(element.getAttribute(store)));
+      }
+    }
+    applyStatic(root) {
+      const scope = root || this.environment.document;
+      if (scope.matches && scope.matches("[data-i18n]")) this.translateElement(scope);
+      if (scope.matches && scope.matches("[data-i18n-attr]")) this.translateAttributes(scope);
+      scope.querySelectorAll("[data-i18n]").forEach((element) => this.translateElement(element));
+      scope.querySelectorAll("[data-i18n-attr]").forEach((element) => this.translateAttributes(element));
+    }
+    sourceOf(node) {
+      return this.textSources.has(node) ? this.textSources.get(node) : node.nodeValue;
+    }
+    loadPack(code) {
+      const entry = this.packs.get(code);
+      if (code === this.SOURCE.code) return Promise.resolve(this.SOURCE);
+      if (this.environment.window[entry.global]) return Promise.resolve(this.environment.window[entry.global]);
+      if (this.pendingPacks.has(code)) return this.pendingPacks.get(code);
+      const promise = new Promise((resolve, reject) => {
+        const link = this.environment.document.querySelector(`link[rel="rignin-language"][data-language="${code}"]`);
+        if (!link) {
+          reject(new Error(`Missing language pack URL: ${code}`));
+          return;
+        }
+        const script = this.environment.document.createElement("script");
+        script.src = link.href;
+        script.onload = () => {
+          const pack = this.environment.window[entry.global];
+          if (pack?.code === code && pack.strings) resolve(pack);
+          else reject(new Error(`Invalid language pack: ${code}`));
+          script.remove();
+        };
+        script.onerror = () => {
+          script.remove();
+          reject(new Error(`Language pack unavailable: ${code}`));
+        };
+        this.environment.document.head.appendChild(script);
+      });
+      this.pendingPacks.set(code, promise);
+      promise.catch(() => this.pendingPacks.delete(code));
+      return promise;
+    }
+    applyLanguage(next) {
+      const changed = next !== this.current;
+      this.current = next;
+      this.pluralRules = new Intl.PluralRules(this.current.locale);
+      this.environment.document.documentElement.lang = this.current.code;
+      this.cjkFamily = null;
+      this.applyStatic(this.environment.document);
+      if (changed && typeof this.environment.CustomEvent === "function") this.environment.window.dispatchEvent(new this.environment.CustomEvent("game:languagechange", { detail: { language: this.current.code } }));
+    }
+    setLanguage(code, canApply = () => true) {
+      code = this.normalizeLanguage(code);
+      const request = ++this.languageRequest;
+      const loaded = code === this.SOURCE.code ? this.SOURCE : this.environment.window[this.packs.get(code).global];
+      if (loaded) {
+        if (!canApply()) return Promise.resolve(false);
+        this.applyLanguage(loaded);
+        return Promise.resolve(true);
+      }
+      let timer;
+      const deadline = new Promise((_, reject) => {
+        timer = this.environment.setTimeout(() => reject(new Error(`Language pack timeout: ${code}`)), 15e3);
+      });
+      return Promise.race([this.loadPack(code), deadline]).then((pack) => {
+        if (request !== this.languageRequest || !canApply()) return false;
+        this.applyLanguage(pack);
+        return true;
+      }).finally(() => this.environment.clearTimeout(timer));
+    }
+    peelName(name) {
+      const lead = /^(\p{Extended_Pictographic}\uFE0F?\s+)(.+)$/u.exec(name);
+      if (lead) return { inner: lead[2], wrap: (text) => lead[1] + text };
+      const variant = /^(.+) \(([^()]+)\)$/.exec(name);
+      if (variant) return { inner: variant[1], wrap: (text) => `${text} (${this.translate(variant[2])})` };
+      const form = this.NAME_FORMS.find(([pattern]) => pattern.test(name));
+      return form ? { inner: form[0].exec(name)[1], wrap: (text) => this.translate(form[1], { name: text }) } : null;
+    }
+    enemyName(name) {
+      if (typeof name !== "string") return this.translate(name);
+      const wraps = [];
+      let inner = name;
+      for (let depth = 0; depth < 5 && !Object.hasOwn(this.current.strings, inner); depth++) {
+        const peeled = this.peelName(inner);
+        if (!peeled) break;
+        wraps.push(peeled.wrap);
+        inner = peeled.inner;
+      }
+      return wraps.reduceRight((shown, wrap) => wrap(shown), this.translate(inner));
+    }
+    fontFamily(primary) {
+      if (this.cjkFamily === null) this.cjkFamily = this.readCjkFamily();
+      return `${primary}, ${this.cjkFamily}`;
+    }
+    readCjkFamily() {
+      const value = typeof this.environment.getComputedStyle === "function" ? this.environment.getComputedStyle(this.environment.document.documentElement).getPropertyValue("--font-cjk").trim() : "";
+      return value || "'Malgun Gothic', sans-serif";
+    }
+    urlLanguage() {
+      const match = /[?&]lang=([A-Za-z-]+)/.exec(this.environment.location.search || "");
+      return match && this.packs.has(match[1]) ? match[1] : null;
+    }
+    applySaved(settings) {
+      settings.language = this.normalizeLanguage(settings.language);
+      return this.setLanguage(this.urlLanguage() || settings.language);
+    }
+  };
+  function createLocalization(source, catalog2, environment) {
+    const core = new Localization(source, catalog2, environment);
+    return Object.freeze({
+      get language() {
+        return core.current.code;
+      },
+      get locale() {
+        return core.current.locale;
+      },
+      get languages() {
+        return core.LANGUAGE_PACKS.map((pack) => ({ code: pack.code, name: pack.name }));
+      },
+      normalizeLanguage: core.normalizeLanguage.bind(core),
+      t: core.translate.bind(core),
+      setLanguage: core.setLanguage.bind(core),
+      applySaved: core.applySaved.bind(core),
+      applyStatic: core.applyStatic.bind(core),
+      sourceOf: core.sourceOf.bind(core),
+      fontFamily: core.fontFamily.bind(core),
+      enemyName: core.enemyName.bind(core),
+      missingKeys: () => [...core.missing]
+    });
+  }
 
-exposeFileGlobals({ _t });
+  // modules/i18n-classic.mjs
+  var catalog = [
+    { code: "en", name: "English", global: "LANGUAGE_PACK_EN" },
+    { code: "ja", name: "日本語", global: "LANGUAGE_PACK_JA" },
+    { code: "zh-CN", name: "简体中文", global: "LANGUAGE_PACK_ZH_CN" },
+    { code: "zh-TW", name: "繁體中文", global: "LANGUAGE_PACK_ZH_TW" }
+  ];
+  var i18n = createLocalization(LANGUAGE_PACK_KO, catalog, {
+    window,
+    document,
+    location,
+    console,
+    CustomEvent: typeof CustomEvent === "function" ? CustomEvent : void 0,
+    getComputedStyle: typeof getComputedStyle === "function" ? (element) => getComputedStyle(element) : void 0,
+    setTimeout: function scheduleLocaleDeadline(fn, ms) {
+      return setTimeout(fn, ms);
+    },
+    clearTimeout: function cancelLocaleDeadline(id) {
+      clearTimeout(id);
+    }
+  });
+  var _t = (key, params) => i18n.t(key, params);
+  safeExposeGlobals({ i18n, _t });
 })();
-{
-    const LANGUAGE_PACKS = [LANGUAGE_PACK_KO,
-        { code: 'en', name: 'English', global: 'LANGUAGE_PACK_EN' },
-        { code: 'ja', name: '日本語', global: 'LANGUAGE_PACK_JA' },
-        { code: 'zh-CN', name: '简体中文', global: 'LANGUAGE_PACK_ZH_CN' },
-        { code: 'zh-TW', name: '繁體中文', global: 'LANGUAGE_PACK_ZH_TW' }];
-    const SOURCE = LANGUAGE_PACK_KO;
-    const packs = new Map(LANGUAGE_PACKS.map(pack => [pack.code, pack]));
-    const pendingPacks = new Map();
-    let languageRequest = 0;
-    const missing = new Set();
-    let current = SOURCE;
-    let pluralRules = null;
-
-    /** 저장된 값을 아는 언어 코드로. 모르는 값(옛 저장, 손상)은 원문 언어다. */
-    function normalizeLanguage(value) {
-        return packs.has(value) ? value : SOURCE.code;
-    }
-
-    /** '원문|문맥'에서 원문. */
-    function sourceText(key) {
-        const at = key.lastIndexOf('|');
-        return at > 0 ? key.slice(0, at) : key;
-    }
-
-    function interpolate(text, params) {
-        if (!params) return text;
-        return text.replace(/\{(\w+)\}/g, (whole, name) => (name in params ? String(params[name]) : whole));
-    }
-
-    /** 복수형 값({ one, other, ... })에서 params.count에 맞는 글. 그 범주가 없으면 other, 그것도 없으면 원문. */
-    function pluralText(key, entry, params) {
-        const count = params && Number.isFinite(Number(params.count)) ? Number(params.count) : null;
-        const category = count === null || !pluralRules ? 'other' : pluralRules.select(count);
-        const text = entry[category] ?? entry.other;
-        if (typeof text === 'string') return text;
-        noteMissing(key);
-        return sourceText(key);
-    }
-
-    function noteMissing(key) {
-        if (current === SOURCE || missing.has(key) || !/[가-힣]/.test(sourceText(key))) return;   // 한국어가 없는 글(플레이어 이름, 숫자)은 원문이 아니다
-        missing.add(key);
-        console.warn(`[i18n] ${current.code} 번역 없음: ${key}`);
-    }
-
-    /** 현재 언어의 글. 팩에 없으면 한국어 원문(문맥을 떼고). */
-    function translate(key, params) {
-        const text = String(key);
-        const entry = current.strings[text] ?? current.strings[sourceText(text)];   // '원문|문맥'에 번역이 없으면 원문의 번역
-        if (entry === undefined) {
-            const numbered = translateNumbered(sourceText(text), params);
-            if (numbered !== null) return numbered;
-            noteMissing(text);
-            return interpolate(sourceText(text), params);
-        }
-        return interpolate(typeof entry === 'string' ? entry : pluralText(text, entry, params), params);
-    }
-
-    /** 숫자가 박힌 채 만들어진 글('혼돈 심화 21', '소행성 115', '지하계 30층'): 숫자를 {n}, {n2}, …로 바꾼 열쇠의 번역에 그 숫자를 되넣는다.
-     *  데이터가 만든 이름을 보여 주는 자리에서 쓰이며, 그런 열쇠가 팩에 없으면 null이다. */
-    function translateNumbered(text, params) {
-        if (!/\d/.test(text) || !/[가-힣]/.test(text)) return null;
-        const numbers = [];
-        const pattern = text.replace(/\d[\d,.]*/g, match => { numbers.push(match); return `{n${numbers.length === 1 ? '' : numbers.length}}`; });
-        const entry = current.strings[pattern];
-        if (typeof entry !== 'string') return null;
-        const values = Object.fromEntries(numbers.map((value, index) => [`n${index === 0 ? '' : index + 1}`, value]));
-        return interpolate(entry, params ? { ...values, ...params } : values);
-    }
-
-    /** 글 마디의 한국어 원문: 처음 볼 때 적어 두고, 그 뒤로는 그 원문을 현재 언어로 옮긴다(앞뒤 공백은 그대로). */
-    const textSources = new WeakMap();
-    function translateTextNode(node) {
-        if (!textSources.has(node)) textSources.set(node, node.nodeValue);
-        const source = textSources.get(node);
-        const key = source.trim();
-        if (/[가-힣]/.test(key)) node.nodeValue = source.replace(key, translate(key));   // 숫자·괄호만 있는 마디는 원문이 아니다
-    }
-
-    /** data-i18n 요소: 바로 아래 글 마디들만 옮긴다. 자식 요소(알림 점, 아이콘)는 그대로다. */
-    function translateElement(element) {
-        element.childNodes.forEach(node => { if (node.nodeType === 3) translateTextNode(node); });
-    }
-
-    /** data-i18n-attr="data-tip placeholder": 그 속성들의 원문을 data-i18n-source-<속성>에 두고 옮긴다. */
-    function translateAttributes(element) {
-        for (const name of element.dataset.i18nAttr.split(/\s+/).filter(Boolean)) {
-            const store = `data-i18n-source-${name}`;
-            if (!element.hasAttribute(store)) element.setAttribute(store, element.getAttribute(name) || '');
-            element.setAttribute(name, translate(element.getAttribute(store)));
-        }
-    }
-
-    /** root 아래 data-i18n·data-i18n-attr 요소를 현재 언어로. 새로 만든 DOM 조각에도 부를 수 있다. */
-    function applyStatic(root) {
-        const scope = root || document;
-        if (scope.matches && scope.matches('[data-i18n]')) translateElement(scope);
-        if (scope.matches && scope.matches('[data-i18n-attr]')) translateAttributes(scope);
-        scope.querySelectorAll('[data-i18n]').forEach(translateElement);
-        scope.querySelectorAll('[data-i18n-attr]').forEach(translateAttributes);
-    }
-
-    /** 글 마디의 한국어 원문(옮긴 적이 없으면 지금 글). 정적 글을 제 손으로 옮겨 그리는 UI(하단 메뉴 이름표)가 쓴다. */
-    function sourceOf(node) {
-        return textSources.has(node) ? textSources.get(node) : node.nodeValue;
-    }
-
-    /** Only the requested pack is downloaded. The release HTML gives it a content hash, just like boot scripts. */
-    function loadPack(code) {
-        const entry = packs.get(code);
-        if (code === SOURCE.code) return Promise.resolve(SOURCE);
-        if (window[entry.global]) return Promise.resolve(window[entry.global]);
-        if (pendingPacks.has(code)) return pendingPacks.get(code);
-        const promise = new Promise((resolve, reject) => {
-            const link = document.querySelector(`link[rel="rignin-language"][data-language="${code}"]`);
-            if (!link) { reject(new Error(`Missing language pack URL: ${code}`)); return; }
-            const script = document.createElement('script');
-            script.src = link.href;
-            script.onload = () => {
-                const pack = window[entry.global];
-                if (pack?.code === code && pack.strings) resolve(pack);
-                else reject(new Error(`Invalid language pack: ${code}`));
-                script.remove();
-            };
-            script.onerror = () => { script.remove(); reject(new Error(`Language pack unavailable: ${code}`)); };
-            document.head.appendChild(script);
-        });
-        pendingPacks.set(code, promise);
-        promise.catch(() => pendingPacks.delete(code));
-        return promise;
-    }
-
-    function applyLanguage(next) {
-        const changed = next !== current;
-        current = next;
-        pluralRules = new Intl.PluralRules(current.locale);
-        document.documentElement.lang = current.code;
-        cjkFamily = null;
-        applyStatic(document);
-        if (changed && typeof CustomEvent === 'function') window.dispatchEvent(new CustomEvent('game:languagechange', { detail: { language: current.code } }));
-    }
-
-    /** Loaded packs apply synchronously; callers await a missing pack. A stale response never overrides a newer choice. */
-    function setLanguage(code, canApply = () => true) {
-        code = normalizeLanguage(code);
-        const request = ++languageRequest;
-        const loaded = code === SOURCE.code ? SOURCE : window[packs.get(code).global];
-        if (loaded) {
-            if (!canApply()) return Promise.resolve(false);
-            applyLanguage(loaded);
-            return Promise.resolve(true);
-        }
-        let timer;
-        const deadline = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Language pack timeout: ${code}`)), 15000); });
-        // Keep an in-flight script on timeout: retrying must not execute the same classic const declaration twice.
-        return Promise.race([loadPack(code), deadline]).then(pack => {
-            if (request !== languageRequest || !canApply()) return false;
-            applyLanguage(pack);
-            return true;
-        }).finally(() => clearTimeout(timer));
-    }
-
-    /** 생성 때 말을 붙인 적 이름(저장되는 한국어 원문)을 지금 언어로: 통째로 열쇠가 있으면 그 번역, 아니면 붙인 말(앞의 그림 글자, 뒤의
-     *  '(변이)', NAME_FORMS의 꼴)을 떼어 각각 옮겨 다시 붙인다. 생성 때 옮겨 저장하면 원문이 섞이고("Memory of 정원사의 메아리") 언어를
-     *  바꿔도 남았다(2026-11-05 검토). */
-    const NAME_FORMS = Object.freeze([
-        [/^나이테 길잡이: (.+)$/, '나이테 길잡이: {name}'],
-        [/^뿌리를 품은 (.+)$/, '뿌리를 품은 {name}'],
-        [/^(.+)의 기억$/, '{name}의 기억']
-    ]);
-    /** 붙인 말 하나를 뗀다: { inner: 안쪽 이름, wrap: 옮긴 안쪽 이름을 옮긴 바깥 이름으로 } 또는 null. */
-    function peelName(name) {
-        const lead = /^(\p{Extended_Pictographic}\uFE0F?\s+)(.+)$/u.exec(name);
-        if (lead) return { inner: lead[2], wrap: text => lead[1] + text };
-        const variant = /^(.+) \(([^()]+)\)$/.exec(name);
-        if (variant) return { inner: variant[1], wrap: text => `${text} (${translate(variant[2])})` };
-        const form = NAME_FORMS.find(([pattern]) => pattern.test(name));
-        return form ? { inner: form[0].exec(name)[1], wrap: text => translate(form[1], { name: text }) } : null;
-    }
-    function enemyName(name) {
-        if (typeof name !== 'string') return translate(name);
-        const wraps = [];   // 바깥 말부터: 안쪽 이름을 옮긴 뒤 안에서 밖으로 다시 붙인다
-        let inner = name;
-        for (let depth = 0; depth < 5 && !Object.hasOwn(current.strings, inner); depth++) {
-            const peeled = peelName(inner);
-            if (!peeled) break;
-            wraps.push(peeled.wrap);
-            inner = peeled.inner;
-        }
-        return wraps.reduceRight((shown, wrap) => wrap(shown), translate(inner));
-    }
-
-    /** 캔버스 글꼴 목록: 앞 글꼴 뒤에 CSS --font-cjk(css/tokens.css가 html lang으로 고르는 언어별 CJK 보조 글꼴)를 붙인다.
-     *  Galmuri에 없는 가나·한자가 화면의 글과 같은 글꼴로 그려진다. 언어를 바꾸면 다음 호출에서 다시 읽는다. */
-    let cjkFamily = null;
-    function fontFamily(primary) {
-        if (cjkFamily === null) cjkFamily = readCjkFamily();
-        return `${primary}, ${cjkFamily}`;
-    }
-
-    function readCjkFamily() {
-        const value = typeof getComputedStyle === 'function' ? getComputedStyle(document.documentElement).getPropertyValue('--font-cjk').trim() : '';
-        return value || "'Malgun Gothic', sans-serif";
-    }
-
-    /** 주소의 ?lang=: 그 판에서만 언어를 덮는다. 아는 언어가 아니면 무시한다. */
-    function urlLanguage() {
-        const match = /[?&]lang=([A-Za-z-]+)/.exec(location.search || '');
-        return match && packs.has(match[1]) ? match[1] : null;
-    }
-
-    /** 저장을 읽은 뒤: 설정의 언어를 바로잡아 되돌려 적고 적용한다. 주소의 ?lang=은 저장을 바꾸지 않고 이번만 이긴다. */
-    function applySaved(settings) {
-        settings.language = normalizeLanguage(settings.language);
-        return setLanguage(urlLanguage() || settings.language);
-    }
-
-    safeExposeGlobals({ i18n: Object.freeze({
-        get language() { return current.code; },
-        /** toLocaleString·localeCompare에 넘기는 BCP 47 로캘(ko-KR, en-US). */
-        get locale() { return current.locale; },
-        /** 고를 수 있는 언어: { code, name }. 이름은 그 언어로 적혀 있어 번역하지 않는다. */
-        get languages() { return LANGUAGE_PACKS.map(pack => ({ code: pack.code, name: pack.name })); },
-        normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic, sourceOf, fontFamily, enemyName,
-        /** 이번 판에서 현재 언어의 팩에 없던 열쇠(검사·보고용). */
-        missingKeys: () => [...missing]
-    }) });
-}
-
-
-safeExposeGlobals({ _t });

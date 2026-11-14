@@ -21,9 +21,9 @@ async function openMobile(page, native = false) {
     await page.goto('/');
     await page.locator('#btn-startup-guest').tap();
     await pickClass(page, 'warrior', { tap: true });
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         hideInfoTooltip();
     });
@@ -66,7 +66,7 @@ test('all unlocked mobile navigation entries open without page overflow or runti
         // 거래 단추(2026-11-06)는 화면 전체 갱신이 켠다(js/ui.js): 메뉴 갱신만으로는 안 보인다.
         updateStaticUI(); updateTabUnlockButtons(); applyTabHeaderOrder(); updateTabNotificationDots();
     });
-    await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     // 2026-11-03 사용자: 하단 메뉴는 화면 너비만큼 바로가기를 싣는다(Pixel 5 폭에 전투와 바로가기 다섯).
     await expect(page.locator('#tab-header-bottom > .tab-btn:visible')).toHaveCount(6);
     const ids = await page.locator('.tab-header > .tab-btn').evaluateAll(elements => elements
@@ -79,7 +79,7 @@ test('all unlocked mobile navigation entries open without page overflow or runti
         if (!await page.locator('#' + id).isVisible()) await page.locator('#btn-mobile-nav-more').tap();
         await page.locator('#' + id).tap();
         await page.waitForFunction(() => {
-            if (uiRefreshRunning || uiRefreshQueued) return false;
+            if (window.GameModules.uiRuntime.status().running || window.GameModules.uiRuntime.status().queued) return false;
             tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
             return true;
         });
@@ -116,7 +116,7 @@ test('the phone dock keeps its cells when the map unlocks', async ({ page }, inf
     await expect(page.locator('#game-toast-region .game-toast', { hasText: '액트 1을 마치면 지도가 열립니다.' })).toBeVisible();
     await page.evaluate(() => { game.maxZoneId = 1; checkUnlocks(); updateStaticUI(); });
     await page.waitForFunction(() => {
-        if (uiRefreshRunning || uiRefreshQueued) return false;
+        if (window.GameModules.uiRuntime.status().running || window.GameModules.uiRuntime.status().queued) return false;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         return !document.getElementById('btn-tab-map').classList.contains('nav-locked');
     });
@@ -167,7 +167,7 @@ test('a class card shows its start gem before the pick and leaves no class toolt
     }
     await expect(overlay).not.toHaveClass(/active/);
     expect(await page.evaluate(() => [game.heroSelectionInitialized, game.selectedClassId])).toEqual([true, 'warrior']);
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     if (mobile) await expect(page.locator('#info-tooltip')).toBeHidden();
 });
 
@@ -180,8 +180,8 @@ test('HUD gem hover details follow the mouse and never stay behind after a tap',
         await page.goto('/');
         await page.locator('#btn-startup-guest').click();
         await pickClass(page, 'warrior');
-        await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-        await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
+        await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
+        await page.evaluate(() => { window.GameModules.application.timers.stopCombat(); tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
     }
     await page.evaluate(() => {
         game.mobilitySkill = Object.keys(SKILL_DB).find(name => SKILL_DB[name].tags?.includes('mobility'));

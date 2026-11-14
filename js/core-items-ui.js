@@ -1,31 +1,57 @@
-// 장비창의 코어 칸(장착 칸 왼쪽 위). 2026-10-10부터 코어는 가방에 들어가고 장비 칸 '코어'에 낀다(js/bag-items.js). 칸은 다른 장착
-// 칸과 같은 .equipment-slot이라 끌어 놓기, 누르기, 두 번 눌러 해제가 그대로 되고, 툴팁은 js/bag-items-ui.js가 코어 카드로 그린다.
-const coreItemsUi = (() => {
-    const SLOT = '코어';
-
-    function emptyHtml() {
-        return `<div class="slot-box equipment-slot equipment-slot-empty slot-${SLOT} core-item-slot" data-slot="${SLOT}" onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${SLOT}')">
-            <div class="equipment-slot-head"><span>${_t(SLOT)}</span></div><div class="equipment-slot-visual empty"><img src="${coreItems.icon(null)}" alt="" aria-hidden="true" draggable="false"></div>
+// GENERATED from modules/core-items-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/core-items-markup.mjs
+  function emptyHtml(runtime) {
+    return `<div class="slot-box equipment-slot equipment-slot-empty slot-${runtime.state.SLOT} core-item-slot" data-slot="${runtime.state.SLOT}" onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${runtime.state.SLOT}')">
+            <div class="equipment-slot-head"><span>${(0, runtime.deps._t)(runtime.state.SLOT)}</span></div><div class="equipment-slot-visual empty"><img src="${runtime.deps.coreItems.icon(null)}" alt="" aria-hidden="true" draggable="false"></div>
             <div class="equipment-empty-mark">＋</div>
-            <div class="equipment-empty-label">${_t('비어 있음')}</div>
+            <div class="equipment-empty-label">${(0, runtime.deps._t)("비어 있음")}</div>
         </div>`;
-    }
-
-    /** Paperdoll card for the core slot: absent until the core unlock, unless a core is still worn. */
-    function slotHtml() {
-        const core = (game.equipment || {})[SLOT];
-        if (!core) return contentProgression.isUnlocked('cube') ? emptyHtml() : '';
-        const hover = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${SLOT}', true)`;
-        const rarity = core.rarity || 'rare';
-        return `<div class="slot-box equipment-slot slot-${SLOT} core-item-slot rarity-${rarity}" data-slot="${SLOT}" data-item-tooltip-anchor="1"
-            onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${SLOT}')"
-            ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${SLOT}')"
+  }
+  function slotHtml(runtime) {
+    const core = (runtime.deps.game.equipment || {})[runtime.state.SLOT];
+    if (!core) return runtime.deps.contentProgression.isUnlocked("cube") ? emptyHtml(runtime) : "";
+    const hover = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${runtime.state.SLOT}', true)`;
+    const rarity = core.rarity || "rare";
+    return `<div class="slot-box equipment-slot slot-${runtime.state.SLOT} core-item-slot rarity-${rarity}" data-slot="${runtime.state.SLOT}" data-item-tooltip-anchor="1"
+            onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${runtime.state.SLOT}')"
+            ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${runtime.state.SLOT}')"
             onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
-            <div class="equipment-slot-head"><span>${_t(SLOT)}</span></div><div class="equipment-slot-visual"><img src="${coreItems.icon(core)}" alt="" aria-hidden="true" draggable="false"></div>
-            <div class="item-title equipment-slot-name ${rarity}">${escapeHTML(_t(core.name))}</div>
+            <div class="equipment-slot-head"><span>${(0, runtime.deps._t)(runtime.state.SLOT)}</span></div><div class="equipment-slot-visual"><img src="${runtime.deps.coreItems.icon(core)}" alt="" aria-hidden="true" draggable="false"></div>
+            <div class="item-title equipment-slot-name ${rarity}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(core.name))}</div>
         </div>`;
-    }
+  }
 
-    return Object.freeze({ slotHtml });
+  // modules/ui/core-items-view.mjs
+  function createCoreItemsView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null };
+    const handlers = { slotHtml };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(void 0, runtime);
+    initialize(runtime);
+    runtime.api = Object.freeze({ slotHtml: runtime.handlers.slotHtml });
+    return runtime.api;
+  }
+  function initialize(runtime) {
+    runtime.state.SLOT = "코어";
+  }
+
+  // modules/core-items-ui-classic.mjs
+  var coreItemsUi = createCoreItemsView({
+    get _t() {
+      return _t;
+    },
+    get coreItems() {
+      return coreItems;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get contentProgression() {
+      return contentProgression;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    }
+  });
+  safeExposeGlobals({ coreItemsUi });
 })();
-safeExposeGlobals({ coreItemsUi });

@@ -1,0 +1,924 @@
+[
+  {
+    "source": "modules/data/constants.mjs",
+    "output": "data/constants.js",
+    "names": [
+      "PASSIVE_LAYOUT_VERSION",
+      "LOCAL_SAVE_KEY",
+      "LEGACY_SAVE_KEY_PATTERN",
+      "ACCOUNT_SAVE_KEY_PREFIX",
+      "CLOUD_SESSION_STORAGE_KEY",
+      "LEGACY_CLOUD_SESSION_KEY_PATTERN",
+      "CLOUD_SYNC_MIN_INTERVAL_MS",
+      "CLOUD_KEEPALIVE_BODY_LIMIT",
+      "HERO_SIZE_SCALE",
+      "HERO_RUN_RATE_MAX",
+      "PROJECTILE_FLIGHT_LIFT",
+      "PROJECTILE_HAND_REACH",
+      "PROJECTILE_SPRITE_SCALE",
+      "CLOUD_EXIT_UPLOAD_MIN_GAP_MS",
+      "GUEST_SAVE_CHECK",
+      "ENEMY_CRITICAL_DAMAGE_MULTIPLIER",
+      "BATTLE_SPRITE_OUTLINES",
+      "BOSS_DRAW_SCALE",
+      "EMPTY_TRAVEL_PROGRESS_MULTIPLIER",
+      "ACT_REST_RECOVERY_PCT_PER_SEC",
+      "ACT_RETREAT_LEVELS",
+      "CAMPAIGN_RESIST_PENALTY",
+      "EQUIPMENT_INVENTORY_COLUMNS",
+      "EQUIPMENT_INVENTORY_ROWS_PER_PAGE",
+      "EQUIPMENT_INVENTORY_MAX_PAGES",
+      "EQUIPMENT_INVENTORY_CELLS_PER_PAGE",
+      "UNDERWORLD_DIFFICULTY_CONFIG",
+      "UNDERWORLD_DEEP_FLOOR_REWARD",
+      "UNDERWORLD_ENCHANT_POOLS",
+      "UNDERWORLD_LIMIT_BREAK",
+      "DAMAGE_ELEMENT_LABELS",
+      "DAMAGE_ELEMENT_ICONS",
+      "DEATH_REASON_TEXT",
+      "COMBAT_GRID_CONFIG"
+    ]
+  },
+  {
+    "source": "modules/data/level-progression.mjs",
+    "output": "data/level-progression.js",
+    "names": [
+      "LEVEL_PROGRESSION"
+    ]
+  },
+  {
+    "source": "modules/data/build-stat-inputs.mjs",
+    "output": "data/build-stat-inputs.js",
+    "names": [
+      "BUILD_STAT_FIELDS",
+      "BUILD_STAT_PARTS",
+      "PLAYER_STAT_CONTEXT_FIELDS",
+      "PLAYER_STAT_DERIVED_WRITES",
+      "PLAYER_STAT_SELF_CHECK_ANSWERS"
+    ]
+  },
+  {
+    "source": "modules/data/maps.mjs",
+    "output": "data/maps.js",
+    "names": [
+      "ACT_BATTLE_MAP_LAYOUT",
+      "STORY_ACTS",
+      "WORLD_MAP_HOTSPOTS",
+      "TRIAL_ZONES",
+      "METEOR_FALL_ZONE_ID",
+      "GRAND_BREACH_ENCOUNTER",
+      "METEOR_SITE_UNLOCK_LOOP",
+      "METEOR_SITE_UNLOCK_ACT",
+      "METEOR_KINDS",
+      "METEOR_CONSTELLATION_POOL",
+      "OCEAN_UNLOCK_LOOP",
+      "OCEAN_AUTO_REDIVE",
+      "OCEAN_COMBAT_DIVE",
+      "OCEAN_ZONE_ID",
+      "MAP_PRIMARY_CONTENTS",
+      "COSMOS_MECHANIC_DB",
+      "COSMOS_GALAXY_ENVIRONMENT_DB",
+      "COSMOS_EXPEDITION_DIRECTIVE_DB",
+      "EXPLORATION_EVENT_LOOPS",
+      "EXPLORATION_EVENT_NOTICES",
+      "EXPLORATION_PROP_LOOT",
+      "EXPLORATION_CHEST_GRADES",
+      "LOOP_GATE_ABYSS_DEPTH_CAP",
+      "LOOP_GATE_ALT_START_SEASON",
+      "LOOP_GATE_ALT_COSMOS_PLANET_ID",
+      "LOOP_GATE_ALT_COSMOS_PLANET_NAME",
+      "LOOP_DEEP_STATS",
+      "WORLD_TREE_BARK",
+      "PINNACLE_FIRST_KILL_JOURNALS",
+      "ACT_LOOP_SCALE_CAP",
+      "CHAOS_LOOP_RAMP_PER_DEPTH",
+      "EXPLORATION_ARRIVAL_GRACE_MS",
+      "MONSTER_LOOP_HP_CURVE",
+      "BOSS_TIER_HP_EASE",
+      "BOSS_LOOP_HP_SHARE",
+      "MONSTER_LOOP_GROWTH",
+      "MONSTER_LOOP_POWER_SCALE",
+      "ENEMY_DEFENSE_TIER20",
+      "BOSS_DEFENSE_SPECIALTIES",
+      "LOOP_MUTATION",
+      "TIME_RIFT_UNLOCK_LOOP",
+      "TIME_RIFT_PAST_ZONE_ID",
+      "TIME_RIFT_FUTURE_ZONE_ID",
+      "TIME_RIFT_MAX_PRESSURE",
+      "TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS",
+      "TIME_RIFT_LOOP_BEHIND_DEPTH",
+      "TIME_RIFT_OPTION_KEEP",
+      "TIME_RIFT_KEEP_CAP",
+      "TIME_RIFT_OPTION_KEEP_PAST_CAP",
+      "SEASON_CONTENT_ROADMAP",
+      "SEASON_BOSS_ZONES",
+      "LABYRINTH_ZONE_ID",
+      "JOURNAL_DB",
+      "JOURNAL_ENTRY_ORDER"
+    ]
+  },
+  {
+    "source": "modules/data/bgm.mjs",
+    "output": "data/bgm.js",
+    "names": [
+      "BGM_TRACKS",
+      "BGM_ZONE_TRACKS",
+      "BGM_BOSS_TRACKS",
+      "BGM_BOSS_VISUAL_TRACKS"
+    ]
+  },
+  {
+    "source": "modules/data/story-journal.mjs",
+    "output": "data/story-journal.js",
+    "names": [
+      "SUPPLIED_STORY_SCENES",
+      "STORY_BRIDGE_SCENES",
+      "STORY_JOURNAL_SCENES",
+      "STORY_QUOTE_PLACEMENT",
+      "STORY_SCENE_QUOTES",
+      "STORY_CLASS_ORIGINS",
+      "STORY_NPCS",
+      "STORY_ACT_ENCOUNTERS",
+      "STORY_TRIAL_ENCOUNTERS",
+      "STORY_LOOP_MILESTONES",
+      "STORY_ENDGAME_ENCOUNTERS"
+    ]
+  },
+  {
+    "source": "modules/data/act-exploration-maps.mjs",
+    "output": "data/act-exploration-maps.js",
+    "names": [
+      "ACT_EXPLORATION_MAPS",
+      "CONTENT_EXPLORATION_MAPS",
+      "ACT_EXPLORATION_BACKDROPS",
+      "ACT_EXPLORATION_ART_VERSION",
+      "ACT_EXPLORATION_VISION",
+      "ACT_EXPLORATION_ALERT",
+      "ACT_EXPLORATION_AMBUSH",
+      "ACT_EXPLORATION_WAVES",
+      "ACT_EXPLORATION_INCIDENTS",
+      "GROUND_LOOT_DROP"
+    ]
+  },
+  {
+    "source": "modules/data/cosmos-route.mjs",
+    "output": "data/cosmos-route.js",
+    "names": [
+      "COSMOS_ROUTE_G1",
+      "COSMOS_ROUTE_GALAXIES",
+      "COSMOS_GRAVITY_FIELD",
+      "COSMOS_SKY_POWER_PER_REWARD"
+    ]
+  },
+  {
+    "source": "modules/data/exploration-regions.mjs",
+    "output": "data/exploration-regions.js",
+    "names": [
+      "EXPLORATION_REGIONS"
+    ]
+  },
+  {
+    "source": "modules/data/world-map.mjs",
+    "output": "data/world-map.js",
+    "names": [
+      "WORLD_MAP"
+    ]
+  },
+  {
+    "source": "modules/data/atlas-board.mjs",
+    "output": "data/atlas-board.js",
+    "names": [
+      "ATLAS_BOARD"
+    ]
+  },
+  {
+    "source": "modules/data/atlas.mjs",
+    "output": "data/atlas.js",
+    "names": [
+      "ATLAS"
+    ]
+  },
+  {
+    "source": "modules/data/atlas-passives.mjs",
+    "output": "data/atlas-passives.js",
+    "names": [
+      "ATLAS_PASSIVES"
+    ]
+  },
+  {
+    "source": "modules/data/atlas-endgame.mjs",
+    "output": "data/atlas-endgame.js",
+    "names": [
+      "ATLAS_ENDGAME"
+    ]
+  },
+  {
+    "source": "modules/data/loot-omens.mjs",
+    "output": "data/loot-omens.js",
+    "names": [
+      "LOOT_OMENS"
+    ]
+  },
+  {
+    "source": "modules/data/knitting.mjs",
+    "output": "data/knitting.js",
+    "names": [
+      "KNITTING"
+    ]
+  },
+  {
+    "source": "modules/data/memory-leaves.mjs",
+    "output": "data/memory-leaves.js",
+    "names": [
+      "MEMORY_LEAVES"
+    ]
+  },
+  {
+    "source": "modules/data/gem-core-forge.mjs",
+    "output": "data/gem-core-forge.js",
+    "names": [
+      "GEM_CORE_FORGE"
+    ]
+  },
+  {
+    "source": "modules/data/skills.mjs",
+    "output": "data/skills.js",
+    "names": [
+      "PROJECTILE_BONUS_SHOT_DAMAGE_PCT",
+      "PROJECTILE_PATTERN_MODE_DB",
+      "SKILL_DB",
+      "BASIC_SKILL_WEAPONS",
+      "BASIC_SKILL_ELEMENTS",
+      "BASIC_SKILL_ROWS",
+      "RETIRED_GEM_SUCCESSORS",
+      "RETIRED_SUPPORT_GEMS",
+      "GEM_AWAKENED_PERKS",
+      "SKILL_RUNE_WEAPONS",
+      "SKILL_RUNE_FAMILY",
+      "SKILL_RUNE_LEVEL_REQ",
+      "SKILL_RUNE_DROP_WEIGHTS",
+      "SUPPORT_RUNE_LEVEL_REQ",
+      "SKILL_RUNE_STANCE_BY_CATEGORY",
+      "SKILL_RUNE_STANCE_LABELS",
+      "SKILL_RUNE_WEAPON_NOTES",
+      "WEAPON_CONDITION_BASE_STATS",
+      "WEAPON_CONDITION_STATS",
+      "SUPPORT_RUNE_ART_ORDER",
+      "STAT_TONES",
+      "SUPPORT_RUNE_BEHAVIOR_TONES",
+      "SKILL_GEM_VFX_PROFILES",
+      "SKILL_AREA_VFX_ASSETS",
+      "SKILL_SIGNATURE_SPRITES",
+      "SKILL_GEM_ART_PATHS",
+      "SKILL_GRID_DB",
+      "CONDITION_PATTERN_TRIGGER_DB",
+      "CONDITION_PATTERN_ACTION_DB"
+    ]
+  },
+  {
+    "source": "modules/data/skill-effect-expansion.mjs",
+    "output": "data/skill-effect-expansion.js",
+    "names": [
+      "SKILL_EFFECT_EXPANSION"
+    ]
+  },
+  {
+    "source": "modules/data/skill-fx-atlas.mjs",
+    "output": "data/skill-fx-atlas.js",
+    "names": [
+      "SKILL_FX_ATLAS"
+    ]
+  },
+  {
+    "source": "modules/data/endgame-progression.mjs",
+    "output": "data/endgame-progression.js",
+    "names": [
+      "BEYOND_BOUNDARY_ZONE_ID",
+      "BEYOND_BOUNDARY_STATE_VERSION",
+      "BEYOND_BOUNDARY_UNLOCK_LOOP",
+      "BEYOND_BOUNDARY_UNLOCK_SEEDS",
+      "BEYOND_BOUNDARY_UNLOCK_BOSS_ID",
+      "BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER",
+      "BEYOND_BOUNDARY_TIER_CAP",
+      "BEYOND_BOUNDARY_DIFFICULTY_OFFSET",
+      "BEYOND_BOUNDARY_HP_GROWTH",
+      "BEYOND_BOUNDARY_DAMAGE_GROWTH",
+      "BEYOND_BOUNDARY_REWARD_GROWTH",
+      "BEYOND_BOUNDARY_SEAL_DB",
+      "BEYOND_BOUNDARY_MUTATOR_DB",
+      "BEYOND_BOUNDARY_REWARD_FOCUS_DB",
+      "BEYOND_BOUNDARY_INTENSITY_DB"
+    ]
+  },
+  {
+    "source": "modules/data/severed-wanderers.mjs",
+    "output": "data/severed-wanderers.js",
+    "names": [
+      "SEVERED_WANDERER_CONFIG"
+    ]
+  },
+  {
+    "source": "modules/data/items.mjs",
+    "output": "data/items.js",
+    "names": [
+      "EQUIPMENT_BASE_DROP_CHANCES",
+      "BASIC_CURRENCY_DROP_CHANCES",
+      "LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER",
+      "LABYRINTH_DEEP_FOSSIL",
+      "UNDERWORLD_ORE_DROP_CHANCES",
+      "EQUIPMENT_DROUGHT_RULES",
+      "EQUIPMENT_DROP_RARITY_THRESHOLDS",
+      "EQUIPMENT_DROP_VARIANTS",
+      "TAINTED_CRAFT_OUTCOMES",
+      "SOCKETED_ACCESSORY_DROP_CHANCE",
+      "BASE_DROP_WEIGHTS",
+      "EXPLICIT_AFFIX_RULES",
+      "EXPLICIT_AFFIX_LINE_CAP",
+      "FOSSIL_TAG_WEIGHT",
+      "ITEM_RARITY_LABELS",
+      "ITEM_PICKUP_PRESETS",
+      "ITEM_VISUAL_ASSET_DB",
+      "WEAPON_BASE_LEGACY_NAMES",
+      "ARM_GUARD_BASE_LEGACY_NAMES",
+      "RENAMED_UNIQUES",
+      "UNIQUE_DB",
+      "HARVEST_SOCKET_UNIQUES",
+      "MOBILITY_RUNE_ATTACK_KEY",
+      "MOBILITY_RUNE_ATTACK_UNIQUE",
+      "isMobilityRuneAttackWorn",
+      "REALM_UNIQUE_SLOTS",
+      "CHAOS_REALM_ENTRIES",
+      "UNDERWORLD_REALM_ENTRIES",
+      "COSMOS_CODEX",
+      "COSMOS_REALM_ENTRIES",
+      "REALM_STAT_PACKS",
+      "REALM_UNIQUE_DROP_TIER_RANGES",
+      "pushRealmUniqueSet",
+      "COSMOS_BOSS_REWARD_DB",
+      "COSMOS_BOSS_RELIC_DB",
+      "COSMOS_BOSS_STONE_COMMON_OPTIONS",
+      "COSMOS_BOSS_STONE_DEFENSE_OPTIONS",
+      "COSMOS_BOSS_STONE_OPTION_POOLS",
+      "COSMOS_BOSS_UNIQUE_EQUIPMENT",
+      "REALM_BOSS_UNIQUE_DROP_RULES",
+      "ROOT_BOSS_UNIQUE_RULES",
+      "CURRENCY_LEGACY_MERGE",
+      "getCanonicalCurrencyKey",
+      "ORB_DB",
+      "CRAFT_OMENS",
+      "normalizeCraftOmen",
+      "isCraftResult",
+      "normalizeCraftChoice",
+      "WALLET_CURRENCY_INFO",
+      "getCurrencyInfo",
+      "CURRENCY_NAME_TONES",
+      "CURRENCY_CARD_TONES",
+      "getCurrencyTone",
+      "getStyledOrbName",
+      "CURRENCY_ICON_PATHS",
+      "OCEAN_FISH_DB",
+      "OCEAN_FISH_RARITY_META",
+      "OCEAN_FISHING_STRATEGIES",
+      "OCEAN_FISH_COLLECTION_MILESTONES",
+      "MARKET_EXCHANGES"
+    ]
+  },
+  {
+    "source": "modules/data/currency-exchange.mjs",
+    "output": "data/currency-exchange.js",
+    "names": [
+      "NPC_CURRENCY_EXCHANGE"
+    ]
+  },
+  {
+    "source": "modules/data/weapon-categories.mjs",
+    "output": "data/weapon-categories.js",
+    "names": [
+      "WEAPON_CATEGORIES",
+      "WEAPON_BASE_CATEGORIES",
+      "SLENDER_GREATSWORD_BASES",
+      "WEAPON_CATEGORY_OFF_MODS"
+    ]
+  },
+  {
+    "source": "modules/data/affix-tags.mjs",
+    "output": "data/affix-tags.js",
+    "names": [
+      "AFFIX_TAG_LABELS",
+      "STAT_AFFIX_TAGS",
+      "AFFIX_TAG_LISTS",
+      "getStatAffixTags",
+      "getAffixTags",
+      "matchesAffixTags",
+      "resolveAffixTagList"
+    ]
+  },
+  {
+    "source": "modules/data/region-affixes.mjs",
+    "output": "data/region-affixes.js",
+    "names": [
+      "REGION_AFFIX_RULES",
+      "REGION_AFFIX_EFFECTS",
+      "REGION_AFFIX_TONES",
+      "REGION_AFFIX_MODS"
+    ]
+  },
+  {
+    "source": "modules/data/item-influences.mjs",
+    "output": "data/item-influences.js",
+    "names": [
+      "ITEM_INFLUENCES",
+      "ITEM_INFLUENCE_RULES",
+      "ALTAR_INFLUENCE_LINES",
+      "INFLUENCE_AFFIX_MODS",
+      "SWAPPED_UNIQUE_LINES",
+      "SWAPPED_UNIQUE_META"
+    ]
+  },
+  {
+    "source": "modules/data/colony-wards.mjs",
+    "output": "data/colony-wards.js",
+    "names": [
+      "COLONY_WARD_RULES",
+      "COLONY_WARD_POOL",
+      "COLONY_WARD_UNIQUES"
+    ]
+  },
+  {
+    "source": "modules/data/ember-corruption.mjs",
+    "output": "data/ember-corruption.js",
+    "names": [
+      "EMBER_CORRUPTION_RULES",
+      "EMBER_BURN_OUTCOMES",
+      "EMBER_CORRUPTION_LINES",
+      "EMBER_KILL_DROPS",
+      "EMBER_CORRUPTION_TONE"
+    ]
+  },
+  {
+    "source": "modules/data/memory-dungeon.mjs",
+    "output": "data/memory-dungeon.js",
+    "names": [
+      "MEMORY_DUNGEON"
+    ]
+  },
+  {
+    "source": "modules/data/boss-variants.mjs",
+    "output": "data/boss-variants.js",
+    "names": [
+      "BOSS_VARIANTS"
+    ]
+  },
+  {
+    "source": "modules/data/sap-catalysts.mjs",
+    "output": "data/sap-catalysts.js",
+    "names": [
+      "SAP_CATALYSTS"
+    ]
+  },
+  {
+    "source": "modules/data/garden-oils.mjs",
+    "output": "data/garden-oils.js",
+    "names": [
+      "GARDEN_OILS"
+    ]
+  },
+  {
+    "source": "modules/data/stump-nursery.mjs",
+    "output": "data/stump-nursery.js",
+    "names": [
+      "STUMP_NURSERY"
+    ]
+  },
+  {
+    "source": "modules/data/weapon-mastery.mjs",
+    "output": "data/weapon-mastery.js",
+    "names": [
+      "WEAPON_MASTERY"
+    ]
+  },
+  {
+    "source": "modules/data/chronicle.mjs",
+    "output": "data/chronicle.js",
+    "names": [
+      "CHRONICLE"
+    ]
+  },
+  {
+    "source": "modules/data/unique-equipment.mjs",
+    "output": "data/unique-equipment.js",
+    "names": [
+      "UNIQUE_EQUIPMENT_RULES"
+    ]
+  },
+  {
+    "source": "modules/data/offline-progress.mjs",
+    "output": "data/offline-progress.js",
+    "names": [
+      "OFFLINE_PROGRESS_RECOGNITION_HOURS",
+      "OFFLINE_PROGRESS_EFFICIENCY_RATES",
+      "OFFLINE_PROGRESS_EFFICIENCY_CAP",
+      "OFFLINE_PROJECTION"
+    ]
+  },
+  {
+    "source": "modules/data/stump-box.mjs",
+    "output": "data/stump-box.js",
+    "names": [
+      "STUMP_BOX_SIZE",
+      "STUMP_BOX_COLORS",
+      "STUMP_BOX_OVERCOMES",
+      "STUMP_BOX_FEEDS",
+      "STUMP_BOX_CELL_ORDER",
+      "STUMP_BOX_OPENING",
+      "STUMP_BOX_GROWTH",
+      "STUMP_BOX_KINDS",
+      "STUMP_BOX_DROPS",
+      "STUMP_BOX_COMPOST",
+      "STUMP_BOX_NURSERY",
+      "STUMP_BOX_ROLL_LIMIT",
+      "STUMP_BOX_STORAGE_BASE",
+      "STUMP_BOX_SYNERGY",
+      "STUMP_BOX_HARVEST",
+      "STUMP_BOX_HARVEST_CRAFT",
+      "STUMP_BOX_UNLOCKS",
+      "BOSS_EXTRA_LINE",
+      "STUMP_BOX_RIPENING",
+      "STUMP_LINE",
+      "linesOf",
+      "VINE_YIELDS",
+      "VINE_EXTRA_LINES",
+      "STUMP_BOX_EXTRA_LINES",
+      "STUMP_BOX_SCAR",
+      "STUMP_BOX_BREEDING",
+      "STUMP_BOX_SEED_POUCH",
+      "STUMP_BOX_BULK_COMPOST",
+      "STUMP_BOX_TALISMAN_CODEX",
+      "STUMP_BOX_GRAFT",
+      "STUMP_BOX_YIELDS",
+      "STUMP_BOX_STAGES",
+      "STUMP_BOX_ANCIENT"
+    ]
+  },
+  {
+    "source": "modules/data/talismans.mjs",
+    "output": "data/talismans.js",
+    "names": [
+      "TALISMAN_UNSEAL_RULES",
+      "TALISMAN_SHARD_EXCHANGE",
+      "TALISMAN_WAX_COPY_PCT",
+      "TALISMAN_RARITY_TONES",
+      "TALISMAN_STAT_POOL",
+      "TALISMAN_CONDITION_POWER",
+      "TALISMAN_CONDITION_POOL",
+      "TALISMAN_CONDITION_EFFECTS",
+      "TALISMAN_CONDITION_WHEN",
+      "TALISMAN_HEX_RULES",
+      "TALISMAN_UNIQUE_DB",
+      "TALISMAN_WILD_DROPS",
+      "TALISMAN_WILD_UNIQUE_DB",
+      "TALISMAN_ELEMENT_FOCUS"
+    ]
+  },
+  {
+    "source": "modules/data/stump-cube.mjs",
+    "output": "data/stump-cube.js",
+    "names": [
+      "STUMP_CUBE_SIZE",
+      "STUMP_CUBE_MERGE",
+      "STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE",
+      "STUMP_CUBE_RARE_EXCEPTIONAL_CHANCE",
+      "STUMP_CUBE_CATALYST_EXCHANGE",
+      "STUMP_CUBE_RECIPES"
+    ]
+  },
+  {
+    "source": "modules/data/core-items.mjs",
+    "output": "data/core-items.js",
+    "names": [
+      "CORE_OPTION_POOL",
+      "CORE_ITEM_RULES"
+    ]
+  },
+  {
+    "source": "modules/data/player-stall.mjs",
+    "output": "data/player-stall.js",
+    "names": [
+      "PLAYER_STALL_RULES",
+      "PLAYER_STALL_CUSTOMERS",
+      "PLAYER_STALL_APPRAISAL"
+    ]
+  },
+  {
+    "source": "modules/data/passives.mjs",
+    "output": "data/passives.js",
+    "names": [
+      "PASSIVE_EQUIPMENT_RESTRICTIONS",
+      "GEM_SKY_ENHANCEMENTS",
+      "HERO_SELECTION_DEFS",
+      "PLAYER_CLASS_DEFS",
+      "LEGACY_HERO_TO_PLAYER_CLASS",
+      "TALENT_BLOOM_SPECIALIZATION_DEFS",
+      "PASSIVE_TREE",
+      "PASSIVE_TARGET_NODES",
+      "PASSIVE_DISCOVERY_RADIUS",
+      "PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH",
+      "PASSIVE_DISCOVERY_EDGE_DEPTH",
+      "PASSIVE_PREVIEW_RADIUS",
+      "PASSIVE_PREVIEW_EDGE_DEPTH",
+      "PASSIVE_THEME_POOLS",
+      "PASSIVE_SECTOR_TITLES",
+      "PASSIVE_CORE_GENERIC_STATS",
+      "PASSIVE_STAR_BLESSING",
+      "TRANSCENDENT_ANDROMEDA_RADIUS",
+      "TRANSCENDENT_ASTEROID_RADIUS",
+      "PASSIVE_APEX_CONFIGS",
+      "PASSIVE_SPECIAL_NODE_CONFIGS",
+      "TRANSCENDENT_VOID_VALUES"
+    ]
+  },
+  {
+    "source": "modules/data/ascendancies.mjs",
+    "output": "data/ascendancies.js",
+    "names": [
+      "ascendancyStatLine",
+      "ascendancyUniqueLine",
+      "ascendancyScaledNode",
+      "CLASS_TEMPLATES",
+      "CLASS_KEYSTONE_PICK_LIMIT",
+      "CLASS_KEYSTONE_DEFS",
+      "ASCENDANCIES_BY_PLAYER_CLASS",
+      "ASCENDANCY_NODE_LAYOUT",
+      "ASCENDANCY_NODE_FALLBACK",
+      "ASCENDANCY_NODE_DEFS",
+      "ASCENDANCY_KEYSTONE_VALUES"
+    ]
+  },
+  {
+    "source": "modules/data/hana-weapon-combos.mjs",
+    "output": "data/hana-weapon-combos.js",
+    "names": [
+      "HANA_WEAPON_COMBOS"
+    ]
+  },
+  {
+    "source": "modules/data/stage-characters.mjs",
+    "output": "data/stage-characters.js",
+    "names": [
+      "STAGE_CHARACTERS"
+    ]
+  },
+  {
+    "source": "modules/data/stage-view.mjs",
+    "output": "data/stage-view.js",
+    "names": [
+      "STAGE_VIEW",
+      "STAGE_ROOMS",
+      "STAGE_OBJECTS",
+      "STAGE_STORY",
+      "STAGE_SCENES",
+      "STAGE_MONSTER_SCALE",
+      "STAGE_INKED_LOOKS",
+      "STAGE_BOSS_REVIVAL",
+      "STAGE_NPC_ART",
+      "STAGE_BOARD_ROOMS",
+      "STAGE_HERO_RISE",
+      "STAGE_OCEAN"
+    ]
+  },
+  {
+    "source": "modules/data/stage-story-art.mjs",
+    "output": "data/stage-story-art.js",
+    "names": [
+      "STAGE_STORY_ART"
+    ]
+  },
+  {
+    "source": "modules/data/stage-room-plans.mjs",
+    "output": "data/stage-room-plans.js",
+    "names": [
+      "STAGE_ROOM_PLANS"
+    ]
+  },
+  {
+    "source": "modules/data/stage-regions.mjs",
+    "output": "data/stage-regions.js",
+    "names": [
+      "STAGE_REGIONS"
+    ]
+  },
+  {
+    "source": "modules/data/hana-skill-fx.mjs",
+    "output": "data/hana-skill-fx.js",
+    "names": [
+      "HANA_SKILL_FX"
+    ]
+  },
+  {
+    "source": "modules/data/passive-node-id-migrations.mjs",
+    "output": "data/passive-node-id-migrations.js",
+    "names": [
+      "PASSIVE_NODE_ID_LEGACY_PREFIX",
+      "PASSIVE_NODE_ID_MIGRATIONS",
+      "PASSIVE_NODE_ID_MERGED"
+    ],
+    "commonjs": [
+      "PASSIVE_NODE_ID_LEGACY_PREFIX",
+      "PASSIVE_NODE_ID_MIGRATIONS",
+      "PASSIVE_NODE_ID_MERGED"
+    ]
+  },
+  {
+    "source": "modules/data/passive-tree-v22.mjs",
+    "output": "data/passive-tree-v22.js",
+    "names": [
+      "PASSIVE_TREE_V22"
+    ]
+  },
+  {
+    "source": "modules/data/bosses.mjs",
+    "output": "data/bosses.js",
+    "names": [
+      "ACT_BOSS_NAMES",
+      "BOSS_BODY_ELEMENTS",
+      "ATLAS_BOSS_BODIES",
+      "ACT_BOSS_ASSET_KEYS",
+      "BOSS_ASSET_SOURCES",
+      "BOSS_ASSET_MANIFEST",
+      "BOSS_ASSET_VARIANTS_BY_ACT",
+      "BOSS_ASSET_FRONT_FACING",
+      "REALM_MONSTER_VISUAL_SETS",
+      "WISP_ENEMY_RULES",
+      "WISP_NEUTRAL_RULES",
+      "WISP_MONSTER_ASSET_MANIFEST",
+      "WISP_MONSTER_VISUALS",
+      "getRealmMonsterVisualSet",
+      "getRealmMonsterVisualDefinition",
+      "getRealmMonsterVisualDefinitionById",
+      "getStoryBossStage",
+      "getBossNameForZone",
+      "getBossAssetKeyForZone",
+      "ENEMY_TRAIT_POOL",
+      "ROOT_MONSTER_RULES",
+      "ROOT_MONSTER_VISUALS",
+      "ACT_MONSTER_VISUALS",
+      "ACT_MONSTER_VISUAL_BY_ID",
+      "ELITE_AMBUSH",
+      "getEliteStalkerVisual",
+      "ACT_MONSTER_POOLS",
+      "RETIRED_WOOD_MONSTER_SKINS",
+      "RETIRED_REALM_MONSTERS",
+      "MONSTER_VARIANT_DEFS",
+      "getWispMonsterVisualDefinition",
+      "ATLAS_MONSTER_POOLS",
+      "getActMonsterPool",
+      "getRootMonsterVisualDefinition",
+      "getRootMonsterWeapon",
+      "chosenMonsterVisual",
+      "getMonsterVariantDefinition",
+      "getMonsterVisualAttackKind",
+      "ROOM_INVADER",
+      "BOSS_ROOM_SURPRISE",
+      "BOSS_REACH",
+      "getBossReach"
+    ]
+  },
+  {
+    "source": "modules/data/wisp-sprites.mjs",
+    "output": "data/wisp-sprites.js",
+    "names": [
+      "WISP_SPRITE_FRAME",
+      "WISP_SPRITE_DIRECTIONS",
+      "WISP_SPRITE_CLIPS",
+      "WISP_SPRITE_SHEETS",
+      "WISP_SPRITE_BY_VISUAL",
+      "WISP_SPRITE_BY_ELEMENT"
+    ]
+  },
+  {
+    "source": "modules/data/monster-sprites.mjs",
+    "output": "data/monster-sprites.js",
+    "names": [
+      "MONSTER_SPRITE_KINDS",
+      "MONSTER_SPRITE_SHEETS",
+      "MONSTER_STAGE_KIND",
+      "MONSTER_STAGE_SHEETS"
+    ]
+  },
+  {
+    "source": "modules/data/monster-combat-roles.mjs",
+    "output": "data/monster-combat-roles.js",
+    "names": [
+      "MONSTER_COMBAT_ROLES"
+    ]
+  },
+  {
+    "source": "modules/data/monster-stage-roster.mjs",
+    "output": "data/monster-stage-roster.js",
+    "names": [
+      "MONSTER_STAGE_ROSTER"
+    ]
+  },
+  {
+    "source": "modules/data/boss-fx.mjs",
+    "output": "data/boss-fx.js",
+    "names": [
+      "BOSS_FX"
+    ]
+  },
+  {
+    "source": "modules/data/woodsman-battle.mjs",
+    "output": "data/woodsman-battle.js",
+    "names": [
+      "WOODSMAN_BATTLE"
+    ]
+  },
+  {
+    "source": "modules/data/stage-skill-vfx.mjs",
+    "output": "data/stage-skill-vfx.js",
+    "names": [
+      "BASIC_STAGE_HITS",
+      "BASIC_STAGE_ARROWS",
+      "BASIC_STAGE_LOOKS",
+      "BASIC_STAGE_CLASSES",
+      "BASIC_STAGE",
+      "STAGE_SKILL_VFX"
+    ]
+  },
+  {
+    "source": "modules/data/wisp-summons.mjs",
+    "output": "data/wisp-summons.js",
+    "names": [
+      "WISP_SUMMONS",
+      "LEGACY_SUMMON_GEM_TO_WISP"
+    ]
+  },
+  {
+    "source": "modules/data/rewards.mjs",
+    "output": "data/rewards.js",
+    "names": [
+      "FIRST_ACT_REWARD_STATS",
+      "ACT_REWARD_DB"
+    ]
+  },
+  {
+    "source": "modules/data/talent-cards.mjs",
+    "output": "data/talent-cards.js",
+    "names": [
+      "TALENT_BLOOM_CARD_DEFS",
+      "TALENT_PRECISE_CARD_RULES"
+    ],
+    "commonjs": [
+      "TALENT_BLOOM_CARD_DEFS"
+    ]
+  },
+  {
+    "source": "modules/data/content-progression.mjs",
+    "output": "data/content-progression.js",
+    "names": [
+      "CONTENT_UNLOCK_POINT_AWARDS",
+      "CONTENT_UNLOCK_SERIES_VERSION",
+      "CONTENT_UNLOCK_TREE_VERSION",
+      "CONTENT_UNLOCK_LOOP_MOVE_VERSION",
+      "CONTENT_UNLOCK_RECORD_VERSION",
+      "CONTENT_UNLOCK_SERIES",
+      "CONTENT_UNLOCK_RAILS",
+      "CONTENT_UNLOCK_CATALOG"
+    ]
+  },
+  {
+    "source": "modules/data/hotkeys.mjs",
+    "output": "data/hotkeys.js",
+    "names": [
+      "HOTKEY_ACTIONS",
+      "HOTKEY_ASSIGNABLE_CODE"
+    ]
+  },
+  {
+    "source": "modules/data/locales/ko.mjs",
+    "output": "data/locales/ko.js",
+    "names": [
+      "LANGUAGE_PACK_KO"
+    ]
+  },
+  {
+    "source": "modules/data/locales/en.mjs",
+    "output": "data/locales/en.js",
+    "names": ["LANGUAGE_PACK_EN"]
+  },
+  {
+    "source": "modules/data/locales/ja.mjs",
+    "output": "data/locales/ja.js",
+    "names": ["LANGUAGE_PACK_JA"]
+  },
+  {
+    "source": "modules/data/locales/zh-CN.mjs",
+    "output": "data/locales/zh-CN.js",
+    "names": ["LANGUAGE_PACK_ZH_CN"]
+  },
+  {
+    "source": "modules/data/locales/zh-TW.mjs",
+    "output": "data/locales/zh-TW.js",
+    "names": ["LANGUAGE_PACK_ZH_TW"]
+  }
+]

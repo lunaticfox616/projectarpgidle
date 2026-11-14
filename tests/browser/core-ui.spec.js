@@ -56,7 +56,7 @@ function watchRuntimeFailures(page) {
 async function dismissVisibleTutorials(page) {
     await page.waitForFunction(() => {
         // Fixture updates can enqueue unlock notices in the next UI frame.
-        if (uiRefreshQueued || uiRefreshRunning) return false;
+        if (window.GameModules.uiRuntime.status().queued || window.GameModules.uiRuntime.status().running) return false;
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
         return true;
@@ -249,7 +249,15 @@ for (const failure of ['network', 'revision-conflict', 'account-change']) {
         await page.locator('[onclick="resetGame()"]').click();
         if (failure === 'account-change') await page.evaluate(() => applyCloudSession({ access_token: 'different-token', user: { id: 'different-account' } }));
         await page.locator('#game-dialog-confirm').click();
-        await expect(page.locator('#game-toast-region')).toContainText('초기화하지 못했습니다');
+        if (failure === 'account-change') {
+            // A cancelled old-account action must not notify the replacement account.
+            await expect(page.locator('#game-dialog-card')).not.toBeVisible();
+            await expect.poll(() => page.evaluate(() => cloudState.busy)).toBe(false);
+            await expect(page.locator('#game-toast-region')).toBeEmpty();
+            expect(await page.evaluate(() => cloudState.user.id)).toBe('different-account');
+        } else {
+            await expect(page.locator('#game-toast-region')).toContainText('초기화하지 못했습니다');
+        }
         expect(await page.evaluate(() => game.season)).toBe(17);
         expect(await page.evaluate(() => localStorage.getItem(getSaveSlot().key))).toBe(before);
         expect(await page.evaluate(() => ({ busy: cloudState.busy, writable: canPersistLocalSave(), skip: !!window.__skipUnloadSaveOnce })))
@@ -342,8 +350,7 @@ async function openGameWithUpdate(page) {
     });
     await openLocalGame(page);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle);
-        gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         game.combatHalted = true;
         game.level = 37;
         saveGame({ skipCloudSync: true });
@@ -435,8 +442,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     const initial = await page.evaluate(() => {
-        clearInterval(gameTickHandle);
-        gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         game.combatHalted = true;
         game.level = 100;
         game.season = 20;

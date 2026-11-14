@@ -1,41 +1,76 @@
-// 기습 정예(2026-11-08 사용자: Codex가 만든 기습 몬스터를 넣되 정예 이상에서만, "기습이란 순간이동해서 플레이어에게 바로 붙는 것"):
-// data/bosses.js ELITE_AMBUSH의 외형이 정예면, 멀리 있는 목표에게 걸어가는 대신 사라졌다가 목표 옆 칸에 나타나 곧 친다.
-// 칸은 사라지는 순간 옮기고(사이 길을 미끄러지지 않는다), 몸을 숨기고 드러내는 것과 두 효과는 js/canvas-enemy-ambush.js가 그린다.
-// 판정은 전투 시계(getCombatTime)로 하므로 방치 정산에서도 같다. 효과는 화면이 보일 때만 남는다(addBattleFx).
-const enemyAmbush = (() => {
-    const RULE = ELITE_AMBUSH;
-    const visualOf = enemy => enemy.spriteVariantId || enemy.monsterVisualId;
-    /** 정예(보스가 아닌)이고 살아 있는 기습 외형인가. */
-    function eligible(enemy) {
-        return !!enemy && enemy.isElite === true && !enemy.isBoss && enemy.hp > 0 && RULE.species.includes(visualOf(enemy));
+// GENERATED from modules/enemy-ambush*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/combat/elite-ambush.mjs
+  function ambushEligible(rule, enemy) {
+    const visual = enemy && (enemy.spriteVariantId || enemy.monsterVisualId);
+    return !!enemy && enemy.isElite === true && !enemy.isBoss && enemy.hp > 0 && rule.species.includes(visual);
+  }
+  function ambushLandings(env2, enemy, target) {
+    const blocked = env2.deps.getGridBlockedCells(enemy), footprint = env2.deps.getGridUnitFootprint(enemy), spots = [];
+    const box = env2.deps.getGridUnitFootprint(target);
+    for (let gy = target.gy - footprint.rows; gy <= target.gy + box.rows; gy++) {
+      for (let gx = target.gx - footprint.columns; gx <= target.gx + box.columns; gx++) {
+        const probe = { ...enemy, gx, gy };
+        if (env2.deps.getGridUnitDistance(probe, target) !== 1 || !env2.deps.canPlaceGridFootprint(blocked, gx, gy, footprint)) continue;
+        spots.push({ gx, gy, row: gy === target.gy ? 0 : 1, near: Math.hypot(gx - enemy.gx, gy - enemy.gy) });
+      }
     }
-    /** 목표 옆(거리 1)에 이 몬스터가 설 수 있는 칸들: 같은 줄(옆에서 보는 무대의 근접)이 먼저, 그다음 지금 자리에서 가까운 칸. */
-    function landings(enemy, target) {
-        const blocked = getGridBlockedCells(enemy), footprint = getGridUnitFootprint(enemy), spots = [];
-        const box = getGridUnitFootprint(target);
-        for (let gy = target.gy - footprint.rows; gy <= target.gy + box.rows; gy++) {
-            for (let gx = target.gx - footprint.columns; gx <= target.gx + box.columns; gx++) {
-                const probe = { ...enemy, gx, gy };
-                if (getGridUnitDistance(probe, target) !== 1 || !canPlaceGridFootprint(blocked, gx, gy, footprint)) continue;
-                spots.push({ gx, gy, row: gy === target.gy ? 0 : 1, near: Math.hypot(gx - enemy.gx, gy - enemy.gy) });
-            }
-        }
-        return spots.sort((a, b) => a.row - b.row || a.near - b.near);
+    return spots.sort((a, b) => a.row - b.row || a.near - b.near);
+  }
+  function* ambushTryBlink(env2, enemy, target) {
+    if (!ambushEligible(env2.rule, enemy) || !env2.deps.hasGridCell(enemy) || !env2.deps.hasGridCell(target)) return false;
+    const now = env2.deps.getCombatTime();
+    if (!Number.isFinite(enemy.ambushReadyAt)) {
+      enemy.ambushReadyAt = now + env2.rule.firstDelayMs;
+      return false;
     }
-    /** 멀리 있는 목표에게 걸어가는 대신 순간이동할 때 true(이번 접근은 끝났다). 처음 싸움에 든 뒤 firstDelayMs, 그 뒤로는 cooldownMs마다. */
-    function tryBlink(enemy, target) {
-        if (!eligible(enemy) || !hasGridCell(enemy) || !hasGridCell(target)) return false;
-        const now = getCombatTime();
-        if (!Number.isFinite(enemy.ambushReadyAt)) { enemy.ambushReadyAt = now + RULE.firstDelayMs; return false; }
-        if (now < enemy.ambushReadyAt || getGridUnitDistance(enemy, target) < RULE.minCells) return false;
-        const spot = landings(enemy, target)[0];
-        if (!spot) return false;
-        const from = { gx: enemy.gx, gy: enemy.gy };
-        Object.assign(enemy, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0, gridStepFrom: null, ambushReadyAt: now + RULE.cooldownMs });
-        enemy.attackTimer = Math.max(Number(enemy.attackTimer) || 0, RULE.windUp);
-        addBattleFx('ambushBlink', { enemyId: enemy.id, from, to: { gx: spot.gx, gy: spot.gy }, footprint: getGridUnitFootprint(enemy), duration: RULE.vanishMs + RULE.hiddenMs + RULE.appearMs });
-        return true;
+    if (now < enemy.ambushReadyAt || env2.deps.getGridUnitDistance(enemy, target) < env2.rule.minCells) return false;
+    const spot = ambushLandings(env2, enemy, target)[0];
+    if (!spot) return false;
+    const from = { gx: enemy.gx, gy: enemy.gy };
+    Object.assign(enemy, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0, gridStepFrom: null, ambushReadyAt: now + env2.rule.cooldownMs });
+    enemy.attackTimer = Math.max(Number(enemy.attackTimer) || 0, env2.rule.windUp);
+    yield { kind: "addBattleFx", args: ["ambushBlink", {
+      enemyId: enemy.id,
+      from,
+      to: { gx: spot.gx, gy: spot.gy },
+      footprint: env2.deps.getGridUnitFootprint(enemy),
+      duration: env2.rule.vanishMs + env2.rule.hiddenMs + env2.rule.appearMs
+    }] };
+    return true;
+  }
+
+  // modules/enemy-ambush-classic.mjs
+  var env = { rule: ELITE_AMBUSH, deps: {
+    get getGridBlockedCells() {
+      return getGridBlockedCells;
+    },
+    get getGridUnitFootprint() {
+      return getGridUnitFootprint;
+    },
+    get getGridUnitDistance() {
+      return getGridUnitDistance;
+    },
+    get canPlaceGridFootprint() {
+      return canPlaceGridFootprint;
+    },
+    get hasGridCell() {
+      return hasGridCell;
+    },
+    get getCombatTime() {
+      return getCombatTime;
     }
-    return Object.freeze({ eligible, tryBlink });
+  } };
+  var enemyAmbush = Object.freeze({
+    eligible(enemy) {
+      return ambushEligible(env.rule, enemy);
+    },
+    tryBlink(enemy, target) {
+      const commands = ambushTryBlink(env, enemy, target);
+      let step = commands.next();
+      while (!step.done) step = commands.next(addBattleFx(...step.value.args));
+      return step.value;
+    }
+  });
+  safeExposeGlobals({ enemyAmbush });
 })();
-safeExposeGlobals({ enemyAmbush });

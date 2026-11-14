@@ -23,6 +23,7 @@
  * 원본은 읽기만 한다.
  */
 'use strict';
+const { writeDataSource, readDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -129,13 +130,13 @@ ${regionText}
 });
 safeExposeData({ STAGE_REGIONS });
 `;
-    fs.writeFileSync(path.join(root, 'data/stage-regions.js'), text);
+    writeDataSource(path.join(root, 'data/stage-regions.js'), text);
 }
 
 /** 지금 표(data/stage-regions.js)를 읽는다. */
 function currentTable() {
     let current;
-    require('node:vm').runInNewContext(fs.readFileSync(path.join(root, 'data/stage-regions.js'), 'utf8'), { safeExposeData: data => { current = data.STAGE_REGIONS; } });
+    require('node:vm').runInNewContext(readDataSource(path.join(root, 'data/stage-regions.js')), { safeExposeData: data => { current = data.STAGE_REGIONS; } });
     return current;
 }
 /** 묶음 밖의 방 그림 한 장을 지역으로 더한다: 그림을 옮기고, 본뜰 지역의 줄을 이름만 바꿔 그 줄 아래에 둔다(메움 색과 캐시 키는
@@ -146,13 +147,13 @@ function addVariant([id, name, like, picture]) {
     if (!base) throw new Error(like + ': 표에 없는 지역');
     if (png.width !== base.width || png.height !== base.height) throw new Error(`${id}: 그림 ${png.width}x${png.height}, ${like}는 ${base.width}x${base.height}`);
     fs.writeFileSync(path.join(root, current.path, id + '.png'), data);
-    const file = path.join(root, 'data/stage-regions.js'), lines = fs.readFileSync(file, 'utf8').split('\n');
+    const file = path.join(root, 'data/stage-regions.js'), lines = readDataSource(file).split('\n');
     const head = key => `        '${key}': Object.freeze({`;
     const kept = lines.filter(line => !line.startsWith(head(id))), at = kept.findIndex(line => line.startsWith(head(like)));
     const row = kept[at].replace(head(like), head(id)).replace(/name: '[^']*'/, `name: '${name}'`).replace(/,$/, '');
     kept[at] = kept[at].replace(/,?$/, ',');
     kept.splice(at + 1, 0, kept[at + 1].startsWith(`        '`) ? row + ',' : row);
-    fs.writeFileSync(file, kept.join('\n'));
+    writeDataSource(file, kept.join('\n'));
     console.log(`지역 더함: ${id} (${name}), ${like}를 본뜸`);
 }
 /** 그림의 불투명한 자리를 감싸는 상자: [왼쪽, 위, 가로, 세로]. */
@@ -244,7 +245,7 @@ function refreshBounds(current, folder, source) {
 }
 /** 재수입 없이 표의 캐시 키와 메움 색, 요청한 경우 소품 알파 상자를 갱신한다. */
 function refreshCurrent() {
-    const file = path.join(root, 'data/stage-regions.js'), original = fs.readFileSync(file, 'utf8');
+    const file = path.join(root, 'data/stage-regions.js'), original = readDataSource(file);
     const current = currentTable();
     const digest = crypto.createHash('sha1'), folder = path.join(root, current.path);
     const colour = (png, top) => {
@@ -269,6 +270,6 @@ function refreshCurrent() {
     for (const name of files.sort()) digest.update(name).update(fs.readFileSync(path.join(folder, name)));
     const version = digest.digest('hex').slice(0, 10);
     updated = updated.replace(/version: '[^']+'/, `version: '${version}'`);
-    fs.writeFileSync(file, updated);
+    writeDataSource(file, updated);
     console.log(`기존 ${Object.keys(current.regions).length}개 지역의 메움 색·캐시 키 갱신: ${version}. 조립 수치 유지.`);
 }

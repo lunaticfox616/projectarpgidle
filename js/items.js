@@ -1,411 +1,314 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/items*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function getCodexSlotOrder() {
-    return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
-}
-
-function getInventoryItemVisualAsset(item, kind) {
-    return pickInventoryItemVisualAsset(item, kind);
-}
-
-function pickInventoryItemVisualAsset(item, kind) {
-    let visuals = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB : null;
-    if (!visuals) return '';
-    if (kind === 'jewel') return bagItems.jewelArt(item);
-    if (kind === 'talisman') return item && item.family === 'talisman' ? stumpBox.iconPath(item) : visuals.talisman;
-    if (kind === 'core') return coreItems.icon(item);
-    return getEquipmentGridVisualAsset(item);
-}
-
-function renderInventoryItemVisual(item, kind, className) {
-    let asset = getInventoryItemVisualAsset(item, kind);
-    if (!asset) return '';
-    let label = (item && (item.name || item.baseName)) || '아이템';
-    return `<img class="${className || 'inventory-item-visual'}" src="${asset}" alt="" aria-hidden="true" data-item-visual-label="${typeof escapeHTML === 'function' ? escapeHTML(label) : label}">`;
-}
-
-function getEquipmentGridVisualAsset(item) {
-    return bagItems.artOf(item) || pickEquipmentGridVisualAsset(item);
-}
-
-function pickEquipmentGridVisualAsset(item) {
-    const visuals = ITEM_VISUAL_ASSET_DB;
-    if (!item) return visuals.equipment.default;
-    const grid = visuals.equipmentGrid;
-    if ((item.rarity || item.type) === 'unique' && Object.hasOwn(grid.uniqueAssets, item.name)) return grid.uniqueAssets[item.name];
-    const exact = grid.baseAssets[item.baseId];
-    if (exact) return exact;
-    const slot = String(item.slot || '').replace(/[123]$/, '');
-    if (slot === '무기') {
-        const label = [item.baseId, item.baseName, item.name].filter(Boolean).join(' ').toLowerCase();
-        const match = visuals.weaponKeywords.find(row => row.terms.some(term => label.includes(term)));
-        if (match) return match.asset;
-    }
-    return visuals.equipment[slot] || visuals.equipment.default;
-}
-
-/** @returns {{columns:number, rows:number}} */
-function getEquipmentInventoryFootprint(item) {
-    let slot = String((item && item.slot) || '').replace(/[123]$/, '');
-    if (slot === '반지' || slot === '목걸이') return { columns: 1, rows: 1 };
-    if (slot === '허리띠') return { columns: 2, rows: 1 };
-    if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
-    if (slot === '갑옷') return { columns: 2, rows: 2 };
-    return slot === '무기' ? getWeaponInventoryFootprint(item) : { columns: 1, rows: 1 };
-}
-
-/** 무기 칸 크기(2026-10-26 사용자, 세로로 긴 새 검 그림): 한손검 1×3, 대검은 가는 날 1×4(data/weapon-categories.js
- * SLENDER_GREATSWORD_BASES)와 넓은 날 2×4, 단궁 2×3, 나머지(오브, 플라스크, 향로) 2×2. 전(2026-10-23, 그림이 정사각형이라): 대검과
- * 단궁 2×3, 나머지 2×2. 놓인 자리에서 커져 겹치는 장비는 불러올 때 빈자리로 옮긴다(js/equipment-inventory-grid.js). */
-function getWeaponInventoryFootprint(item) {
-    const category = getWeaponCategoryId(item);
-    if (category === 'scimitar') return { columns: 1, rows: 3 };
-    if (category === 'greatsword') return { columns: SLENDER_GREATSWORD_BASES.includes(getWeaponBaseId(item)) ? 1 : 2, rows: 4 };
-    return category === 'shortbow' ? { columns: 2, rows: 3 } : { columns: 2, rows: 2 };
-}
-
-/** A unique's picture from its definition, before one drops (the codex and the hunt targets, js/unique-codex-ui.js). */
-function getUniqueEntryVisualAsset(entry) {
-    const rule = UNIQUE_EQUIPMENT_RULES[entry.name];
-    return getEquipmentGridVisualAsset({ rarity: 'unique', name: entry.name, slot: entry.slots[0], baseId: rule ? rule.baseId : '' });
-}
-
-function getAverageExplicitAffixTier(items) {
-    let tiers = (Array.isArray(items) ? items : []).flatMap(item => {
-        if (!item || item.rarity === 'unique') return [];
-        return (Array.isArray(item.stats) ? item.stats : [])
-            .filter(stat => stat && !stat.encroachedFinal && !stat.encroachedCandidate && !stat.sourceOptionId && Number.isFinite(Number(stat.tier)) && Number(stat.tier) > 0)
-            .map(stat => Number(stat.tier));
+  // modules/domain/item-footprints.mjs
+  function itemFlowGetCodexSlotOrder() {
+    return ["무기", "방패", "투구", "갑옷", "장갑", "신발", "목걸이", "반지", "허리띠"];
+  }
+  function itemFlowGetEquipmentInventoryFootprint(env, item) {
+    let slot = String(item && item.slot || "").replace(/[123]$/, "");
+    if (slot === "반지" || slot === "목걸이") return { columns: 1, rows: 1 };
+    if (slot === "허리띠") return { columns: 2, rows: 1 };
+    if (["투구", "장갑", "신발", "방패", "갑옷"].includes(slot)) return { columns: 2, rows: 2 };
+    return slot === "무기" ? itemFlowGetWeaponInventoryFootprint(env, item) : { columns: 1, rows: 1 };
+  }
+  function itemFlowGetWeaponInventoryFootprint(env, item) {
+    const category = env.deps.getWeaponCategoryId(item);
+    if (category === "scimitar") return { columns: 1, rows: 3 };
+    if (category === "greatsword") return { columns: env.deps.SLENDER_GREATSWORD_BASES.includes(env.deps.getWeaponBaseId(item)) ? 1 : 2, rows: 4 };
+    return category === "shortbow" ? { columns: 2, rows: 3 } : { columns: 2, rows: 2 };
+  }
+  function itemFlowGetAverageExplicitAffixTier(items) {
+    let tiers = (Array.isArray(items) ? items : []).flatMap((item) => {
+      if (!item || item.rarity === "unique") return [];
+      return (Array.isArray(item.stats) ? item.stats : []).filter((stat) => stat && !stat.encroachedFinal && !stat.encroachedCandidate && !stat.sourceOptionId && Number.isFinite(Number(stat.tier)) && Number(stat.tier) > 0).map((stat) => Number(stat.tier));
     });
     return tiers.length ? tiers.reduce((sum, tier) => sum + tier, 0) / tiers.length : 0;
-}
+  }
 
-function runItemStartMoving(force) {
-    try {
-        let provider = (typeof startMoving === 'function')
-            ? startMoving
-            : ((typeof window !== 'undefined' && typeof window.startMoving === 'function') ? window.startMoving : null);
-        if (provider) return provider(force);
-    } catch (e) {
-        console.error('startMoving failed:', e);
-    }
-}
-
-function getCraftSelectionRef() { return craftingSelectionState.ref; }
-
-function isCraftSelectionEquip() { return !!craftingSelectionState.isEquip; }
-
-function clearCraftSelection() { craftingSelectionState.ref = null; craftingSelectionState.isEquip = false; }
-
-/** The craft target. A hall piece never is one, also when it was put on in the slot the target points at (picking one is refused below). */
-function getSelectedCraftItem() {
-    if (craftingSelectionState.ref === null) return null;
-    const item = craftingSelectionState.isEquip ? game.equipment[craftingSelectionState.ref]
-        : (game.inventory || []).find(row => row.id === craftingSelectionState.ref);
+  // modules/domain/item-craft-selection.mjs
+  function itemFlowGetCraftSelectionRef(env) {
+    return env.craftingSelectionState.ref;
+  }
+  function itemFlowIsCraftSelectionEquip(env) {
+    return !!env.craftingSelectionState.isEquip;
+  }
+  function itemFlowClearCraftSelection(env) {
+    env.craftingSelectionState.ref = null;
+    env.craftingSelectionState.isEquip = false;
+  }
+  function itemFlowGetSelectedCraftItem(env, owner) {
+    if (env.craftingSelectionState.ref === null) return null;
+    const item = env.craftingSelectionState.isEquip ? owner.equipment[env.craftingSelectionState.ref] : (owner.inventory || []).find((row) => row.id === env.craftingSelectionState.ref);
     return item && !item.hallReplica ? item : null;
-}
-
-function ensureCraftSelectionValid() {
-    if (craftingSelectionState.ref !== null && !getSelectedCraftItem()) clearCraftSelection();
-}
-
-function selectForCrafting(ref, isEquip) {
-    let item = isEquip ? game.equipment[ref] : (game.inventory || []).find(row => row && Number(row.id) === Number(ref));
+  }
+  function itemFlowEnsureCraftSelectionValid(env, owner) {
+    if (env.craftingSelectionState.ref !== null && !itemFlowGetSelectedCraftItem(env, owner)) itemFlowClearCraftSelection(env);
+  }
+  function* itemFlowSelectForCrafting(env, owner, ref, isEquip) {
+    let item = isEquip ? owner.equipment[ref] : (owner.inventory || []).find((row) => row && Number(row.id) === Number(ref));
     if (item && item.hallReplica) {
-        addLog(_t('전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.'), 'attack-monster');
-        return false;
+      yield { kind: "itemLog", args: [env.deps._t("전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다."), "attack-monster"] };
+      return false;
     }
-    if (bagItems.isSpecial(item)) {
-        addLog(_t('주얼, 코어, 액막이는 제작할 수 없습니다.'), 'attack-monster');
-        return false;
+    if (env.deps.bagItems.isSpecial(item)) {
+      yield { kind: "itemLog", args: [env.deps._t("주얼, 코어, 액막이는 제작할 수 없습니다."), "attack-monster"] };
+      return false;
     }
-    craftingSelectionState.ref = ref;
-    craftingSelectionState.isEquip = isEquip;
-    updateStaticUI();
+    env.craftingSelectionState.ref = ref;
+    env.craftingSelectionState.isEquip = isEquip;
+    yield { kind: "itemRefresh", args: [] };
     return true;
-}
+  }
 
-function copyCraftResultStat(stat) {
+  // modules/domain/item-craft-snapshot.mjs
+  function itemFlowCopyCraftResultStat(stat) {
     if (!stat) return null;
     return {
-        id: stat.id || '',
-        statName: stat.statName || '',
-        val: stat.val,
-        tier: stat.tier,
-        lockedByHoney: !!stat.lockedByHoney,
-        lockedByRift: !!stat.lockedByRift,
-        unremovable: !!stat.unremovable,
-        venomStingerBonus: !!stat.venomStingerBonus
+      id: stat.id || "",
+      statName: stat.statName || "",
+      val: stat.val,
+      tier: stat.tier,
+      lockedByHoney: !!stat.lockedByHoney,
+      lockedByRift: !!stat.lockedByRift,
+      unremovable: !!stat.unremovable,
+      venomStingerBonus: !!stat.venomStingerBonus
     };
-}
-
-/** 허리띠의 액막이 칸 수(js/colony-wards.js beltRoll): 축복의 꽃잎이 다시 굴리면 제작실의 제작 경과에 "액막이 칸 2 → 3"으로 나온다
- * (js/crafting-result-ui.js getWardRows). 허리띠가 아니면 없다. */
-function craftResultWardSlots(item) {
-    return typeof colonyWards === 'object' ? colonyWards.beltRoll(item) : undefined;
-}
-
-function snapshotCraftResultItem(item) {
+  }
+  function itemFlowCraftResultWardSlots(env, item) {
+    return typeof env.deps.colonyWards === "object" ? env.deps.colonyWards.beltRoll(item) : void 0;
+  }
+  function itemFlowSnapshotCraftResultItem(env, item) {
     if (!item) return null;
     return {
-        name: item.name || '',
-        baseName: item.baseName || '',
-        rarity: item.rarity || 'normal',
-        quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
-        corrupted: !!item.corrupted,
-        sockets: equipmentSockets.count(item),
-        uniqueEffect: item.uniqueEffect || '',
-        wardSlots: craftResultWardSlots(item),
-        baseStats: (item.baseStats || []).map(copyCraftResultStat).filter(Boolean),
-        stats: (item.stats || []).map(copyCraftResultStat).filter(Boolean),
-        chaosInfusion: copyCraftResultStat(item.chaosInfusion),
-        encroachedStat: copyCraftResultStat(item.encroached && item.encroached.chosen)
+      name: item.name || "",
+      baseName: item.baseName || "",
+      rarity: item.rarity || "normal",
+      quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
+      corrupted: !!item.corrupted,
+      sockets: env.deps.equipmentSockets.count(item),
+      uniqueEffect: item.uniqueEffect || "",
+      wardSlots: itemFlowCraftResultWardSlots(env, item),
+      baseStats: (item.baseStats || []).map(itemFlowCopyCraftResultStat).filter(Boolean),
+      stats: (item.stats || []).map(itemFlowCopyCraftResultStat).filter(Boolean),
+      chaosInfusion: itemFlowCopyCraftResultStat(item.chaosInfusion),
+      encroachedStat: itemFlowCopyCraftResultStat(item.encroached && item.encroached.chosen)
     };
-}
+  }
 
-function getEquipCandidateSlots(item, targetGame = game) {
-    if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
-    if (item.slot === '반지') return getTranscendentVoidPassiveCount('thirdFinger', targetGame) > 0 ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
-    if (item.slot === '장갑') return ['장갑1', '장갑2'];
-    const special = bagItems.candidateSlots(item, targetGame); // 주얼, 코어, 액막이(js/bag-items.js)
+  // modules/domain/item-equip-slots.mjs
+  function itemFlowGetEquipCandidateSlots(env, owner, item, targetGame = owner) {
+    if (!item || env.deps.getPassiveEquipmentRestriction(item, targetGame)) return [];
+    if (item.slot === "반지") return env.deps.getTranscendentVoidPassiveCount("thirdFinger", targetGame) > 0 ? ["반지1", "반지2", "반지3"] : ["반지1", "반지2"];
+    if (item.slot === "장갑") return ["장갑1", "장갑2"];
+    const special = env.deps.bagItems.candidateSlots(item, targetGame);
     if (special) return special;
-    let warriorDualTrain = hasKeystone('w3', targetGame);
-    if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
+    let warriorDualTrain = env.deps.hasKeystone("w3", targetGame);
+    if (item.slot === "무기") return warriorDualTrain ? ["무기", "방패"] : ["무기"];
     return [item.slot];
-}
-
-function canEquipItemToSlot(item, preferredSlot) {
-    return !!preferredSlot && getEquipCandidateSlots(item).includes(preferredSlot)
-        && combatEquipmentStats.inspect(item, preferredSlot).ok;
-}
-
-function tryAutoEquipEmptySlot(item) {
-    if (!item || !game.settings || game.settings.autoEquipEmptySlots === false) return null;
-    return equipIntoFirstEmptySlot(item);
-}
-
-/** Puts the item into its first empty candidate slot when the requirements allow. Returns the slot or null. */
-function equipIntoFirstEmptySlot(item) {
-    let slot = getEquipCandidateSlots(item).find(candidate => candidate && Object.prototype.hasOwnProperty.call(game.equipment, candidate) && !game.equipment[candidate]);
-    if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
-    delete item.legacyRequirementGrace;
-    game.equipment[slot] = item;
-    if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(true);
-    return slot;
-}
-
-/** 가방의 장비로 빈 장비 칸을 채운다 — 티어 · 등급이 높은 것부터. 장비 창 "빈 칸 채우기"에서 사용한다. Returns the equipped count. */
-function equipIntoEmptySlots(items) {
-    const rank = item => (Number(item.itemTier) || 0) * 10 + JEWEL_RARITY_ORDER.indexOf(item.rarity);
-    let equipped = 0;
-    for (const item of [...(items || [])].filter(Boolean).sort((a, b) => rank(b) - rank(a))) {
-        const index = game.inventory.indexOf(item);
-        if (index < 0 || !equipIntoFirstEmptySlot(item)) continue;
-        game.inventory.splice(index, 1);
-        equipped++;
-    }
-    return equipped;
-}
-
-/** 가방에 맞는 장비가 있는 빈 장비 칸 수("빈 칸 채우기" 단추의 숫자). */
-function countFillableEmptySlots() {
-    const empty = Object.keys(game.equipment).filter(slot => !game.equipment[slot]);
-    if (!empty.length) return 0;
-    return empty.filter(slot => game.inventory.some(item => item && getEquipCandidateSlots(item).includes(slot)
-        && combatEquipmentStats.inspect(item, slot).ok)).length;
-}
-
-function pickEquipSlot(item, preferredSlot) {
-    let candidates = getEquipCandidateSlots(item);
+  }
+  function itemFlowCanEquipItemToSlot(env, owner, item, preferredSlot) {
+    return !!preferredSlot && itemFlowGetEquipCandidateSlots(env, owner, item).includes(preferredSlot) && env.deps.combatEquipmentStats.inspect(item, preferredSlot, owner).ok;
+  }
+  function itemFlowPickEquipSlot(env, owner, item, preferredSlot) {
+    let candidates = itemFlowGetEquipCandidateSlots(env, owner, item);
     if (candidates.length === 0) return null;
     if (preferredSlot && candidates.includes(preferredSlot)) return preferredSlot;
-    if (item.slot === COLONY_WARD_RULES.slot) return colonyWards.pickSlot(game);
-    if (item.slot === '반지') {
-        if (!game.equipment['반지1']) return '반지1';
-        if (!game.equipment['반지2']) return '반지2';
-        if ((typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) && !game.equipment['반지3']) return '반지3';
-        return null;
+    if (item.slot === env.deps.COLONY_WARD_RULES.slot) return env.deps.colonyWards.pickSlot(owner);
+    if (item.slot === "반지") return pickEmptyRingSlot(env, owner);
+    if (item.slot === "장갑") {
+      if (!owner.equipment["장갑1"]) return "장갑1";
+      if (!owner.equipment["장갑2"]) return "장갑2";
+      return null;
     }
-    if (item.slot === '장갑') {
-        if (!game.equipment['장갑1']) return '장갑1';
-        if (!game.equipment['장갑2']) return '장갑2';
-        return null;
-    }
-    if (item.slot === '무기') {
-        let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
-        if (warriorDualTrain && !preferredSlot) {
-            if (game.equipment['무기'] && !game.equipment['방패']) return '방패';
-            if (!game.equipment['무기']) return '무기';
-            if (!game.equipment['방패']) return '방패';
-            let shieldItem = game.equipment['방패'];
-            if (shieldItem && shieldItem.slot === '방패') return '방패';
-            return null;
-        }
-    }
+    if (item.slot === "무기") return pickWeaponSlot(env, owner, preferredSlot, candidates[0]);
     return candidates[0];
-}
-
-function isDualSlotItem(slotName) {
-    if (slotName === '반지' || slotName === '장갑') return true;
-    return slotName === '무기' && typeof hasKeystone === 'function' && hasKeystone('w3');
-}
-
-function getDualSlotDisplayLabel(targetSlot) {
-    if (targetSlot === '반지1') return '왼쪽 반지';
-    if (targetSlot === '반지2') return '오른쪽 반지';
-    if (targetSlot === '장갑1') return '왼쪽 장갑';
-    if (targetSlot === '장갑2') return '오른쪽 장갑';
-    if (targetSlot === '무기') return '주 무기';
-    if (targetSlot === '방패') return '완갑';
-    return targetSlot;
-}
-
-function dualSlotBothOccupied(slotName) {
-    if (slotName === '반지') return !!(game.equipment['반지1'] && game.equipment['반지2'] && (!(typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) || game.equipment['반지3']));
-    if (slotName === '장갑') return !!(game.equipment['장갑1'] && game.equipment['장갑2']);
+  }
+  function pickEmptyRingSlot(env, owner) {
+    if (!owner.equipment["반지1"]) return "반지1";
+    if (!owner.equipment["반지2"]) return "반지2";
+    if (typeof env.deps.getTranscendentVoidPassiveCount === "function" && env.deps.getTranscendentVoidPassiveCount("thirdFinger", owner) > 0 && !owner.equipment["반지3"]) return "반지3";
+    return null;
+  }
+  function pickWeaponSlot(env, owner, preferredSlot, firstCandidate) {
+    const warriorDualTrain = typeof env.deps.hasKeystone === "function" && env.deps.hasKeystone("w3", owner);
+    if (!warriorDualTrain || preferredSlot) return firstCandidate;
+    if (owner.equipment["무기"] && !owner.equipment["방패"]) return "방패";
+    if (!owner.equipment["무기"]) return "무기";
+    if (!owner.equipment["방패"]) return "방패";
+    const shieldItem = owner.equipment["방패"];
+    return shieldItem && shieldItem.slot === "방패" ? "방패" : null;
+  }
+  function itemFlowIsDualSlotItem(env, owner, slotName) {
+    if (slotName === "반지" || slotName === "장갑") return true;
+    return slotName === "무기" && typeof env.deps.hasKeystone === "function" && env.deps.hasKeystone("w3", owner);
+  }
+  function itemFlowDualSlotBothOccupied(env, owner, slotName) {
+    if (slotName === "반지") return !!(owner.equipment["반지1"] && owner.equipment["반지2"] && (!(typeof env.deps.getTranscendentVoidPassiveCount === "function" && env.deps.getTranscendentVoidPassiveCount("thirdFinger", owner) > 0) || owner.equipment["반지3"]));
+    if (slotName === "장갑") return !!(owner.equipment["장갑1"] && owner.equipment["장갑2"]);
     return false;
-}
+  }
+  function itemFlowFindInventoryIndexById(owner, itemId) {
+    return (owner.inventory || []).findIndex((item) => item && item.id === itemId);
+  }
 
-function findInventoryIndexById(itemId) {
-    return (game.inventory || []).findIndex(item => item && item.id === itemId);
-}
-
-function equipItem(idx, preferredSlot) {
-    let item = game.inventory[idx];
-    if (!item) return;
-    const restriction = getPassiveEquipmentRestriction(item);
-    if (restriction) return addLog(restriction, 'attack-monster', { toast: true });
-    if (bagItemsUi.equipSpecial(item, preferredSlot)) return; // 주얼은 그 장비의 빈 소켓에, 액막이는 열린 칸이 없으면 이유를 알린다
-    let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
-    if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
-        openWeaponSlotOverlayByItemId(item.id);
-        return;
-    }
-    if (item.slot === '반지' && !preferredSlot && dualSlotBothOccupied('반지')) {
-        openRingSlotOverlayByItemId(item.id);
-        return;
-    }
-    if (item.slot === '장갑' && !preferredSlot && dualSlotBothOccupied('장갑')) {
-        openGloveSlotOverlayByItemId(item.id);
-        return;
-    }
-    let targetSlot = pickEquipSlot(item, preferredSlot);
-    if (!targetSlot) return;
-    const eligibility = combatEquipmentStats.inspect(item, targetSlot);
-    if (!eligibility.ok) return addLog('장착 실패, ' + eligibility.reason, 'attack-monster', { toast: true });
+  // modules/domain/item-auto-equip.mjs
+  function itemFlowTryAutoEquipEmptySlot(env, owner, item) {
+    if (!item || !owner.settings || owner.settings.autoEquipEmptySlots === false) return null;
+    return itemFlowEquipIntoFirstEmptySlot(env, owner, item);
+  }
+  function itemFlowEquipIntoFirstEmptySlot(env, owner, item) {
+    let slot = itemFlowGetEquipCandidateSlots(env, owner, item).find((candidate) => candidate && Object.prototype.hasOwnProperty.call(owner.equipment, candidate) && !owner.equipment[candidate]);
+    if (!slot || !env.deps.combatEquipmentStats.inspect(item, slot, owner).ok) return null;
     delete item.legacyRequirementGrace;
-    let old = game.equipment[targetSlot];
+    owner.equipment[slot] = item;
+    if (typeof env.deps.normalizeSupportLoadout === "function") env.deps.normalizeSupportLoadout(true);
+    return slot;
+  }
+  function itemFlowEquipIntoEmptySlots(env, owner, items) {
+    const rank = (item) => (Number(item.itemTier) || 0) * 10 + env.deps.JEWEL_RARITY_ORDER.indexOf(item.rarity);
+    let equipped = 0;
+    for (const item of [...items || []].filter(Boolean).sort((a, b) => rank(b) - rank(a))) {
+      const index = owner.inventory.indexOf(item);
+      if (index < 0 || !itemFlowEquipIntoFirstEmptySlot(env, owner, item)) continue;
+      owner.inventory.splice(index, 1);
+      equipped++;
+    }
+    return equipped;
+  }
+  function itemFlowCountFillableEmptySlots(env, owner) {
+    const empty = Object.keys(owner.equipment).filter((slot) => !owner.equipment[slot]);
+    if (!empty.length) return 0;
+    return empty.filter((slot) => owner.inventory.some((item) => item && itemFlowGetEquipCandidateSlots(env, owner, item).includes(slot) && env.deps.combatEquipmentStats.inspect(item, slot, owner).ok)).length;
+  }
+
+  // modules/domain/item-equip-actions.mjs
+  function* itemFlowEquipItem(env, owner, idx, preferredSlot) {
+    let item = owner.inventory[idx];
+    if (!item) return;
+    const restriction = env.deps.getPassiveEquipmentRestriction(item, owner);
+    if (restriction) return yield { kind: "itemLog", args: [restriction, "attack-monster", { toast: true }] };
+    if (yield { kind: "itemEquipSpecial", args: [item, preferredSlot] }) return;
+    const choice = equipmentChoice(env, owner, item, preferredSlot);
+    if (choice) {
+      yield { kind: choice, args: [item.id] };
+      return;
+    }
+    let targetSlot = itemFlowPickEquipSlot(env, owner, item, preferredSlot);
+    if (!targetSlot) return;
+    const eligibility = env.deps.combatEquipmentStats.inspect(item, targetSlot, owner);
+    if (!eligibility.ok) return yield { kind: "itemLog", args: ["장착 실패, " + eligibility.reason, "attack-monster", { toast: true }] };
+    replaceEquipment(env, owner, item, idx, targetSlot);
+    yield { kind: "itemHideTooltip", args: [] };
+    env.deps.normalizeSupportLoadout(true);
+    yield { kind: "itemRefresh", args: [] };
+  }
+  function equipmentChoice(env, owner, item, preferredSlot) {
+    const warriorDualTrain = typeof env.deps.hasKeystone === "function" && env.deps.hasKeystone("w3", owner);
+    if (needsWeaponChoice(owner, item, preferredSlot, warriorDualTrain)) return "itemWeaponChoice";
+    if (preferredSlot) return null;
+    if (!["반지", "장갑"].includes(item.slot)) return null;
+    if (!itemFlowDualSlotBothOccupied(env, owner, item.slot)) return null;
+    return item.slot === "반지" ? "itemRingChoice" : "itemGloveChoice";
+  }
+  function needsWeaponChoice(owner, item, preferredSlot, warriorDualTrain) {
+    return item.slot === "무기" && warriorDualTrain && !preferredSlot && owner.equipment["무기"] && owner.equipment["방패"];
+  }
+  function replaceEquipment(env, owner, item, idx, targetSlot) {
+    delete item.legacyRequirementGrace;
+    let old = owner.equipment[targetSlot];
     if (old) delete old.legacyRequirementGrace;
     let movedId = item.id;
-    game.equipment[targetSlot] = item;
-    if (old) game.inventory[idx] = old;
-    else game.inventory.splice(idx, 1);
-    if (!isCraftSelectionEquip() && getCraftSelectionRef() === movedId) {
-        craftingSelectionState.ref = targetSlot;
-        craftingSelectionState.isEquip = true;
+    owner.equipment[targetSlot] = item;
+    if (old) owner.inventory[idx] = old;
+    else owner.inventory.splice(idx, 1);
+    if (!itemFlowIsCraftSelectionEquip(env) && itemFlowGetCraftSelectionRef(env) === movedId) {
+      env.craftingSelectionState.ref = targetSlot;
+      env.craftingSelectionState.isEquip = true;
     }
-    hideItemTooltip();
-    normalizeSupportLoadout(true);
-    updateStaticUI();
-}
-
-function equipItemById(itemId, preferredSlot) {
-    let idx = findInventoryIndexById(itemId);
+  }
+  function* itemFlowEquipItemById(env, owner, itemId, preferredSlot) {
+    let idx = itemFlowFindInventoryIndexById(owner, itemId);
     if (idx < 0) return false;
-    if (preferredSlot && !getEquipCandidateSlots(game.inventory[idx]).includes(preferredSlot)) return false;
-    const targetItem = game.inventory[idx];
-    equipItem(idx, preferredSlot);
-    return Object.values(game.equipment).includes(targetItem) || !game.inventory.includes(targetItem); // 주얼은 소켓으로 가 가방에서만 빠진다
-}
-
-function equipSelectedCraftInventoryItem() {
-    if (isCraftSelectionEquip()) return false;
-    let itemId = getCraftSelectionRef();
+    if (preferredSlot && !itemFlowGetEquipCandidateSlots(env, owner, owner.inventory[idx]).includes(preferredSlot)) return false;
+    const targetItem = owner.inventory[idx];
+    yield* itemFlowEquipItem(env, owner, idx, preferredSlot);
+    return Object.values(owner.equipment).includes(targetItem) || !owner.inventory.includes(targetItem);
+  }
+  function* itemFlowEquipSelectedCraftInventoryItem(env, owner) {
+    if (itemFlowIsCraftSelectionEquip(env)) return false;
+    let itemId = itemFlowGetCraftSelectionRef(env);
     if (itemId === null) return false;
-    return equipItemById(itemId);
-}
-
-/** Where an unequipped item goes: the chosen cell, else the first free cell, else (no cell chosen) a packed bag: placement null, and
- * the next ensureState packs the bag as for a pickup (2026-10-19). @returns {{ok:boolean, placement?:?object, reason?:string}} */
-function findUnequipPlacement(item, column, row) {
-    if (Number.isFinite(Number(column)) && Number.isFinite(Number(row))) return equipmentInventoryGridRuntime.canAdd(item, column, row, game);
-    let result = equipmentInventoryGridRuntime.findAddPlacement(item, game);
-    if (!result.ok && equipmentInventoryGridRuntime.canStoreItems([item], game)) return { ok: true, placement: null };
+    return yield* itemFlowEquipItemById(env, owner, itemId);
+  }
+  function itemFlowFindUnequipPlacement(env, owner, item, column, row) {
+    if (Number.isFinite(Number(column)) && Number.isFinite(Number(row))) return env.deps.equipmentInventoryGridRuntime.canAdd(item, column, row, owner);
+    let result = env.deps.equipmentInventoryGridRuntime.findAddPlacement(item, owner);
+    if (!result.ok && env.deps.equipmentInventoryGridRuntime.canStoreItems([item], owner)) return { ok: true, placement: null };
     return result;
-}
-
-function unequipItemToGrid(slot, column, row) {
-    let item = game.equipment[slot];
+  }
+  function* itemFlowUnequipItemToGrid(env, owner, slot, column, row) {
+    let item = owner.equipment[slot];
     if (!item) return false;
-    let placementResult = findUnequipPlacement(item, column, row);
+    let placementResult = itemFlowFindUnequipPlacement(env, owner, item, column, row);
     if (!placementResult.ok) {
-        addLog(placementResult.reason || '인벤토리 공간이 부족해 장착 해제할 수 없습니다.', 'attack-monster');
-        return false;
+      yield { kind: "itemLog", args: [placementResult.reason || "인벤토리 공간이 부족해 장착 해제할 수 없습니다.", "attack-monster"] };
+      return false;
     }
-    let itemKey = equipmentLoadoutRuntime.ensureItemIdentity(item);
+    let itemKey = env.deps.equipmentLoadoutRuntime.ensureItemIdentity(item);
     delete item.legacyRequirementGrace;
-    game.inventory.push(item);
-    game.equipment[slot] = null;
-    if (placementResult.placement) game.equipmentInventoryPlacements = { ...(game.equipmentInventoryPlacements || {}), [itemKey]: placementResult.placement };
-    if (isCraftSelectionEquip() && getCraftSelectionRef() === slot) {
-        craftingSelectionState.ref = item.id;
-        craftingSelectionState.isEquip = false;
+    owner.inventory.push(item);
+    owner.equipment[slot] = null;
+    if (placementResult.placement) owner.equipmentInventoryPlacements = { ...owner.equipmentInventoryPlacements || {}, [itemKey]: placementResult.placement };
+    if (itemFlowIsCraftSelectionEquip(env) && itemFlowGetCraftSelectionRef(env) === slot) {
+      env.craftingSelectionState.ref = item.id;
+      env.craftingSelectionState.isEquip = false;
     }
-    normalizeSupportLoadout(true);
-    updateStaticUI();
+    env.deps.normalizeSupportLoadout(true);
+    yield { kind: "itemRefresh", args: [] };
     return true;
-}
-
-function unequipItem(slot) {
-    return unequipItemToGrid(slot);
-}
-
-/** 반지3의 반지(초월 공허 '세 번째 손가락'이 연 칸)가 그 초월이 사라진 뒤 남아 있으면 가방에 자리가 날 때 가방으로 돌려보낸다
- * (전투 틱마다, js/combat-summon-stats.js prepareCombatTick). 장비창에 반지3 칸이 없어 보지도 빼지도 못했다(2026-10-20 검토). 꺼지는 것은
- * js/combat-equipment-stats.js missing이 맡는다. 방치 정산과 나무꾼 잠금 중에는 그대로 둔다. say: 기록(전투 틱이 넘긴다). */
-function releaseClosedThirdRing(say) {
-    const ring = game.equipment && game.equipment['반지3'];
-    if (!ring || game.isBackgroundCalculation || game.woodsmanBuildLock || getTranscendentVoidPassiveCount('thirdFinger', game) > 0) return false;
-    if (!findUnequipPlacement(ring).ok || !unequipItemToGrid('반지3')) return false;
-    say(`세 번째 손가락이 사라져 [${ring.name}]${pickParticle(ring.name, '을', '를')} 가방에 넣었습니다.`, 'loot-normal');
+  }
+  function* itemFlowUnequipItem(env, owner, slot) {
+    return yield* itemFlowUnequipItemToGrid(env, owner, slot);
+  }
+  function* itemFlowReleaseClosedThirdRing(env, owner, say) {
+    const ring = owner.equipment && owner.equipment["반지3"];
+    if (!ring || owner.isBackgroundCalculation || owner.woodsmanBuildLock || env.deps.getTranscendentVoidPassiveCount("thirdFinger", owner) > 0) return false;
+    if (!itemFlowFindUnequipPlacement(env, owner, ring).ok || !(yield* itemFlowUnequipItemToGrid(env, owner, "반지3"))) return false;
+    say(`세 번째 손가락이 사라져 [${ring.name}]${env.deps.pickParticle(ring.name, "을", "를")} 가방에 넣었습니다.`, "loot-normal");
     return true;
-}
-
-function salvageItemById(itemId) {
-    let idx = findInventoryIndexById(itemId);
+  }
+  function* itemFlowSalvageItemById(owner, itemId) {
+    let idx = itemFlowFindInventoryIndexById(owner, itemId);
     if (idx < 0) return false;
-    salvageItem(idx);
+    yield { kind: "itemSalvage", args: [idx] };
     return true;
-}
-
-function toggleItemLockById(itemId) {
-    let idx = findInventoryIndexById(itemId);
+  }
+  function* itemFlowToggleItemLockById(env, owner, itemId) {
+    let idx = itemFlowFindInventoryIndexById(owner, itemId);
     if (idx < 0) return false;
-    let item = game.inventory[idx];
+    let item = owner.inventory[idx];
     if (!item) return false;
     if (item.hallReplica) {
-        addLog(_t('전당 소장품의 보호 잠금은 해제할 수 없습니다.'), 'attack-monster');
-        return false;
+      yield { kind: "itemLog", args: [env.deps._t("전당 소장품의 보호 잠금은 해제할 수 없습니다."), "attack-monster"] };
+      return false;
     }
     item.locked = !item.locked;
-    addLog(`${item.locked ? _t('🔒 잠금') : _t('🔓 잠금 해제')}: [${item.name}]`, 'loot-normal');
-    updateStaticUI();
+    yield { kind: "itemLog", args: [`${item.locked ? env.deps._t("🔒 잠금") : env.deps._t("🔓 잠금 해제")}: [${item.name}]`, "loot-normal"] };
+    yield { kind: "itemRefresh", args: [] };
     return true;
-}
+  }
 
-function hasActiveBeehiveRuntimeState(b) {
+  // modules/domain/item-run-admission.mjs
+  function itemFlowHasActiveBeehiveRuntimeState(owner, b) {
     if (!b || !b.inRun) return false;
-    let hasReturnZone = b.returnZoneId !== undefined && b.returnZoneId !== null;
+    return hasBeehiveProgress(b) || Array.isArray(b.pendingQueenRewards) && b.pendingQueenRewards.length > 0 || owner.currentZoneId === "beehive_run" && (owner.enemies || []).some((enemy) => enemy && enemy.hp > 0);
+  }
+  function hasBeehiveProgress(b) {
+    let hasReturnZone = b.returnZoneId !== void 0 && b.returnZoneId !== null;
     let hasStartedRoute = Math.max(0, Math.floor(b.branchStep || 0)) > 0;
-    return !!b.awaitingClear
-        || (!!b.pendingChoice && (hasReturnZone || hasStartedRoute))
-        || !!b.queenActive
-        || !!b.pendingWaveReward
-        || (Array.isArray(b.pendingQueenRewards) && b.pendingQueenRewards.length > 0)
-        || (game.currentZoneId === 'beehive_run' && (game.enemies || []).some(enemy => enemy && enemy.hp > 0));
-}
-
-function clearBeehiveRuntimeState(b) {
+    return !!b.awaitingClear || !!b.pendingChoice && (hasReturnZone || hasStartedRoute) || !!b.queenActive || !!b.pendingWaveReward;
+  }
+  function itemFlowClearBeehiveRuntimeState(b) {
     if (!b) return;
     b.inRun = false;
     b.branchStep = 0;
@@ -416,665 +319,1057 @@ function clearBeehiveRuntimeState(b) {
     b.penaltyLedger = [];
     b.rewardLedger = [];
     b.pendingWaveReward = null;
-    b.pendingWaveRewardText = '';
+    b.pendingWaveRewardText = "";
     b.waveExtra = 0;
     b.pendingQueenRewards = [];
     b.queenActive = false;
-}
-
-function reconcileBeehiveRunState() {
-    let b = game && game.beehive ? game.beehive : null;
+  }
+  function itemFlowReconcileBeehiveRunState(owner) {
+    let b = owner && owner.beehive ? owner.beehive : null;
     if (!b || !b.inRun) return false;
-    if (game.currentZoneId === 'beehive_run' && hasActiveBeehiveRuntimeState(b)) return true;
-    let returnZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
-    clearBeehiveRuntimeState(b);
+    if (owner.currentZoneId === "beehive_run" && itemFlowHasActiveBeehiveRuntimeState(owner, b)) return true;
+    let returnZoneId = b.returnZoneId ?? owner.maxZoneId;
+    itemFlowClearBeehiveRuntimeState(b);
     b.returnZoneId = null;
-    if (game.currentZoneId === 'beehive_run') game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : 0;
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
-    game.combatHalted = false;
+    if (owner.currentZoneId === "beehive_run") owner.currentZoneId = returnZoneId ?? 0;
+    owner.enemies = [];
+    owner.encounterPlan = [];
+    owner.encounterIndex = 0;
+    owner.runProgress = 0;
+    owner.combatHalted = false;
     return false;
-}
-
-function isBeehiveRunLockedForMapTravel() {
-    let b = game && game.beehive ? game.beehive : null;
+  }
+  function itemFlowIsBeehiveRunLockedForMapTravel(owner) {
+    let b = owner && owner.beehive ? owner.beehive : null;
     if (!b || !b.inRun) return false;
-    // Only a real active beehive run should lock travel/progress. Older saves can
-    // retain partial beehive flags; reconcile them instead of leaving maps stuck at 0%.
-    return reconcileBeehiveRunState() && game.currentZoneId === 'beehive_run';
-}
-
-function warnBeehiveMapTravelBlocked() {
-    if (typeof addLog === 'function') addLog(BEEHIVE_TRAVEL_REFUSAL, 'attack-monster');
+    return itemFlowReconcileBeehiveRunState(owner) && owner.currentZoneId === "beehive_run";
+  }
+  function* itemFlowWarnBeehiveMapTravelBlocked(env) {
+    yield { kind: "itemOptionalLog", args: [env.BEEHIVE_TRAVEL_REFUSAL, "attack-monster"] };
     return true;
-}
+  }
+  function itemFlowGetHeldRunBlockReason(env, owner) {
+    if (itemFlowIsBeehiveRunLockedForMapTravel(owner)) return env.BEEHIVE_TRAVEL_REFUSAL;
+    return env.deps.ensureBeyondBoundaryState(owner).activeRun ? "경계 너머 도전을 먼저 마치거나 포기하세요." : "";
+  }
+  function itemFlowGetContentStartBlockReason(env, owner) {
+    if (owner.pendingLoopReady) return "⏸️ 루프 진행 대기 중에는 콘텐츠를 시작할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.";
+    return itemFlowGetHeldRunBlockReason(env, owner) || (env.deps.atlas.inMap(owner) ? env.deps.atlas.runOpenReason(owner) : "");
+  }
 
-/** Runs that keep the hero until they end or are given up (벌집 원정, 경계 너머). changeZone and the deep sea refuse from inside one,
- * and so does every content start (getContentStartBlockReason, and 경계 너머 itself). Returns the refusal, or ''. */
-function getHeldRunBlockReason() {
-    if (isBeehiveRunLockedForMapTravel()) return BEEHIVE_TRAVEL_REFUSAL;
-    return ensureBeyondBoundaryState(game).activeRun ? '경계 너머 도전을 먼저 마치거나 포기하세요.' : '';
-}
+  // modules/domain/item-display-name.mjs
+  function itemFlowGetItemDisplayName(env, item) {
+    const name = String(item && item.name || "");
+    const base = item && item.baseName;
+    if (base && name === `마법의 ${base}`) return env.deps._t("마법의 {base}", { base: env.deps._t(base) });
+    if (base && name === `희귀한 ${base}`) return env.deps._t("희귀한 {base}", { base: env.deps._t(base) });
+    return env.deps._t(name);
+  }
 
-/** Content starts (군락지, 벌집, 혼돈 밖, 심해, 나무꾼의 잔상, 대균열, 증표 시련) refuse from a held run and from inside an atlas map:
- * they set the zone themselves, so leaving the map that way skipped the portal changeZone spends. They refuse at the loop gate too
- * (time stands still there, as for hunting-ground travel; the loop then ended the run unplayed). Returns the refusal, or ''. */
-function getContentStartBlockReason() {
-    if (game.pendingLoopReady) return '⏸️ 루프 진행 대기 중에는 콘텐츠를 시작할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
-    return getHeldRunBlockReason() || (atlas.inMap(game) ? atlas.runOpenReason(game) : '');
-}
-
-// ── 시간의 균열: 제단 배치/회수 + 융합 정산 ──────────────────────────────
-// 흐름: 과거 클리어(altarOpen) → 같은 부위 고유 1개·희귀 1개 배치 → 미래 클리어 → resolveTimeRiftFusion.
-function setTimeRiftPressure(delta) {
-    let rift = ensureTimeRiftState();
-    let inRift = game.currentZoneId === TIME_RIFT_PAST_ZONE_ID || game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
-    if (inRift || rift.altarOpen) return addLog(_t('시간압은 과거에 진입하기 전에만 바꿀 수 있습니다. 제단 아이템을 회수하면 다시 선택할 수 있습니다.'), 'attack-monster');
-    rift.pressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, rift.pressure + Math.floor(delta || 0)));
-    updateStaticUI();
-}
-
-/** 미래에 들어갈 수 없는 까닭: 제단의 두 장비가 맞지 않거나, 융합 결과가 들어갈 가방 자리가 없다(전에는 싸움을 끝낸 뒤에야 융합을
- * 미뤄 미래를 다시 깨야 했다, 2026-10-20). 들어갈 수 있으면 null. */
-function getTimeRiftFutureEntryReason(rift) {
-    return getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare)
-        || (rift.altarUnique && !canStoreEquipmentItems([rift.altarUnique], game) ? '⌛ 가방에 융합 결과가 들어갈 자리가 없습니다. 자리를 비우고 미래에 들어가세요.' : null);
-}
-
-/** @returns {string|null} 시간의 균열 장비 융합 불가 사유. 가능하면 null. */
-function getTimeRiftFusionMismatchReason(altarItem, candidate) {
-    if (!altarItem || !candidate) return '제단에 고유 1개/희귀 1개가 필요합니다.';
-    if (String(altarItem.slot || '') !== String(candidate.slot || '')) {
-        return _t('부위 불일치 ({slot} / {slot2}), 같은 부위로 맞춰주세요.', { slot: altarItem.slot, slot2: candidate.slot });
+  // modules/domain/item-rift-altar.mjs
+  function* itemFlowSetTimeRiftPressure(env, owner, delta) {
+    let rift = env.deps.ensureTimeRiftState();
+    let inRift = owner.currentZoneId === env.deps.TIME_RIFT_PAST_ZONE_ID || owner.currentZoneId === env.deps.TIME_RIFT_FUTURE_ZONE_ID;
+    if (inRift || rift.altarOpen) return yield { kind: "itemLog", args: [env.deps._t("시간압은 과거에 진입하기 전에만 바꿀 수 있습니다. 제단 아이템을 회수하면 다시 선택할 수 있습니다."), "attack-monster"] };
+    rift.pressure = Math.max(1, Math.min(env.deps.TIME_RIFT_MAX_PRESSURE, rift.pressure + Math.floor(delta || 0)));
+    yield { kind: "itemRefresh", args: [] };
+  }
+  function itemFlowGetTimeRiftFutureEntryReason(env, owner, rift) {
+    return itemFlowGetTimeRiftFusionMismatchReason(env, rift.altarUnique, rift.altarRare) || (rift.altarUnique && !env.deps.canStoreEquipmentItems([rift.altarUnique], owner) ? "⌛ 가방에 융합 결과가 들어갈 자리가 없습니다. 자리를 비우고 미래에 들어가세요." : null);
+  }
+  function itemFlowGetTimeRiftFusionMismatchReason(env, altarItem, candidate) {
+    if (!altarItem || !candidate) return "제단에 고유 1개/희귀 1개가 필요합니다.";
+    if (String(altarItem.slot || "") !== String(candidate.slot || "")) {
+      return env.deps._t("부위 불일치 ({slot} / {slot2}), 같은 부위로 맞춰주세요.", { slot: altarItem.slot, slot2: candidate.slot });
     }
     return null;
-}
-
-/** Shared admission for inventory candidates and the final altar action; null means eligible. */
-function getTimeAltarItemIssue(item, rift = ensureTimeRiftState()) {
-    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'; // 잠금이 가방을 되돌려 제단의 장비가 가방에도 남았다
-    if (!rift.altarOpen) return '먼저 과거를 클리어해 제단을 열어야 합니다.';
-    if (!item) return '제단에 올릴 장비를 고르세요.';
-    if (item.hallReplica) return '전당 소장품은 제단에 올릴 수 없습니다.';
-    if (item.fusedRelic) return '이미 융합된 유물은 다시 시간을 건널 수 없습니다.';
-    if (item.corrupted) return '타락한 장비는 제단에 올릴 수 없습니다.';
-    if (item.loopSealed) return '봉인된 장비는 제단에 올릴 수 없습니다.';
-    return getTimeAltarSlotIssue(item, rift);
-}
-
-function getTimeAltarSlotIssue(item, rift) {
-    if (!['unique','rare'].includes(item.rarity)) return '고유 또는 희귀 장비만 올릴 수 있습니다.';
-    const unique = item.rarity === 'unique';
-    if (rift[unique ? 'altarUnique' : 'altarRare']) return '해당 제단 자리가 차 있습니다. 회수 후 다시 올려주세요.';
+  }
+  function itemFlowGetTimeAltarItemIssue(env, owner, item, rift = env.deps.ensureTimeRiftState()) {
+    if (owner.woodsmanBuildLock) return "☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.";
+    if (!rift.altarOpen) return "먼저 과거를 클리어해 제단을 열어야 합니다.";
+    if (!item) return "제단에 올릴 장비를 고르세요.";
+    if (item.hallReplica) return "전당 소장품은 제단에 올릴 수 없습니다.";
+    if (item.fusedRelic) return "이미 융합된 유물은 다시 시간을 건널 수 없습니다.";
+    if (item.corrupted) return "타락한 장비는 제단에 올릴 수 없습니다.";
+    if (item.loopSealed) return "봉인된 장비는 제단에 올릴 수 없습니다.";
+    return itemFlowGetTimeAltarSlotIssue(env, item, rift);
+  }
+  function itemFlowGetTimeAltarSlotIssue(env, item, rift) {
+    if (!["unique", "rare"].includes(item.rarity)) return "고유 또는 희귀 장비만 올릴 수 있습니다.";
+    const unique = item.rarity === "unique";
+    if (rift[unique ? "altarUnique" : "altarRare"]) return "해당 제단 자리가 차 있습니다. 회수 후 다시 올려주세요.";
     const other = unique ? rift.altarRare : rift.altarUnique;
-    return other ? getTimeRiftFusionMismatchReason(other, item) : null;
-}
-
-function placeItemOnTimeAltar() {
-    let rift = ensureTimeRiftState();
-    let item = getSelectedCraftItem();
-    if (isCraftSelectionEquip()) return addLog(_t('장착 중인 장비는 제단에 올릴 수 없습니다. 해제 후 올려주세요.'), 'attack-monster');
-    const issue = getTimeAltarItemIssue(item, rift);
-    if (issue) return addLog(issue, 'attack-monster');
-    let slotKey = item.rarity === 'unique' ? 'altarUnique' : 'altarRare';
-    game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
+    return other ? itemFlowGetTimeRiftFusionMismatchReason(env, other, item) : null;
+  }
+  function* itemFlowPlaceItemOnTimeAltar(env, owner) {
+    let rift = env.deps.ensureTimeRiftState();
+    let item = itemFlowGetSelectedCraftItem(env, owner);
+    if (itemFlowIsCraftSelectionEquip(env)) return yield { kind: "itemLog", args: [env.deps._t("장착 중인 장비는 제단에 올릴 수 없습니다. 해제 후 올려주세요."), "attack-monster"] };
+    const issue = itemFlowGetTimeAltarItemIssue(env, owner, item, rift);
+    if (issue) return yield { kind: "itemLog", args: [issue, "attack-monster"] };
+    let slotKey = item.rarity === "unique" ? "altarUnique" : "altarRare";
+    owner.inventory = (owner.inventory || []).filter((row) => row && row.id !== item.id);
     rift[slotKey] = item;
-    clearCraftSelection();
-    addLog(_t('⏳ [{name}]{particle} 과거의 제단에 올렸습니다.{full}', { name: getItemDisplayName(item), particle: pickParticle(item.name, '을', '를'), full: rift.altarUnique && rift.altarRare ? ` ${_t('두 자리가 모두 찼습니다. 미래로 건너가세요.')}` : '' }), 'season-up');
-    updateStaticUI();
-    queueImportantSave(200);
-}
-
-function retrieveTimeAltarItems() {
-    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster'); // 잠금이 가방을 되돌려 회수한 장비가 사라졌다
-    let rift = ensureTimeRiftState();
+    itemFlowClearCraftSelection(env);
+    yield { kind: "itemLog", args: [env.deps._t("⏳ [{name}]{particle} 과거의 제단에 올렸습니다.{full}", { name: itemFlowGetItemDisplayName(env, item), particle: env.deps.pickParticle(item.name, "을", "를"), full: rift.altarUnique && rift.altarRare ? ` ${env.deps._t("두 자리가 모두 찼습니다. 미래로 건너가세요.")}` : "" }), "season-up"] };
+    yield { kind: "itemRefresh", args: [] };
+    yield { kind: "itemSave", args: [200] };
+  }
+  function* itemFlowRetrieveTimeAltarItems(env, owner) {
+    if (owner.woodsmanBuildLock) return yield { kind: "itemLog", args: [env.deps._t("☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다."), "attack-monster"] };
+    let rift = env.deps.ensureTimeRiftState();
     if (!rift.altarUnique && !rift.altarRare) {
-        if (!rift.altarOpen) return addLog(_t('제단이 비어 있습니다.'), 'attack-monster');
-        rift.altarOpen = false;
-        rift.activePressure = null;
-        addLog(_t('⏳ 빈 제단을 닫았습니다. 시간압을 다시 선택할 수 있습니다.'), 'season-up');
-        updateStaticUI();
-        queueImportantSave(200);
-        return;
+      if (!rift.altarOpen) return yield { kind: "itemLog", args: [env.deps._t("제단이 비어 있습니다."), "attack-monster"] };
+      rift.altarOpen = false;
+      rift.activePressure = null;
+      yield { kind: "itemLog", args: [env.deps._t("⏳ 빈 제단을 닫았습니다. 시간압을 다시 선택할 수 있습니다."), "season-up"] };
+      yield { kind: "itemRefresh", args: [] };
+      yield { kind: "itemSave", args: [200] };
+      return;
     }
     let altarItems = [rift.altarUnique, rift.altarRare].filter(Boolean);
-    if (!canStoreEquipmentItems(altarItems, game)) return addLog(_t('인벤토리 공간이 부족합니다.'), 'attack-monster');
-    // guaranteedKeep: 회수 아이템이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
-    if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarUnique = null; }
-    if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarRare = null; }
+    if (!env.deps.canStoreEquipmentItems(altarItems, owner)) return yield { kind: "itemLog", args: [env.deps._t("인벤토리 공간이 부족합니다."), "attack-monster"] };
+    if (rift.altarUnique) {
+      env.deps.addItemToInventory(rift.altarUnique, { guaranteedKeep: true, skipAutoEquip: true });
+      rift.altarUnique = null;
+    }
+    if (rift.altarRare) {
+      env.deps.addItemToInventory(rift.altarRare, { guaranteedKeep: true, skipAutoEquip: true });
+      rift.altarRare = null;
+    }
     rift.altarOpen = false;
     rift.activePressure = null;
-    addLog(_t('⏳ 제단의 아이템을 회수했습니다.'), 'season-up');
-    updateStaticUI();
-    queueImportantSave(200);
-}
+    yield { kind: "itemLog", args: [env.deps._t("⏳ 제단의 아이템을 회수했습니다."), "season-up"] };
+    yield { kind: "itemRefresh", args: [] };
+    yield { kind: "itemSave", args: [200] };
+  }
 
-/** The rare options a fusion keeps, in their order: they roll one by one in a random order with the pressure's chance, which drops
- * once TIME_RIFT_KEEP_CAP have survived (data/maps.js, 2026-10-25: 전에는 0~2개만 잃었다). */
-function rollTimeRiftKeptOptions(stats, pressure) {
+  // modules/domain/item-rift-fusion.mjs
+  function itemFlowRollTimeRiftKeptOptions(env, stats, pressure) {
     const order = stats.map((_, index) => index);
     for (let i = order.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [order[i], order[j]] = [order[j], order[i]];
+      const j = Math.floor(env.deps.itemRandom() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
     }
-    const kept = new Set();
-    order.forEach(index => { if (Math.random() < getTimeRiftOptionKeepChance(pressure, kept.size)) kept.add(index); });
+    const kept = /* @__PURE__ */ new Set();
+    order.forEach((index) => {
+      if (env.deps.itemRandom() < env.deps.getTimeRiftOptionKeepChance(pressure, kept.size)) kept.add(index);
+    });
     return stats.filter((_, index) => kept.has(index));
-}
-
-// 미래 클리어 시 호출: 등급 판정 → 희귀의 추가 옵션을 (유실분 제외하고) 고유에 이식.
-function resolveTimeRiftFusion() {
-    let rift = ensureTimeRiftState();
-    const mismatch = getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare);
-    if (mismatch) { addLog(mismatch, 'attack-monster'); return null; }
-    // 제단을 비우기 전에 결과물이 들어갈 공간부터 확보한다 — 실패 시 제단을 그대로 유지하고
-    // 재도전(공간 확보 후 미래 재클리어)할 수 있게 한다.
-    if (!canStoreEquipmentItems([rift.altarUnique], game)) {
-        addLog(_t('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다. 공간 확보 후 미래를 다시 클리어하세요)'), 'attack-monster');
-        return null;
+  }
+  function* itemFlowResolveTimeRiftFusion(env, owner) {
+    let rift = env.deps.ensureTimeRiftState();
+    const mismatch = itemFlowGetTimeRiftFusionMismatchReason(env, rift.altarUnique, rift.altarRare);
+    if (mismatch) {
+      yield { kind: "itemLog", args: [mismatch, "attack-monster"] };
+      return null;
+    }
+    if (!env.deps.canStoreEquipmentItems([rift.altarUnique], owner)) {
+      yield { kind: "itemLog", args: [env.deps._t("⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다. 공간 확보 후 미래를 다시 클리어하세요)"), "attack-monster"] };
+      return null;
     }
     let fused = JSON.parse(JSON.stringify(rift.altarUnique));
-    itemIdCounter++;
-    fused.id = itemIdCounter;
+    fused.id = env.deps.allocateItemId();
     let rareStats = (Array.isArray(rift.altarRare.stats) ? JSON.parse(JSON.stringify(rift.altarRare.stats)) : []).filter(Boolean);
-    let kept = rollTimeRiftKeptOptions(rareStats, rift.pressure);
+    let kept = itemFlowRollTimeRiftKeptOptions(env, rareStats, rift.pressure);
     let lost = rareStats.length - kept.length;
-    let grade = getTimeRiftFusionGrade(lost, rareStats.length);
+    let grade = env.deps.getTimeRiftFusionGrade(lost, rareStats.length);
     rareStats = kept;
     fused.stats = Array.isArray(fused.stats) ? fused.stats : [];
-    rareStats.forEach(stat => { stat.fusedFromRare = true; fused.stats.push(stat); });
+    rareStats.forEach((stat) => {
+      stat.fusedFromRare = true;
+      fused.stats.push(stat);
+    });
     fused.fusedRelic = true;
     fused.fusionGrade = grade;
     fused.fusionLost = lost;
-    fused.fusedRareName = rift.altarRare.name || '';
-    equipmentSockets.returnJewels(rift.altarRare); // the consumed rare's jewels stay the player's
+    fused.fusedRareName = rift.altarRare.name || "";
+    env.deps.equipmentSockets.returnJewels(rift.altarRare);
     rift.altarUnique = null;
     rift.altarRare = null;
     rift.altarOpen = false;
     rift.activePressure = null;
-    // guaranteedKeep: 융합 결과물이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
-    addItemToInventory(fused, { guaranteedKeep: true, skipAutoEquip: true });
-    rift.lastFusion = { id: fused.id, instanceId: ensureEquipmentLoadoutItemIdentity(fused), name: fused.name,
-        pressure: rift.pressure, inherited: rareStats.length, lost, season: game.season };
-    return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
-}
+    env.deps.addItemToInventory(fused, { guaranteedKeep: true, skipAutoEquip: true });
+    rift.lastFusion = {
+      id: fused.id,
+      instanceId: env.deps.ensureEquipmentLoadoutItemIdentity(fused),
+      name: fused.name,
+      pressure: rift.pressure,
+      inherited: rareStats.length,
+      lost,
+      season: owner.season
+    };
+    return { fused, grade, lost, inherited: rareStats.length };
+  }
 
-// Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free, and a floor content is entered again
-// through its own checks (the time rift's future asks for bag room). Automatic interruptions pass their own explicit return
-// destination (an atlas map's chain goes on after the meteor).
-function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
-    let st = ensureMeteorSiteState();
-    st.kind = st.kind || rollMeteorKind();
-    st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
-    st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
+  // modules/domain/item-zone-travel.mjs
+  function itemFlowPrepareMeteorEncounterEntry(env, owner, returnZoneId = Number.isInteger(owner.currentZoneId) ? owner.currentZoneId : null) {
+    let st = env.deps.ensureMeteorSiteState();
+    st.kind = st.kind || env.deps.rollMeteorKind();
+    st.activeMeteorTier = Math.max(8, env.deps.getSkyRiftGaugeEffectiveTier({ tier: st.skyRiftMinTier || 13 }, st));
+    st.meteorReturnZoneId = returnZoneId !== void 0 && returnZoneId !== null ? returnZoneId : null;
     st.skyRiftReady = false;
     st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
     st.skyRiftCarryGauge = 0;
     st.skyRiftMinTier = null;
-}
-
-function getZoneTravelBlockReason(id) {
-    const atlasReason = atlas.travelReason(game, id);
+  }
+  function itemFlowGetZoneTravelBlockReason(env, owner, id) {
+    const atlasReason = env.deps.atlas.travelReason(owner, id);
     if (atlasReason) return atlasReason;
-    if (getZone(id)?.type === 'trial' && !contentProgression.isUnlocked('battleTrials')) {
-        return '루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
+    if (env.deps.getZone(id)?.type === "trial" && !env.deps.contentProgression.isUnlocked("battleTrials")) {
+      return "루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.";
     }
-    if (game.pendingLoopReady) {
-        return '⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
+    if (owner.pendingLoopReady) {
+      return "⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.";
     }
-    if (id === LABYRINTH_ZONE_ID) {
-        if (game.season < 3) return '고대 미궁은 루프3부터 개방됩니다.';
-        if (game.maxZoneId < 5) return '액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.';
+    if (id === env.deps.LABYRINTH_ZONE_ID) {
+      if (owner.season < 3) return "고대 미궁은 루프3부터 개방됩니다.";
+      if (owner.maxZoneId < 5) return "액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.";
     }
     return null;
-}
+  }
+  function* itemFlowChangeZone(env, owner, id) {
+    const blockReason = itemFlowGetZoneTravelBlockReason(env, owner, id);
+    if (blockReason) return yield { kind: "itemLog", args: [blockReason, "attack-monster"] };
+    const held = heldTravelReason(env, owner, id);
+    if (held) return yield { kind: "itemLog", args: [held, "attack-monster"] };
+    owner.inTicketBossFight = false;
+    if (typeof id === "number" && id > owner.maxZoneId) return;
+    const meteorReason = prepareMeteorTravel(env, owner, id);
+    if (meteorReason) return yield { kind: "itemLog", args: [meteorReason, "attack-monster"] };
+    let zone = env.deps.getZone(id);
+    if (!zone) return yield { kind: "itemLog", args: [env.deps._t("이동할 수 없는 지역입니다."), "attack-monster"] };
+    const entryReason = prepareContentTravel(env, owner, id, zone);
+    if (entryReason) return yield { kind: "itemLog", args: [entryReason, "attack-monster"] };
+    prepareAbyssTravel(env, owner, id);
+    env.deps.atlasRun.travel(zone);
+    owner.killsInZone = 0;
+    yield { kind: "itemLog", args: [env.deps._t("🗺️ {name} 이동", { name: env.deps._t(zone.name) }), "season-up"] };
+    yield { kind: "itemStartMoving", args: [false] };
+    yield { kind: "itemRefresh", args: [] };
+  }
+  function heldTravelReason(env, owner, id) {
+    const boundary = env.deps.ensureBeyondBoundaryState(owner);
+    const held = id === env.deps.BEYOND_BOUNDARY_ZONE_ID && boundary.activeRun ? "" : itemFlowGetHeldRunBlockReason(env, owner);
+    if (held) return held;
+    if (id === env.deps.BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun)
+      return env.deps._t("경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.");
+    return null;
+  }
+  function prepareMeteorTravel(env, owner, id) {
+    if (id !== env.deps.METEOR_FALL_ZONE_ID) return null;
+    const st = env.deps.ensureMeteorSiteState();
+    if (!st.unlocked) return env.deps._t("운석 낙하 지점은 아직 잠겨 있습니다.");
+    if (!st.skyRiftReady) return env.deps._t("하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.");
+    itemFlowPrepareMeteorEncounterEntry(env, owner);
+    return null;
+  }
+  function prepareContentTravel(env, owner, id, zone) {
+    if (zone.type === "seasonBoss") {
+      const reason = prepareSeasonBossTravel(env, owner, zone);
+      if (reason) return reason;
+    }
+    if (zone.type === "timeRift") {
+      const reason = prepareRiftTravel(env, owner, zone);
+      if (reason) return reason;
+    }
+    return id === env.deps.CHAOS_REALM_ZONE_ID ? prepareChaosTravel(env) : null;
+  }
+  function prepareSeasonBossTravel(env, owner, zone) {
+    if ((owner.season || 1) < (zone.reqSeason || 2)) {
+      return zone.rivalBlade ? "버려진 날붙이들은 루프 31부터 당신을 찾아옵니다." : zone.milestonePinnacle ? "아틀라스 최종 관문은 루프 31부터 모습을 드러냅니다." : "아직 뿌리 보스가 잠겨 있습니다.";
+    }
+    const gate = env.deps.getSeasonBossProgressGate(zone, owner);
+    if (!gate.met) return env.deps._t("🔒 {label} 조건을 먼저 달성해야 합니다.", { label: env.deps._t(gate.label) });
+    if (!zone.milestonePinnacle) {
+      if ((owner.currencies[zone.key] || 0) <= 0) return env.deps._t("입장 열쇠({name})가 필요합니다.", { name: env.deps._t(env.deps.ORB_DB[zone.key].name) });
+      owner.currencies[zone.key]--;
+    }
+    owner.inTicketBossFight = true;
+    return null;
+  }
+  function prepareRiftTravel(env, owner, zone) {
+    const rift = env.deps.ensureTimeRiftState();
+    if ((owner.season || 1) < env.deps.TIME_RIFT_UNLOCK_LOOP) return env.deps._t("시간의 균열은 루프 {TIME_RIFT_UNLOCK_LOOP}부터 열립니다.", { TIME_RIFT_UNLOCK_LOOP: env.deps.TIME_RIFT_UNLOCK_LOOP });
+    const mismatch = zone.riftPhase === "future" ? itemFlowGetTimeRiftFutureEntryReason(env, owner, rift) : null;
+    if (mismatch) return mismatch;
+    rift.activePressure = rift.pressure;
+    return null;
+  }
+  function prepareChaosTravel(env) {
+    const realm = env.deps.ensureChaosRealmState();
+    if (!realm.unlocked) return env.deps._t("혼돈계는 나무꾼에게 10% 이상 피해를 준 전투 종료 시 해금됩니다.");
+    if (!env.deps.canEnterChaosRealm()) return env.deps._t("혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.");
+    const maxFloor = Math.max(1, Math.floor(realm.highestFloor || 1));
+    realm.currentFloor = Math.max(1, Math.min(maxFloor, Math.floor(realm.currentFloor || 1)));
+    return null;
+  }
+  function prepareAbyssTravel(env, owner, id) {
+    if (typeof id === "number" && id >= env.deps.ABYSS_START_ZONE_ID) {
+      let depth = Math.max(1, Math.floor(env.deps.getAbyssDepthFromZoneId(id) || 1));
+      owner.abyssEndlessDepth = depth;
+      owner.abyssUnlockedDepths = Array.isArray(owner.abyssUnlockedDepths) ? owner.abyssUnlockedDepths : [20];
+      if (depth >= 20 && !owner.abyssUnlockedDepths.includes(depth)) owner.abyssUnlockedDepths.push(depth);
+    }
+  }
 
-function changeZone(id) {
-    const blockReason = getZoneTravelBlockReason(id);
-    if (blockReason) return addLog(blockReason, 'attack-monster');
-    let boundary = ensureBeyondBoundaryState(game);
-    const held = id === BEYOND_BOUNDARY_ZONE_ID && boundary.activeRun ? '' : getHeldRunBlockReason();
-    if (held) return addLog(held, 'attack-monster');
-    if (id === BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun)
-        return addLog(_t('경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.'), 'attack-monster');
-    game.inTicketBossFight = false;
-    if (typeof id === 'number' && id > game.maxZoneId) return;
-    if (id === METEOR_FALL_ZONE_ID) {
-        let st = ensureMeteorSiteState();
-        if (!st.unlocked) return addLog(_t('운석 낙하 지점은 아직 잠겨 있습니다.'), 'attack-monster');
-        if (!st.skyRiftReady) return addLog(_t('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.'), 'attack-monster');
-        prepareMeteorEncounterEntry();
-    }
-    let zone = getZone(id);
-    if (!zone) return addLog(_t('이동할 수 없는 지역입니다.'), 'attack-monster');
-    if (zone.type === 'seasonBoss') {
-        if ((game.season || 1) < (zone.reqSeason || 2)) {
-            let lockedMessage = zone.rivalBlade ? '버려진 날붙이들은 루프 31부터 당신을 찾아옵니다.'
-                : (zone.milestonePinnacle ? '아틀라스 최종 관문은 루프 31부터 모습을 드러냅니다.' : '아직 뿌리 보스가 잠겨 있습니다.');
-            return addLog(lockedMessage, 'attack-monster');
-        }
-        let gate = getSeasonBossProgressGate(zone, game);
-        if (!gate.met) return addLog(_t('🔒 {label} 조건을 먼저 달성해야 합니다.', { label: _t(gate.label) }), 'attack-monster');
-        if (!zone.milestonePinnacle) {
-            if ((game.currencies[zone.key] || 0) <= 0) return addLog(_t('입장 열쇠({name})가 필요합니다.', { name: _t(ORB_DB[zone.key].name) }), 'attack-monster');
-            game.currencies[zone.key]--;
-        }
-        game.inTicketBossFight = true;
-    }
-    if (zone.type === 'timeRift') {
-        let rift = ensureTimeRiftState();
-        if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(_t('시간의 균열은 루프 {TIME_RIFT_UNLOCK_LOOP}부터 열립니다.', { TIME_RIFT_UNLOCK_LOOP }), 'attack-monster');
-        const mismatch = zone.riftPhase === 'future' ? getTimeRiftFutureEntryReason(rift) : null;
-        if (mismatch) return addLog(mismatch, 'attack-monster');
-        rift.activePressure = rift.pressure;
-    }
-    if (id === CHAOS_REALM_ZONE_ID) {
-        let realm = ensureChaosRealmState();
-        if (!realm.unlocked) return addLog(_t('혼돈계는 나무꾼에게 10% 이상 피해를 준 전투 종료 시 해금됩니다.'), 'attack-monster');
-        if (!canEnterChaosRealm()) return addLog(_t('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.'), 'attack-monster');
-        let maxFloor = Math.max(1, Math.floor(realm.highestFloor || 1));
-        realm.currentFloor = Math.max(1, Math.min(maxFloor, Math.floor(realm.currentFloor || 1)));
-    }
-    if (typeof id === 'number' && id >= ABYSS_START_ZONE_ID) {
-        let depth = Math.max(1, Math.floor(getAbyssDepthFromZoneId(id) || 1));
-        game.abyssEndlessDepth = depth;
-        game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-        if (depth >= 20 && !game.abyssUnlockedDepths.includes(depth)) game.abyssUnlockedDepths.push(depth);
-    }
-    atlasRun.travel(zone);
-    game.killsInZone = 0;
-    addLog(_t('🗺️ {name} 이동', { name: _t(zone.name) }), "season-up");
-    // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다.
-    runItemStartMoving(false);
-    updateStaticUI();
-}
-
-function buildGoldenRuleSpendPrompt(message) {
-    let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
-    return `${message}\n\n현재 보유: 황금률 ${owned}개`;
-}
-
-function getBaseDefenseProfile(base) {
-    let ids = new Set((base.baseStats || []).map(stat => stat.id));
-    return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
-}
-
-function getBaseSecondaryStatSignature(base, slot) {
+  // modules/domain/item-base-candidates.mjs
+  function itemFlowGetBaseDefenseProfile(base) {
+    let ids = new Set((base.baseStats || []).map((stat) => stat.id));
+    return ["armor", "evasion", "energyShield"].filter((id) => ids.has(id)).join("+");
+  }
+  function itemFlowGetBaseSecondaryStatSignature(base, slot) {
     let coreStatsBySlot = {
-        무기: new Set(['flatDmg']),
-        투구: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
-        갑옷: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
-        장갑: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'aspd']),
-        신발: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'move']),
-        목걸이: new Set([]),
-        반지: new Set([]),
-        허리띠: new Set(['flatHp']),
-        방패: new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance'])
+      무기: /* @__PURE__ */ new Set(["flatDmg"]),
+      투구: /* @__PURE__ */ new Set(["flatHp", "armor", "evasion", "energyShield"]),
+      갑옷: /* @__PURE__ */ new Set(["flatHp", "armor", "evasion", "energyShield"]),
+      장갑: /* @__PURE__ */ new Set(["flatHp", "armor", "evasion", "energyShield", "aspd"]),
+      신발: /* @__PURE__ */ new Set(["flatHp", "armor", "evasion", "energyShield", "move"]),
+      목걸이: /* @__PURE__ */ new Set([]),
+      반지: /* @__PURE__ */ new Set([]),
+      허리띠: /* @__PURE__ */ new Set(["flatHp"]),
+      방패: /* @__PURE__ */ new Set(["armor", "evasion", "energyShield", "baseBlockChance"])
     };
-    let coreSet = coreStatsBySlot[slot] || new Set();
-    return (base.baseStats || [])
-        .map(stat => stat.id)
-        .filter(statId => !coreSet.has(statId))
-        .sort();
-}
-
-// Weapons all share the '무기' slot but belong to distinct archetypes (summon/projectile/spell/melee).
-// Base upgrades must stay within the same archetype, otherwise e.g. a projectile weapon could
-// upgrade into a summoner weapon.
-function getWeaponBaseArchetype(base) {
-    let ids = (base.baseStats || []).map(stat => stat.id);
-    if (ids.some(id => id.startsWith('summon'))) return 'summon';
-    if (ids.some(id => id.startsWith('projectile'))) return 'projectile';
-    if (ids.some(id => id.startsWith('spell'))) return 'spell';
-    return 'melee';
-}
-
-// 모든 슬롯에 적용되는 빌드 계열. 무기는 기존 무기 아키타입을 따르고,
-// 그 외 슬롯은 소환 스탯을 가진 베이스를 'summon' 계열로 분리한다.
-// 이렇게 해야 소환사 반지가 일반 반지 체인에 섞이지 않는다.
-function getBaseBuildArchetype(base) {
-    if (!base) return 'generic';
-    if (base.slot === '무기') return getWeaponBaseArchetype(base);
-    if (base.slot === '방패') return `shield:${base.shieldStyle || 'fortress'}`;
-    let ids = (base.baseStats || []).map(stat => stat.id);
-    if (ids.some(id => id.startsWith('summon'))) return 'summon';
-    return 'generic';
-}
-
-/** 수평 베이스(2026-10-09, js/state.js family): 같은 family 안에서만 오른다. 다른 베이스는 family 베이스로 오르지 않는다. */
-function getBaseFamilyUpgradeCandidates(currentBase) {
-    return BASE_ITEM_DB.filter(base => base.slot === currentBase.slot && base.family === currentBase.family
-        && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase).sort((a, b) => a.reqTier - b.reqTier);
-}
-
-function getBaseUpgradeCandidates(currentBase) {
-    if (currentBase.family) return getBaseFamilyUpgradeCandidates(currentBase);
-    let currentProfile = getBaseDefenseProfile(currentBase);
-    let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
-    let currentArchetype = getBaseBuildArchetype(currentBase);
-    let currentCategory = getWeaponCategoryOfBase(currentBase.id);
-    let isArmorSlot = ['투구','갑옷','장갑','신발','방패'].includes(currentBase.slot);
-    let candidates = BASE_ITEM_DB
-        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase && !base.family)
-        .filter(base => isArmorSlot ? getBaseDefenseProfile(base) === currentProfile : true)
-        .filter(base => getBaseBuildArchetype(base) === currentArchetype)
-        // 무기는 같은 대분류 안에서만 승급한다(한손검이 대검이 되지 않게).
-        .filter(base => getWeaponCategoryOfBase(base.id) === currentCategory)
-        .sort((a,b)=>a.reqTier-b.reqTier);
-    // 방어구는 방어 프로파일(방어도/회피/보호막)이 정체성이다. 저항 같은 부가 옵션은
-    // 부수적이므로, 같은 프로파일끼리 티어 순서대로 이어 준다(저항이 달라도 무방).
+    let coreSet = coreStatsBySlot[slot] || /* @__PURE__ */ new Set();
+    return (base.baseStats || []).map((stat) => stat.id).filter((statId) => !coreSet.has(statId)).sort();
+  }
+  function itemFlowGetWeaponBaseArchetype(base) {
+    let ids = (base.baseStats || []).map((stat) => stat.id);
+    if (ids.some((id) => id.startsWith("summon"))) return "summon";
+    if (ids.some((id) => id.startsWith("projectile"))) return "projectile";
+    if (ids.some((id) => id.startsWith("spell"))) return "spell";
+    return "melee";
+  }
+  function itemFlowGetBaseBuildArchetype(base) {
+    if (!base) return "generic";
+    if (base.slot === "무기") return itemFlowGetWeaponBaseArchetype(base);
+    if (base.slot === "방패") return `shield:${base.shieldStyle || "fortress"}`;
+    let ids = (base.baseStats || []).map((stat) => stat.id);
+    if (ids.some((id) => id.startsWith("summon"))) return "summon";
+    return "generic";
+  }
+  function itemFlowGetBaseFamilyUpgradeCandidates(env, currentBase) {
+    return env.deps.BASE_ITEM_DB.filter((base) => base.slot === currentBase.slot && base.family === currentBase.family && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase).sort((a, b) => a.reqTier - b.reqTier);
+  }
+  function itemFlowGetBaseUpgradeCandidates(env, currentBase) {
+    if (currentBase.family) return itemFlowGetBaseFamilyUpgradeCandidates(env, currentBase);
+    let currentProfile = itemFlowGetBaseDefenseProfile(currentBase);
+    let currentSecondarySignature = itemFlowGetBaseSecondaryStatSignature(currentBase, currentBase.slot);
+    let currentArchetype = itemFlowGetBaseBuildArchetype(currentBase);
+    let currentCategory = env.deps.getWeaponCategoryOfBase(currentBase.id);
+    let isArmorSlot = ["투구", "갑옷", "장갑", "신발", "방패"].includes(currentBase.slot);
+    let candidates = env.deps.BASE_ITEM_DB.filter((base) => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase && !base.family).filter((base) => isArmorSlot ? itemFlowGetBaseDefenseProfile(base) === currentProfile : true).filter((base) => itemFlowGetBaseBuildArchetype(base) === currentArchetype).filter((base) => env.deps.getWeaponCategoryOfBase(base.id) === currentCategory).sort((a, b) => a.reqTier - b.reqTier);
     if (isArmorSlot) return candidates;
-    // 무기/목걸이/반지/허리띠는 부가 옵션 자체가 정체성이다.
     if (currentSecondarySignature.length > 0) {
-        // 1) 부가 옵션 정체성 보존: 현재 부가 옵션을 모두 유지하는(상위 집합) 후보를 우선.
-        //    (예: 물리 피해 감소 허리띠가 카오스 저항 허리띠로 바뀌면 안 된다.)
-        let preserving = candidates.filter(base => {
-            let signature = new Set(getBaseSecondaryStatSignature(base, base.slot));
-            return currentSecondarySignature.every(id => signature.has(id));
-        });
-        if (preserving.length > 0) return preserving;
-        // 2) 완전히 다른 부옵션을 가진 베이스끼리는 한 체인으로 묶지 않는다 —
-        //    최소한 하나의 부가 옵션을 공유하는 후보만 허용한다.
-        return candidates.filter(base => {
-            let signature = new Set(getBaseSecondaryStatSignature(base, base.slot));
-            return currentSecondarySignature.some(id => signature.has(id));
-        });
+      let preserving = candidates.filter((base) => {
+        let signature = new Set(itemFlowGetBaseSecondaryStatSignature(base, base.slot));
+        return currentSecondarySignature.every((id) => signature.has(id));
+      });
+      if (preserving.length > 0) return preserving;
+      return candidates.filter((base) => {
+        let signature = new Set(itemFlowGetBaseSecondaryStatSignature(base, base.slot));
+        return currentSecondarySignature.some((id) => signature.has(id));
+      });
     }
     return candidates;
-}
+  }
 
-/** The item's base lines rolled for nextBase: the altar lines and the exceptional marks come over, and a shield keeps its block. */
-function rollUpgradedBaseStats(item, nextBase) {
+  // modules/domain/item-base-chain.mjs
+  function itemFlowBuildBaseChainInfoCache(env) {
+    env._baseChainInfoCache = {};
+    let pool = env.deps.BASE_ITEM_DB.filter((b) => b && b.id && !b.dropOnly && !b.realmBase);
+    let succ = {};
+    let preds = {};
+    pool.forEach((b) => {
+      preds[b.id] = [];
+    });
+    pool.forEach((b) => {
+      let cands = itemFlowGetBaseUpgradeCandidates(env, b);
+      let next = cands && cands.length > 0 ? cands[0] : null;
+      succ[b.id] = next ? next.id : null;
+      if (next && preds[next.id]) preds[next.id].push(b.id);
+    });
+    let upMemo = {};
+    function up(id) {
+      if (upMemo[id] != null) return upMemo[id];
+      upMemo[id] = 1;
+      let s = succ[id];
+      return upMemo[id] = s ? 1 + up(s) : 1;
+    }
+    let downMemo = {};
+    function down(id) {
+      if (downMemo[id] != null) return downMemo[id];
+      downMemo[id] = 1;
+      let best = 0;
+      (preds[id] || []).forEach((p) => {
+        best = Math.max(best, down(p));
+      });
+      return downMemo[id] = best + 1;
+    }
+    pool.forEach((b) => {
+      let d = down(b.id);
+      let u = up(b.id);
+      env._baseChainInfoCache[b.id] = { step: d, total: d + u - 1 };
+    });
+  }
+  function itemFlowGetBaseChainInfo(env, base) {
+    if (!base || !base.id) return null;
+    if (!env._baseChainInfoCache) itemFlowBuildBaseChainInfoCache(env);
+    return env._baseChainInfoCache[base.id] || null;
+  }
+  function itemFlowGetBaseChainRank(info) {
+    return info ? info.step - Math.max(0, info.total - 6) : 0;
+  }
+  function itemFlowGetItemBaseChainInfo(env, item) {
+    if (!item) return null;
+    let base = env.deps.BASE_ITEM_DB.find((b) => b && item.baseId && b.id === item.baseId) || env.deps.BASE_ITEM_DB.find((b) => b && b.name === item.baseName && b.slot === item.slot);
+    if (!base) return null;
+    return itemFlowGetBaseChainInfo(env, base);
+  }
+  function itemFlowGetBaseUpgradeCost(env, nextBase) {
+    if (!nextBase) throw new Error("베이스 업그레이드 비용을 계산할 다음 베이스가 없습니다.");
+    let exchange = env.deps.MARKET_EXCHANGES.find((row) => row && row.from === "formlessDew" && row.to === "goldenRule" && Number(row.need) > 0 && Number(row.gain) > 0);
+    if (!exchange) throw new Error("형체 없는 이슬과 황금률의 기준 교환 비율을 찾을 수 없습니다.");
+    let dewPerGoldenRule = Number(exchange.need) / Number(exchange.gain);
+    if (!Number.isInteger(dewPerGoldenRule)) throw new Error("베이스 업그레이드 교환 비율은 정수여야 합니다.");
+    let targetTier = Math.max(1, Math.floor(Number(nextBase.reqTier) || 1));
+    let totalDewValue = Math.max(
+      10,
+      Math.ceil((5 + targetTier + targetTier * targetTier * 0.5) / 5) * 5
+    );
+    let chainRank = itemFlowGetBaseChainRank(itemFlowGetBaseChainInfo(env, nextBase));
+    if (chainRank >= 6 || nextBase.slot === "무기" && targetTier >= 20) totalDewValue = Math.max(totalDewValue, 625);
+    else if (chainRank === 5) totalDewValue = Math.max(totalDewValue, 225);
+    let goldenRule = Math.floor(totalDewValue / dewPerGoldenRule);
+    return {
+      formlessDew: totalDewValue - goldenRule * dewPerGoldenRule,
+      goldenRule,
+      totalDewValue,
+      dewPerGoldenRule
+    };
+  }
+
+  // modules/domain/item-base-rolls.mjs
+  function itemFlowRollUpgradedBaseStats(env, item, nextBase) {
     let previousStats = item.baseStats || [];
-    item.baseStats = rollBaseStats(nextBase, nextBase.reqTier || 1);
-    carryUpgradedBaseMarks(item, previousStats);
-    if (nextBase.slot !== '방패') return;
-    let previous = previousStats.find(stat => stat && stat.id === 'baseBlockChance');
-    let next = item.baseStats.find(stat => stat && stat.id === 'baseBlockChance');
+    item.baseStats = env.deps.rollBaseStats(nextBase, nextBase.reqTier || 1);
+    itemFlowCarryUpgradedBaseMarks(env, item, previousStats);
+    if (nextBase.slot !== "방패") return;
+    preserveBlockRoll(previousStats, item.baseStats);
+  }
+  function preserveBlockRoll(previousStats, nextStats) {
+    let previous = previousStats.find((stat) => stat && stat.id === "baseBlockChance");
+    let next = nextStats.find((stat) => stat && stat.id === "baseBlockChance");
     let floor = Math.max(0, Number(previous && previous.val) || 0);
     if (!next || floor <= 0 || Number(next.val || 0) >= floor) return;
     next.val = floor;
-    next.valMin = Math.max(Number(next.valMin || 0), floor);
-    next.valMax = Math.max(Number(next.valMax || 0), floor);
-    next.baseRollMin = Math.max(Number(next.baseRollMin || 0), floor);
-    next.baseRollMax = Math.max(Number(next.baseRollMax || 0), floor);
-}
-
-/** After a base upgrade: each altar line comes over unchanged, and the stats that were exceptional turn exceptional again where the new
- * base has them (the drop's boostExceptionalBaseLine, so the item's exceptional fields list exactly those lines). */
-function carryUpgradedBaseMarks(item, previousStats) {
-    const exceptionalIds = new Set(previousStats.filter(stat => stat && stat.exceptional && !stat.altar).map(stat => stat.id));
-    previousStats.filter(stat => stat && stat.altar).forEach(line => carryAltarLineToUpgradedBase(item.baseStats, line, exceptionalIds));
-    EXCEPTIONAL_BASE_ITEM_FIELDS.forEach(key => delete item[key]);
-    item.baseStats.forEach(stat => { if (stat && !stat.altar && exceptionalIds.has(stat.id)) boostExceptionalBaseLine(item, stat); });
-}
-
-/** An altar line takes the place of a new line of its own stat, else of the stat it replaced before, else of the last ordinary line (no
- * defence line, no line turning exceptional, no other altar line). With none left it is added. */
-function carryAltarLineToUpgradedBase(stats, line, exceptionalIds) {
-    const open = stat => !!stat && !stat.altar && !exceptionalIds.has(stat.id) && !UPGRADE_ALTAR_KEPT_LINE_IDS.includes(stat.id);
+    for (const key of ["valMin", "valMax", "baseRollMin", "baseRollMax"]) next[key] = Math.max(Number(next[key] || 0), floor);
+  }
+  function itemFlowCarryUpgradedBaseMarks(env, item, previousStats) {
+    const exceptionalIds = new Set(previousStats.filter((stat) => stat && stat.exceptional && !stat.altar).map((stat) => stat.id));
+    previousStats.filter((stat) => stat && stat.altar).forEach((line) => itemFlowCarryAltarLineToUpgradedBase(env, item.baseStats, line, exceptionalIds));
+    env.EXCEPTIONAL_BASE_ITEM_FIELDS.forEach((key) => delete item[key]);
+    item.baseStats.forEach((stat) => {
+      if (stat && !stat.altar && exceptionalIds.has(stat.id)) env.deps.boostExceptionalBaseLine(item, stat);
+    });
+  }
+  function itemFlowCarryAltarLineToUpgradedBase(env, stats, line, exceptionalIds) {
+    const open = (stat) => !!stat && !stat.altar && !exceptionalIds.has(stat.id) && !env.UPGRADE_ALTAR_KEPT_LINE_IDS.includes(stat.id);
     const replacedId = line.replaced ? line.replaced.id : null;
-    let index = stats.findIndex(stat => open(stat) && stat.id === line.id);
-    if (index < 0) index = stats.findIndex(stat => open(stat) && stat.id === replacedId);
+    let index = stats.findIndex((stat) => open(stat) && stat.id === line.id);
+    if (index < 0) index = stats.findIndex((stat) => open(stat) && stat.id === replacedId);
     if (index < 0) index = stats.map(open).lastIndexOf(true);
     const carried = Object.assign({}, line);
     delete carried.replaced;
     if (index < 0) stats.push(carried);
-    else stats[index] = Object.assign(carried, { replaced: { id: stats[index].id, statName: stats[index].statName || getStatName(stats[index].id) } });
-}
+    else stats[index] = Object.assign(carried, { replaced: { id: stats[index].id, statName: stats[index].statName || env.deps.getStatName(stats[index].id) } });
+  }
 
-function buildBaseChainInfoCache() {
-    _baseChainInfoCache = {};
-    let pool = BASE_ITEM_DB.filter(b => b && b.id && !b.dropOnly && !b.realmBase);
-    let succ = {};
-    let preds = {};
-    pool.forEach(b => { preds[b.id] = []; });
-    pool.forEach(b => {
-        let cands = getBaseUpgradeCandidates(b);
-        let next = (cands && cands.length > 0) ? cands[0] : null;
-        succ[b.id] = next ? next.id : null;
-        if (next && preds[next.id]) preds[next.id].push(b.id);
-    });
-    let upMemo = {};
-    function up(id) {
-        if (upMemo[id] != null) return upMemo[id];
-        upMemo[id] = 1; // 사이클 가드(실제로는 reqTier가 엄격히 증가해 사이클 없음)
-        let s = succ[id];
-        return (upMemo[id] = s ? 1 + up(s) : 1);
-    }
-    let downMemo = {};
-    function down(id) {
-        if (downMemo[id] != null) return downMemo[id];
-        downMemo[id] = 1;
-        let best = 0;
-        (preds[id] || []).forEach(p => { best = Math.max(best, down(p)); });
-        return (downMemo[id] = best + 1);
-    }
-    pool.forEach(b => {
-        let d = down(b.id);
-        let u = up(b.id);
-        _baseChainInfoCache[b.id] = { step: d, total: d + u - 1 };
-    });
-}
+  // modules/domain/item-base-upgrade.mjs
+  function itemFlowBuildGoldenRuleSpendPrompt(owner, message) {
+    let owned = Math.max(0, Math.floor(owner.currencies && owner.currencies.goldenRule || 0));
+    return `${message}
 
-function getBaseChainInfo(base) {
-    if (!base || !base.id) return null;
-    if (!_baseChainInfoCache) buildBaseChainInfoCache();
-    return _baseChainInfoCache[base.id] || null;
-}
-
-/** A base's step counted as in a six-step chain: a longer chain's top is 6 and the step below it 5 (the bow line has seven).
- * Upgrade cost floors and the rare drop weight of chain tops read this. */
-function getBaseChainRank(info) {
-    return info ? info.step - Math.max(0, info.total - 6) : 0;
-}
-
-/** 베이스 단계의 색 클래스(css/layout.css .base-step-*, 2026-11-08 사용자: 가장 높은 베이스에 가까울수록 색이 바뀐다): 맨 위는 top,
- * 그 아래는 사슬 안의 자리(0~1)로 high(2/3 이상), mid(1/3 이상), low. 장비 칸 표시, 툴팁 베이스 줄, 프로필의 [단계/전체]가 같이 쓴다. */
-function getBaseStepClassName(info) {
-    if (!info || !(info.total > 1)) return 'base-step-low';
-    if (info.step >= info.total) return 'base-step-top';
-    const ratio = (info.step - 1) / (info.total - 1);
-    return ratio >= 2 / 3 ? 'base-step-high' : ratio >= 1 / 3 ? 'base-step-mid' : 'base-step-low';
-}
-
-function getItemBaseChainInfo(item) {
-    if (!item) return null;
-    let base = BASE_ITEM_DB.find(b => b && item.baseId && b.id === item.baseId)
-        || BASE_ITEM_DB.find(b => b && b.name === item.baseName && b.slot === item.slot);
-    if (!base) return null;
-    return getBaseChainInfo(base);
-}
-
-/**
- * @param {{id?: string, reqTier?: number}} nextBase
- * @returns {{formlessDew: number, goldenRule: number, totalDewValue: number, dewPerGoldenRule: number}}
- */
-function getBaseUpgradeCost(nextBase) {
-    if (!nextBase) throw new Error('베이스 업그레이드 비용을 계산할 다음 베이스가 없습니다.');
-    let exchange = MARKET_EXCHANGES.find(row => row && row.from === 'formlessDew'
-        && row.to === 'goldenRule' && Number(row.need) > 0 && Number(row.gain) > 0);
-    if (!exchange) throw new Error('형체 없는 이슬과 황금률의 기준 교환 비율을 찾을 수 없습니다.');
-    let dewPerGoldenRule = Number(exchange.need) / Number(exchange.gain);
-    if (!Number.isInteger(dewPerGoldenRule)) throw new Error('베이스 업그레이드 교환 비율은 정수여야 합니다.');
-    let targetTier = Math.max(1, Math.floor(Number(nextBase.reqTier) || 1));
-    let totalDewValue = Math.max(10,
-        Math.ceil((5 + targetTier + targetTier * targetTier * 0.5) / 5) * 5);
-    let chainRank = getBaseChainRank(getBaseChainInfo(nextBase));
-    // 6단계 체인의 맨 위, 그리고 20단계 무기(다섯 단계 체인인 플라스크 · 향로 포함)는 같은 625.
-    if (chainRank >= 6 || (nextBase.slot === '무기' && targetTier >= 20)) totalDewValue = Math.max(totalDewValue, 625);
-    else if (chainRank === 5) totalDewValue = Math.max(totalDewValue, 225);
-    let goldenRule = Math.floor(totalDewValue / dewPerGoldenRule);
-    return {
-        formlessDew: totalDewValue - goldenRule * dewPerGoldenRule,
-        goldenRule,
-        totalDewValue,
-        dewPerGoldenRule
-    };
-}
-
-function upgradeSelectedItemBase() {
-    let item = getSelectedCraftItem();
-    if (!item) return addLog(_t('먼저 제작 대상 장비를 선택하세요.'), 'attack-monster');
-    let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
-    if (!currentBase) return addLog(_t('현재 베이스 정보를 찾을 수 없습니다.'), 'attack-monster');
-    const refusal = getBaseUpgradeRefusal(item, currentBase);
-    if (refusal) return addLog(_t(refusal), 'attack-monster');
-    let candidates = getBaseUpgradeCandidates(currentBase);
+현재 보유: 황금률 ${owned}개`;
+  }
+  function* itemFlowUpgradeSelectedItemBase(env, owner) {
+    let item = itemFlowGetSelectedCraftItem(env, owner);
+    if (!item) return yield { kind: "itemLog", args: [env.deps._t("먼저 제작 대상 장비를 선택하세요."), "attack-monster"] };
+    let currentBase = env.deps.BASE_ITEM_DB.find((base) => base && base.id === item.baseId) || env.deps.BASE_ITEM_DB.find((base) => base && base.name === item.baseName && base.slot === item.slot);
+    if (!currentBase) return yield { kind: "itemLog", args: [env.deps._t("현재 베이스 정보를 찾을 수 없습니다."), "attack-monster"] };
+    const refusal = itemFlowGetBaseUpgradeRefusal(item, currentBase);
+    if (refusal) return yield { kind: "itemLog", args: [env.deps._t(refusal), "attack-monster"] };
+    let candidates = itemFlowGetBaseUpgradeCandidates(env, currentBase);
     let nextBase = candidates[0];
-    if (!nextBase) return addLog(_t('해당 계열의 다음 베이스가 없습니다.'), 'attack-monster');
-    let cost = getBaseUpgradeCost(nextBase);
-    game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id };
-    let titleEl = document.getElementById('base-upgrade-title');
-    let bodyEl = document.getElementById('base-upgrade-body');
-    if (titleEl) titleEl.innerText = `${_t(currentBase.name)} → ${_t(nextBase.name)}`;
-    if (bodyEl) {
-        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        bodyEl.innerHTML = `${_t('현재 베이스:')} <strong>${_t(currentBase.name)}</strong><br><span style="color:var(--copy-muted);">${curStats || _t('없음')}</span><br><br>${_t('업그레이드 베이스:')} <strong>${_t(nextBase.name)}</strong><br><span style="color:#ffd08a;">${nextStats || _t('없음')}</span><br><br>${_t('비용: 형체 없는 이슬 {formlessDew}', { formlessDew: cost.formlessDew })}${cost.goldenRule > 0 ? _t(' + 황금률 {goldenRule}', { goldenRule: cost.goldenRule }) : ''}<br><span style="color:var(--copy-muted);">${_t('총 이슬 가치 {totalDewValue}', { totalDewValue: cost.totalDewValue })}</span>`;
-    }
-    let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.showModal();
-}
-
-function closeBaseUpgradeOverlay() {
-    game.pendingBaseUpgrade = null;
-    let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.close();
-}
-
-/** Why the item's base cannot be upgraded, or '': a realm base has no chain, a hall piece keeps its original state and corrupted gear
- * takes no more crafting, as every other craft refuses them (getCraftActionValidators in js/ui.js greys the button out with this too). */
-function getBaseUpgradeRefusal(item, currentBase = null) {
-    if (currentBase && currentBase.realmBase) return '계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.';
-    if (item.hallReplica) return '전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.';
-    return item.corrupted ? '타락한 아이템은 더 이상 제작할 수 없습니다.' : '';
-}
-
-/** What the wallet lacks for a base upgrade's cost, or ''. */
-function getBaseUpgradeShortfall(cost) {
-    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return _t('형체 없는 이슬이 부족합니다. (필요: {formlessDew})', { formlessDew: cost.formlessDew });
-    return (game.currencies.goldenRule || 0) < cost.goldenRule ? _t('황금률이 부족합니다. (필요: {goldenRule})', { goldenRule: cost.goldenRule }) : '';
-}
-
-function confirmSelectedItemBaseUpgrade() {
-    let pending = game.pendingBaseUpgrade;
+    if (!nextBase) return yield { kind: "itemLog", args: [env.deps._t("해당 계열의 다음 베이스가 없습니다."), "attack-monster"] };
+    let cost = itemFlowGetBaseUpgradeCost(env, nextBase);
+    owner.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id };
+    yield { kind: "itemShowBaseUpgrade", args: [currentBase, nextBase, cost] };
+  }
+  function* itemFlowCloseBaseUpgradeOverlay(owner) {
+    owner.pendingBaseUpgrade = null;
+    yield { kind: "itemCloseBaseUpgrade", args: [] };
+  }
+  function itemFlowGetBaseUpgradeRefusal(item, currentBase = null) {
+    if (currentBase && currentBase.realmBase) return "계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.";
+    if (item.hallReplica) return "전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.";
+    return item.corrupted ? "타락한 아이템은 더 이상 제작할 수 없습니다." : "";
+  }
+  function itemFlowGetBaseUpgradeShortfall(env, owner, cost) {
+    if ((owner.currencies.formlessDew || 0) < cost.formlessDew) return env.deps._t("형체 없는 이슬이 부족합니다. (필요: {formlessDew})", { formlessDew: cost.formlessDew });
+    return (owner.currencies.goldenRule || 0) < cost.goldenRule ? env.deps._t("황금률이 부족합니다. (필요: {goldenRule})", { goldenRule: cost.goldenRule }) : "";
+  }
+  function* itemFlowConfirmSelectedItemBaseUpgrade(env, owner) {
+    let pending = owner.pendingBaseUpgrade;
     if (!pending) return;
-    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.'), 'attack-monster');
-    let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
+    if (owner.woodsmanBuildLock) return yield { kind: "itemLog", args: [env.deps._t("☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다."), "attack-monster"] };
+    const item = findPendingUpgradeItem(owner, pending.itemId);
     if (!item) {
-        let equipMatch = Object.entries(game.equipment || {}).find(([, equipped]) => equipped && equipped.id === pending.itemId);
-        if (equipMatch) item = equipMatch[1];
+      yield* itemFlowCloseBaseUpgradeOverlay(owner);
+      return yield { kind: "itemLog", args: [env.deps._t("대상 장비를 찾을 수 없습니다."), "attack-monster"] };
     }
-    if (!item) { closeBaseUpgradeOverlay(); return addLog(_t('대상 장비를 찾을 수 없습니다.'), 'attack-monster'); }
-    const refusal = getBaseUpgradeRefusal(item);
-    if (refusal) { closeBaseUpgradeOverlay(); return addLog(_t(refusal), 'attack-monster'); }
-    let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || null;
-    let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
-    if (!nextBase) return closeBaseUpgradeOverlay();
-    let cost = getBaseUpgradeCost(nextBase);
-    const shortfall = getBaseUpgradeShortfall(cost);
-    if (shortfall) return addLog(shortfall, 'attack-monster');
-    game.currencies.formlessDew -= cost.formlessDew;
-    game.currencies.goldenRule = Math.max(0, (game.currencies.goldenRule || 0) - cost.goldenRule);
+    const refusal = itemFlowGetBaseUpgradeRefusal(item);
+    if (refusal) {
+      yield* itemFlowCloseBaseUpgradeOverlay(owner);
+      return yield { kind: "itemLog", args: [env.deps._t(refusal), "attack-monster"] };
+    }
+    let currentBase = env.deps.BASE_ITEM_DB.find((base) => base && base.id === item.baseId) || null;
+    let nextBase = env.deps.BASE_ITEM_DB.find((base) => base && base.id === pending.nextBaseId);
+    if (!nextBase) return yield* itemFlowCloseBaseUpgradeOverlay(owner);
+    let cost = itemFlowGetBaseUpgradeCost(env, nextBase);
+    const shortfall = itemFlowGetBaseUpgradeShortfall(env, owner, cost);
+    if (shortfall) return yield { kind: "itemLog", args: [shortfall, "attack-monster"] };
+    applyBaseUpgrade(env, owner, item, nextBase, cost);
+    yield { kind: "itemLog", args: [baseUpgradeLog(env, currentBase, nextBase, cost), "loot-magic"] };
+    yield* itemFlowCloseBaseUpgradeOverlay(owner);
+    yield { kind: "itemRefresh", args: [] };
+  }
+  function applyBaseUpgrade(env, owner, item, nextBase, cost) {
+    owner.currencies.formlessDew -= cost.formlessDew;
+    owner.currencies.goldenRule = Math.max(0, (owner.currencies.goldenRule || 0) - cost.goldenRule);
     item.baseId = nextBase.id;
     item.baseName = nextBase.name;
-    updateItemName(item); // 마법의, 희귀한은 그대로 두고 베이스 이름만 바뀐다(고유는 제 이름).
+    env.deps.updateItemName(item);
     item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
-    rollUpgradedBaseStats(item, nextBase);
-    addLog(_t('🛠️ 베이스 업그레이드: {from} → {to} (형체 없는 이슬 {dew}{rule})', { from: _t((currentBase && currentBase.name) || '기존'), to: _t(nextBase.name), dew: cost.formlessDew, rule: cost.goldenRule ? ` + ${_t('황금률')} ${cost.goldenRule}` : '' }), 'loot-magic');
-    closeBaseUpgradeOverlay();
-    updateStaticUI();
-}
+    itemFlowRollUpgradedBaseStats(env, item, nextBase);
+  }
+  function findPendingUpgradeItem(owner, itemId) {
+    const item = (owner.inventory || []).find((v) => v && v.id === itemId);
+    if (item) return item;
+    const equipped = Object.entries(owner.equipment || {}).find(([, value]) => value && value.id === itemId);
+    return equipped ? equipped[1] : void 0;
+  }
+  function baseUpgradeLog(env, currentBase, nextBase, cost) {
+    return env.deps._t("🛠️ 베이스 업그레이드: {from} → {to} (형체 없는 이슬 {dew}{rule})", {
+      from: env.deps._t(currentBase && currentBase.name || "기존"),
+      to: env.deps._t(nextBase.name),
+      dew: cost.formlessDew,
+      rule: cost.goldenRule ? ` + ${env.deps._t("황금률")} ${cost.goldenRule}` : ""
+    });
+  }
 
-/** 보여 줄 장비 이름(docs/i18n.md): 마법·희귀는 '마법의 {베이스}'처럼 베이스 이름으로 짓는다(js/item-rolls.js updateItemName). 저장된
- * 이름은 그대로 두고, 보여 줄 때 틀과 베이스 이름을 따로 옮긴다. 고유와 일반은 이름 그대로 옮긴다. */
-function getItemDisplayName(item) {
-    const name = String((item && item.name) || '');
-    const base = item && item.baseName;
-    if (base && name === `마법의 ${base}`) return _t('마법의 {base}', { base: _t(base) });
-    if (base && name === `희귀한 ${base}`) return _t('희귀한 {base}', { base: _t(base) });
-    return _t(name);
-}
+  // modules/domain/items.mjs
+  function createItemRules(deps) {
+    const env = { deps };
+    env.craftingSelectionState = { ref: null, isEquip: false };
+    env.BEEHIVE_TRAVEL_REFUSAL = "벌집 원정 중에는 [원정 포기] 전까지 다른 지역으로 이동할 수 없습니다.";
+    env.UPGRADE_ALTAR_KEPT_LINE_IDS = Object.freeze(["armor", "evasion", "energyShield"]);
+    env.EXCEPTIONAL_BASE_ITEM_FIELDS = Object.freeze(["exceptionalBase", "exceptionalStatNames", "exceptionalStatName", "exceptionalAllLines"]);
+    env._baseChainInfoCache = null;
+    return bindItemRules(env);
+  }
+  function bindItemRules(env) {
+    return Object.freeze({
+      getCodexSlotOrder: itemFlowGetCodexSlotOrder,
+      getEquipmentInventoryFootprint: (...args) => itemFlowGetEquipmentInventoryFootprint(env, ...args),
+      getWeaponInventoryFootprint: (...args) => itemFlowGetWeaponInventoryFootprint(env, ...args),
+      getAverageExplicitAffixTier: itemFlowGetAverageExplicitAffixTier,
+      getCraftSelectionRef: (...args) => itemFlowGetCraftSelectionRef(env, ...args),
+      isCraftSelectionEquip: (...args) => itemFlowIsCraftSelectionEquip(env, ...args),
+      clearCraftSelection: (...args) => itemFlowClearCraftSelection(env, ...args),
+      getSelectedCraftItem: (...args) => itemFlowGetSelectedCraftItem(env, ...args),
+      ensureCraftSelectionValid: (...args) => itemFlowEnsureCraftSelectionValid(env, ...args),
+      selectForCrafting: (...args) => itemFlowSelectForCrafting(env, ...args),
+      copyCraftResultStat: itemFlowCopyCraftResultStat,
+      snapshotCraftResultItem: (...args) => itemFlowSnapshotCraftResultItem(env, ...args),
+      getEquipCandidateSlots: (...args) => itemFlowGetEquipCandidateSlots(env, ...args),
+      canEquipItemToSlot: (...args) => itemFlowCanEquipItemToSlot(env, ...args),
+      tryAutoEquipEmptySlot: (...args) => itemFlowTryAutoEquipEmptySlot(env, ...args),
+      equipIntoFirstEmptySlot: (...args) => itemFlowEquipIntoFirstEmptySlot(env, ...args),
+      equipIntoEmptySlots: (...args) => itemFlowEquipIntoEmptySlots(env, ...args),
+      countFillableEmptySlots: (...args) => itemFlowCountFillableEmptySlots(env, ...args),
+      isDualSlotItem: (...args) => itemFlowIsDualSlotItem(env, ...args),
+      equipItem: (...args) => itemFlowEquipItem(env, ...args),
+      equipItemById: (...args) => itemFlowEquipItemById(env, ...args),
+      equipSelectedCraftInventoryItem: (...args) => itemFlowEquipSelectedCraftInventoryItem(env, ...args),
+      unequipItemToGrid: (...args) => itemFlowUnequipItemToGrid(env, ...args),
+      unequipItem: (...args) => itemFlowUnequipItem(env, ...args),
+      releaseClosedThirdRing: (...args) => itemFlowReleaseClosedThirdRing(env, ...args),
+      salvageItemById: itemFlowSalvageItemById,
+      toggleItemLockById: (...args) => itemFlowToggleItemLockById(env, ...args),
+      hasActiveBeehiveRuntimeState: itemFlowHasActiveBeehiveRuntimeState,
+      clearBeehiveRuntimeState: itemFlowClearBeehiveRuntimeState,
+      reconcileBeehiveRunState: itemFlowReconcileBeehiveRunState,
+      isBeehiveRunLockedForMapTravel: itemFlowIsBeehiveRunLockedForMapTravel,
+      warnBeehiveMapTravelBlocked: (...args) => itemFlowWarnBeehiveMapTravelBlocked(env, ...args),
+      getHeldRunBlockReason: (...args) => itemFlowGetHeldRunBlockReason(env, ...args),
+      getContentStartBlockReason: (...args) => itemFlowGetContentStartBlockReason(env, ...args),
+      setTimeRiftPressure: (...args) => itemFlowSetTimeRiftPressure(env, ...args),
+      getTimeRiftFutureEntryReason: (...args) => itemFlowGetTimeRiftFutureEntryReason(env, ...args),
+      getTimeRiftFusionMismatchReason: (...args) => itemFlowGetTimeRiftFusionMismatchReason(env, ...args),
+      getTimeAltarItemIssue: (...args) => itemFlowGetTimeAltarItemIssue(env, ...args),
+      placeItemOnTimeAltar: (...args) => itemFlowPlaceItemOnTimeAltar(env, ...args),
+      retrieveTimeAltarItems: (...args) => itemFlowRetrieveTimeAltarItems(env, ...args),
+      resolveTimeRiftFusion: (...args) => itemFlowResolveTimeRiftFusion(env, ...args),
+      prepareMeteorEncounterEntry: (...args) => itemFlowPrepareMeteorEncounterEntry(env, ...args),
+      getZoneTravelBlockReason: (...args) => itemFlowGetZoneTravelBlockReason(env, ...args),
+      changeZone: (...args) => itemFlowChangeZone(env, ...args),
+      buildGoldenRuleSpendPrompt: itemFlowBuildGoldenRuleSpendPrompt,
+      getBaseUpgradeCandidates: (...args) => itemFlowGetBaseUpgradeCandidates(env, ...args),
+      getBaseChainInfo: (...args) => itemFlowGetBaseChainInfo(env, ...args),
+      getBaseChainRank: itemFlowGetBaseChainRank,
+      getItemBaseChainInfo: (...args) => itemFlowGetItemBaseChainInfo(env, ...args),
+      upgradeSelectedItemBase: (...args) => itemFlowUpgradeSelectedItemBase(env, ...args),
+      closeBaseUpgradeOverlay: itemFlowCloseBaseUpgradeOverlay,
+      getBaseUpgradeRefusal: itemFlowGetBaseUpgradeRefusal,
+      confirmSelectedItemBaseUpgrade: (...args) => itemFlowConfirmSelectedItemBaseUpgrade(env, ...args),
+      getItemDisplayName: (...args) => itemFlowGetItemDisplayName(env, ...args)
+    });
+  }
 
-exposeFileGlobals({ getCodexSlotOrder, getInventoryItemVisualAsset, renderInventoryItemVisual, getEquipmentGridVisualAsset, pickEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getWeaponInventoryFootprint, getUniqueEntryVisualAsset, getAverageExplicitAffixTier, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, getSelectedCraftItem, ensureCraftSelectionValid, selectForCrafting, copyCraftResultStat, snapshotCraftResultItem, getEquipCandidateSlots, canEquipItemToSlot, tryAutoEquipEmptySlot, equipIntoFirstEmptySlot, equipIntoEmptySlots, countFillableEmptySlots, isDualSlotItem, getDualSlotDisplayLabel, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItemToGrid, unequipItem, releaseClosedThirdRing, salvageItemById, toggleItemLockById, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getHeldRunBlockReason, getContentStartBlockReason, setTimeRiftPressure, getTimeRiftFutureEntryReason, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, placeItemOnTimeAltar, retrieveTimeAltarItems, resolveTimeRiftFusion, prepareMeteorEncounterEntry, getZoneTravelBlockReason, changeZone, buildGoldenRuleSpendPrompt, getBaseUpgradeCandidates, getBaseChainInfo, getBaseChainRank, getBaseStepClassName, getItemBaseChainInfo, upgradeSelectedItemBase, closeBaseUpgradeOverlay, getBaseUpgradeRefusal, confirmSelectedItemBaseUpgrade, getItemDisplayName });
-})();
+  // modules/ui/item-visuals.mjs
+  function itemVisualAsset(deps, item, kind) {
+    return itemVisualPickAsset(deps, item, kind);
+  }
+  function itemVisualPickAsset(deps, item, kind) {
+    let visuals2 = typeof deps.ITEM_VISUAL_ASSET_DB !== "undefined" ? deps.ITEM_VISUAL_ASSET_DB : null;
+    if (!visuals2) return "";
+    if (kind === "jewel") return deps.bagItems.jewelArt(item);
+    if (kind === "talisman") return item && item.family === "talisman" ? deps.stumpBox.iconPath(item) : visuals2.talisman;
+    if (kind === "core") return deps.coreItems.icon(item);
+    return itemVisualEquipmentAsset(deps, item);
+  }
+  function itemVisualMarkup(deps, item, kind, className) {
+    let asset = itemVisualAsset(deps, item, kind);
+    if (!asset) return "";
+    let label = item && (item.name || item.baseName) || "아이템";
+    return `<img class="${className || "inventory-item-visual"}" src="${asset}" alt="" aria-hidden="true" data-item-visual-label="${typeof deps.escapeHTML === "function" ? deps.escapeHTML(label) : label}">`;
+  }
+  function itemVisualEquipmentAsset(deps, item) {
+    return deps.bagItems.artOf(item) || itemVisualPickEquipmentAsset(deps, item);
+  }
+  function itemVisualPickEquipmentAsset(deps, item) {
+    const visuals2 = deps.ITEM_VISUAL_ASSET_DB;
+    if (!item) return visuals2.equipment.default;
+    const grid = visuals2.equipmentGrid;
+    if ((item.rarity || item.type) === "unique" && Object.hasOwn(grid.uniqueAssets, item.name)) return grid.uniqueAssets[item.name];
+    const exact = grid.baseAssets[item.baseId];
+    if (exact) return exact;
+    const slot = String(item.slot || "").replace(/[123]$/, "");
+    if (slot === "무기") {
+      const label = [item.baseId, item.baseName, item.name].filter(Boolean).join(" ").toLowerCase();
+      const match = visuals2.weaponKeywords.find((row) => row.terms.some((term) => label.includes(term)));
+      if (match) return match.asset;
+    }
+    return visuals2.equipment[slot] || visuals2.equipment.default;
+  }
+  function itemVisualUniqueAsset(deps, entry) {
+    const rule = deps.UNIQUE_EQUIPMENT_RULES[entry.name];
+    return itemVisualEquipmentAsset(deps, { rarity: "unique", name: entry.name, slot: entry.slots[0], baseId: rule ? rule.baseId : "" });
+  }
+  function itemVisualDualSlotLabel(targetSlot) {
+    if (targetSlot === "반지1") return "왼쪽 반지";
+    if (targetSlot === "반지2") return "오른쪽 반지";
+    if (targetSlot === "장갑1") return "왼쪽 장갑";
+    if (targetSlot === "장갑2") return "오른쪽 장갑";
+    if (targetSlot === "무기") return "주 무기";
+    if (targetSlot === "방패") return "완갑";
+    return targetSlot;
+  }
+  function itemVisualBaseStepClass(info) {
+    if (!info || !(info.total > 1)) return "base-step-low";
+    if (info.step >= info.total) return "base-step-top";
+    const ratio = (info.step - 1) / (info.total - 1);
+    return ratio >= 2 / 3 ? "base-step-high" : ratio >= 1 / 3 ? "base-step-mid" : "base-step-low";
+  }
+  function itemVisualShowBaseUpgrade(deps, currentBase, nextBase, cost) {
+    let titleEl = deps.document.getElementById("base-upgrade-title");
+    let bodyEl = deps.document.getElementById("base-upgrade-body");
+    if (titleEl) titleEl.innerText = `${deps._t(currentBase.name)} → ${deps._t(nextBase.name)}`;
+    if (bodyEl) {
+      let curStats = (currentBase.baseStats || []).map((stat) => `${deps.getStatName(stat.id)} ${deps.formatSignedValue(stat.id, stat.baseMin || stat.base)}~${deps.formatValue(stat.id, stat.baseMax || stat.base)}`).join(" / ");
+      let nextStats = (nextBase.baseStats || []).map((stat) => `${deps.getStatName(stat.id)} ${deps.formatSignedValue(stat.id, stat.baseMin || stat.base)}~${deps.formatValue(stat.id, stat.baseMax || stat.base)}`).join(" / ");
+      bodyEl.innerHTML = `${deps._t("현재 베이스:")} <strong>${deps._t(currentBase.name)}</strong><br><span style="color:var(--copy-muted);">${curStats || deps._t("없음")}</span><br><br>${deps._t("업그레이드 베이스:")} <strong>${deps._t(nextBase.name)}</strong><br><span style="color:#ffd08a;">${nextStats || deps._t("없음")}</span><br><br>${deps._t("비용: 형체 없는 이슬 {formlessDew}", { formlessDew: cost.formlessDew })}${cost.goldenRule > 0 ? deps._t(" + 황금률 {goldenRule}", { goldenRule: cost.goldenRule }) : ""}<br><span style="color:var(--copy-muted);">${deps._t("총 이슬 가치 {totalDewValue}", { totalDewValue: cost.totalDewValue })}</span>`;
+    }
+    let overlay = deps.document.getElementById("base-upgrade-overlay");
+    if (overlay) overlay.showModal();
+  }
+  function itemVisualCloseBaseUpgrade(deps) {
+    const overlay = deps.document.getElementById("base-upgrade-overlay");
+    if (overlay) overlay.close();
+  }
+  function createItemVisuals(deps) {
+    return Object.freeze({
+      getInventoryItemVisualAsset: (...args) => itemVisualAsset(deps, ...args),
+      renderInventoryItemVisual: (...args) => itemVisualMarkup(deps, ...args),
+      getEquipmentGridVisualAsset: (...args) => itemVisualEquipmentAsset(deps, ...args),
+      pickEquipmentGridVisualAsset: (...args) => itemVisualPickEquipmentAsset(deps, ...args),
+      getUniqueEntryVisualAsset: (...args) => itemVisualUniqueAsset(deps, ...args),
+      getDualSlotDisplayLabel: itemVisualDualSlotLabel,
+      getBaseStepClassName: itemVisualBaseStepClass,
+      showBaseUpgrade: (...args) => itemVisualShowBaseUpgrade(deps, ...args),
+      closeBaseUpgrade: (...args) => itemVisualCloseBaseUpgrade(deps, ...args)
+    });
+  }
 
-
-// Item module bridge (phase 2).
-window.GameModules = window.GameModules || {};
-window.GameModules.items = {
-  get db() { return window.UNIQUE_DB; },
-  get orbs() { return window.ORB_DB; },
-  get market() { return window.MARKET_EXCHANGES; },
-  // TODO: move item crafting/equip/salvage functions from main/ui into here.
-};
-
-// Phase-3 extracted equipment/inventory handlers.
-
-let craftingSelectionState = { ref: null, isEquip: false };
-
-
-safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
-
-
-safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getUniqueEntryVisualAsset });
-
-safeExposeGlobals({ getAverageExplicitAffixTier });
-
-
-const craftingResultLedger = (() => {
+  // modules/domain/item-craft-ledger.mjs
+  function createCraftResultLedger(snapshotCraftResultItem2) {
     let latest = null, sequence = 0;
-
     function begin(item, meta) {
-        if (!item) return null;
-        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) }, seq: ++sequence };
+      if (!item) return null;
+      return { itemRef: item, before: snapshotCraftResultItem2(item), meta: { ...meta || {} }, seq: ++sequence };
     }
-
-    /** A craft wrapped in another (the crafting workspace around useCurrency) keeps the inner one's outcome line. */
     function commit(token, item) {
-        if (!token || !item || token.itemRef !== item) return null;
-        let after = snapshotCraftResultItem(item);
-        const inner = latest && latest.itemRef === item && latest.seq > token.seq ? latest.meta.outcome : undefined;
-        const meta = inner && !token.meta.outcome ? { ...token.meta, outcome: inner } : token.meta;
-        latest = { itemRef: item, before: token.before, after, meta, seq: token.seq, afterKey: JSON.stringify(after) };
-        return latest;
+      if (!token || !item || token.itemRef !== item) return null;
+      let after = snapshotCraftResultItem2(item);
+      const inner = latest && latest.itemRef === item && latest.seq > token.seq ? latest.meta.outcome : void 0;
+      const meta = inner && !token.meta.outcome ? { ...token.meta, outcome: inner } : token.meta;
+      latest = { itemRef: item, before: token.before, after, meta, seq: token.seq, afterKey: JSON.stringify(after) };
+      return latest;
     }
-
     function getForItem(item) {
-        if (!latest || latest.itemRef !== item) return null;
-        return JSON.stringify(snapshotCraftResultItem(item)) === latest.afterKey ? latest : null;
+      if (!latest || latest.itemRef !== item) return null;
+      return JSON.stringify(snapshotCraftResultItem2(item)) === latest.afterKey ? latest : null;
     }
-
-    /** The latest result's item changed again within the same craft (성화의 뿌리 pick): its after becomes the item now. */
     function amend(item) {
-        if (!latest || latest.itemRef !== item) return null;
-        const after = snapshotCraftResultItem(item);
-        latest = { ...latest, after, afterKey: JSON.stringify(after) };
-        return latest;
+      if (!latest || latest.itemRef !== item) return null;
+      const after = snapshotCraftResultItem2(item);
+      latest = { ...latest, after, afterKey: JSON.stringify(after) };
+      return latest;
     }
-
-    function clear() { latest = null; }
-
+    function clear() {
+      latest = null;
+    }
     return { begin, commit, amend, getForItem, clear };
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects2) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects2[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/items-classic.mjs
+  var rules = createItemRules({
+    get getWeaponCategoryId() {
+      return getWeaponCategoryId;
+    },
+    get SLENDER_GREATSWORD_BASES() {
+      return SLENDER_GREATSWORD_BASES;
+    },
+    get getWeaponBaseId() {
+      return getWeaponBaseId;
+    },
+    get bagItems() {
+      return bagItems;
+    },
+    get _t() {
+      return _t;
+    },
+    get colonyWards() {
+      return typeof colonyWards === "undefined" ? void 0 : colonyWards;
+    },
+    get equipmentSockets() {
+      return equipmentSockets;
+    },
+    get getPassiveEquipmentRestriction() {
+      return getPassiveEquipmentRestriction;
+    },
+    get getTranscendentVoidPassiveCount() {
+      return typeof getTranscendentVoidPassiveCount === "undefined" ? void 0 : getTranscendentVoidPassiveCount;
+    },
+    get hasKeystone() {
+      return typeof hasKeystone === "undefined" ? void 0 : hasKeystone;
+    },
+    get combatEquipmentStats() {
+      return combatEquipmentStats;
+    },
+    get COLONY_WARD_RULES() {
+      return COLONY_WARD_RULES;
+    },
+    get normalizeSupportLoadout() {
+      return typeof normalizeSupportLoadout === "undefined" ? void 0 : normalizeSupportLoadout;
+    },
+    get JEWEL_RARITY_ORDER() {
+      return JEWEL_RARITY_ORDER;
+    },
+    get equipmentInventoryGridRuntime() {
+      return equipmentInventoryGridRuntime;
+    },
+    get equipmentLoadoutRuntime() {
+      return equipmentLoadoutRuntime;
+    },
+    get pickParticle() {
+      return pickParticle;
+    },
+    get ensureBeyondBoundaryState() {
+      return ensureBeyondBoundaryState;
+    },
+    get atlas() {
+      return atlas;
+    },
+    get ensureTimeRiftState() {
+      return ensureTimeRiftState;
+    },
+    get TIME_RIFT_PAST_ZONE_ID() {
+      return TIME_RIFT_PAST_ZONE_ID;
+    },
+    get TIME_RIFT_FUTURE_ZONE_ID() {
+      return TIME_RIFT_FUTURE_ZONE_ID;
+    },
+    get TIME_RIFT_MAX_PRESSURE() {
+      return TIME_RIFT_MAX_PRESSURE;
+    },
+    get canStoreEquipmentItems() {
+      return canStoreEquipmentItems;
+    },
+    get addItemToInventory() {
+      return addItemToInventory;
+    },
+    itemRandom: () => Math.random(),
+    get getTimeRiftOptionKeepChance() {
+      return getTimeRiftOptionKeepChance;
+    },
+    allocateItemId: () => ++window.GameModules.state.session.itemIdCounter,
+    get getTimeRiftFusionGrade() {
+      return getTimeRiftFusionGrade;
+    },
+    get ensureEquipmentLoadoutItemIdentity() {
+      return ensureEquipmentLoadoutItemIdentity;
+    },
+    get ensureMeteorSiteState() {
+      return ensureMeteorSiteState;
+    },
+    get rollMeteorKind() {
+      return rollMeteorKind;
+    },
+    get getSkyRiftGaugeEffectiveTier() {
+      return getSkyRiftGaugeEffectiveTier;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get contentProgression() {
+      return contentProgression;
+    },
+    get LABYRINTH_ZONE_ID() {
+      return LABYRINTH_ZONE_ID;
+    },
+    get BEYOND_BOUNDARY_ZONE_ID() {
+      return BEYOND_BOUNDARY_ZONE_ID;
+    },
+    get METEOR_FALL_ZONE_ID() {
+      return METEOR_FALL_ZONE_ID;
+    },
+    get CHAOS_REALM_ZONE_ID() {
+      return CHAOS_REALM_ZONE_ID;
+    },
+    get ABYSS_START_ZONE_ID() {
+      return ABYSS_START_ZONE_ID;
+    },
+    get atlasRun() {
+      return atlasRun;
+    },
+    get getSeasonBossProgressGate() {
+      return getSeasonBossProgressGate;
+    },
+    get ORB_DB() {
+      return ORB_DB;
+    },
+    get TIME_RIFT_UNLOCK_LOOP() {
+      return TIME_RIFT_UNLOCK_LOOP;
+    },
+    get ensureChaosRealmState() {
+      return ensureChaosRealmState;
+    },
+    get canEnterChaosRealm() {
+      return canEnterChaosRealm;
+    },
+    get getAbyssDepthFromZoneId() {
+      return getAbyssDepthFromZoneId;
+    },
+    get BASE_ITEM_DB() {
+      return BASE_ITEM_DB;
+    },
+    get getWeaponCategoryOfBase() {
+      return getWeaponCategoryOfBase;
+    },
+    get rollBaseStats() {
+      return rollBaseStats;
+    },
+    get boostExceptionalBaseLine() {
+      return boostExceptionalBaseLine;
+    },
+    get getStatName() {
+      return getStatName;
+    },
+    get MARKET_EXCHANGES() {
+      return MARKET_EXCHANGES;
+    },
+    get updateItemName() {
+      return updateItemName;
+    }
+  });
+  var visuals = createItemVisuals({
+    get ITEM_VISUAL_ASSET_DB() {
+      return typeof ITEM_VISUAL_ASSET_DB === "undefined" ? void 0 : ITEM_VISUAL_ASSET_DB;
+    },
+    get bagItems() {
+      return bagItems;
+    },
+    get stumpBox() {
+      return stumpBox;
+    },
+    get coreItems() {
+      return coreItems;
+    },
+    get escapeHTML() {
+      return typeof escapeHTML === "undefined" ? void 0 : escapeHTML;
+    },
+    get UNIQUE_EQUIPMENT_RULES() {
+      return UNIQUE_EQUIPMENT_RULES;
+    },
+    get document() {
+      return document;
+    },
+    get _t() {
+      return _t;
+    },
+    get getStatName() {
+      return getStatName;
+    },
+    get formatSignedValue() {
+      return formatSignedValue;
+    },
+    get formatValue() {
+      return formatValue;
+    }
+  });
+  var startItemTravel = (force) => {
+    try {
+      let provider = typeof startMoving === "function" ? startMoving : typeof window !== "undefined" && typeof window.startMoving === "function" ? window.startMoving : null;
+      if (provider) return provider(force);
+    } catch (e) {
+      console.error("startMoving failed:", e);
+    }
+  };
+  var effects = {
+    get itemLog() {
+      return addLog.bind(void 0);
+    },
+    get itemRefresh() {
+      return updateStaticUI.bind(void 0);
+    },
+    get itemSave() {
+      return queueImportantSave.bind(void 0);
+    },
+    get itemHideTooltip() {
+      return hideItemTooltip.bind(void 0);
+    },
+    get itemWeaponChoice() {
+      return (itemId) => window.GameModules.equipmentSlotChoice.open("weapon", itemId);
+    },
+    get itemRingChoice() {
+      return (itemId) => window.GameModules.equipmentSlotChoice.open("ring", itemId);
+    },
+    get itemGloveChoice() {
+      return (itemId) => window.GameModules.equipmentSlotChoice.open("glove", itemId);
+    },
+    itemStartMoving: startItemTravel,
+    get itemSalvage() {
+      return salvageItem.bind(void 0);
+    },
+    get itemOptionalLog() {
+      return typeof addLog === "function" ? addLog.bind(void 0) : () => void 0;
+    },
+    itemEquipSpecial: (item, preferredSlot) => bagItemsUi.equipSpecial(item, preferredSlot),
+    itemShowBaseUpgrade: visuals.showBaseUpgrade,
+    itemCloseBaseUpgrade: visuals.closeBaseUpgrade
+  };
+  var getCodexSlotOrder = rules.getCodexSlotOrder;
+  var getInventoryItemVisualAsset = visuals.getInventoryItemVisualAsset;
+  var renderInventoryItemVisual = visuals.renderInventoryItemVisual;
+  var getEquipmentGridVisualAsset = visuals.getEquipmentGridVisualAsset;
+  var pickEquipmentGridVisualAsset = visuals.pickEquipmentGridVisualAsset;
+  var getEquipmentInventoryFootprint = rules.getEquipmentInventoryFootprint;
+  var getWeaponInventoryFootprint = rules.getWeaponInventoryFootprint;
+  var getUniqueEntryVisualAsset = visuals.getUniqueEntryVisualAsset;
+  var getAverageExplicitAffixTier = rules.getAverageExplicitAffixTier;
+  var getCraftSelectionRef = rules.getCraftSelectionRef;
+  var isCraftSelectionEquip = rules.isCraftSelectionEquip;
+  var clearCraftSelection = rules.clearCraftSelection;
+  var getSelectedCraftItem = (...args) => rules.getSelectedCraftItem(game, ...args);
+  var ensureCraftSelectionValid = (...args) => rules.ensureCraftSelectionValid(game, ...args);
+  var selectForCrafting = (...args) => consumeDomainCommands(rules.selectForCrafting(game, ...args), effects);
+  var copyCraftResultStat = rules.copyCraftResultStat;
+  var snapshotCraftResultItem = rules.snapshotCraftResultItem;
+  var getEquipCandidateSlots = (...args) => rules.getEquipCandidateSlots(game, ...args);
+  var canEquipItemToSlot = (...args) => rules.canEquipItemToSlot(game, ...args);
+  var tryAutoEquipEmptySlot = (item, owner = game) => rules.tryAutoEquipEmptySlot(owner, item);
+  var equipIntoFirstEmptySlot = (...args) => rules.equipIntoFirstEmptySlot(game, ...args);
+  var equipIntoEmptySlots = (...args) => rules.equipIntoEmptySlots(game, ...args);
+  var countFillableEmptySlots = (...args) => rules.countFillableEmptySlots(game, ...args);
+  var isDualSlotItem = (...args) => rules.isDualSlotItem(game, ...args);
+  var getDualSlotDisplayLabel = visuals.getDualSlotDisplayLabel;
+  var equipItem = (...args) => consumeDomainCommands(rules.equipItem(game, ...args), effects);
+  var equipItemById = (...args) => consumeDomainCommands(rules.equipItemById(game, ...args), effects);
+  var equipSelectedCraftInventoryItem = (...args) => consumeDomainCommands(rules.equipSelectedCraftInventoryItem(game, ...args), effects);
+  var unequipItemToGrid = (...args) => consumeDomainCommands(rules.unequipItemToGrid(game, ...args), effects);
+  var unequipItem = (...args) => consumeDomainCommands(rules.unequipItem(game, ...args), effects);
+  var releaseClosedThirdRing = (...args) => consumeDomainCommands(rules.releaseClosedThirdRing(game, ...args), effects);
+  var salvageItemById = (...args) => consumeDomainCommands(rules.salvageItemById(game, ...args), effects);
+  var toggleItemLockById = (...args) => consumeDomainCommands(rules.toggleItemLockById(game, ...args), effects);
+  var hasActiveBeehiveRuntimeState = (...args) => rules.hasActiveBeehiveRuntimeState(game, ...args);
+  var clearBeehiveRuntimeState = rules.clearBeehiveRuntimeState;
+  var reconcileBeehiveRunState = (...args) => rules.reconcileBeehiveRunState(game, ...args);
+  var isBeehiveRunLockedForMapTravel = (...args) => rules.isBeehiveRunLockedForMapTravel(game, ...args);
+  var warnBeehiveMapTravelBlocked = (...args) => consumeDomainCommands(rules.warnBeehiveMapTravelBlocked(...args), effects);
+  var getHeldRunBlockReason = (...args) => rules.getHeldRunBlockReason(game, ...args);
+  var getContentStartBlockReason = (...args) => rules.getContentStartBlockReason(game, ...args);
+  var setTimeRiftPressure = (...args) => consumeDomainCommands(rules.setTimeRiftPressure(game, ...args), effects);
+  var getTimeRiftFutureEntryReason = (...args) => rules.getTimeRiftFutureEntryReason(game, ...args);
+  var getTimeRiftFusionMismatchReason = rules.getTimeRiftFusionMismatchReason;
+  var getTimeAltarItemIssue = (...args) => rules.getTimeAltarItemIssue(game, ...args);
+  var placeItemOnTimeAltar = (...args) => consumeDomainCommands(rules.placeItemOnTimeAltar(game, ...args), effects);
+  var retrieveTimeAltarItems = (...args) => consumeDomainCommands(rules.retrieveTimeAltarItems(game, ...args), effects);
+  var resolveTimeRiftFusion = (...args) => consumeDomainCommands(rules.resolveTimeRiftFusion(game, ...args), effects);
+  var prepareMeteorEncounterEntry = (...args) => rules.prepareMeteorEncounterEntry(game, ...args);
+  var getZoneTravelBlockReason = (...args) => rules.getZoneTravelBlockReason(game, ...args);
+  var changeZone = (...args) => consumeDomainCommands(rules.changeZone(game, ...args), effects);
+  var buildGoldenRuleSpendPrompt = (...args) => rules.buildGoldenRuleSpendPrompt(game, ...args);
+  var getBaseUpgradeCandidates = rules.getBaseUpgradeCandidates;
+  var getBaseChainInfo = rules.getBaseChainInfo;
+  var getBaseChainRank = rules.getBaseChainRank;
+  var getBaseStepClassName = visuals.getBaseStepClassName;
+  var getItemBaseChainInfo = rules.getItemBaseChainInfo;
+  var upgradeSelectedItemBase = (...args) => consumeDomainCommands(rules.upgradeSelectedItemBase(game, ...args), effects);
+  var closeBaseUpgradeOverlay = (...args) => consumeDomainCommands(rules.closeBaseUpgradeOverlay(game, ...args), effects);
+  var getBaseUpgradeRefusal = rules.getBaseUpgradeRefusal;
+  var confirmSelectedItemBaseUpgrade = (...args) => consumeDomainCommands(rules.confirmSelectedItemBaseUpgrade(game, ...args), effects);
+  var getItemDisplayName = rules.getItemDisplayName;
+  var craftingResultLedger = createCraftResultLedger(snapshotCraftResultItem);
+  window.GameModules = window.GameModules || {};
+  window.GameModules.items = {
+    get db() {
+      return window.UNIQUE_DB;
+    },
+    get orbs() {
+      return window.ORB_DB;
+    },
+    get market() {
+      return window.MARKET_EXCHANGES;
+    }
+  };
+  safeExposeGlobals({ getCodexSlotOrder, getInventoryItemVisualAsset, renderInventoryItemVisual, getEquipmentGridVisualAsset, pickEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getWeaponInventoryFootprint, getUniqueEntryVisualAsset, getAverageExplicitAffixTier, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, getSelectedCraftItem, ensureCraftSelectionValid, selectForCrafting, copyCraftResultStat, snapshotCraftResultItem, getEquipCandidateSlots, canEquipItemToSlot, tryAutoEquipEmptySlot, equipIntoFirstEmptySlot, equipIntoEmptySlots, countFillableEmptySlots, isDualSlotItem, getDualSlotDisplayLabel, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItemToGrid, unequipItem, releaseClosedThirdRing, salvageItemById, toggleItemLockById, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getHeldRunBlockReason, getContentStartBlockReason, setTimeRiftPressure, getTimeRiftFutureEntryReason, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, placeItemOnTimeAltar, retrieveTimeAltarItems, resolveTimeRiftFusion, prepareMeteorEncounterEntry, getZoneTravelBlockReason, changeZone, buildGoldenRuleSpendPrompt, getBaseUpgradeCandidates, getBaseChainInfo, getBaseChainRank, getBaseStepClassName, getItemBaseChainInfo, upgradeSelectedItemBase, closeBaseUpgradeOverlay, getBaseUpgradeRefusal, confirmSelectedItemBaseUpgrade, getItemDisplayName, craftingResultLedger });
 })();
-
-
-const BEEHIVE_TRAVEL_REFUSAL = '벌집 원정 중에는 [원정 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
-
-
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, canEquipItemToSlot, equipSelectedCraftInventoryItem, unequipItem, unequipItemToGrid, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, craftingResultLedger });
-
-
-// 제단 줄이 대신하지 않는 베이스의 방어 줄(js/item-influences.js replaceIndex의 DEFENSE와 같다).
-const UPGRADE_ALTAR_KEPT_LINE_IDS = Object.freeze(['armor', 'evasion', 'energyShield']);
-const EXCEPTIONAL_BASE_ITEM_FIELDS = Object.freeze(['exceptionalBase', 'exceptionalStatNames', 'exceptionalStatName', 'exceptionalAllLines']);
-// 업그레이드로 이어진 베이스들을 하나의 체인으로 보고, 각 베이스가 그 체인에서 몇 단계인지 계산한다.
-// step = 아래(저티어)에서부터의 위치(1부터), total = 그 베이스를 지나는 가장 긴 체인의 길이.
-// 분기 합류(여러 하위가 같은 상위로 업그레이드되는 경우)는 가장 긴 경로를 기준으로 한다.
-let _baseChainInfoCache = null;
-
-
-safeExposeGlobals({ upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

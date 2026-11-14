@@ -8,6 +8,8 @@ const vm = require('vm');
 const assert = require('assert');
 const espree = require('espree');
 const { LOAD_ORDER } = require('./lib/game-runtime');
+// A hand-edited or outdated generated adapter must not pass while the ESM source differs.
+require('node:child_process').execFileSync(process.execPath, [require.resolve('./build-modules'), '--check'], { stdio: 'pipe' });
 
 const html = fs.readFileSync('index.html', 'utf8');
 const sources = [];
@@ -21,7 +23,7 @@ while ((match = scriptTag.exec(html)) !== null) {
     sources.push(src);
 }
 assert(sources.length >= 10, `index.html에서 로컬 스크립트를 찾지 못했습니다 (${sources.length}개)`);
-assert(sources.includes('js/ui.js'), 'js/ui.js가 index.html에 연결되어 있어야 합니다');
+assert(sources.includes('js/ui-runtime-ui.js'), '화면 갱신 진입점이 index.html에 연결되어 있어야 합니다');
 assert(sources.includes('js/ui-window-manager.js'), '창 관리자가 index.html에 연결되어 있어야 합니다');
 
 // 공용 테스트 런타임도 실제 페이지의 파일 순서를 따라야 한다.
@@ -74,4 +76,37 @@ for (const src of sources) {
     }
 }
 
-console.log(`smoke-boot-script-contract passed (${sources.length} scripts)`);
+// Release packaging must preserve initialization and save semantics, not merely parse.
+(async () => {
+    const { describeScript, packClassicScripts } = require('./lib/classic-bundles');
+    const { stripDevOnly } = require('./lib/release-bundle');
+    const { buildGameRuntime } = require('./lib/game-runtime');
+    const rows = LOAD_ORDER.map(file => describeScript(file, stripDevOnly(fs.readFileSync(file, 'utf8'), file)));
+    const packed = await packClassicScripts(rows);
+    const oldRuntime = buildGameRuntime(Object.fromEntries(rows.map(row => [row.file, row.code])));
+    const newRuntime = buildGameRuntime({}, null, {}, packed);
+    const snapshots = [oldRuntime, newRuntime].map(runtime => {
+        let seed = 7;
+        runtime.Math = Object.create(Math);
+        runtime.Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x100000000);
+        runtime.Date = class extends Date { static now() { return 1800000000000; } };
+        return vm.runInContext(`
+            game = mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',
+                level:37,exp:1234,season:2,currentZoneId:3,maxZoneId:5,currencies:{dew:117,sap:7}});
+            game = mergeDefaults(JSON.parse(serializeSaveState(game)));
+            JSON.stringify([serializeSaveState(game),getPlayerStats(),typeof saveGame,typeof loadGame]);
+        `, runtime);
+    });
+    assert.strictEqual(snapshots[1], snapshots[0], 'packaging changed restored state or player stats');
+    const boundary = [
+        "var observed=[]; observed.push(typeof later);",
+        "function later(){return 7;} observed.push(later()); const privateValue=11;",
+        "'use strict'; (function(){observed.push(this===undefined);})();",
+        "observed.push(privateValue, typeof window.privateValue);"
+    ].map((code, index) => describeScript(`boundary-${index}.js`, code));
+    const context = vm.createContext({}); context.window = context;
+    for (const row of await packClassicScripts(boundary)) vm.runInContext(row.code, context);
+    assert.strictEqual(vm.runInContext('JSON.stringify(observed)', context), '["undefined",7,true,11,"undefined"]',
+        'packaging changed function hoisting, strict mode or lexical visibility');
+    console.log(`smoke-boot-script-contract passed (${sources.length} scripts; bundled boot/save parity)`);
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -9,10 +9,11 @@
  *   → data/hana-skill-fx.js
  * - 새로 그린 이펙트 원본(void_fx.js)과 시뮬레이터 연결 코드(ui_player.js)를 비교 기준으로 보관
  *   → docs/skill-assets-hana/reference/*.js.txt  (게임이 불러오는 스크립트가 아님)
- *   js/canvas-redrawn-skill-art.js는 이 기준과 도트 단위로 같게 그린다.
+ *   modules/rendering/redrawn/art.mjs와 그림 모듈들이 이 기준의 도트 공식을 사용한다.
  * 인계 빌드 스크립트(.bat/.py)는 실행하지 않는다.
  */
 'use strict';
+const { writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -90,5 +91,5 @@ const text = `// 자동 생성: node scripts/import-hana-skill-fx.cjs <인계 �
 const HANA_SKILL_FX = Object.freeze(${JSON.stringify(data, null, 1).replace(/\[\s+("[^"\n]*"(?:,\s+"[^"\n]*")*)\s+\]/g, (_, body) => `[${body.replace(/,\s+/g, ',')}]`)});
 safeExposeData({ HANA_SKILL_FX });
 `;
-fs.writeFileSync(path.join(root, 'data/hana-skill-fx.js'), text);
+writeDataSource(path.join(root, 'data/hana-skill-fx.js'), text);
 console.log(`팔레트 ${palette.length}색 · 투사체 ${Object.keys(projectiles).length}종 → data/hana-skill-fx.js, 비교 기준 → docs/skill-assets-hana/reference`);
