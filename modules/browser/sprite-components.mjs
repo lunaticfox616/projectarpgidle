@@ -1,11 +1,3 @@
-export function sortSheetComponents(list) {
-    let avgHeight = list.length > 0 ? list.reduce((sum, entry) => sum + entry.height, 0) / list.length : 48;
-    return [...list].sort((a, b) => {
-        if (Math.abs(a.y - b.y) > avgHeight * 0.45) return a.y - b.y;
-        return a.x - b.x;
-    });
-}
-
 export function padSpriteRect(rect, image, pad) {
     return {
         x: Math.max(0, rect.x - pad),

@@ -22,7 +22,9 @@ function readSources(head) {
     const files = [...html.matchAll(/<script\b[^>]*\bsrc="([^"?]+)(?:\?[^" ]*)?"/g)]
         .map(match => match[1]).filter(file => !/^https?:/.test(file) && !file.startsWith('vendor/'));   // vendor/: 남의 라이브러리 사본, 우리 규칙 대상이 아니다
     return files.map(file => {
-        const source = head ? cp.execFileSync('git',['show',`HEAD:${file}`],{encoding:'utf8',maxBuffer:16*1024*1024}) : fs.readFileSync(file,'utf8');
+        // js/ and data/ are build output and not in HEAD: with --baseline-from-head they are read as built (build from a clean tree).
+        const tracked = head && cp.spawnSync('git',['cat-file','-e',`HEAD:${file}`]).status === 0;
+        const source = tracked ? cp.execFileSync('git',['show',`HEAD:${file}`],{encoding:'utf8',maxBuffer:16*1024*1024}) : fs.readFileSync(file,'utf8');
         return {file,source,ast:espree.parse(source,{ecmaVersion:'latest',sourceType:'script',loc:true,range:true})};
     });
 }
@@ -220,7 +222,8 @@ if(require.main===module){
         fs.writeFileSync(baselinePath,JSON.stringify(analyze(readSources(true)),null,2)+'\n');
     } else {
         const sources=readSources(false);
-        const failures=[...compare(analyze(sources),JSON.parse(fs.readFileSync(baselinePath,'utf8'))),...nativeTooltipFailures(sources,fs.readFileSync('index.html','utf8'))];
+        // The ESM sources' own rules, read from their import statements: layer direction and no cycles (scripts/lib/module-graph.js).
+        const failures=[...compare(analyze(sources),JSON.parse(fs.readFileSync(baselinePath,'utf8'))),...nativeTooltipFailures(sources,fs.readFileSync('index.html','utf8')),...require('./lib/module-graph').moduleRuleFailures()];
         if(failures.length){console.error(failures.join('\n'));process.exitCode=1;}
         else console.log('runtime architecture/lint ratchet passed');
     }

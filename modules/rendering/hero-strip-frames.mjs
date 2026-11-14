@@ -1,36 +1,5 @@
 import { withImageRef, inferStripFallbackColumns, resolveHeroMotionStripAnchor } from './hero-frame-layout.mjs';
-import { sortSheetComponents, detectSpriteComponents, padSpriteRect } from '../browser/sprite-components.mjs';
 import { heroStripFrameCounts } from '../data/legacy-hero-frames.mjs';
-
-export function buildFixedStripFramesFromImage(inputs, image, frameCount) {
-    if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
-    let frames = [];
-    for (let i = 0; i < frameCount; i++) {
-        let x = Math.round(i * image.width / frameCount);
-        let nextX = i === frameCount - 1 ? image.width : Math.round((i + 1) * image.width / frameCount);
-        let raw = { x: x, y: 0, width: Math.max(1, nextX - x), height: image.height };
-        let trimmed = inputs.trimRectToContent(image, raw, 1);
-        if (trimmed && trimmed.width >= 10 && trimmed.height >= 10) frames.push(withImageRef(image, trimmed));
-        else frames.push(withImageRef(image, raw));
-    }
-    return frames.filter(Boolean);
-}
-
-export function buildStripFramesFromImage(inputs, image, minArea, frameCount) {
-    if (!image) return [];
-    if (Number.isFinite(frameCount) && frameCount > 0) {
-        let fixedFrames = buildFixedStripFramesFromImage(inputs, image, frameCount);
-        if (fixedFrames.length > 0) return fixedFrames;
-    }
-    let detected = sortSheetComponents(detectSpriteComponents(inputs, image, minArea || 220))
-        .map(rect => inputs.trimRectToContent(image, padSpriteRect(rect, image, 2), 2))
-        .filter(rect => rect && rect.width >= 22 && rect.height >= 38)
-        .map(rect => withImageRef(image, rect))
-        .filter(Boolean);
-    if (detected.length > 0) return detected;
-    let fallbackCols = inferStripFallbackColumns(image);
-    return buildFixedStripFramesFromImage(inputs, image, fallbackCols);
-}
 
 export function getHeroStripAnchor(inputs, image, frameCount) {
     if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return null;
