@@ -12,7 +12,7 @@ import { passiveRuleGetVirtualVoidPassiveCount } from './passive-void-count.mjs'
 
 /** One rule/cache owner; callers supply state explicitly. No DOM, storage or current-game lookup. */
 export function createPassiveRules(deps) {
-    const env = { deps };
+    const env = { deps, normalizedSpecializations: new WeakSet() };
     env.passiveTreeAdjacencyCache = { signature: '', map: new Map() };
     return Object.freeze({
         getClassKeystoneDefs: (...args) => passiveRuleGetClassKeystoneDefs(env, ...args),

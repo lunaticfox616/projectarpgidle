@@ -9,6 +9,7 @@
  * --save    a save as JSON (a saved game object, e.g. tests/fixtures/world-tree-atlas/*.json), or none for a brand new game.
  * --query   a query string for the game page, e.g. dev=1 for the local test panel (js/dev-test-panel-ui.js).
  * --root    . (default), dist or www; tests an existing release build without modifying it.
+ * --profile captures the script's Chromium CPU profile at <out>.cpuprofile (opt-in; adds profiling overhead).
  * --script  the body of an async function run in the page once the game is up; what it returns is printed as JSON. It may call
  *           `await window.__shot(name)` for a screenshot at <out>-NN-<name>.png (out defaults to probe-output/shot).
  * The save goes in before the page's own scripts run (addInitScript, once per tab), the title screen's 이어하기 is pressed, and the
@@ -106,7 +107,13 @@ async function main() {
         await page.waitForTimeout(2500);
         await closeLoadCards(page);
     }
+    const profiler = process.argv.includes('--profile') ? await context.newCDPSession(page) : null;
+    if (profiler) { await profiler.send('Profiler.enable'); await profiler.send('Profiler.start'); }
     const result = scriptPath ? await page.evaluate(`(async () => { ${fs.readFileSync(scriptPath, 'utf8')} })()`) : null;
+    if (profiler) {
+        const { profile } = await profiler.send('Profiler.stop');
+        fs.writeFileSync(`${out}.cpuprofile`, JSON.stringify(profile));
+    }
     console.log(JSON.stringify(result, null, 1));
     console.log(`page errors: ${errors.length}`, errors.slice(0, 5));
     await browser.close();
