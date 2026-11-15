@@ -2398,7 +2398,7 @@
         "resaleCostRatio": 0.04666666666666667
       },
       {
-        "name": "어느 성전사의 낡은 판금",
+        "name": "종탑지기의 낡은 갑옷",
         "merchantEligible": true,
         "minMerchantGold": 1,
         "merchantCostDewCashOut": 30,
@@ -2911,7 +2911,7 @@
         "resaleCostRatio": 0.04000000000000001
       },
       {
-        "name": "카옴의 심장",
+        "name": "백목의 심갑",
         "merchantEligible": true,
         "minMerchantGold": 1,
         "merchantCostDewCashOut": 30,
@@ -3100,7 +3100,7 @@
         "resaleCostRatio": 0.05333333333333334
       },
       {
-        "name": "폭군의 왕관",
+        "name": "장례지기의 관",
         "merchantEligible": true,
         "minMerchantGold": 1,
         "merchantCostDewCashOut": 30,
@@ -3640,7 +3640,7 @@
         "resaleCostRatio": 0.96
       },
       {
-        "name": "심연 군주갑",
+        "name": "묘근의 흉갑",
         "merchantEligible": true,
         "minMerchantGold": 1,
         "merchantCostDewCashOut": 30,
@@ -3748,7 +3748,7 @@
         "resaleCostRatio": 0.96
       },
       {
-        "name": "황제의 심연띠",
+        "name": "수액을 머금은 띠",
         "merchantEligible": true,
         "minMerchantGold": 1,
         "merchantCostDewCashOut": 30,
@@ -8116,7 +8116,7 @@
         ]
       },
       {
-        "base": "요새 판갑",
+        "base": "심재 판갑",
         "minimumPurchaseDew": 9,
         "prices": [
           {
@@ -8140,7 +8140,7 @@
         ]
       },
       {
-        "base": "별빛 흉갑",
+        "base": "황동잎 흉갑",
         "minimumPurchaseDew": 9,
         "prices": [
           {
@@ -8164,7 +8164,7 @@
         ]
       },
       {
-        "base": "성전사 판금",
+        "base": "종탑 사슬갑",
         "minimumPurchaseDew": 9,
         "prices": [
           {
@@ -9532,7 +9532,7 @@
         ]
       },
       {
-        "base": "오팔 반지",
+        "base": "무지갯결 반지",
         "minimumPurchaseDew": 9,
         "prices": [
           {
@@ -9556,7 +9556,7 @@
         ]
       },
       {
-        "base": "푸른 띠 반지",
+        "base": "찬이슬 반지",
         "minimumPurchaseDew": 9,
         "prices": [
           {
@@ -9748,7 +9748,7 @@
         ]
       },
       {
-        "base": "심연의 혁대",
+        "base": "옹이쇠 허리띠",
         "minimumPurchaseDew": 9,
         "prices": [
           {

@@ -14,7 +14,7 @@ export function actionHtml(runtime, item, slot) {
     const sockets = runtime.deps.equipmentSockets.list(item);
     const canOpen = (runtime.deps.game.currencies.voidChisel || 0) > 0 && runtime.deps.equipmentSockets.canChisel(item);
     if (!sockets.length && !canOpen) return '';
-    const label = sockets.length ? (0, runtime.deps._t)('소켓 {length}/{length2}', { length: sockets.filter(runtime.handlers.contentOf).length, length2: sockets.length }) : '소켓 뚫기';
+    const label = sockets.length ? (0, runtime.deps._t)('소켓 {length}/{length2}', { length: sockets.filter(runtime.handlers.contentOf).length, length2: sockets.length }) : (0, runtime.deps._t)('홈 뚫기');
     const ref = slot ? `'${slot}',true` : `${item.id},false`;
     return `<button type="button" data-content-action="sockets" onclick="equipmentInventoryInteraction.focus(null);equipmentSocketsUi.open(${ref})"><span class="px-center">${label}</span></button>`;
 }
@@ -32,7 +32,7 @@ export function contentOf(runtime, row) {
 
 export function socketBadgeHtml(runtime, row, host) {
     const content = contentOf(runtime, row), art = content ? `<img src="${content.art}" alt="" aria-hidden="true" draggable="false">` : '';
-    const name = content ? `${runtime.state.socketLabel(row)}: ${content.name}` : (0, runtime.deps._t)('빈 {row}', { row: runtime.state.socketLabel(row) });
+    const name = content ? `${runtime.state.socketLabel(row)}: ${content.name}` : emptySocketLabel(runtime, row);
     return `<span class="item-socket ${socketClass(runtime, row)}" role="button" aria-label="${(0, runtime.deps.escapeHTML)(name)}"
             data-socket-kind="${row.kind}" data-socket-index="${row.index}" onpointerdown="event.stopPropagation()" ondblclick="event.stopPropagation()"
             onclick="equipmentSocketsUi.socketClick(event,'${host}','${row.kind}',${row.index})">${art}</span>`;
@@ -99,12 +99,12 @@ export function tooltipHtml(runtime, item) {
     return sockets.map(row => {
         if (row.jewel) return `<div class="tooltip-line tooltip-socket-line">◆ ${runtime.state.socketLabel(row)}: <span class="${(0, runtime.deps.getJewelRarityClass)(row.jewel.rarity)}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.jewel.name || '주얼'))}</span>, ${(0, runtime.deps.escapeHTML)(jewelLines(runtime, row.jewel).join(', '))}</div>`;
         if (row.harvest) return `<div class="tooltip-line tooltip-socket-line is-harvest">◆ ${runtime.state.socketLabel(row)}: ${(0, runtime.deps.escapeHTML)(runtime.deps.stumpBox.shortName(row.harvest))}, ${(0, runtime.deps.escapeHTML)(harvestLines(runtime, row.harvest).join(', '))}</div>`;
-        return `<div class="tooltip-line tooltip-socket-line is-empty">◇ 빈 ${runtime.state.socketLabel(row)}${row.accepts.length ? ` (${takesText(runtime, row)})` : ''}</div>`;
+        return `<div class="tooltip-line tooltip-socket-line is-empty">◇ ${emptySocketLabel(runtime, row)}${row.accepts.length ? ` (${takesText(runtime, row)})` : ''}</div>`;
     }).join('');
 }
 
 export function socketRowHtml(runtime, row) {
-    const filled = contentOf(runtime, row), body = row.jewel ? jewelHtml(runtime, row.jewel) : row.harvest ? harvestHtml(runtime, row.harvest) : `<span>빈 소켓${row.accepts.length ? ` (${takesText(runtime, row)})` : ''}</span>`;
+    const filled = contentOf(runtime, row), body = row.jewel ? jewelHtml(runtime, row.jewel) : row.harvest ? harvestHtml(runtime, row.harvest) : `<span>${['void', 'abyss'].includes(row.kind) ? emptySocketLabel(runtime, row) : '빈 소켓'}${row.accepts.length ? ` (${takesText(runtime, row)})` : ''}</span>`;
     return `<div class="socket-row${filled ? '' : ' is-empty'}${row.kind === 'corrupt' ? ' is-corrupt' : ''}${row.accepts.length ? ' takes-harvest' : ''}"><span class="socket-row-label">${runtime.state.socketLabel(row)}</span>
             <div class="socket-row-jewel">${body}</div>
             ${filled && !row.fused ? `<button type="button" onclick="equipmentSocketsUi.remove('${row.kind}',${row.index})">${(0, runtime.deps._t)('빼기')}</button>` : ''}</div>`;
@@ -114,10 +114,10 @@ export function socketsHtml(runtime, item) {
     const rows = runtime.deps.equipmentSockets.list(item).map(runtime.handlers.socketRowHtml).join('');
     const chisels = runtime.deps.game.currencies.voidChisel || 0;
     const chisel = runtime.deps.equipmentSockets.canChisel(item)
-        ? `<button type="button" class="socket-chisel" onclick="equipmentSocketsUi.chisel()" ${chisels > 0 ? '' : 'disabled'}>${(0, runtime.deps._t)('공허의 끌로 소켓 뚫기 (보유 {chisels})', { chisels })}</button>` : '';
+        ? `<button type="button" class="socket-chisel" onclick="equipmentSocketsUi.chisel()" ${chisels > 0 ? '' : 'disabled'}>${(0, runtime.deps._t)('공허의 끌로 홈 뚫기 (보유 {chisels})', { chisels })}</button>` : '';
     const bonus = Math.round(((0, runtime.deps.getSocketJewelMultiplier)() - 1) * 100);
     const bonusNote = bonus > 0 ? `<p class="selection-overlay-help">${(0, runtime.deps._t)('소켓 주얼 옵션 +{bonus}% (심연 군주, 재물욕)', { bonus })}</p>` : '';
-    return `${rows || (0, runtime.deps._t)('<p class="selection-overlay-help">이 장비에는 아직 소켓이 없습니다.</p>')}${chisel}${bonusNote}`;
+    return `${rows || (0, runtime.deps._t)('<p class="selection-overlay-help">이 장비에는 아직 홈이 없습니다.</p>')}${chisel}${bonusNote}`;
 }
 
 /** The bag's jewels: socket one into this item or salvage it; jewel shards draw a new one into the bag. */
@@ -197,7 +197,7 @@ export function remove(runtime, kind, index) {
 export function chisel(runtime) {
     const item = (0, runtime.deps.getSelectedCraftItem)();
     if (!item) return;
-    report(runtime, runtime.deps.equipmentSockets.chisel(item), (0, runtime.deps._t)('🕳️ [{name}]에 공허 소켓을 뚫었습니다.', { name: item.name }));
+    report(runtime, runtime.deps.equipmentSockets.chisel(item), (0, runtime.deps._t)('🕳️ [{name}]에 홈을 뚫었습니다.', { name: item.name }));
 }
 
 export async function salvage(runtime, jewelId) {
@@ -209,6 +209,8 @@ export function refine(runtime) {
     render(runtime);
 }
 
+/** An empty socket's name: 빈 홈, 빈 타락 소켓. */
+export function emptySocketLabel(runtime, row) { return (0, runtime.deps._t)('빈 {row}', { row: runtime.state.socketLabel(row) }); }
 export function socketClass(runtime, row) { return [`is-${row.kind}`, ...row.accepts.map(kind => `takes-${kind}`), contentOf(runtime, row) ? 'is-filled' : '', row.fused ? 'is-fused' : ''].filter(Boolean).join(' '); }
 
 export function harvestLines(runtime, grown) { return runtime.deps.stumpBox.socketLines(grown).map(line => runtime.deps.stumpBox.lineText(line.stat, line.value)); }

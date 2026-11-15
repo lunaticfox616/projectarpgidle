@@ -44,6 +44,8 @@ const deps = {
     get PLAYER_CLASS_ORDER() { return PLAYER_CLASS_ORDER; },
     get P_STATS() { return P_STATS; },
     get RENAMED_UNIQUES() { return RENAMED_UNIQUES; },
+    // equipment-affixes loads after this file: read at restore time
+    get getStoredEquipmentUniqueName() { return window.getStoredEquipmentUniqueName; },
     get RETIRED_REALM_MONSTERS() { return RETIRED_REALM_MONSTERS; },
     get RETIRED_SUPPORT_GEMS() { return RETIRED_SUPPORT_GEMS; },
     get RETIRED_WOOD_MONSTER_SKINS() { return RETIRED_WOOD_MONSTER_SKINS; },

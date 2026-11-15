@@ -2,7 +2,7 @@ import { BLACK_MARKET_MAX_EXTRA_SLOTS, BLACK_MARKET_MAX_SLOT_COUNT, BLACK_MARKET
 import { marketTradeIsUniqueEligibleForBlackMarket } from './black-market-uniques.mjs';
 
 export function marketTradeMigrateUniqueMarketOffer(env, offer) {
-    if (offer.type === 'unique') offer.name = env.deps.RENAMED_UNIQUES[offer.name] || offer.name;
+    if (offer.type === 'unique') offer.name = env.deps.getStoredEquipmentUniqueName(offer);
     const rule = offer.type === 'unique' && env.deps.UNIQUE_EQUIPMENT_RULES[offer.name];
     if (!rule) return;
     const base = env.deps.BASE_ITEM_DB.find(row => row.id === rule.baseId);

@@ -1,5 +1,5 @@
 import { equipmentSaveFindStoredEquipmentAffix } from './equipment-save-stats.mjs';
-import { equipmentSaveNormalizeArmGuardIdentity, equipmentSaveMigrateEquipmentBlockBases } from './equipment-save-identity.mjs';
+import { equipmentSaveNormalizeArmGuardIdentity, equipmentSaveMigrateEquipmentBlockBases, equipmentSaveStoredUniqueName } from './equipment-save-identity.mjs';
 import { equipmentSaveNormalizeItem } from './equipment-save-record.mjs';
 
 /** One rule/cache owner; callers supply state explicitly. No DOM, storage or current-game lookup. */
@@ -10,6 +10,7 @@ export function createEquipmentNormalization(deps) {
     return Object.freeze({
         findStoredEquipmentAffix: (...args) => equipmentSaveFindStoredEquipmentAffix(env, ...args),
         normalizeArmGuardIdentity: (...args) => equipmentSaveNormalizeArmGuardIdentity(env, ...args),
+        storedUniqueName: item => equipmentSaveStoredUniqueName(env, item),
         migrateEquipmentBlockBases: (...args) => equipmentSaveMigrateEquipmentBlockBases(env, ...args),
         normalizeItem: (...args) => equipmentSaveNormalizeItem(env, ...args)
     });

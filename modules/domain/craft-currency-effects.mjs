@@ -12,7 +12,7 @@ function rerollAbyssAmp(deps, item) {
     p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
     item.uniqueEffectParams = p;
     const socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
-    item.uniqueEffect = deps._t('심연 주얼 슬롯 ({socketCount})개, 장착 심연 주얼 효과 +{ampPct}%', { socketCount, ampPct: p.ampPct });
+    item.uniqueEffect = deps._t('홈 {count}개, 장착 주얼 효과 +{ampPct}%', { count: socketCount, ampPct: p.ampPct });
 }
 
 function rerollValues(deps, owner, item, run) {

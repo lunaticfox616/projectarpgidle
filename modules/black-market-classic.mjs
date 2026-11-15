@@ -18,6 +18,7 @@ const rules = createBlackMarket({
     get ARM_GUARD_BASE_LEGACY_NAMES() { return ARM_GUARD_BASE_LEGACY_NAMES; },
     get WEAPON_BASE_LEGACY_NAMES() { return WEAPON_BASE_LEGACY_NAMES; },
     get normalizeArmGuardIdentity() { return normalizeArmGuardIdentity; },
+    get getStoredEquipmentUniqueName() { return window.getStoredEquipmentUniqueName; },
     get migrateEquipmentBlockBases() { return migrateEquipmentBlockBases; },
     get getZone() { return getZone; },
     get MARKET_EXCHANGES() { return MARKET_EXCHANGES; },

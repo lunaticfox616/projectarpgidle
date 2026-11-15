@@ -40,7 +40,7 @@ export function* workshopApplyVoidChisel(env, owner, item) {
     if (!item) return (yield { kind: 'workshopLog', args: [env.deps._t('먼저 아이템을 선택하세요.'), 'attack-monster'] });
     let result = env.deps.equipmentSockets.chisel(item, owner);
     if (!result.ok) return (yield { kind: 'workshopLog', args: [result.reason, 'attack-monster'] });
-    (yield { kind: 'workshopLog', args: [env.deps._t('🕳️ [{name}]에 공허 소켓을 뚫었습니다.', { name: env.deps._t(item.name) }), 'loot-rare'] });
+    (yield { kind: 'workshopLog', args: [env.deps._t('🕳️ [{name}]에 홈을 뚫었습니다.', { name: env.deps._t(item.name) }), 'loot-rare'] });
     (yield { kind: 'workshopRefresh', args: [] });
 }
 

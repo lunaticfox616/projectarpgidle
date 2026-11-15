@@ -59,7 +59,7 @@ function resolveMobileCraftCurrencyUseState(runtime, key, item) {
     }
     if (key === 'voidChisel') {
         let enabled = runtime.deps.equipmentSockets.canChisel(item);
-        return { enabled: enabled, reason: enabled ? '사용 가능' : '소켓이 이미 있거나 뚫을 수 없는 장비' };
+        return { enabled: enabled, reason: enabled ? '사용 가능' : (0, runtime.deps._t)('이미 홈이 있거나 홈을 뚫을 수 없는 장비') };
     }
     if (MOBILE_CRAFT_ORB_KEYS.includes(key)) return resolveBasicCraftCurrencyUseState(runtime, key, item);
     return { enabled: false, reason: (0, runtime.deps._t)('지원하지 않는 재화') };
