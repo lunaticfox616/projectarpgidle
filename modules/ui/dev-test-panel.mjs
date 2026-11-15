@@ -268,7 +268,7 @@ export class DevTestPanel {
 
     startTestAtlas(kind) {
         if (this.deps.game.atlas.run) this.deps.atlasRun.abandon();
-        const node = this.deps.atlas.nodes.find(row => row.kind === kind), map = this.deps.atlasMaps.create(node.id, node.tier, 'normal');
+        const node = this.deps.atlas.nodes.find(row => row.kind === kind), map = this.deps.atlasMaps.create(node.id, this.deps.atlas.effectiveTier(this.deps.game, node), 'normal');
         map.uid = this.deps.game.atlas.nextUid++;
         this.deps.game.atlas.unlocked = true;
         this.deps.game.loopProgressCurrent.chaos20Cleared = true;

@@ -11,6 +11,7 @@ const atlasUi = createAtlasView({
     get game() { return window.GameModules.state.game; },
     get addLog() { return addLog; },
     get requestGameConfirmation() { return requestGameConfirmation; },
+    get requestGameDialog() { return requestGameDialog; },
     get _t() { return _t; },
     get queueImportantSave() { return queueImportantSave; },
     get atlasMaps() { return atlasMaps; },

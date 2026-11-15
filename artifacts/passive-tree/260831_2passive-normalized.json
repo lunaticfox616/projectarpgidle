@@ -39069,14 +39069,14 @@
       "mods": [
         {
           "statId": "intelligence",
-          "value": 30.1
+          "value": 30
         }
       ],
       "statAutoName": false,
       "runtimeEffects": [
         {
           "statId": "intelligence",
-          "value": 30.1
+          "value": 30
         }
       ],
       "distanceFromClassStart": 13,

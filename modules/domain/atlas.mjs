@@ -3,15 +3,15 @@
  * 루프를 넘어 남는 것: 해금 · 완료 · 보너스 · 패시브 · 자동 지도 · 각인 홈 설정. 루프마다 비우는 것: 지도석 · 각인 · 열린 지도.
  * 지도를 열 때 패시브와 각인의 효과를 런에 고정한다(run.bonus): 열린 지도 도중에 패시브를 바꿔도 그 지도는 그대로다.
  */
-import { atlasCoreLateNode, atlasCorePosition, atlasCoreStatus, atlasCoreReachable, atlasCorePoints, atlasCoreBestTier, atlasCoreEffectiveTier, atlasCoreHasTickets } from './atlas-graph.mjs';
+import { atlasCoreLateNode, atlasCorePosition, atlasCoreStatus, atlasCoreReachable, atlasCorePoints, atlasCoreBestTier, atlasCoreEffectiveTier, atlasCoreHasTickets, atlasCoreIsMapStone } from './atlas-graph.mjs';
 import { atlasCoreRenameSavedIds } from './atlas-restore-values.mjs';
 import { atlasCoreDefaults } from './atlas-state.mjs';
-import { atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreBeginReason } from './atlas-access.mjs';
+import { atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreBeginReason, atlasCoreMatchesNode, atlasCoreMapDestination } from './atlas-access.mjs';
 import { atlasCoreSync } from './atlas-unlock.mjs';
 import { atlasCoreBeginPinnacle, atlasCoreBeginSpecial, atlasCoreBeginMemory, atlasCoreBeginBoard, atlasCoreBegin } from './atlas-entry.mjs';
 import { atlasCoreSlots } from './atlas-bonuses.mjs';
 import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
-import { atlasCoreDiscard, atlasCoreDiscardPlainUpTo, atlasCorePlainMap } from './atlas-inventory.mjs';
+import { atlasCoreDiscard, atlasCoreDiscardCandidates, atlasCoreDiscardBatch, atlasCorePlainMap } from './atlas-inventory.mjs';
 import { atlasCoreTierBand, atlasCoreCombineSet, atlasCoreCombineReason, atlasCoreCombine, atlasCoreCombineAllPlan, atlasCoreCombineAll, atlasCoreOmenChangeReason, atlasCoreChangeOmen } from './atlas-combining.mjs';
 import { atlasCoreCancel, atlasCoreComplete, atlasCoreMarkCleared, atlasCoreKeepLoot, atlasCoreUsePortal, atlasCoreClose } from './atlas-completion.mjs';
 import { atlasCoreNextAuto } from './atlas-auto.mjs';
@@ -93,14 +93,18 @@ function createAtlasEntryApi(env) {
         slots: (...args) => atlasCoreSlots(env, ...args),
         setLoadout: (...args) => atlasCoreSetLoadout(env, ...args),
         beginReason: (...args) => atlasCoreBeginReason(env, ...args),
-        begin: (...args) => atlasCoreBegin(env, ...args)
+        begin: (...args) => atlasCoreBegin(env, ...args),
+        matchesNode: (...args) => atlasCoreMatchesNode(env, ...args),
+        mapDestination: (...args) => atlasCoreMapDestination(env, ...args)
     };
 }
 
 function createAtlasInventoryApi(env) {
     return {
         discard: atlasCoreDiscard,
-        discardPlainUpTo: (...args) => atlasCoreDiscardPlainUpTo(env, ...args),
+        isMapStone: (...args) => atlasCoreIsMapStone(env, ...args),
+        discardCandidates: (...args) => atlasCoreDiscardCandidates(env, ...args),
+        discardBatch: (...args) => atlasCoreDiscardBatch(env, ...args),
         plainMap: (...args) => atlasCorePlainMap(env, ...args),
         tierBand: (...args) => atlasCoreTierBand(env, ...args),
         combineSet: (...args) => atlasCoreCombineSet(env, ...args),

@@ -1,12 +1,11 @@
 import { atlasSessionDepartureBlock, atlasSessionInMap } from './atlas-run-access.mjs';
 
-/** 지도 장치: 지도석을 소모해 지도를 열고 그 맵으로 떠난다(떠나지 못하면 지도석은 보관함으로 돌아간다).
+/** 지도 장치: 지도석을 소모해 지도를 열고 그 맵으로 떠난다(떠나지 못하면 지도석은 보관함으로 돌아간다). nodeId: 고른 노드(없으면 지도석이 갈 곳).
  * @returns {string} '' when the map opened, otherwise why not. */
-export function* atlasSessionOpen(env, owner, uid) {
+export function* atlasSessionOpen(env, owner, uid, nodeId) {
     env.deps.atlas.sync(owner);
-    const reason = env.deps.atlas.beginReason(owner, uid) || atlasSessionDepartureBlock(env, owner);
+    const reason = atlasSessionDepartureBlock(env, owner) || env.deps.atlas.begin(owner, uid, owner.currentZoneId, undefined, nodeId);
     if (reason) return reason;
-    env.deps.atlas.begin(owner, uid, owner.currentZoneId);
     return (yield* atlasSessionDepart(env, owner));
 }
 

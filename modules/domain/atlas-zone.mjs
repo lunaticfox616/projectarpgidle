@@ -59,8 +59,10 @@ export function atlasCoreBuildZone(env, run) {
     };
 }
 
-/** What a stash map would be with the current passives and loadout (the device card). */
-export function atlasCorePreview(env, state, map) { return atlasCoreBuildZone(env, { map, bonus: atlasCoreBonusOf(env, state, atlasCoreActiveFragments(env, state)), encounters: [], golden: [] }); }
+/** What a stash map would be on a node (its own by default) with the current passives and loadout (the device card). */
+export function atlasCorePreview(env, state, map, nodeId = map.node) {
+    return atlasCoreBuildZone(env, { map: { ...map, node: nodeId }, bonus: atlasCoreBonusOf(env, state, atlasCoreActiveFragments(env, state)), encounters: [], golden: [] });
+}
 
 /** Equipment base tier from the map tier: T15 at 1~3등급, one more every three tiers, T20 at 16등급. */
 export function atlasCoreLootTier(tier) { return Math.min(20, 14 + Math.ceil(tier / 3)); }

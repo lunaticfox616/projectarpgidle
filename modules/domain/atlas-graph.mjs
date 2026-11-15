@@ -18,6 +18,9 @@ export function atlasCoreHasTickets(env, state) { return env.deps.ATLAS.pinnacle
 
 export function atlasCoreCompleted(state, id) { return state.atlas.completed.includes(id); }
 
+/** 지도 노드의 지도석인지: 지역 수호자 지도석(kind 'guardian')은 일반 희귀도로 떨어져도 버리기와 합치기의 재료가 아니다. */
+export function atlasCoreIsMapStone(env, map) { return env.BY_ID.get(map && map.node)?.kind === 'map'; }
+
 export function atlasCoreStatus(env, state, id) {
     if (state.atlas.bonus.includes(id)) return 'bonus';
     if (atlasCoreCompleted(state, id)) return 'complete';

@@ -1,5 +1,5 @@
-import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, tierStyle, encounterNames } from './atlas-view-model.mjs';
-import { mapCardHtml, flowersHtml, chancesHtml, runHtml, pinnacleHtml, stashToolsHtml, combineAllHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
+import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, tierStyle, encounterNames, mapName, stonesForNode } from './atlas-view-model.mjs';
+import { deviceCardHtml, stoneNeeded, stoneLock, flowersHtml, chancesHtml, runHtml, pinnacleHtml, stashToolsHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
 import { resultHtml } from './atlas-view-results.mjs';
 
 /** The views for the map window's second tab row: { select(id), items: [{ id, label, badge, on }] }. */
@@ -41,7 +41,7 @@ export function mapJourney(runtime) {
     if (missing) return { title: (0, runtime.deps._t)('수호자 지도석 준비됨'), text: (0, runtime.deps._t)('{node} {tier}등급', { node: nodeName(runtime, missing.node), tier: missing.tier }),
         action: `atlasUi.selectMap(${missing.uid},true)`, label: (0, runtime.deps._t)('수호자 준비 보기') };
     const maps = [...stash].sort((a, b) => a.tier - b.tier || a.uid - b.uid), map = selectedMap(runtime) || maps[0];
-    if (map) return { title: (0, runtime.deps._t)('지도석 {length}개 준비됨', { length: stash.length }), text: (0, runtime.deps._t)('{node} {tier}등급', { node: nodeName(runtime, map.node), tier: map.tier }),
+    if (map) return { title: (0, runtime.deps._t)('지도석 {length}개 준비됨', { length: stash.length }), text: mapName(runtime, map),
         action: `atlasUi.selectMap(${map.uid},true)`, label: (0, runtime.deps._t)('지도 준비 보기') };
     return { title: (0, runtime.deps._t)('다음 지도석 모으기'), text: (0, runtime.deps._t)('혼돈 20 이상 보스가 지도석을 줍니다.'),
         ...huntingJourneyAction(runtime) };
@@ -76,14 +76,17 @@ export function autoOptionsHtml(runtime) {
             ${stop ? (0, runtime.deps._t)('<button onclick="openMapCompleteActionPicker(event)">완료 후 행동 변경</button>') : ''}</section>`;
 }
 
-/** 한 장 시험판(js/atlas-sheet-ui.js)에 건네는 것: 고른 노드와 지도석, 열 수 없는 까닭, 이미 만든 조각(열린 지도나 정점이나 지도석 카드, 보관함 도구, 결과). */
+/** 한 장 시험판(js/atlas-sheet-ui.js)에 건네는 것: 고른 노드와 지도석, 열 수 없는 까닭, 이미 만든 조각(열린 지도나 정점이나 지도석 카드, 보관함 도구, 결과),
+ * 맞는 지도석이 없을 때의 말(needed)과 노드에 쓸 수 있는 지도석(matchingStones). */
 export function sheetParts(runtime) {
     const st = ledger(runtime), map = selectedMap(runtime), node = runtime.deps.atlas.node(runtime.state.selectedNode), busy = runtime.deps.atlas.runOpenReason(runtime.deps.game), block = runtime.deps.atlasRun.blockReason();
-    const card = map ? `<section class="atlas-device" aria-label="${(0, runtime.deps._t)('지도 장치')}">${mapCardHtml(runtime, map, (0, runtime.deps.buildMapPowerEstimateHtml)(runtime.deps.atlas.preview(runtime.deps.game, map)))}
+    const card = map ? `<section class="atlas-device" aria-label="${(0, runtime.deps._t)('지도 장치')}">${deviceCardHtml(runtime, map)}
             <div class="atlas-crafts" aria-label="${(0, runtime.deps._t)('지도석 제작')}">${runtime.state.CRAFT_ORDER.map(key => craftButtonHtml(runtime, map, key)).join('')}</div>${flowersHtml(runtime, map)}${chancesHtml(runtime)}</section>` : '';
     const side = st.run ? runHtml(runtime, st.run) : node && node.kind === 'pinnacle' ? pinnacleHtml(runtime, node) : card;
-    const tools = map ? `${stashToolsHtml(runtime, map, busy)}${busy ? `<small>${busy}</small>` : ''}` : `<div class="atlas-stash-tools">${combineAllHtml(runtime)}</div>`;
-    return { node: runtime.state.selectedNode, uid: runtime.state.selectedUid, lock: runtime.deps.atlas.lockReason(runtime.deps.game) || block, block, side, tools, after: `${autoOptionsHtml(runtime)}${resultHtml(runtime)}`, mapName: runtime.handlers.mapName };
+    const tools = `${stashToolsHtml(runtime, map, busy)}${busy ? `<small>${busy}</small>` : ''}`;
+    const lock = map ? stoneLock(runtime, map) : runtime.deps.atlas.lockReason(runtime.deps.game) || block;
+    return { node: runtime.state.selectedNode, uid: runtime.state.selectedUid, lock, block, side, tools, after: `${autoOptionsHtml(runtime)}${resultHtml(runtime)}`, mapName: runtime.handlers.mapName,
+        needed: stoneNeeded(runtime, node), matchingStones: target => stonesForNode(runtime, target) };
 }
 
 export function mapsViewHtml(runtime) {

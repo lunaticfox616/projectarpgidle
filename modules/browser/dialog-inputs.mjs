@@ -19,6 +19,9 @@ export function normalizeDialogOptions(options) {
     return {
         type: source.type || 'confirm', tone: source.tone || 'default', ...dialogLabels(source), ...dialogLimits(source),
         value: source.value, choices: Array.isArray(source.choices) ? source.choices : [],
+        // 'selects': fields [{ label, options: [{ value, label }] }]; selectionStatus(values) -> { text, disabled } runs on every change.
+        fields: Array.isArray(source.fields) ? source.fields : [],
+        selectionStatus: typeof source.selectionStatus === 'function' ? source.selectionStatus : null,
         validate: typeof source.validate === 'function' ? source.validate : null,
         submitOnChoice: source.submitOnChoice === true, summaryHtml: source.summaryHtml,
         dismissOnBackdrop: source.dismissOnBackdrop !== false, resolve: source.resolve, reject: source.reject
@@ -53,6 +56,12 @@ export function buildDialogControl(dialog, translate) {
                 let detailHtml = entry.detailHtml || (detail ? `<span>${escapeHTML(detail)}</span>` : '');
                 return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeHTML(value)}" aria-pressed="${index === 0 ? 'true' : 'false'}"><strong>${escapeHTML(label)}</strong>${detailHtml}</button>`;
             }).join('')}</div>`;
+        }
+        if (dialog.type === 'selects') {
+            return `<div class="game-select-fields">${dialog.fields.map(({ label, options }) =>
+                `<label class="game-text-field"><span>${escapeHTML(label)}</span><select>${options.map(({ value, label: text }) =>
+                    `<option value="${escapeHTML(value)}">${escapeHTML(text)}</option>`).join('')}</select></label>`).join('')}
+                <p class="game-select-status" role="status"></p></div>`;
         }
         return dialog.summaryHtml || '';
     }

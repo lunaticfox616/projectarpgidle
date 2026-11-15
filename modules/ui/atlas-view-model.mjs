@@ -18,9 +18,20 @@ export function viewOpen(runtime, id) { return id !== 'board' || runtime.deps.at
 
 export function sortedStash(runtime) { return [...ledger(runtime).stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid); }
 
-export function mapName(runtime, map) { return (0, runtime.deps._t)('{node} {tier}등급 {name}', { node: nodeName(runtime, map.node), tier: map.tier, name: runtime.deps.ATLAS.rarities[map.rarity].name }); }
+/** 고른 노드, 고른 것이 없으면 지도석이 갈 곳(js/atlas.js mapDestination). */
+export function selectedDestination(runtime, map) { return runtime.deps.atlas.node(runtime.state.selectedNode) || runtime.deps.atlas.mapDestination(runtime.deps.game, map); }
 
-export function plainUpTo(runtime, tier) { return ledger(runtime).stash.filter(map => runtime.deps.atlas.plainMap(map) && map.tier <= tier).length; }
+/** 그 노드에 쓸 수 있는 보관함 지도석: 같은 등급 지도석(어느 지역에서 얻었든), 수호자는 그 수호자의 지도석. */
+export function stonesForNode(runtime, node) { return ledger(runtime).stash.filter(map => runtime.deps.atlas.matchesNode(runtime.deps.game, map, node)); }
+
+/** 보관함 줄의 이름: 지도 노드의 지도석은 어느 노드에나 쓰므로 노드 이름 대신 지도석이라고 쓴다. */
+export function mapLabel(runtime, map) { return runtime.deps.atlas.isMapStone(map) ? (0, runtime.deps._t)('지도석') : (0, runtime.deps._t)(nodeName(runtime, map.node)); }
+
+export function mapName(runtime, map) {
+    const name = (0, runtime.deps._t)(runtime.deps.ATLAS.rarities[map.rarity].name);
+    return runtime.deps.atlas.isMapStone(map) ? (0, runtime.deps._t)('{tier}등급 {name} 지도석', { tier: map.tier, name })
+        : (0, runtime.deps._t)('{node} {tier}등급 {name}', { node: mapLabel(runtime, map), tier: map.tier, name });
+}
 
 export function tierCounts(runtime, made) { return Object.entries(made).sort(([a], [b]) => b - a).map(([tier, count]) => (0, runtime.deps._t)('{tier}등급 {count}개', { tier, count })).join(', '); }
 

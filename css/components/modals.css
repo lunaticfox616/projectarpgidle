@@ -82,10 +82,11 @@
 .game-dialog-btn-primary { color: #19140b; border-color: #f0cf86; background: linear-gradient(180deg, #ffe5a8, #c89b4f); box-shadow: 0 5px 18px rgba(215, 167, 76, 0.18); }
 .game-dialog-btn-primary:hover { background: linear-gradient(180deg, #fff0c5, #d7aa5d); }
 .game-dialog-card[data-tone="danger"] .game-dialog-btn-primary { color: #fff4f4; border-color: #e27676; background: linear-gradient(180deg, #a84545, #702c32); }
+.game-dialog-btn:disabled { opacity: .55; cursor: default; }
 .game-dialog-btn-secondary { color: var(--color-text-secondary); border-color: var(--color-line); background: var(--color-surface); }
 .game-dialog-btn:focus-visible,
 .game-number-input:focus-visible,
-.game-text-field input:focus-visible,
+.game-text-field :is(input, select):focus-visible,
 .game-choice-option:focus-visible { outline: 2px solid #ffe0a1; outline-offset: 2px; }
 
 @media (max-width: 640px) {
