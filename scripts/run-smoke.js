@@ -11,7 +11,7 @@
 //   - 무한 대기하는 스크립트는 타임아웃으로 실패 처리한다(CI가 매달리지 않게)
 //
 // 사용:
-//   npm test                 전부 실행(끝에 구조·복잡도 래칫 check:architecture, db 거울 검사 check:db, 언어 계약 검사 check:i18n도 돈다)
+//   npm test                 전부 실행(끝에 구조·복잡도 래칫 check:architecture, db 거울 검사 check:db, 언어 계약 검사 check:i18n, 타입 래칫 check:types도 돈다)
 //   npm test -- merged-tab   이름에 'merged-tab'이 들어간 것만 (개발 중 빠른 반복용, 래칫은 건너뛴다)
 //   SMOKE_TIMEOUT_MS=60000 npm test
 //   SMOKE_CONCURRENCY=1 npm test    순차 실행(출력 순서를 고정하고 싶을 때)
@@ -102,6 +102,8 @@ async function main() {
 
     console.log(`검사 ${files.length}개 실행 (동시 ${concurrency}, 타임아웃 ${Math.round(timeoutMs / 1000)}초)`);
     let startedAt = Date.now();
+    // One build before the parallel checks, so they do not each rebuild js/ and data/ at the same time.
+    require('./lib/ensure-modules').ensureModules();
     let results = await runAll(files, { timeoutMs, concurrency });
     process.stdout.write('\n');
 
@@ -131,10 +133,12 @@ async function main() {
 // 전체 실행의 마지막에 구조·복잡도 래칫과 db 거울 검사를 함께 돈다(2026-10-27 회고: 한 줄 JS 수정이 래칫에 걸린 채 커밋됐다.
 // CI는 잡지만 커밋 전에 `npm test`만 돌린 쪽은 몰랐다). 이름을 골라 돌릴 때는 빠른 반복이라 건너뛴다.
 function runFinalChecks() {
-    for (const [title, script] of [['구조·복잡도 래칫(check:architecture)', 'check-runtime-architecture.js'], ['db 거울 검사(check:db)', 'check-db-mirror.js'],
-        ['언어 계약 검사(check:i18n)', 'check-i18n.js']]) {
+    for (const [title, script, ...args] of [['구조·복잡도 래칫(check:architecture)', 'check-runtime-architecture.js'], ['db 거울 검사(check:db)', 'check-db-mirror.js'],
+        ['언어 계약 검사(check:i18n)', 'check-i18n.js'], ['타입 래칫(check:types)', 'check-types.js'],
+        // 서버의 전당 검사 표(db/hall-*-table-*.sql)는 게임 데이터의 사본이다: 옵션이나 베이스를 고치고 다시 만들지 않으면 여기서 멈춘다.
+        ['전당 검사 표(db)와 게임 데이터', 'export-hall-affix-table.cjs', '--check']]) {
         console.log(`\n${title}`);
-        let result = require('child_process').spawnSync(process.execPath, [path.join(SCRIPT_DIR, script)], { stdio: 'inherit', cwd: REPO_ROOT });
+        let result = require('child_process').spawnSync(process.execPath, [path.join(SCRIPT_DIR, script), ...args], { stdio: 'inherit', cwd: REPO_ROOT });
         if (result.status !== 0) process.exit(result.status || 1);
     }
 }

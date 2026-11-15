@@ -36,7 +36,7 @@ function linkModules(candidates) {
     if (fs.existsSync(target)) return 'node_modules: 있음';
     const from = fromArgument();
     const source = [from && path.join(from, 'node_modules'), SHARED_MODULES, ...candidates.map(dir => path.join(dir, 'node_modules'))]
-        .filter(Boolean).find(dir => fs.existsSync(path.join(dir, '@playwright')));
+        .filter(Boolean).find(dir => fs.existsSync(path.join(dir, '@playwright')) && fs.existsSync(path.join(dir, 'esbuild')));
     if (!source) return 'node_modules: 연결할 원본을 찾지 못했습니다(npm ci로 설치하세요)';
     fs.symlinkSync(fs.realpathSync(source), target, process.platform === 'win32' ? 'junction' : 'dir');
     return `node_modules: ${fs.realpathSync(source)}에 연결`;
@@ -54,3 +54,6 @@ function copyArt(rel, candidates) {
 const candidates = sources();
 console.log(linkModules(candidates));
 GAME_ART.forEach(rel => console.log(copyArt(rel, candidates)));
+// js/ and data/ are build output of modules/ and are not in the repository: a fresh worktree builds them here.
+try { console.log(require('./lib/ensure-modules').ensureModules() ? 'js/, data/: modules/에서 생성' : 'js/, data/: 최신'); }
+catch (error) { console.log(`js/, data/: ${error.message}`); }

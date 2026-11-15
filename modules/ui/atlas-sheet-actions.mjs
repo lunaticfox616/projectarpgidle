@@ -60,24 +60,25 @@ export function paint(runtime) {
     growAtlasRoads();
 }
 
-/** 한 번 누르면 고르고, 같은 노드를 곧바로 한 번 더 누르면 그 노드의 지도석으로 연다(고를 때 화면을 다시 그려서 dblclick이 오지 않는다). */
+/** 한 번 누르면 고르고, 같은 노드를 곧바로 한 번 더 누르면 맞는 지도석으로 연다(고를 때 화면을 다시 그려서 dblclick이 오지 않는다). */
 export function tap(runtime, id) {
     const now = runtime.deps.Date.now(), again = runtime.state.lastTap.id === id && now - runtime.state.lastTap.at < 450;
     runtime.state.lastTap = { id, at: now };
     if (again) runtime.deps.atlasUi.openNode(id); else runtime.deps.atlasUi.selectNode(id);
 }
 
-export function nodeClasses(runtime, node, status, picked) {
-    const held = runtime.deps.game.atlas.stash.some(map => map.node === node.id), running = runtime.deps.game.atlas.run && runtime.deps.game.atlas.run.map.node === node.id, live = revealing(runtime);
+export function nodeClasses(runtime, node, status, picked, held) {
+    const running = runtime.deps.game.atlas.run && runtime.deps.game.atlas.run.map.node === node.id, live = revealing(runtime);
     return ['as-node', `is-${status}`, `kind-${node.kind}`, node.id === picked ? 'is-selected' : '', running ? 'is-running' : '', held ? 'has-stone' : '',
         live && runtime.state.fresh.done.has(node.id) ? 'is-fresh' : '', live && runtime.state.fresh.open.has(node.id) ? 'is-unsealed' : ''].filter(Boolean).join(' ');
 }
 
-export function nodeHtml(runtime, node, picked) {
+/** matchingStones(node): the stash stones that open this node (parts.matchingStones); a locked node shows none. */
+export function nodeHtml(runtime, node, picked, matchingStones) {
     const at = place(runtime, node), status = runtime.deps.atlas.status(runtime.deps.game, node.id), tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node), tint = tintOf(runtime, node);
-    const held = runtime.deps.game.atlas.stash.filter(map => map.node === node.id).length;
+    const held = status === 'locked' ? 0 : matchingStones(node).length;
     const icon = runtime.deps.worldMapUi.atlasIcon(runtime.deps.WORLD_MAP.atlas.icons[node.kind] ? node.kind : 'stone', tint, status === 'locked');
-    return `<button class="${nodeClasses(runtime, node, status, picked)}" style="--x:${at.x}%;--y:${at.y}%;--tone:${runtime.deps.atlas.tierBand(tier).tone};--tint:${tint}" data-atlas-node="${node.id}"
+    return `<button class="${nodeClasses(runtime, node, status, picked, held)}" style="--x:${at.x}%;--y:${at.y}%;--tone:${runtime.deps.atlas.tierBand(tier).tone};--tint:${tint}" data-atlas-node="${node.id}"
             data-info-tooltip-anchor="1" aria-pressed="${node.id === picked}" aria-label="${runtime.deps.atlasUi.nodeLabel(node, tier, status)}" onclick="atlasSheetUi.tap('${node.id}')"
             onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><span class="as-stone" style="background-image:url('${icon}')">${node.kind === 'map' ? tier : ''}</span>`
         + `${held ? `<i>${held}</i>` : ''}${node.id === picked ? `<em>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name))}</em>` : ''}</button>`;
@@ -96,9 +97,9 @@ export function homeHtml(runtime) {
             onclick="worldMapUi.turnToWorld(this)"><i aria-hidden="true" style="background-image:url('${runtime.deps.worldMapUi.atlasIcon('tree', '#e2a94a', false, true)}')"></i></button>`;
 }
 
-export function chartHtml(runtime, picked) {
+export function chartHtml(runtime, picked, matchingStones) {
     return `<div class="as-chart" role="group" aria-label="${(0, runtime.deps._t)('아틀라스 지도')}" style="aspect-ratio:${runtime.deps.WORLD_MAP.width}/${runtime.deps.WORLD_MAP.height};background-image:url('${runtime.deps.WORLD_MAP.atlas.src}')">
-            <canvas class="as-art" aria-hidden="true"></canvas>${homeHtml(runtime)}${runtime.deps.ATLAS.regions.map(runtime.handlers.regionTagHtml).join('')}${runtime.deps.atlas.nodes.map(node => nodeHtml(runtime, node, picked)).join('')}</div>`;
+            <canvas class="as-art" aria-hidden="true"></canvas>${homeHtml(runtime)}${runtime.deps.ATLAS.regions.map(runtime.handlers.regionTagHtml).join('')}${runtime.deps.atlas.nodes.map(node => nodeHtml(runtime, node, picked, matchingStones)).join('')}</div>`;
 }
 
 /** 아틀라스의 모든 쪽이 쓰는 윗줄(js/atlas-ui.js render). chart: 지도 쪽을 그리는 중인가(처음 보는 완료는 지도 쪽에서만 밝힌다). */
@@ -142,7 +143,7 @@ export function stoneGoHtml(runtime, map, lock) {
 /** 도크 오른쪽: 열린 지도로 돌아가기, 정점 열기, 고른 지도석으로 열기, 고른 것이 없으면 무엇을 고를지. */
 export function goHtml(runtime, parts) {
     const st = runtime.deps.game.atlas, node = runtime.deps.atlas.node(parts.node), map = st.stash.find(entry => entry.uid === parts.uid);
-    let body = `<small>${st.stash.length ? (0, runtime.deps._t)('보관함이나 노드에서 지도석을 고르세요.') : (0, runtime.deps._t)('지도석이 없습니다.')}</small><button class="atlas-primary" disabled>${(0, runtime.deps._t)('지도 열기')}</button>`;
+    let body = `<small>${parts.needed || (st.stash.length ? (0, runtime.deps._t)('보관함이나 노드에서 지도석을 고르세요.') : (0, runtime.deps._t)('지도석이 없습니다.'))}</small><button class="atlas-primary" disabled>${(0, runtime.deps._t)('지도 열기')}</button>`;
     if (st.run) body = departHtml(runtime, '열린 지도로', 'atlasUi.reenter()', '');
     else if (node && node.kind === 'pinnacle') body = departHtml(runtime, '정점 열기', 'atlasUi.openPinnacle()', runtime.deps.atlas.pinnacleReason(runtime.deps.game) || parts.block);
     else if (map) body = stoneGoHtml(runtime, map, parts.lock);
@@ -150,7 +151,7 @@ export function goHtml(runtime, parts) {
 }
 
 export function stoneHtml(runtime, map, parts) {
-    const mine = !parts.node || map.node === parts.node, omen = map.omen && runtime.deps.lootOmens.describe(map.omen);
+    const mine = !parts.node || runtime.deps.atlas.matchesNode(runtime.deps.game, map, runtime.deps.atlas.node(parts.node)), omen = map.omen && runtime.deps.lootOmens.describe(map.omen);
     return `<button class="as-tile rarity-${map.rarity}${mine ? '' : ' is-other'}${map.corrupted ? ' is-corrupted' : ''}" style="--tone:${runtime.deps.atlas.tierBand(map.tier).tone}" aria-pressed="${map.uid === parts.uid}"
             data-tip="${(0, runtime.deps.escapeHTML)(parts.mapName(map))}" onclick="atlasUi.selectMap(${map.uid})"><b>${map.tier}</b>${omen ? `<i style="--omen:${omen.tone}"></i>` : ''}</button>`;
 }
@@ -161,11 +162,11 @@ export function drawerHtml(runtime, parts) {
     return `<aside class="as-drawer"><section class="as-stash"><h3>${(0, runtime.deps._t)('지도석 보관함')} <span>${maps.length}/${runtime.deps.ATLAS.stashCap}</span></h3>${tiles}${parts.tools}</section>${parts.side}${parts.after}</aside>`;
 }
 
-/** parts: js/atlas-ui.js가 건네는 고른 것과 이미 만든 조각들(node, uid, lock, block, side, tools, after, mapName). */
+/** parts: js/atlas-ui.js가 건네는 고른 것과 이미 만든 조각들(node, uid, lock, block, side, tools, after, mapName, needed, matchingStones). */
 export function html(runtime, parts) {
     // 진행 줄은 지도 아래에 둔다(2026-11-10 사용자: 크기를 맞출 수는 없나): 지도가 세계 지도와 같은 자리, 같은 크기에 서서 전환이 튀지 않는다.
     const strip = top(runtime, true);   // 지도석 노드보다 먼저: 처음 보는 완료를 가려 둔다
-    return `<div class="atlas-sheet"><div class="as-body">${chartHtml(runtime, parts.node)}${drawerHtml(runtime, parts)}</div>${strip}
+    return `<div class="atlas-sheet"><div class="as-body">${chartHtml(runtime, parts.node, parts.matchingStones)}${drawerHtml(runtime, parts)}</div>${strip}
             <footer class="as-dock">${nodeInfoHtml(runtime, parts.node)}${fragmentsHtml(runtime)}${goHtml(runtime, parts)}</footer></div>`;
 }
 

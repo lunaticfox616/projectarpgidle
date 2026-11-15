@@ -1,10 +1,10 @@
-import { nodeName, ledger } from './atlas-view-model.mjs';
+import { nodeName, ledger, mapName } from './atlas-view-model.mjs';
 import { lostRewards } from './atlas-view-results.mjs';
 
 export function dropsText(runtime, detail) {
     const parts = [];
     if (detail.room) parts.push(`${detail.golden ? `${runtime.deps.ATLAS.goldenRoom.prefix} ` : ''}${runtime.deps.ATLAS.encounters[detail.room].name} 정리: ${detail.rewards.map(([key, n]) => `${(0, runtime.deps._t)(runtime.deps.ORB_DB[key].name)} ${n}`).join(', ') || (0, runtime.deps._t)('보상 없음')}`);
-    if (detail.maps.length) parts.push(`지도석 ${detail.maps.map(map => `${nodeName(runtime, map.node)}(${map.tier})`).join(', ')}`);
+    if (detail.maps.length) parts.push(detail.maps.map(map => mapName(runtime, map)).join(', '));
     if (detail.fragments.length) parts.push(`각인 ${detail.fragments.map(id => runtime.deps.atlas.fragment(id).name).join(', ')}`);
     // 깨어난 뒤 제단 · 리그 방의 재료(js/atlas-endgame.js roomItems): 보스를 잡아야 보관함에 들어온다.
     if (detail.late && detail.late.length) parts.push(`${detail.late.map(([id, n]) => `${runtime.deps.atlasEndgame.itemName(id)} ${n}`).join(', ')} (보스를 잡으면 받음)`);

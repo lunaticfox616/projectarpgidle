@@ -28,7 +28,9 @@
 이 게임의 브라우저 런타임은 classic script이며, `index.html`의 순서와 명시적으로 노출된 전역이 계약이다.
 게임 원본은 `modules/`의 ES module이며, `*-classic.mjs` 어댑터를 통해 기존 호출 이름을 연결한다.
 게임 코드·데이터 또는 생성 도구를 수정할 때는 [ES module 원본·어댑터·생성 규칙](README.md#es-module-독립-기능-전환-2026-11-12)을 따른다.
-`js/`·`data/`의 생성 출력은 직접 편집하지 않고 원본을 고친 뒤 `npm run build:modules`로 함께 갱신한다.
+`js/`·`data/`의 생성 출력은 저장소에 없다(`.gitignore`, 2026-11-15). 직접 편집하거나 커밋하지 않는다. 검사·개발 서버·빌드 도구가
+실행 전에 원본과 비교해 필요할 때만 다시 만든다(`scripts/lib/ensure-modules.js`). 손으로 만들 때는 `npm run build:modules`다.
+그 전에 갈라진 브랜치에 main을 병합해 생성 파일 충돌이 나면 `node scripts/resolve-generated-conflicts.js`로 정리한다.
 아래 표의 `js/` 경로는 런타임 진입점이며 원본 위치는 파일 머리말과 빌드 항목에서 확인한다.
 모듈 내부 선언은 전역이 아니며, 기존 클래식 파일의 전역 제한은 유지한다.
 CSS는 `npm run build`에서 PostCSS로 번들링하며, 개발 진입점은 `css/main.css`, 배포 디렉터리는 `dist/`다.
@@ -72,7 +74,7 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
 ```
 
 오른쪽 계층은 왼쪽을 사용할 수 있지만 반대 방향 의존은 금지한다. 도메인은 UI 전용 함수나 DOM에
-의존하지 않는다. 양방향 호출과 이벤트·콜백으로 숨긴 순환 의존도 금지한다. 공통 shape는 가장 낮은
+의존하지 않는다. 양방향 호출과 이벤트·콜백으로 숨긴 순환 의존도 금지한다. `modules/`의 import는 `npm run check:architecture`가 계층 방향과 순환을 본다(`scripts/lib/module-graph.js`의 순서와 예외 목록). 어디서도 읽지 않는 export는 `node scripts/report-unused-exports.js`가 찾는다. 계층 폴더의 원본은 `npm run check:types`가 TypeScript 검사기로 읽는다(JSDoc 타입, 기준선 `scripts/type-check-baseline.json`에 없는 새 지적만 실패, 필터 없는 `npm test` 끝에도 돈다). 공통 shape는 가장 낮은
 공통 계층이 소유한다: 정적 정의는 `modules/data/`, 런타임 상태는 `modules/state/`, 도메인 비종속 변환은
 `modules/common/`이 단일 출처다. 서버 호출 함수 `cloudJsonRequest`는 `js/cloud-save-ui.js`(계정과 서버 저장, ui 계층)에 있어, 도메인 파일(`js/social.js`,
 `js/ghost-pvp.js`)의 새 함수가 부르면 래칫의 layer 위반이다. 새 서버 호출은 ui 파일(`js/cloud-tools-ui.js` 등)에 둔다.
@@ -176,6 +178,7 @@ mock은 시간·난수, 네트워크, 브라우저 스토리지, DOM/canvas 같�
 우려가 없으면 같은 전체 검사를 반복하지 않는다. JS를 고친 커밋은 커밋 전에 구조·복잡도 래칫
 (`npm run check:architecture`, 필터 없는 `npm test`의 끝에도 돈다)을 통과해야 한다. 한 줄 수정도 복잡도와 계층 규칙에 걸린다.
 `db/*.sql`을 고치면 `npm run check:db`가 한 번 실행하는 묶음 파일과 원본 파일의 함수·정책 본문이 같은지 본다(같은 `npm test` 끝에 돈다).
+추가 옵션(MOD_DB, 화석 전용 줄, 바다의 작업대 줄)이나 베이스(BASE_ITEM_DB)를 고치면 서버의 전당 검사 표가 달라진다. 같은 `npm test` 끝의 검사가 멈추면 `node scripts/export-hall-affix-table.cjs`로 `db/hall-affix-table-20261030.sql`과 `db/hall-base-table-20261030.sql`을 다시 만들고, 사용자에게 두 파일을 Supabase SQL Editor에서 다시 실행해 달라고 알린다(실행 전까지 새 줄은 예전 범위 검사만 받는다).
 
 ```powershell
 npm test

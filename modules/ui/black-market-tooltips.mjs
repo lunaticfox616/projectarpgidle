@@ -66,7 +66,7 @@ function renderMarketUnique(deps, owner, offer) {
 }
 
 function marketUniqueEffect(offer, uniq) {
-    return (offer && offer.uniqueEffect) || (uniq && uniq.uniqueEffect) || "";
+    return uniq?.uniqueEffect || offer?.uniqueEffect || "";
 }
 
 function marketBaseSourceStats(deps, offer) {

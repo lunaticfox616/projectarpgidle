@@ -118,7 +118,7 @@ function rollUniqueJewelAmplification(env, item, p, count) {
     let ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
     p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
     item.uniqueEffectParams = p;
-    item.uniqueEffect = env.deps._t('심연 주얼 슬롯 ({count})개, 장착 심연 주얼 효과 +{ampPct}%', { count, ampPct: p.ampPct });
+    item.uniqueEffect = env.deps._t('홈 {count}개, 장착 주얼 효과 +{ampPct}%', { count, ampPct: p.ampPct });
 }
 
 function appendUniqueStat(env, item, stat) {

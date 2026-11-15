@@ -3,7 +3,7 @@ import { migrate } from './saved-support-runes.mjs';
 import { dropRetiredSupportGems } from './saved-gems.mjs';
 import { migratePassiveSaveNodeReferences } from './saved-passive-nodes.mjs';
 import { normalizeSavedCurrencies } from './saved-combat-values.mjs';
-import { markLegacyEquipmentGrace, normalizeCarriedEquipmentSave } from './saved-equipment.mjs';
+import { markLegacyEquipmentGrace, normalizeCarriedEquipmentSave, recoverStoredUniqueKeys } from './saved-equipment.mjs';
 
 export function restoreInitialSnapshot(deps, context) {
     captureSavedLayout(deps, context);
@@ -66,6 +66,7 @@ export function restoreCarriedEquipment(deps, context) {
     context.merged.equipment = normalizedEquipment;
     markLegacyEquipmentGrace(context.merged.equipment);
     if (deps.window.equipmentLoadoutRuntime) deps.window.equipmentLoadoutRuntime.ensureState(context.merged);
+    recoverStoredUniqueKeys(deps, context.merged);
     normalizeCarriedEquipmentSave(deps, context.merged);
     if (typeof deps.equipmentInventoryGridRuntime !== 'undefined') deps.equipmentInventoryGridRuntime.ensureState(context.merged);
 }

@@ -1,15 +1,19 @@
-import { atlasCoreBeginReason, atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason } from './atlas-access.mjs';
+import { atlasCoreBeginReason, atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreMapDestination } from './atlas-access.mjs';
 import { atlasCoreEncounterRooms } from './atlas-zone.mjs';
 import { atlasCoreUseFragments } from './atlas-loadout.mjs';
 import { atlasCoreBonusOf, atlasCoreZERO } from './atlas-bonuses.mjs';
 import { atlasCoreEffectiveTier } from './atlas-graph.mjs';
 
-/** Consumes the map (and its fragments): from here the run owns it — portals, content rooms, drops held until the boss falls. */
-export function atlasCoreBegin(env, state, uid, returnZoneId, random = Math.random) {
-    const reason = atlasCoreBeginReason(env, state, uid);
+/** Consumes the map (and its fragments): from here the run owns it — portals, content rooms, drops held until the boss falls.
+ * entry: [random, nodeId]. The run takes the chosen node (or, without one, where the stone goes: atlasCoreMapDestination) for its
+ * terrain, boss and completion, and the stone's rarity, mods, quality and omen. */
+export function atlasCoreBegin(env, state, uid, returnZoneId, ...entry) {
+    const [random = Math.random, nodeId] = entry;
+    const reason = atlasCoreBeginReason(env, state, uid, nodeId);
     if (reason) return reason;
-    const [map] = state.atlas.stash.splice(state.atlas.stash.findIndex(entry => entry.uid === uid), 1);
-    atlasCoreStartRun(env, state, map, returnZoneId, random);
+    const [map] = state.atlas.stash.splice(state.atlas.stash.findIndex(stone => stone.uid === uid), 1);
+    const destination = nodeId === undefined ? atlasCoreMapDestination(env, state, map).id : nodeId;
+    atlasCoreStartRun(env, state, { ...map, node: destination }, returnZoneId, random);
     return '';
 }
 

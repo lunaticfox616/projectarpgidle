@@ -1,6 +1,6 @@
 import { coreHasKeystone } from '../combat/core-keystones.mjs';
 
-/** 장비 맵의 소켓에 낀 주얼 전부(공허 · 타락 · 심연 소켓 순, source는 소켓 종류). 주얼은 2026-09-30부터 장비 소켓에만 낀다. */
+/** 장비 맵의 소켓에 낀 주얼 전부(공허 · 타락 · 홈 순, source는 소켓 종류). 주얼은 2026-09-30부터 장비 소켓에만 낀다. */
 export function coreCollectSocketedJewels(env, equipment) {
     return Object.entries(equipment || {}).flatMap(([slot, item]) => env.deps.equipmentSockets.jewels(item)
         .map(row => ({ jewel: row.jewel, slot, source: row.kind, index: row.index })));

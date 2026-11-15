@@ -116,6 +116,7 @@ class Feedback {
         this.document.getElementById('game-dialog-message').innerHTML = escapeHTML(this.activeDialog.message).replace(/\n/g, '<br>');
         cancel.textContent = this.activeDialog.cancelLabel;
         confirm.textContent = this.activeDialog.confirmLabel;
+        confirm.disabled = false;
         cancel.style.display = this.activeDialog.type === 'notice' ? 'none' : '';
         confirm.style.display = this.activeDialog.type === 'choice' && this.activeDialog.submitOnChoice ? 'none' : '';
         control.innerHTML = buildDialogControl(this.activeDialog, this.inputs.translate);
@@ -130,7 +131,7 @@ class Feedback {
         const opened = this.activeDialog;
         this.frame(() => {
             if (this.activeDialog !== opened) return;
-            let focusTarget = control.querySelector('input:not([type="range"]),button[aria-pressed="true"]') || confirm;
+            let focusTarget = control.querySelector('input:not([type="range"]),button[aria-pressed="true"],select') || confirm;
             focusTarget.focus({ preventScroll: true });
             if (focusTarget.select) focusTarget.select();
         });
@@ -163,16 +164,30 @@ class Feedback {
                 this.inputs.sound('open');
                 if (dialog.submitOnChoice) this.submitActiveDialog();
             }));
+        } else if (dialog.type === 'selects' && dialog.selectionStatus) {
+            this.bindSelectionStatus(dialog, control);
         }
+    }
+
+    /** 고를 때마다 상태 줄과 확인 단추를 고친다(selectionStatus가 { text, disabled }를 준다). */
+    bindSelectionStatus(dialog, control) {
+        const sync = () => {
+            const status = dialog.selectionStatus(this.getActiveDialogValue());
+            control.querySelector('.game-select-status').textContent = status.text;
+            this.document.getElementById('game-dialog-confirm').disabled = !!status.disabled;
+            this.document.getElementById('game-dialog-error').hidden = true;
+        };
+        control.querySelectorAll('select').forEach(select => select.addEventListener('change', sync));
+        sync();
     }
 
     getActiveDialogValue() {
         if (!this.activeDialog) return null;
-        if (this.activeDialog.type === 'confirm') return true;
         if (this.activeDialog.type === 'number') {
             return clampDialogNumber(this.document.getElementById('game-dialog-number').value, this.activeDialog);
         }
         if (this.activeDialog.type === 'text') return this.document.getElementById('game-dialog-text').value;
+        if (this.activeDialog.type === 'selects') return [...this.document.querySelectorAll('#game-dialog-control select')].map(select => select.value);
         if (this.activeDialog.type === 'choice') {
             let selected = this.document.querySelector('#game-dialog-control .game-choice-option[aria-pressed="true"]');
             if (!selected) return null;
@@ -184,7 +199,8 @@ class Feedback {
     }
 
     submitActiveDialog() {
-        if (!this.activeDialog) return;
+        // Enter must not get past a confirm the dialog turned off (a 'selects' dialog with nothing to act on).
+        if (!this.activeDialog || this.document.getElementById('game-dialog-confirm').disabled) return;
         let value = this.getActiveDialogValue();
         let validation = this.activeDialog.validate ? this.activeDialog.validate(value) : true;
         if (validation !== true) {
@@ -230,7 +246,7 @@ class Feedback {
 
     handleDialogKeydown(event) {
         if (!this.activeDialog || !event.target.closest?.('#game-dialog-overlay')) return;
-        if (event.key === 'Enter' && !event.shiftKey && !event.target.closest('button')) {
+        if (event.key === 'Enter' && !event.shiftKey && !event.target.closest('button,select')) {
             event.preventDefault();
             event.stopImmediatePropagation();
             this.submitActiveDialog();
@@ -242,7 +258,7 @@ class Feedback {
 
     cycleDialogFocus(event) {
         let card = this.document.getElementById('game-dialog-card');
-        let focusable = [...card.querySelectorAll('button:not([disabled]),input:not([disabled])')].filter(element => element.getClientRects().length);
+        let focusable = [...card.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled])')].filter(element => element.getClientRects().length);
         if (focusable.length <= 0) return;
         let current = focusable.indexOf(this.document.activeElement);
         let next = event.shiftKey ? current - 1 : current + 1;

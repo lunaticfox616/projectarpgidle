@@ -10,7 +10,7 @@ export function catalogVisible(ctx, key) {return !!catalogGroup(ctx, key)&&ctx.d
 export function catalogGroup(ctx, key) { return ctx.deps.craftingWorkspaceState.group(key); }
 
 export function catalogDescription(ctx, key, compact=false) {
-    return esc(ctx, compact?catalogSummary(ctx, key):ctx.deps.ORB_DB[key].desc).replace(ctx.state.keywordPattern,word=>`<span class="cl-keyword" data-keyword="${ctx.state.keywordTones[word]}">${word}</span>`);
+    return esc(ctx, (0, ctx.deps._t)(compact?catalogSummary(ctx, key):ctx.deps.ORB_DB[key].desc)).replace(ctx.state.keywordPattern,word=>`<span class="cl-keyword" data-keyword="${ctx.state.keywordTones[word]}">${word}</span>`);
 }
 
 export function catalogActionLabel(ctx, key, state) {

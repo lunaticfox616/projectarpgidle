@@ -522,6 +522,13 @@ test('system guide replays complete through real shop, craft and rune controls',
         openTabPane('tab-guide');
         updateStaticUI();
     });
+    // Loop 6 queues its own unlock notices on the next screen refresh (그루터기 함 and others). They are not what this checks, and one
+    // shown over the guide list covers a lesson button on a phone: once that refresh has run, count them as read.
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().queued && !window.GameModules.uiRuntime.status().running);
+    await page.evaluate(() => {
+        game.seenTutorials.push(...tutorialQueue.map(notice => notice.key)); tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
     const guide = page.locator('#ui-player-guide');
     const target = page.locator('.tutorial-action-target');
     const live = () => page.evaluate(() => JSON.stringify([game === window.guideTestLiveGame, game.equippedSupports, game.skyGemEnhancements, game.inventory, game.currencies]));

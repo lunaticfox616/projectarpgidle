@@ -23,10 +23,11 @@ function sharedDataPlugin(owner) {
                 throw new Error(`${owner.source}: data dependency must be a registered earlier table: ${args.path}`);
             for (const name of imports.get(resolved) || []) if (!entry.names.includes(name))
                 throw new Error(`${owner.source}: ${entry.source} does not export ${name}`);
-            return { path: resolved, namespace: 'classic-data' };
+            // The path is printed into the output as a comment: keep it the same on every machine and checkout.
+            return { path: path.relative(ROOT, resolved).split(path.sep).join('/'), namespace: 'classic-data', pluginData: { resolved } };
         });
         builder.onLoad({ filter: /.*/, namespace: 'classic-data' }, args => ({
-            contents: imports.get(args.path).map(name => `export const ${name} = globalThis.${name};`).join('\n'),
+            contents: imports.get(args.pluginData.resolved).map(name => `export const ${name} = globalThis.${name};`).join('\n'),
             loader: 'js'
         }));
     } };

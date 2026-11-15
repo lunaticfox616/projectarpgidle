@@ -64,6 +64,7 @@ const normalization = createEquipmentNormalization({
     allocateItemId: () => ++window.GameModules.state.session.itemIdCounter,
     get levelProgression() { return levelProgression; },
     getAbyssSocketCapacity: item => equipmentSockets.getAbyssSocketCapacity(item),
+    refreshSocketEffectText: item => equipmentSockets.refreshSocketEffectText(item),
     get normalizeItemOrigin() { return rules.normalizeItemOrigin; },
     get ARM_GUARD_BASE_LEGACY_NAMES() { return ARM_GUARD_BASE_LEGACY_NAMES; },
     get WEAPON_BASE_LEGACY_NAMES() { return WEAPON_BASE_LEGACY_NAMES; }
@@ -379,6 +380,7 @@ exposeFileGlobals({
     getItemExplicitOptionCount: rules.getItemExplicitOptionCount,
     findStoredEquipmentAffix: normalization.findStoredEquipmentAffix,
     normalizeArmGuardIdentity: normalization.normalizeArmGuardIdentity,
+    getStoredEquipmentUniqueName: normalization.storedUniqueName,
     migrateEquipmentBlockBases: normalization.migrateEquipmentBlockBases,
     normalizeItem: normalization.normalizeItem,
     getItemCraftTier: rules.getItemCraftTier,

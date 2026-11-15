@@ -12,6 +12,8 @@ const path = require('path');
 const vm = require('vm');
 
 const REPOSITORY_ROOT = path.resolve(__dirname, '..', '..');
+// js/ and data/ are build output: make them before anything here reads them.
+require('./ensure-modules').ensureModules();
 
 // index.html의 <script src> 순서와 같아야 한다. 이 목록 자체가 로드 순서 계약이다.
 const LOAD_ORDER = [

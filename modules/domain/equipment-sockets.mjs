@@ -129,8 +129,18 @@ class EquipmentSockets {
 
     label(row) {
         if (row.kind === 'harvest') return this.deps.translate('{label} 소켓', { label: this.tables.stages[row.accepts[0]].label });
-        if (row.kind === 'void') return row.fused ? '융합 소켓' : '공허 소켓';
-        return row.kind === 'corrupt' ? '타락 소켓' : this.deps.translate('심연 소켓 {value}', { value: row.index + 1 });
+        if (row.kind === 'void') return row.fused ? '융합 소켓' : this.deps.translate('홈');
+        return row.kind === 'corrupt' ? '타락 소켓' : this.deps.translate('홈');
+    }
+
+    /** A socket unique's effect line in the current wording (홈), from its rolled params: on drop, on a craft roll and on load. */
+    refreshSocketEffectText(item) {
+        if (item.uniqueEffectKey === 'abyssSocketOnItem') item.uniqueEffect = this.deps.translate('홈 1~2개');
+        if (item.uniqueEffectKey !== 'abyssSocketAndJewelAmp') return;
+        const ampPct = item.uniqueEffectParams?.ampPct;
+        item.uniqueEffect = Number.isFinite(ampPct)
+            ? this.deps.translate('홈 {count}개, 장착 주얼 효과 +{ampPct}%', { count: item.abyssSockets?.length ?? item.uniqueEffectParams.socketsMin ?? 1, ampPct })
+            : this.deps.translate('홈 1~2개, 장착 주얼 효과 1~100% 증가');
     }
 
     /** A corruption may open one socket on any socketable item: beside an accessory's void socket, or the only socket elsewhere. */
@@ -176,7 +186,7 @@ class EquipmentSockets {
     chisel(item, state) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         if (!this.isAccessory(item)) return { ok: false, reason: this.deps.translate('공허 소켓은 반지, 목걸이, 허리띠에만 뚫을 수 있습니다. 다른 장비는 타락으로만 소켓이 생깁니다.') };
-        if (!this.canChisel(item)) return { ok: false, reason: this.deps.translate('이 장비에는 공허 소켓을 더 뚫을 수 없습니다.') };
+        if (!this.canChisel(item)) return { ok: false, reason: this.deps.translate('이 장비에는 홈을 더 뚫을 수 없습니다.') };
         if ((state.currencies.voidChisel || 0) <= 0) return { ok: false, reason: this.deps.translate('공허의 끌이 부족합니다.') };
         state.currencies.voidChisel -= 1;
         this.openVoidSocket(item);
@@ -244,5 +254,5 @@ class EquipmentSockets {
 }
 export function createEquipmentSockets(tables, deps) {
     const sockets = new EquipmentSockets(tables, deps);
-    return Object.freeze(Object.fromEntries(["isSocketable","isAccessory","hasVoidSocket","list","jewels","harvests","harvestKinds","migrateHarvest","takesJewel","returnJewels","count","label","canChisel","openVoidSocket","fuse","rollDropSocket","keepLegacySocket","canAddCorruptionSocket","addCorruptionSocket","chisel","insert","insertHarvest","remove","getAbyssSocketCapacity","ensureAbyssSockets"].map(name => [name, sockets[name].bind(sockets)])));
+    return Object.freeze(Object.fromEntries(["isSocketable","isAccessory","hasVoidSocket","list","jewels","harvests","harvestKinds","migrateHarvest","takesJewel","returnJewels","count","label","refreshSocketEffectText","canChisel","openVoidSocket","fuse","rollDropSocket","keepLegacySocket","canAddCorruptionSocket","addCorruptionSocket","chisel","insert","insertHarvest","remove","getAbyssSocketCapacity","ensureAbyssSockets"].map(name => [name, sockets[name].bind(sockets)])));
 }

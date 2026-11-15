@@ -7,6 +7,7 @@
 //    예외로 열린 사건이 제대로 돈다.
 'use strict';
 const assert = require('node:assert/strict');
+require('./lib/ensure-modules').ensureModules();
 const fs = require('node:fs');
 const espree = require('espree');
 const replayFixture = require('./lib/replay-fixture');

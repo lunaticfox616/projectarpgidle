@@ -24,7 +24,8 @@ class StageSkillVfx {
         this.assets = assets;
         this.HIT = Object.freeze({ scale: 0.65, alpha: 0.82, frames: 7, gap: 160, max: 5, longest: 240, tail: 85, widest: 76 });
 
-        this.MAX_LIVE = 120;
+        this.MAX_LIVE = 120;                      // 동시에 재생하는 클립의 상한
+        this.MINOR_MAX = 36;                      // 그중 맞은 자리의 작은 표시(타격 클립, 투사체 적중 불티)의 상한
 
         this.clock = 0;
 
@@ -34,7 +35,7 @@ class StageSkillVfx {
         this.watchers = [];
 
         this.PLAY_DEFAULTS = Object.freeze({ face: 1, delay: 0, ramp: 'phys', life: 1000, layer: 'top', alpha: 1, scale: 1, rot: 0, move: null, fall: null, nextLife: 0, hit: false, fadeIn: 0,
-            follow: null, ms: 0, cut: 0, tail: 0, flat: 0, pocket: null, order: null });
+            follow: null, ms: 0, cut: 0, tail: 0, flat: 0, pocket: null, order: null, minor: false });
         this.vfxRowLife = (clip, o, frames, ms) => { const whole = clip.loop ? o.life : frames * ms; return o.cut ? Math.min(whole, o.cut) : whole; };
         this.vfxStampRamp = (rampName, at) => (rampName !== undefined ? rampName : (at.ramp || 'phys'));
 
@@ -72,13 +73,27 @@ class StageSkillVfx {
             next: clip.next || null, nextLife: o.nextLife, hit: false, fadeIn: o.fadeIn || clip.fadeIn || 0, follow: o.follow, tail: o.tail, flat: o.flat || clip.flat || 0, pocket: o.pocket };
     }
 
+    /** 새 클립이 들 자리(2026-11-13 전달본 이펙트 사라짐 수정안 B): 작은 표시(minor)는 MINOR_MAX개까지만 떠 있고, 상한이 차면
+     * 스킬의 클립은 가장 오래된 작은 표시를 내보내고 든다. 전에는 공격이 빠르면 적중 불티가 상한을 다 차지해 시전의 클립이 통째로 안 나왔다. */
+    vfxRoomFor(o) {
+        const minor = !!(o.hit || o.minor);
+        if (minor && this.live.reduce((n, row) => n + (row.minor ? 1 : 0), 0) >= this.MINOR_MAX) return false;
+        if (this.live.length < this.MAX_LIVE) return true;
+        const i = minor ? -1 : this.live.findIndex(row => row.minor);
+        if (i < 0) return false;
+        this.live.splice(i, 1);
+        return true;
+    }
+
     vfxPlay(ref, at, options) {
         const text = String(Array.isArray(ref) ? ref[0] : ref), [name, rampName] = text.split('@'), clip = this.deps.STAGE_SKILL_VFX.clips[name];
-        if (!clip || this.live.length >= this.MAX_LIVE) return null;
+        if (!clip) return null;
         const o = this.vfxOptions(options);
+        if (!this.vfxRoomFor(o)) return null;
         if (rampName !== undefined) o.ramp = rampName;
         const row = this.vfxClipRow(name, clip, at, o);
         if (o.hit && !this.vfxStyleHit(row)) return null;
+        row.minor = !!(o.hit || o.minor);
         this.live.push(row);
         this.assets.vfxAskStrip(clip.a + '|' + o.ramp); // 미리 만들어 두지 않은 띠면 지금 맡긴다(늦춰 트는 클립은 그 사이에 준비된다)
         return row;

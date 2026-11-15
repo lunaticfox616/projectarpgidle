@@ -8,7 +8,7 @@ const cp = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const destination = path.join(root, 'www');
 async function buildMobile() {
-    await require('./build-modules').buildModules();
+    const generated = (await require('./build-modules').buildModules()).map(row => row.output);
     // Only this fixed, generated directory is replaced; never traverse a caller-supplied path.
     if (path.dirname(destination) !== root || path.basename(destination) !== 'www') throw new Error('Invalid mobile output directory');
     fs.rmSync(destination, { recursive: true, force: true });
@@ -19,7 +19,8 @@ async function buildMobile() {
         { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean));
     const files = cp.execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard',
         '--', ...runtimePaths], { cwd: root, encoding: 'utf8' }).split('\0').filter(file => file && !deleted.has(file));
-    files.push('cloud-save-config.js', 'changelog.md');
+    // js/ and data/ are ignored build output, so the listing above leaves them out.
+    files.push(...generated, 'cloud-save-config.js', 'changelog.md');
     for (const file of new Set(files)) copy(file, file);
     // supabase-js는 저장소의 vendor/ 사본이 그대로 들어간다(2026-10-27부터 웹도 같은 사본을 쓴다); Capacitor만 node_modules에서 가져온다.
     copy('node_modules/@capacitor/core/dist/capacitor.js', 'vendor/capacitor.js');

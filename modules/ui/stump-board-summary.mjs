@@ -108,9 +108,10 @@ export function stumpLoopRule() {
 /** The ? window's rules: only what a player needs to play the board (2026-10-09 사용자: 꼭 필요한 정보만, 용어는 그루터기 아이템, 경험치,
 * 성장 완료, 비활성화로 통일하고 "것" 같은 지칭은 쓰지 않는다). */
 export function stumpRulesHtml(runtime) {
-    const { resonance, feed, discipline } = runtime.deps.STUMP_BOX_SYNERGY;
+    const { resonance, kin, feed, discipline } = runtime.deps.STUMP_BOX_SYNERGY;
     const rules = ['그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.',
         (0, runtime.deps._t)('공명: 성장 완료된 같은 색 {length}개가 가로나 세로로 한 줄이면 그 {length2}개 +{bonusPct}%. 옆에 같은 색이 하나라도 더 있으면 사라집니다.', { length: resonance.length, length2: resonance.length, bonusPct: resonance.bonusPct }),
+        (0, runtime.deps._t)('계열 공명: 성장 완료된 꽃, 열매, 덩굴, 뿌리 가운데 같은 종류 {length}개가 색과 상관없이 가로나 세로로 한 줄이면 그 {length2}개 +{bonusPct}%. 옆에 같은 종류가 하나라도 더 있으면 사라지고, 비활성화된 아이템은 세지 않습니다.', { length: kin.length, length2: kin.length, bonusPct: kin.bonusPct }),
         '반극: 공명 중인 아이템은 비활성화되지 않고, 옆에서 그 색을 비활성화하는 아이템이 대신 비활성화됩니다.',
         '비활성화: 물리는 카오스를, 카오스는 냉기를, 냉기는 화염을, 화염은 번개를, 번개는 물리를 비활성화합니다.',
         (0, runtime.deps._t)('상생: 화염은 물리, 카오스는 화염, 번개는 카오스, 냉기는 번개, 물리는 냉기가 옆에 있으면 비활성화되지 않고, 둘 다 +{bonusPct}%', { bonusPct: feed.bonusPct }),

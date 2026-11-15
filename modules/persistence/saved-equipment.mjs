@@ -61,6 +61,31 @@ export function legacySocketStores(merged) {
         offline.protectedOverflow, merged.equipmentTemporaryStorage, presets, stall];
 }
 
+/** Codex, hunt targets and new-entry marks are keyed '부위|이름': a unique whose old name left the code (2026-11-12 renames) is found by
+ * its catalog identity (getStoredEquipmentUniqueName) on the items and codex records that carry a base, and every key moves with it. */
+export function recoverStoredUniqueKeys(deps, state) {
+    const renamed = new Map();
+    for (const item of savedItemsOf(state).concat(Object.values(state.uniqueCodex || {}))) {
+        if (item?.rarity !== 'unique' || !item.baseId) continue;
+        const name = deps.getStoredEquipmentUniqueName(item);
+        if (name !== item.name) renamed.set(`${item.slot}|${item.name}`, { key: `${item.slot}|${name}`, name });
+    }
+    if (!renamed.size) return;
+    if (Array.isArray(state.uniqueHuntTargets)) state.uniqueHuntTargets = state.uniqueHuntTargets.map(key => renamed.get(key)?.key || key);
+    rekeyStoredUniqueRecords(state.uniqueCodex, renamed);
+    rekeyStoredUniqueRecords(state.codexNewlyRegistered, renamed);
+}
+
+function rekeyStoredUniqueRecords(records, renamed) {
+    if (!records || typeof records !== 'object') return;
+    for (const [oldKey, { key, name }] of renamed) {
+        if (!Object.hasOwn(records, oldKey)) continue;
+        const record = records[oldKey];
+        records[key] ||= record && typeof record === 'object' ? { ...record, name } : record;
+        delete records[oldKey];
+    }
+}
+
 /** Slot corrections preserve ownership, even when the inventory is already full. */
 /** Uniques renamed since the save was written (data/items.js RENAMED_UNIQUES): worn, carried, stashed, on the altar, in loadouts. */
 export function renameRetiredUniques(deps, state) {

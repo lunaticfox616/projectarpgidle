@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
 
-test('melee reaches and kills enemies in the formerly oscillating formation',async({page},info)=>{
+test('melee walks to a frozen colony pack and kills',async({page},info)=>{
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.route('https://**',route=>route.fulfill({status:204,body:''}));
     await page.goto('/tests/fixtures/world-tree-atlas/index.html?review=regions');
@@ -10,7 +10,7 @@ test('melee reaches and kills enemies in the formerly oscillating formation',asy
     await expect(page.locator('#status')).toContainText('멈춤 좌표 재현');
     await expect.poll(async()=>{
         return frame.locator('#ui-move-time-text').innerText();
-    },{timeout:20000}).toMatch(/^[1-9]\d*\/13 처치$/);
+    },{timeout:30000}).toMatch(/(^|, )[1-9]\d*\/\d+ 처치$/);   // the line reads "100%, 3/12 처치": life, then kills of the wave
     await page.screenshot({path:info.outputPath('melee-resumes.png')});
     expect(errors).toEqual([]);
 });

@@ -25,7 +25,7 @@ export function craftRollSporeLine(env, item, mod, omen = null) {
 }
 
 // ---------------------------------------------------------------- 제작 뿌리 (data/items.js CRAFT_OMENS)
-// 2026-10-18 사용자: "craft of exile 사이트를 참고해서 ... 가중치 메커니즘, 크래프팅 방법 및 컨텐츠와 연계성". 걸어 둔 뿌리 하나가 자기가
+// 걸어 둔 뿌리 하나가 자기가
 // 바꾸는 다음 제작 한 번에 쓰이고 하나 줄어든다. 실제 제작(js/item-rolls.js useCurrency)과 제작 연구의 연습(rehearse)이 같은 규칙을 쓴다.
 /** omen key with side as the rolls read it: { key, side, effect } (practice uses it without owning one), or null. */
 export function craftOmenSpec(env, key, side) {

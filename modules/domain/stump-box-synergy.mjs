@@ -1,6 +1,6 @@
 import { stumpNeighbors } from './stump-box-geometry.mjs';
 import { stumpFindItem } from './stump-box-state.mjs';
-import { stumpIsMature } from './stump-box-item-values.mjs';
+import { stumpIsMature, stumpYieldKind } from './stump-box-item-values.mjs';
 import { stumpSignature } from './stump-box-board-items.mjs';
 
 export function stumpRowOf(env, cell) { return Math.floor(cell / env.deps.STUMP_BOX_SIZE); }
@@ -8,33 +8,47 @@ export function stumpRowOf(env, cell) { return Math.floor(cell / env.deps.STUMP_
 /** The neighbours across a line: above and below a row's cell, left and right of a column's. */
 export function stumpCrossNeighbors(env, cell, axis) { return stumpNeighbors(env, cell).filter(at => (stumpRowOf(env, at) === stumpRowOf(env, cell)) === (axis === 'col')); }
 
-/** Each board cell as the synergies read it: its item, colour, grown and ancient; null for empty cells, talismans and scars. */
+/** Each board cell as the synergies read it: its item, colour, kind (null while it grows), grown and ancient; null for empty cells,
+ * talismans and scars. */
 export function stumpSynergyCells(box) {
     return box.board.map(id => {
         const item = id === null ? null : stumpFindItem(box, id);
-        return item && item.color ? { item, color: item.color, grown: stumpIsMature(item), ancient: !!item.ancient } : null;
+        return item && item.color ? { item, color: item.color, kind: stumpYieldKind(item), grown: stumpIsMature(item), ancient: !!item.ancient } : null;
     });
 }
 
-/** The colour a run shares (ancient seeds stand for any): '' when all are ancient, null when two colours meet. */
-export function stumpSharedColor(run) {
-    const colors = new Set(run.filter(at => !at.ancient).map(at => at.color));
-    return colors.size > 1 ? null : [...colors][0] || '';
+/** Every straight run of `length` cells in a row or column. */
+export function stumpRuns(env, length) {
+    return env.LINES.flatMap(line => [...Array(env.deps.STUMP_BOX_SIZE - length + 1).keys()].map(start => line.cells.slice(start, start + length)));
 }
 
-/** A same colour (not ancient) touching the run from outside it. */
-export function stumpCrowded(env, cells, run, color) {
-    return run.some(cell => stumpNeighbors(env, cell).some(at => !run.includes(at) && cells[at] && !cells[at].ancient && cells[at].color === color));
+/** The colour or kind ('color' | 'kind') a run shares (ancient seeds stand for any): '' when all are ancient, null when two meet. */
+export function stumpSharedTrait(run, trait) {
+    const values = new Set(run.filter(at => !at.ancient).map(at => at[trait]));
+    return values.size > 1 ? null : [...values][0] || '';
+}
+
+/** The same colour or kind (not ancient) touching the run from outside it. A growing seed has no kind, so it never crowds a kind. */
+export function stumpCrowded(env, cells, run, trait, value) {
+    return run.some(cell => stumpNeighbors(env, cell).some(at => !run.includes(at) && cells[at] && !cells[at].ancient && cells[at][trait] === value));
 }
 
 /** 공명 lines: { color (null for three ancients), cells }. */
 export function stumpResonanceLines(env, cells) {
-    const length = env.deps.STUMP_BOX_SYNERGY.resonance.length;
-    return env.LINES.flatMap(line => [...Array(env.deps.STUMP_BOX_SIZE - length + 1).keys()].map(start => line.cells.slice(start, start + length)))
+    return stumpRuns(env, env.deps.STUMP_BOX_SYNERGY.resonance.length)
         .filter(run => run.every(cell => cells[cell] && cells[cell].grown))
-        .map(run => ({ cells: run, color: stumpSharedColor(run.map(cell => cells[cell])) }))
-        .filter(run => run.color === '' || (run.color !== null && !stumpCrowded(env, cells, run.cells, run.color)))
+        .map(run => ({ cells: run, color: stumpSharedTrait(run.map(cell => cells[cell]), 'color') }))
+        .filter(run => run.color === '' || (run.color !== null && !stumpCrowded(env, cells, run.cells, 'color', run.color)))
         .map(run => ({ color: run.color || null, cells: run.cells }));
+}
+
+/** 계열 공명 lines: { kind, cells }. Three grown, working items of one kind (꽃, 열매, 덩굴, 뿌리) in a straight run, colours free.
+ * Ancient seeds stand for any kind and never crowd; three ancients are colour 공명 only. No 반극 immunity: it reads `stopped`. */
+export function stumpKinLines(env, cells, stopped) {
+    return stumpRuns(env, env.deps.STUMP_BOX_SYNERGY.kin.length)
+        .filter(run => run.every(cell => cells[cell] && cells[cell].grown && !stopped.has(cell)))
+        .map(run => ({ kind: stumpSharedTrait(run.map(cell => cells[cell]), 'kind'), cells: run }))
+        .filter(run => run.kind && !stumpCrowded(env, cells, run.cells, 'kind', run.kind));
 }
 
 /** 오행 for one coloured cell: what stops it (상극 beside, or 반극: it overcomes a resonance cell beside) and the cells that feed it. */
@@ -70,28 +84,26 @@ export function stumpDisciplineLines(env, cells, stopped) {
         && stumpAllColors(line.cells.map(cell => cells[cell])) && !line.cells.some(cell => sameAcross(cell, line.axis)));
 }
 
-/** Item id → its synergies in SYNERGY_ORDER. */
-export function stumpSynergyTags(env, cells, resonance, links, discipline) {
+/** Item id → its synergies in SYNERGY_ORDER, from the board's groups (lines, and feed cell pairs). */
+export function stumpSynergyTags(env, cells, groups) {
     const tags = {}, add = name => cell => { const id = cells[cell].item.id; (tags[id] = tags[id] || new Set()).add(name); };
-    resonance.forEach(line => line.cells.forEach(add('resonance')));
-    links.flat().forEach(add('feed'));
-    discipline.forEach(line => line.cells.forEach(add('discipline')));
+    ['resonance', 'kin', 'discipline'].forEach(name => groups[name].forEach(line => line.cells.forEach(add(name))));
+    groups.feed.flat().forEach(add('feed'));
     return Object.fromEntries(Object.entries(tags).map(([id, set]) => [id, env.SYNERGY_ORDER.filter(name => set.has(name))]));
 }
 
 /** The board's 오행 and synergies now: suppressed ids, stoppedBy (id → { color, counter }), synergy (id → tags),
- * groups (resonance and discipline lines, feed cell pairs) and resonant (colours with a resonance line). */
+ * groups (resonance, kin and discipline lines, feed cell pairs) and resonant (colours with a resonance line). */
 export function stumpBoardEffects(env, box) {
     const key = stumpSignature(box);
     if (env.effectsMemo.key === key && env.effectsMemo.box === box) return env.effectsMemo.value;
     const cells = stumpSynergyCells(box), resonance = stumpResonanceLines(env, cells);
     const { stopped, links } = stumpFiveElements(env, cells, new Set(resonance.flatMap(line => line.cells)));
     const discipline = stumpDisciplineLines(env, cells, stopped).map(line => ({ axis: line.axis, cells: line.cells }));
-    const idOf = cell => cells[cell].item.id;
+    const groups = { resonance, kin: stumpKinLines(env, cells, stopped), discipline, feed: links }, idOf = cell => cells[cell].item.id;
     const value = { suppressed: new Set([...stopped.keys()].map(idOf)),
         stoppedBy: Object.fromEntries([...stopped].map(([cell, why]) => [idOf(cell), why])),
-        synergy: stumpSynergyTags(env, cells, resonance, links, discipline), groups: { resonance, discipline, feed: links },
-        resonant: new Set(resonance.map(line => line.color).filter(Boolean)) };
+        synergy: stumpSynergyTags(env, cells, groups), groups, resonant: new Set(resonance.map(line => line.color).filter(Boolean)) };
     env.effectsMemo = { key, box, value };
     return value;
 }

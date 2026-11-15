@@ -33,7 +33,8 @@ CSS는 `css/main.css`에서 PostCSS로 번들링해 `dist/`에 출력합니다. 
 - 각 `modules/*-classic.mjs`가 원본을 import하고 기존 이름과 데이터 표만 연결합니다.
   클래식 소비자가 모두 import로 전환되면 해당 어댑터와 `scripts/build-modules.js`의 항목을 제거합니다.
 - 같은 이름의 `js/*.js` 파일들은 `npm run build:modules`로 생성하는 배포·개발 공용 출력입니다.
-  ESM 원본을 수정한 뒤 출력을 함께 갱신하고 커밋합니다. 생성 파일을 직접 편집하지 않습니다.
+  2026-11-15부터 `js/`·`data/`의 생성 파일은 저장소에 없습니다(`.gitignore`; 손으로 관리하는 `js/bootstrap.js`,
+  `data/pixel-icons.js`, `data/boss-fx-links.json`만 남습니다). 생성 파일을 직접 편집하거나 커밋하지 않습니다.
 - ESM 원본의 개발 전용 코드는 `/*! @dev-only */`와 `/*! @end-dev-only */`로 감쌉니다.
   컴파일러가 보존한 표식을 빌드 도구가 기존 배포 표식으로 정규화합니다. 일반 주석은 컴파일 중 사라질 수 있습니다.
 - 장비 표는 `state.js`가 나중에 만들므로 `createLevelProgression`에는 표를 읽는 함수를 넘깁니다. 요구치 계산 때만 읽으며 스크립트 순서를 바꾸지 않습니다.
@@ -42,7 +43,10 @@ CSS는 `css/main.css`에서 PostCSS로 번들링해 `dist/`에 출력합니다. 
   프리셋 선택 이력·위습의 비행 중 공격·성능 기록은 각 어댑터가 만든 인스턴스 하나가 소유합니다. 렌더나 재생마다 생성하지 않습니다.
   위습의 큐는 기존 `captureCombatRuntime`/`restoreCombatRuntime`을 그대로 따릅니다.
 - 개발 서버·브라우저 probe·웹/모바일 빌드가 출력을 생성합니다. 서버 실행 중 원본을 고쳤으면 `npm run build:modules`를 실행하고 새로고침합니다.
-  정적 서버와 Node VM은 이미 생성된 파일을 읽으므로, 기존 부팅 스모크가 `npm run check:modules`와 같은 최신성 검사를 합니다.
+  Node VM(`scripts/lib/game-runtime.js`), `npm test`, 구조·언어 검사, 작업본 준비(`npm run setup:worktree`)는
+  `scripts/lib/ensure-modules.js`로 원본의 크기·수정 시각 지문을 `.modules-build.json`과 비교해 달라졌을 때만 다시 만듭니다(확인 약 0.2초, 빌드 약 12초).
+  빌드는 항목이 사라진 생성 파일도 지웁니다. 부팅 스모크는 매번 전체를 빌드해 모든 원본의 검사를 통과시킵니다.
+  그 전에 갈라진 브랜치는 main을 병합할 때 생성 파일마다 수정/삭제 충돌이 납니다: `node scripts/resolve-generated-conflicts.js`.
 - esbuild는 개발·배포 빌드에서만 사용합니다. 개발 페이지의 스크립트 순서·동기 호출과 저장 키·버전·직렬화 형식을 유지하며,
   배포에서는 아래 번들 규칙으로 요청 수를 줄입니다.
 - `scripts/build-modules.js`가 각 entry에서 import한 전체 원본을 별도 스코프로 검사합니다. 계산 원본에는 브라우저/게임 전역을 허용하지 않고,

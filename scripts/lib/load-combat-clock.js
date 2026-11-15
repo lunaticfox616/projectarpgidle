@@ -1,3 +1,4 @@
+require('./ensure-modules').ensureModules();
 const fs = require('fs');
 const vm = require('vm');
 

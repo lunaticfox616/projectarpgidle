@@ -1,6 +1,6 @@
-import { atlasCoreIsMapStone, atlasCorePlainMap } from './atlas-inventory.mjs';
+import { atlasCorePlainMap } from './atlas-inventory.mjs';
 import { atlasCoreRunOpenReason } from './atlas-access.mjs';
-import { atlasCoreReachable, atlasCoreEffectiveTier } from './atlas-graph.mjs';
+import { atlasCoreReachable, atlasCoreEffectiveTier, atlasCoreIsMapStone } from './atlas-graph.mjs';
 import { atlasCoreNodeForTier, atlasCoreStamp } from './atlas-map-drops.mjs';
 import { atlasCoreBonusOf } from './atlas-bonuses.mjs';
 

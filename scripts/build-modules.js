@@ -140,7 +140,7 @@ const ENTRIES = [
     { name: 'atlas-sheet-ui', globals: ["WORLD_MAP","atlas","game","Date","playUiFeedbackSound","document","cancelAnimationFrame","requestAnimationFrame","atlasUi","worldMapUi","escapeHTML","_t","ATLAS","atlasEndgame","atlasPassives","lootOmens","ACT_EXPLORATION_MAPS","window"] },
     { name: 'atlas-epoch-ui', globals: ["_t","ORB_DB","game","atlasEpoch","addLog","requestGameConfirmation","atlas","queueImportantSave","atlasUi","document","escapeHTML","ATLAS","hasCurrentLoopChaos20Clear","atlasEndgame","ATLAS_PASSIVES","window"] },
     { name: 'atlas-endgame-ui', globals: ["atlasUi","document","atlasEndgame","atlasRun","addLog","escapeHTML","queueImportantSave","switchTab","_t","atlas","game","ATLAS","contentUnlockUi","ORB_DB","buildMapPowerEstimateHtml","atlasMaps","ATLAS_ENDGAME","window"] },
-    { name: 'atlas-ui', globals: ["document","switchTab","switchMapSubtab","switchMapExploreSubtab","updateStaticUI","ATLAS","atlas","hideInfoTooltip","game","addLog","requestGameConfirmation","_t","queueImportantSave","atlasMaps","canPayCurrencyCosts","withSubjectParticle","ORB_DB","payCurrencyCosts","STUMP_BOX_COLORS","lootOmens","playUiFeedbackSound","requestGameChoice","atlasRun","atlasBoard","escapeHTML","atlasChartArt","ResizeObserver","showInfoTooltipHtml","ATLAS_PASSIVES","atlasPassives","atlasEndgame","atlasEncounters","buildMapPowerEstimateHtml","window","stumpBox","LOOT_OMENS","itemInfluencesUi","BEYOND_BOUNDARY_UNLOCK_SEEDS","lootMoments","getItemSlotDisplayLabel","memoryLeaves","renderPixelIcon","knitting","memoryDungeon","getVisibleHuntingMapCapZoneId","getAbyssZoneIdForDepth","getDeepChaosEntryState","atlasSheetUi","atlasEndgameUi","getPersistentBuildSignature","actExplorationState","contentUnlockUi","ACT_EXPLORATION_MAPS","atlasPassivesUi","atlasEpochUi","memoryDungeonUi","atlasBoardUi"] },
+    { name: 'atlas-ui', globals: ["document","switchTab","switchMapSubtab","switchMapExploreSubtab","updateStaticUI","ATLAS","atlas","hideInfoTooltip","game","addLog","requestGameConfirmation","requestGameDialog","_t","queueImportantSave","atlasMaps","canPayCurrencyCosts","withSubjectParticle","ORB_DB","payCurrencyCosts","STUMP_BOX_COLORS","lootOmens","playUiFeedbackSound","requestGameChoice","atlasRun","atlasBoard","escapeHTML","atlasChartArt","ResizeObserver","showInfoTooltipHtml","ATLAS_PASSIVES","atlasPassives","atlasEndgame","atlasEncounters","buildMapPowerEstimateHtml","window","stumpBox","LOOT_OMENS","itemInfluencesUi","BEYOND_BOUNDARY_UNLOCK_SEEDS","lootMoments","getItemSlotDisplayLabel","memoryLeaves","renderPixelIcon","knitting","memoryDungeon","getVisibleHuntingMapCapZoneId","getAbyssZoneIdForDepth","getDeepChaosEntryState","atlasSheetUi","atlasEndgameUi","getPersistentBuildSignature","actExplorationState","contentUnlockUi","ACT_EXPLORATION_MAPS","atlasPassivesUi","atlasEpochUi","memoryDungeonUi","atlasBoardUi"] },
     { name: 'canvas-passive-tree', globals: ["game","reachableNodes","getPassiveActivationPath","PASSIVE_TREE","document","getPassiveTreeRootNode","TRANSCENDENT_ANDROMEDA_RADIUS","TRANSCENDENT_ASTEROID_RADIUS","passiveRouting","isCraftSelectionEquip","getCraftSelectionRef","getNodeRevealAmount","getPassiveVisibility","i18n","getStatName","getPassiveBlockedStartIds","getPassiveConnectionNodeIds","getPassiveTreeRootNodeId","getPassiveNodeSearchMatch","getPassiveTreeSearchState","_t","window","cleanupPassiveBursts","ensurePassiveRenderCache","getPassiveWorldViewport","isNodeInViewport","unequipItem","BASE_ITEM_DB","UNIQUE_DB","getSearchFilterState","console","escapeHTML","writeHtmlIfChanged","coreItemsUi","colonyWardsUi","equipmentAuxUi","highlightSearchText","getItemSlotDisplayLabel","itemInfluencesUi","getEquipmentGridVisualAsset","equipmentSocketsUi","equipmentWindowUi","getEquipmentInventoryFootprint","equipmentLoadoutRuntime","equipmentInventoryGridRuntime","equipmentInventoryInteraction","ITEM_RARITY_LABELS","bagItems","contentProgression","chaosInfusionUi","gardenOilsUi","equipmentInspectionUi","pendingMapRevealZoneId","pendingMapRevealToken","setTimeout","updateStaticUI","getTranscendentVoidPassiveCount","Path2D","isPassiveNodeAvailable","PASSIVE_TREE_V22","getPassiveTreeViewAngle"] },
     { name: 'passive-selection-ui', globals: ["PASSIVE_APEX_CONFIGS","PASSIVE_SECTOR_TITLES","PASSIVE_SPECIAL_NODE_CONFIGS","PASSIVE_TARGET_NODES","PASSIVE_THEME_POOLS","PASSIVE_TREE","PASSIVE_TREE_V22","P_STATS","WEAPON_CONDITION_STATS","_t","activatePassivePath","addLog","askRefundPassiveNode","battleAssets","buildStatPreviewParts","canRefundPassiveNode","clampNumber","clampPassiveCamera","clearActiveTooltip","describeBlockedPassiveNode","describeReachablePassiveNode","discoveredPassiveNodes","document","drawPassiveTree","fitPassiveCameraToBounds","formatValue","getEffectivePassiveNodeEffects","getHoverAllocationNodeIds","getItemStatToneColor","getPassiveActivationPath","getPassiveApexNodeIds","getPassiveConstellationAwakeningProgress","getPassiveNodeActivationState","getPassiveStatTierValue","getPassiveTooltipDescription","getPassiveTreeAdjacency","getPassiveTreeRootNode","getPassiveTreeRootNodeId","getStatName","getVoidPassiveEffectLabel","invalidateTooltipSize","isPassiveNodeAvailable","isPassiveTreeEdgeAvailable","normalizePassiveTooltipText","openVoidPassiveCraftOverlay","performance","positionTooltipElement","previewPassiveNodeStats","reachableNodes","renderPassiveInvestmentSummary","requestGameChoice","requestGameConfirmation","setActiveTooltip","setupPassiveTreeSearchControls","spawnPassiveRevealBurstOverlay","statToneText","tutorialActionUi","uiDisplay","unlockPassiveStarEvolution","updatePassiveTreeOverlayTransform","updateStaticUI","window","withSubjectParticle"] },
   {"name":"play-feedback-ui","globals":["ACT_RETREAT_LEVELS","ITEM_RARITY_LABELS","NPC_SHOPS","ORB_DB","SKILL_DB","STAT_TONES","_t","activeTutorial","addLog","backgroundCombatRuntime","buildActRewardPreviewItem","buildStatPreviewParts","canUseSkillWithCurrentEquipment","changeSkill","claimActRewardChoice","clampNumber","clearInterval","clearTimeout","combatEquipmentStats","contentProgression","countFillableEmptySlots","document","escapeHTML","fillEmptyEquipmentSlots","formatNumberKR","formatSignedValue","formatStoryActLabel","getActRewardChoices","getActRewardConfig","getAilmentDisplayLabel","getAvailableActRewardZoneIds","getDamageElementLabel","getElementColor","getEquipCandidateSlots","getEquipmentGridVisualAsset","getPlayerStats","getStatName","getStoryActByZoneId","getSupportRuneArtCell","getSupportRuneTone","isActRewardChoiceAvailable","isMobilityRuneName","marketUi","normalizeDamageElementKey","npcShop","previewBuildStats","setInterval","setTimeout","stripDecorativeEmoji","switchItemSubtab","switchTab","tutorialActionUi","uiDisplay","window","withDirectionParticle"]},
@@ -400,17 +400,35 @@ function compileEntry({ name, globals, mount, output = `js/${name}.js` }) {
     return { output, generated: compiled };
 }
 
+/** A generated file whose entry is gone (a renamed or removed module, another branch's build) would still be read by the
+ * tools that scan js/ and copied into releases. Only files that carry the generated banner are removed. */
+function removeOrphans(outputs) {
+    const keep = new Set(outputs);
+    for (const dir of ['js', 'data', 'data/locales']) {
+        for (const name of fs.existsSync(path.join(ROOT, dir)) ? fs.readdirSync(path.join(ROOT, dir)) : []) {
+            const file = `${dir}/${name}`;
+            if (!name.endsWith('.js') || keep.has(file)) continue;
+            const head = fs.readFileSync(path.join(ROOT, file), 'utf8').slice(0, 40);
+            if (head.startsWith('// GENERATED from ')) fs.rmSync(path.join(ROOT, file));
+        }
+    }
+}
+
 async function buildModules({ check = false } = {}) {
     // Validate every entry/import before writing any output, so a failed build cannot half-update the game.
     lintModules(dataEntries.map(entry => entry.source), null, []);
     const bundles = [...ENTRIES.map(compileEntry), ...await Promise.all(dataEntries.map(compileData))];
-    return bundles.map(({ output, generated }) => {
+    const written = bundles.map(({ output, generated }) => {
         const target = path.join(ROOT, output);
         const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8').replace(/\r\n/g, '\n') : '';
         if (check && current !== generated) throw new Error(`${output} is stale. Run npm run build:modules before testing or shipping.`);
-        if (!check && current !== generated) fs.writeFileSync(target, generated);
+        // A fresh checkout has no data/locales directory: nothing tracked lives there.
+        if (!check && current !== generated) { fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, generated); }
         return { output, bytes: Buffer.byteLength(generated), checked: check };
     });
+    // The outputs are not in the repository; the stamp tells the tools they match the sources (scripts/lib/ensure-modules.js).
+    if (!check) { removeOrphans(written.map(row => row.output)); require('./lib/ensure-modules').writeStamp(written.map(row => row.output)); }
+    return written;
 }
 
 if (require.main === module) {

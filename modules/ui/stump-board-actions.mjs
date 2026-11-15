@@ -43,8 +43,12 @@ export function beginStumpGuideView(runtime, owner = runtime.state.owner) {
     selectStumpItem(runtime, null);
     return () => {
         if (!runtime.active || owner !== runtime.deps.game) return;
-        // The replay caller restores its live save first; rendering clears the example's selection.
-        selectStumpItem(runtime, null);
+        // The replay caller has put its live save back. Nothing of the live save is drawn here: a forced draw would number its
+        // storage cells (settleStorageSlots) although the player only read a guide. The next real draw of the tab repaints.
+        if (clearPlacementPreview(runtime)) (0, runtime.deps.hideInfoTooltip)();
+        runtime.state.compareOpen = false;
+        runtime.state.comparedId = runtime.state.selectedId = runtime.state.selectedCell = null;
+        runtime.state.lastSignature = '';
         ({ frameView: runtime.state.frameView, rightView: runtime.state.rightView, storagePage: runtime.state.storagePage, stateFilter: runtime.state.stateFilter, colorFilter: runtime.state.colorFilter } = previous);
     };
 }

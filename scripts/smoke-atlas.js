@@ -135,6 +135,31 @@ assert.deepEqual(difficulty.map(row => row.loot), [15, 20], 'equipment tier rise
 assert.equal(copy(`[1, 30].map(season => { game.season = season; const hp = createEnemy(atlas.preview(game, atlasMaps.create('roots_0', 1)), { at: 0, count: 1, boss: true }, 0).maxHp; game.season = 1; return hp; })`)
     .reduce((a, b) => a === b), true, 'the loop count never inflates an atlas map');
 
+// ---------------------------------------------------------------- shared map stones and safe bulk discard
+{
+    const { run: manage } = fixture(131);
+    manage(`game.atlas.unlocked = true;
+        game.loopProgressCurrent.chaos20Cleared = true;
+        game.atlas.stash = [
+            { ...atlasMaps.create('roots_0', 1, 'magic', () => .5), uid: 1, quality: 10 },
+            { ...atlasMaps.create('garden_0', 1, 'magic', () => .5), uid: 2, corrupted: true },
+            { ...atlasMaps.create('roots_0', 1), uid: 3 },
+            { ...atlasMaps.create('roots_1', 2, 'magic', () => .5), uid: 4 },
+            { ...atlasMaps.create('roots_g', 16), uid: 5 }
+        ];`);
+    assert.match(manage("atlas.begin(game, 1, 29, () => .5, 'canopy_0')"), /사용할 수 없는/, 'wrong-tier selection is rejected');
+    assert.match(manage("atlas.begin(game, 4, 29, () => .5, 'roots_1')"), /아직 열리지 않은/, 'matching stones do not bypass progression');
+    assert.equal(manage('game.atlas.stash.length'), 5, 'blocked entry spends nothing');
+    assert.equal(manage("atlas.begin(game, 1, 29, () => .5, 'garden_0')"), '');
+    assert.equal(manage("atlas.zone(game).atlasRegion === 'garden' && game.atlas.run.map.rarity === 'magic' && game.atlas.run.map.quality === 10"), true);
+    assert.equal(manage("atlas.discardBatch(game, 'magic', 1, atlas.discardCandidates(game, 'magic', 1))"), 0, 'bulk discard is blocked during a run');
+    manage('atlas.cancel(game); const beforeDiscard = atlas.discardCandidates(game, "magic", 1);');
+    assert.equal(manage("atlas.discardBatch(game, 'magic', 1, [...beforeDiscard].reverse())"), 0, 'changed candidates require confirmation again');
+    assert.equal(manage("atlas.discardBatch(game, 'magic', 1, beforeDiscard)"), 2, 'both regions and crafted stones match the selected filters');
+    assert.equal(manage("JSON.stringify(atlas.discardCandidates(game, 'all', 24).map(map => map.uid))"), '[3,4]', 'guardian stones never match bulk discard');
+    assert.equal(manage("atlas.discardCandidates(game, 'all', 0).length"), 0, 'invalid tier does not match');
+}
+
 // ---------------------------------------------------------------- a full stash must not swallow the guardian route
 const stashSafety = copy(`(() => {
     const state = mergeDefaults({ season: 10 });

@@ -2,6 +2,7 @@
 // Isolate stat/gem functions from a known pre-refactor revision, retaining unrelated working changes.
 // Usage: node scripts/benchmark-player-stats.js <pre-refactor git revision>
 const assert = require('node:assert/strict');
+require('./lib/ensure-modules').ensureModules();
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { performance } = require('node:perf_hooks');

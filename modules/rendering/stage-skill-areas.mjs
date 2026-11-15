@@ -89,7 +89,11 @@ class StageSkillAreas {
     rulePlayStage(gem, event, look) {
         const s = { gem, map: gem.map, area: this.ruleAreaOf(event), look, long: Math.max(400, event.duration || 0), first: !Number(event.stageIndex) };
         if (gem.map.shout) { this.rulePlayShout(gem.map.shout, look); return; }
-        if (gem.map.after && Number(event.stageIndex) > 0) { this.rulePlayAfter(gem, s, look); return; }
+        if (gem.map.after && Number(event.stageIndex) > 0) {
+            // 강타 리메이크(전달본 V3.19.2)는 여진이 맞힌 자리마다 균열과 먼지가 다시 들썩인다(js/canvas-stage-skill-runes.js runeRemadeHit)
+            if (!this.deps.stageSkillRunes.remade(gem)) this.rulePlayAfter(gem, s, look);
+            return;
+        }
         for (const [hook, play] of this.STAGE_PLAYS) if (gem.map[hook]) play(s);
     }
 

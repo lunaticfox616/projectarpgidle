@@ -1,5 +1,5 @@
 import { render } from './atlas-view-screen.mjs';
-import { viewOpen, ledger, selectedMap, mapName, sortedStash, plainUpTo, sumOf, tierCounts, nodeName, heldLate } from './atlas-view-model.mjs';
+import { viewOpen, ledger, selectedMap, mapName, sortedStash, sumOf, tierCounts, nodeName, heldLate } from './atlas-view-model.mjs';
 
 export function openPanel(runtime) {
     if (!runtime.deps.document.getElementById('tab-map').classList.contains('active')) (0, runtime.deps.switchTab)('tab-map');
@@ -19,10 +19,10 @@ export function setView(runtime, next) {
     refresh(runtime);
 }
 
-/** 두 번 누른 노드에 맞는 지도석이 있으면 선택하고 출발한다. */
+/** 노드를 곧바로 두 번 누름(atlas-sheet-actions.mjs tap): 고른 노드에 맞는 지도석이 있으면 그것으로 연다. */
 export function openNode(runtime, id) {
     selectNode(runtime, id);
-    if (selectedMap(runtime) && selectedMap(runtime).node === id && !ledger(runtime).run) open(runtime);
+    if (selectedMap(runtime) && !ledger(runtime).run) open(runtime);
 }
 
 export function selectRegion(runtime, id, showMaps = false) {
@@ -40,8 +40,9 @@ export function selectNode(runtime, id, reveal = false) {
     if (reveal) runtime.state.view = 'maps';
     runtime.state.selectedNode = id;
     runtime.state.selectedRegion = node.region || 'trunk';
-    const maps = ledger(runtime).stash.filter(map => map.node === id);
-    if ((reveal || maps.length) && !maps.some(map => map.uid === runtime.state.selectedUid)) runtime.state.selectedUid = maps.length ? maps[0].uid : null;
+    // 고른 지도석이 이 노드에 맞지 않으면 맞는 지도석(같은 등급, 수호자는 그 수호자의 것)으로 바꾸고, 없으면 비운다.
+    const atlas = runtime.deps.atlas, game = runtime.deps.game;
+    if (!atlas.matchesNode(game, selectedMap(runtime), node)) runtime.state.selectedUid = ledger(runtime).stash.find(map => atlas.matchesNode(game, map, node))?.uid ?? null;
     render(runtime);
     if (reveal) revealNodeDetail(runtime);
 }
@@ -57,11 +58,20 @@ export function revealNodeDetail(runtime) {
 export function selectMap(runtime, uid, reveal = false) {
     const map = ledger(runtime).stash.find(entry => entry.uid === uid);
     if (!map) return;
-    runtime.state.selectedUid = uid;
-    runtime.state.selectedNode = map.node;
-    runtime.state.selectedRegion = runtime.deps.atlas.node(map.node).region || 'trunk';
+    pickMap(runtime, map);
     render(runtime);
     if (reveal) revealDevice(runtime);
+}
+
+/** 지도석을 고른다. 고른 노드에 맞으면 노드는 그대로, 아니면 지도석이 갈 곳(js/atlas.js mapDestination)으로 옮긴다.
+ * 등급이 맞는 열린 노드가 없는 지도석은 노드 없이 보관함에서 바로 연다(노드를 지정할 때는 같은 등급만 쓴다). */
+export function pickMap(runtime, map) {
+    const atlas = runtime.deps.atlas, game = runtime.deps.game;
+    runtime.state.selectedUid = map?.uid ?? null;
+    if (!map || atlas.matchesNode(game, map, atlas.node(runtime.state.selectedNode))) return;
+    const node = atlas.mapDestination(game, map);
+    runtime.state.selectedNode = atlas.matchesNode(game, map, node) ? node.id : null;
+    if (node) runtime.state.selectedRegion = node.region || 'trunk';
 }
 
 export function revealDevice(runtime) {
@@ -79,34 +89,45 @@ export async function discard(runtime) {
     if (!map) return;
     if (busy) return (0, runtime.deps.addLog)(busy, 'attack-monster');
     const name = mapName(runtime, map);
-    if (!runtime.deps.atlas.plainMap(map) && !await (0, runtime.deps.requestGameConfirmation)(`${name} 지도석 1개를 버릴까요?\n지도석과 제작에 쓴 재화는 돌려받을 수 없습니다.`,
+    if (!runtime.deps.atlas.plainMap(map) && !await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('{name} 1개를 버릴까요?\n지도석과 제작에 쓴 재화는 돌려받을 수 없습니다.', { name }),
             { title: (0, runtime.deps._t)('지도석 버리기'), tone: 'danger', confirmLabel: (0, runtime.deps._t)('버리기'), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false })) return;
     if (selectedMap(runtime) !== map) return (0, runtime.deps.addLog)((0, runtime.deps._t)('선택한 지도석이 바뀌어 버리기를 취소했습니다.'), 'attack-monster');
     const order = sortedStash(runtime), at = order.indexOf(map);
     const reason = runtime.deps.atlas.discard(runtime.deps.game, map.uid);
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
-    const next = order[at + 1] || order[at - 1];
-    runtime.state.selectedUid = next ? next.uid : null;
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {name} 지도석 1개를 버렸습니다.', { name }), 'attack-monster');
+    pickMap(runtime, order[at + 1] || order[at - 1]);
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {name} 1개를 버렸습니다.', { name }), 'attack-monster');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }
 
-/** 고른 지도석의 등급 이하에서 손대지 않은 지도석 모두(한 번만 묻는다). 마법, 희귀, 품질, 타락 지도석은 남는다. */
-export async function discardLow(runtime) {
-    const map = selectedMap(runtime), busy = runtime.deps.atlas.runOpenReason(runtime.deps.game);
-    if (!map) return;
+/** 일괄 버리기의 두 칸: 희귀도(전체 포함)와 지도석 등급(그 등급 이하). */
+export function bulkDiscardFields(runtime) {
+    const rules = runtime.deps.ATLAS;
+    const rarities = [...Object.entries(rules.rarities).map(([value, rule]) => ({ value, label: (0, runtime.deps._t)(rule.name) })), { value: 'all', label: (0, runtime.deps._t)('전체') }];
+    const tiers = Array.from({ length: rules.tierCap }, (_, index) => ({ value: index + 1, label: (0, runtime.deps._t)('{tier}등급 이하', { tier: index + 1 }) }));
+    return [{ label: (0, runtime.deps._t)('희귀도'), options: rarities }, { label: (0, runtime.deps._t)('지도석 등급'), options: tiers }];
+}
+
+/** 보관함의 지도석을 희귀도와 등급으로 골라 한꺼번에 버린다(품질, 타락 포함, 수호자 지도석은 남는다). 고를 때마다 대상 수를 보여 주고,
+ * 확인하는 사이 대상 목록이 바뀌었으면(새로 떨어진 지도석) 지우지 않는다(js/atlas.js discardBatch). */
+export async function bulkDiscard(runtime) {
+    const atlas = runtime.deps.atlas, busy = atlas.runOpenReason(runtime.deps.game);
     if (busy) return (0, runtime.deps.addLog)(busy, 'attack-monster');
-    const tier = map.tier, count = plainUpTo(runtime, tier);
-    if (!count) return (0, runtime.deps.addLog)((0, runtime.deps._t)('{tier}등급 이하에 일반 지도석이 없습니다.', { tier }), 'attack-monster');
-    const ok = await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('{tier}등급 이하 일반 지도석 {count}개를 모두 버릴까요?\n마법, 희귀, 품질, 타락 지도석은 남습니다.', { tier, count }),
-        { title: (0, runtime.deps._t)('지도석 정리'), tone: 'danger', confirmLabel: (0, runtime.deps._t)('{count}개 버리기', { count }), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false });
-    if (!ok) return;
-    // 묻는 사이 보관함이 바뀌었으면(새로 떨어진 지도석) 확인한 수와 다르다: 지우지 않고 다시 누르게 한다.
-    if (plainUpTo(runtime, tier) !== count) return (0, runtime.deps.addLog)((0, runtime.deps._t)('보관함이 바뀌어 정리를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
-    const removed = runtime.deps.atlas.discardPlainUpTo(runtime.deps.game, tier);
-    if (!ledger(runtime).stash.includes(map)) runtime.state.selectedUid = null;
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {tier}등급 이하 일반 지도석 {removed}개를 버렸습니다.', { tier, removed }), 'attack-monster');
+    let shown = [];
+    const picked = await (0, runtime.deps.requestGameDialog)({
+        type: 'selects', title: (0, runtime.deps._t)('일괄 버리기'), tone: 'danger', confirmLabel: (0, runtime.deps._t)('버리기'), cancelLabel: (0, runtime.deps._t)('취소'),
+        dismissOnBackdrop: false, message: (0, runtime.deps._t)('조건에 맞는 품질, 타락 지도석도 함께 버립니다. 수호자 지도석은 보관합니다.'), fields: bulkDiscardFields(runtime),
+        selectionStatus: ([rarity, tier]) => {
+            shown = atlas.discardCandidates(runtime.deps.game, rarity, Number(tier));
+            return { text: (0, runtime.deps._t)('버릴 지도석 {count}개', { count: shown.length }), disabled: !shown.length };
+        }
+    });
+    if (!picked) return;
+    const removed = atlas.discardBatch(runtime.deps.game, picked[0], Number(picked[1]), shown);
+    if (!removed) return (0, runtime.deps.addLog)(atlas.runOpenReason(runtime.deps.game) || (0, runtime.deps._t)('보관함이 바뀌어 정리를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
+    if (!selectedMap(runtime)) runtime.state.selectedUid = null;
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 지도석 {count}개를 버렸습니다.', { count: removed }), 'attack-monster');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }
@@ -124,7 +145,7 @@ export async function combine(runtime) {
     if (!now || now.length !== set.length || now.some((entry, at) => entry !== set[at])) return (0, runtime.deps.addLog)((0, runtime.deps._t)('보관함이 바뀌어 합치기를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
     const result = runtime.deps.atlas.combine(runtime.deps.game, map.uid);
     if (result.reason) return (0, runtime.deps.addLog)(result.reason, 'attack-monster');
-    runtime.state.selectedUid = result.map.uid;
+    pickMap(runtime, result.map);
     (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {tier}등급 지도석 {count}개를 합쳐 {name} 지도석을 얻었습니다.', { tier: map.tier, count: result.used.length, name: mapName(runtime, result.map) }), 'loot-normal');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
@@ -141,7 +162,7 @@ export async function combineAll(runtime) {
     if (JSON.stringify(runtime.deps.atlas.combineAllPlan(runtime.deps.game)) !== JSON.stringify(plan)) return (0, runtime.deps.addLog)((0, runtime.deps._t)('보관함이 바뀌어 합치기를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
     const result = runtime.deps.atlas.combineAll(runtime.deps.game), made = {};
     for (const map of result.made) made[map.tier] = (made[map.tier] || 0) + 1;
-    if (!ledger(runtime).stash.some(map => map.uid === runtime.state.selectedUid)) runtime.state.selectedUid = [...result.made].sort((a, b) => b.tier - a.tier)[0]?.uid ?? null;
+    if (!selectedMap(runtime)) pickMap(runtime, [...result.made].sort((a, b) => b.tier - a.tier)[0]);
     (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 지도석 {used}개를 합쳐 새 지도석 {made}개를 얻었습니다({list}).', { used: result.used, made: result.made.length, list: tierCounts(runtime, made) }), 'loot-normal');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
@@ -155,7 +176,8 @@ export function craft(runtime, key) {
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
     (0, runtime.deps.payCurrencyCosts)(cost);
     runtime.deps.atlasMaps.craft(map, key);
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {node} 지도석에 {name} 사용: {label}', { node: nodeName(runtime, map.node), name: (0, runtime.deps._t)(runtime.deps.ORB_DB[key].name), label: runtime.deps.atlasMaps.crafts[key].label }), 'loot-magic');
+    pickMap(runtime, map); // 등급을 바꾸는 제작 뒤에는 고른 노드가 더는 맞지 않을 수 있다
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {stone}에 {name} 사용: {label}', { stone: mapName(runtime, map), name: (0, runtime.deps._t)(runtime.deps.ORB_DB[key].name), label: runtime.deps.atlasMaps.crafts[key].label }), 'loot-magic');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }
@@ -164,7 +186,7 @@ export function craft(runtime, key) {
 export function applyFlower(runtime, map, color, omenId) {
     const result = runtime.deps.atlas.changeOmen(runtime.deps.game, map.uid, color, omenId);
     if (result.reason) return (0, runtime.deps.addLog)(result.reason, 'attack-monster');
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {node} 지도석에 {golden}{color} 꽃 사용: {omen}', { node: nodeName(runtime, map.node), golden: omenId ? `${(0, runtime.deps._t)('황금')} ` : '', color: (0, runtime.deps._t)(runtime.deps.STUMP_BOX_COLORS[color].label), omen: (0, runtime.deps._t)(runtime.deps.lootOmens.describe(result.omen).name) }), 'loot-magic');
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {stone}에 {golden}{color} 꽃 사용: {omen}', { stone: mapName(runtime, map), golden: omenId ? `${(0, runtime.deps._t)('황금')} ` : '', color: (0, runtime.deps._t)(runtime.deps.STUMP_BOX_COLORS[color].label), omen: (0, runtime.deps._t)(runtime.deps.lootOmens.describe(result.omen).name) }), 'loot-magic');
     (0, runtime.deps.playUiFeedbackSound)('gemSocket');
     (0, runtime.deps.queueImportantSave)(200);
     runtime.state.bloomedUid = map.uid;
@@ -201,7 +223,7 @@ export function toggleFragment(runtime, id) {
 export function open(runtime) {
     const map = selectedMap(runtime);
     if (!map) return;
-    const reason = runtime.deps.atlasRun.open(map.uid);
+    const reason = runtime.deps.atlasRun.open(map.uid, runtime.state.selectedNode ?? undefined);
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
     runtime.state.selectedUid = null;
     refresh(runtime);
