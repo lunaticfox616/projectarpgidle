@@ -24,6 +24,7 @@ const stageSkillStrokes = Object.freeze({
     scorch: native.scorch,
     fuse: native.fuse,
     flickerTrail: native.flickerTrail,
-    flickerCut: native.flickerCut
+    flickerCut: native.flickerCut,
+    remakes: native.remakes
 });
 safeExposeGlobals({ stageSkillStrokes });

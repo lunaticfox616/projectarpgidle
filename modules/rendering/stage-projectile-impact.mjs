@@ -80,7 +80,7 @@ class StageProjectileImpact {
         const { victim, look, fx } = hit, face = look.face, shade = this.colours(fx.element);
         const angle = Math.atan2((victim.gy - from.gy) * this.K.DEEP, Math.abs(victim.gx - from.gx) * this.K.WIDE + 1), own = gem.map.pfxImpact;
         const spot = this.K.at(victim, -face * 4, this.SPARK_HEIGHT);
-        this.deps.stageSkillVfx.play(own || `pfx_hitspark@${this.rampOf(fx.element)}`, spot, { face, rot: own ? 0 : angle, scale: 0.9 + 0.25 * (weight - 1) });
+        this.deps.stageSkillVfx.play(own || `pfx_hitspark@${this.rampOf(fx.element)}`, spot, { face, rot: own ? 0 : angle, scale: 0.9 + 0.25 * (weight - 1), minor: true });
         if (gem.map.pfxBurst) this.deps.stageSkillVfx.play(gem.map.pfxBurst, this.K.at(victim, 0, 1), { face, alpha: 0.95 });
         this.deps.stageSkillVfx.paint(this.K.at(victim, 0, 1), { life: 260, layer: 'ground' }, this.paintGround(shade, weight));
         this.deps.stageSkillVfx.paint(spot, { life: 170 }, this.paintLight(shade, 16 + 6 * weight));

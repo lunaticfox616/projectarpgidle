@@ -237,11 +237,12 @@
     grid-template-rows: 27fr 3fr 28fr 4fr 27fr 4fr 27fr 4fr 27fr;
   }
   /* 판 시너지 묶음(2026-11-04 사용자: 해당 칸 묶어서 강조, js/stump-box-ui.js stumpLinksHtml): 틀 그림 위에 그려 칸 사이의 살을 건너
-     하나로 묶는다. 공명은 그 색, 규율은 줄의 다섯 색, 상생은 두 칸 사이 살 위의 초록 매듭 */
+     하나로 묶는다. 공명은 그 색, 계열 공명은 공명 테 안쪽의 껍질빛 점선(색과 상관없는 줄), 규율은 줄의 다섯 색, 상생은 두 칸 사이 살 위의 초록 매듭 */
   .stump-board-links { z-index: 3; pointer-events: none; }
   .stump-link { position: relative; min-width: 0; min-height: 0; }
   .stump-link.is-resonance { margin: -3px; border: 2px solid var(--stump-tone);
     box-shadow: 0 0 0 1px #050404, 0 0 8px color-mix(in srgb, var(--stump-tone) 70%, transparent); }
+  .stump-link.is-kin { margin: 1px; border: 2px dashed rgba(222, 206, 172, .8); filter: drop-shadow(0 0 1px #050404); }
   .stump-link.is-discipline { margin: -6px; border: 2px solid transparent; border-image: var(--rule-tones) 1;
     filter: drop-shadow(0 0 1px #050404) drop-shadow(0 0 4px rgba(243, 210, 140, .45)); }
   .stump-link.is-feed::before { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%) rotate(45deg);

@@ -76,7 +76,7 @@ function createStumpEnvironment(deps) {
     env.ONE_ON_BOARD = Object.freeze([
     Object.freeze({ test: item => !!item.albino, reason: '알비노는 그루터기 함 전체에 하나만 놓을 수 있습니다.' }),
     Object.freeze({ test: item => item.family === 'scar', reason: '불씨의 흉터는 그루터기 함에 하나만 놓을 수 있습니다.' })]);
-    env.SYNERGY_ORDER = Object.freeze(['resonance', 'feed', 'discipline']);
+    env.SYNERGY_ORDER = Object.freeze(['resonance', 'kin', 'feed', 'discipline']);
     env.LINES = Object.freeze([...Array(env.deps.STUMP_BOX_SIZE).keys()].flatMap(at => [
     { axis: 'row', cells: [...Array(env.deps.STUMP_BOX_SIZE).keys()].map(step => at * env.deps.STUMP_BOX_SIZE + step) },
     { axis: 'col', cells: [...Array(env.deps.STUMP_BOX_SIZE).keys()].map(step => step * env.deps.STUMP_BOX_SIZE + at) }]));

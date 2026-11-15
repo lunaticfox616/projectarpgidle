@@ -4,7 +4,8 @@ export const ORB = Object.freeze({ range: 6, speed: 240 / 72, every: 50, spin: 0
 export const BOLT_LIFE = ORB.bolt.reach / ORB.bolt.speed * 1000;
 export const ORBIT = Object.freeze({ life: 12000, every: 900, pct: 32, reach: 3, max: Object.freeze([5, 7, 10]), first: 240, firstStep: 110, avoid: 400, retry: 200, release: 320 });
 export const RIFT = Object.freeze({ middle: 2, half: 0.75, depth: 4.5, pull: 1.2, pullAt: 90, close: 520, pct: 60, impact: 630, hold: 200, grow: 0.5 });
-export const ISSEN = Object.freeze({ reach: 10, depth: 0.6, grow: 0.25, delay: 220, impact: 350, hold: 200, cuts: 6 });
+// 일섬의 depth: 자기 줄에서 위아래로 닿는 칸(2026-11-15 사용자 "위 아래도 한칸씩 더 벨 수 있게": 0.6 → 1.6, 다가가기 표 data/skills.js의 band 1과 맞춘다)
+export const ISSEN = Object.freeze({ reach: 10, depth: 1.6, grow: 0.25, delay: 220, impact: 350, hold: 200, cuts: 6 });
 export const VOID = Object.freeze({ radius: 3, pullCells: 2, spirit: 40, hit: 300, gap: 30, weak: 4000, impact: 400, hold: 200, fly: 260 });
 export const STORM = Object.freeze({ range: 5, radius: 2, charge: 180, stagger: 200, pct: 200 });
 export const CAULDRON = Object.freeze({ range: 6, radius: 2.5, pour: 260, fall: 130, every: 250, pcts: Object.freeze([80, 50, 50]), impact: 840, hold: 200 });

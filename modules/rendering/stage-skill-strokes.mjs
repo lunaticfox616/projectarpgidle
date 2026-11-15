@@ -7,6 +7,7 @@
  * js/canvas-stage-skill-rules.js와 js/canvas-stage-skill-casts.js가 정한다. 주인공 그림을 기울이거나 띄우지 않는다(코드로 만든 동작 금지).
  */
 import { visualRandom, pixelEffectLine } from './pixel-effect-math.mjs';
+import { createStageNativeRemakes } from './stage-native-remakes.mjs';
 
 class StageSkillStrokes {
     constructor(deps) {
@@ -363,5 +364,5 @@ export function createStageSkillStrokes(deps) {
     return Object.freeze({ hang: instance.strokeHang.bind(instance), random: instance.strokeRandom.bind(instance), line: instance.strokeLine.bind(instance), lens: instance.strokeLens.bind(instance), ramp: instance.strokeRamp, ink: instance.strokeInk,
         crossCut: instance.strokeCrossCut.bind(instance), vCut: instance.strokeVCut.bind(instance), upCut: instance.strokeUpCut.bind(instance), riseSwing: instance.strokeRiseSwing.bind(instance), slashWave: instance.strokeSlashWave.bind(instance), frostMist: instance.strokeFrostMist.bind(instance),
         flameFan: instance.strokeFlameFan.bind(instance), dragSpark: instance.strokeDragSpark.bind(instance), scorch: instance.strokeScorch.bind(instance), fuse: instance.strokeFuse.bind(instance),
-        flickerTrail: instance.strokeFlickerTrail.bind(instance), flickerCut: instance.strokeFlickerCut.bind(instance) });
+        flickerTrail: instance.strokeFlickerTrail.bind(instance), flickerCut: instance.strokeFlickerCut.bind(instance), remakes: createStageNativeRemakes(deps) });
 }
