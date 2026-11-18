@@ -35,6 +35,7 @@ const bossEntranceView = {
     enteringSpans: native.enteringSpans,
     bannerLine: native.bannerLine,
     sceneryDim: native.sceneryDim,
+    defeatMotes: native.defeatMotes,
     observer: Object.freeze({ ...observer, frame: enemy => observer.frame(game, enemy) })
 };
 safeExposeGlobals({ bossEntranceView });

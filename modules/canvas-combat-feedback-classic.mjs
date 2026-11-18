@@ -17,6 +17,7 @@ const native = createCombatFeedbackRenderer({
     get playUiFeedbackSound() { return playUiFeedbackSound; },
     get stageSkillRules() { return stageSkillRules; },
     get stripDecorativeEmoji() { return stripDecorativeEmoji; },
-    reducedEffects: () => uiDisplay.reducedEffects()
+    reducedEffects: () => uiDisplay.reducedEffects(),
+    rich: () => uiDisplay.richPresentation()
 });
 worldTreeSkillFx.feedback = native;

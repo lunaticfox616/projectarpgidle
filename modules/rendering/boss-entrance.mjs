@@ -6,6 +6,8 @@
 // (stageLook의 shade), 속성 색 테가 차오르고(rim), 한 번 하얗게 번쩍이며(flash) 제 모습을 드러낸다. 발밑에는 빛이 고이고, 드러나는
 // 순간 먼지가 바닥을 따라 퍼진다. 때는 입장 길이(holdMs: 처음 2.6초, 다시 만나면 1.2초)의 몫이라 짧은 입장도 같은 차례로 흐른다.
 import { ease, share } from './entrance-timing.mjs';
+import { BossDefeat } from './boss-defeat.mjs';
+import { letterbox } from './cinema-frame.mjs';
 
 class BossEntrance {
     constructor(deps) {
@@ -14,7 +16,7 @@ class BossEntrance {
         this.RISE_MS = 900;
         this.BURST_AT = 1550;
         this.BOSS_TILES = 2.6;
-        this.STAGE = Object.freeze({ fadeIn: 0.1, rimFrom: 0.14, burstAt: 0.5, flashMs: 340, dim: 0.6, light: Object.freeze({ dots: 120, alpha: 0.5 }) });
+        this.STAGE = Object.freeze({ fadeIn: 0.1, rimFrom: 0.14, burstAt: 0.5, flashMs: 340, dim: 0.6, light: Object.freeze({ dots: 120, alpha: 0.5 }), firstSightMs: 2600, bar: 0.06, barFill: '#050403' });
         this.RED = Object.freeze({ color: '#ff3a24', dim: 0.8, flash: '#ff4a2e', flashAlpha: 0.42, veil: '176, 14, 10', shake: 1.7, bar: 0.085, ember: '#ff7a3c' });
         this.colorOf = (fx, enemy) => (fx.red ? this.RED.color : this.deps.getElementColor(enemy.ele) || '#9ed6ff');
         this.spot = null;
@@ -25,6 +27,7 @@ class BossEntrance {
         this.dimProgress = (fx, now) => now - fx.start < this.holdOf(fx) ? this.ease((now - fx.start) / 350) : Math.max(0, 1 - (now - fx.start - this.holdOf(fx)) / 500);
         this.dimStrength = fx => fx.red ? this.RED.dim : this.onStage() ? this.STAGE.dim : 0.5;
         this.burstOf = fx => (this.onStage() ? this.holdOf(fx) * this.STAGE.burstAt : this.BURST_AT);
+        this.defeat = new BossDefeat(deps, this.motes.bind(this));
         this.enteringSpans = boss => (this.spot && boss && this.spot.id === boss.id ? [[this.spot.top, this.spot.feet + 8]] : []);
     }
 
@@ -37,10 +40,13 @@ class BossEntrance {
 
     bossOf(fx) { return fx.enemies.find(enemy => enemy.isBoss) || fx.enemies[0] || null; }
 
-    sceneryDim(now) {
+    /** How dark the entrance makes the room now (0 when no entrance plays). */
+    entranceDim(now) {
         const fx = this.active(now);
         return fx && this.bossOf(fx) ? this.dimProgress(fx, now) * this.dimStrength(fx) : 0;
     }
+
+    sceneryDim(now) { return Math.max(this.entranceDim(now), this.defeat.sceneryDim(now)); }
 
     /** 무대에서 입장 중인 적의 모습: alpha 보이는 정도, shade 검은 형체인 정도, rim 속성 색 테의 세기, flash 하얗게 번쩍이는 정도.
      * 무대가 아니거나 입장 중이 아니면 null(그리는 쪽은 평소대로 그린다). 그림의 크기와 자리는 바꾸지 않는다. */
@@ -81,6 +87,7 @@ class BossEntrance {
     /** Under the actors: the room dims (the rising boss and the player stay lit above it), the waking rift ring,
      * the light pillar the boss rises in, the burst ring and flying debris. */
     drawGround(ctx, state) {
+        this.defeat.drawGround(ctx, state, this.deps.uiDisplay.reducedEffects() ? 0 : this.entranceDim(state.now));
         const fx = this.active(state.now), boss = fx && this.bossOf(fx);
         if (!boss) return;
         const at = this.deps.getBattleLayout([boss], 0, 0, state.gridProj)[0];
@@ -245,10 +252,12 @@ class BossEntrance {
     /** Over everything, in screen space: the flash of the burst. area = { width, height, now }. */
     drawScreen(ctx, area) {
         if (this.deps.uiDisplay.reducedEffects()) return;
+        this.defeat.drawScreen(ctx, area);
         const fx = this.active(area.now);
         if (!fx) return;
         const burst = this.burstOf(fx), t = area.now - fx.start;
         if (fx.red) this.drawRedVeil(ctx, area, { t, hold: this.holdOf(fx) });
+        else if (this.firstSight(fx)) this.drawSightBars(ctx, area, { t, hold: this.holdOf(fx) });
         if (t < burst || t >= burst + 240) return;
         ctx.save();
         ctx.globalAlpha = (fx.red ? this.RED.flashAlpha : this.onStage() ? 0.24 : 0.38) * (1 - (t - burst) / 240);
@@ -258,8 +267,19 @@ class BossEntrance {
     }
 
     /** 붉은 입장의 화면: 가장자리의 붉은 맥박과 위아래에서 닫혀 드는 띠. o.t: 입장이 시작된 뒤 ms, o.hold: 입장 길이. */
+    veilFade(o) { return o.t < o.hold ? this.ease(o.t / 320) : Math.max(0, 1 - (o.t - o.hold) / 500); }
+
+    /** 처음 만나는 보스(입장 2.6초)의 무대 입장에는 위아래 띠가 닫혀 든다(2026-11-19 연출 보강). 다시 만나는 짧은 입장에는 없다. */
+    firstSight(fx) { return this.onStage() && this.holdOf(fx) === this.STAGE.firstSightMs && this.deps.uiDisplay.richPresentation(); }
+
+    drawSightBars(ctx, area, o) {
+        ctx.save();
+        letterbox(ctx, area, { bar: area.height * this.STAGE.bar * this.veilFade(o), fill: this.STAGE.barFill });
+        ctx.restore();
+    }
+
     drawRedVeil(ctx, area, o) {
-        const fade = o.t < o.hold ? this.ease(o.t / 320) : Math.max(0, 1 - (o.t - o.hold) / 500), beat = 0.72 + 0.28 * Math.abs(Math.sin(o.t / 240));
+        const fade = this.veilFade(o), beat = 0.72 + 0.28 * Math.abs(Math.sin(o.t / 240));
         if (!(fade > 0)) return;
         const cx = area.width / 2, cy = area.height / 2, reach = Math.hypot(cx, cy);
         const veil = ctx.createRadialGradient(cx, cy, reach * 0.42, cx, cy, reach);
@@ -269,18 +289,12 @@ class BossEntrance {
         ctx.globalAlpha = fade;
         ctx.fillStyle = veil;
         ctx.fillRect(0, 0, area.width, area.height);
-        const bar = Math.round(area.height * this.RED.bar * fade);
-        ctx.fillStyle = '#120202';
-        ctx.fillRect(0, 0, area.width, bar);
-        ctx.fillRect(0, area.height - bar, area.width, bar);
-        ctx.fillStyle = this.RED.color;
-        ctx.fillRect(0, bar, area.width, 2);
-        ctx.fillRect(0, area.height - bar - 2, area.width, 2);
+        letterbox(ctx, area, { bar: area.height * this.RED.bar * fade, fill: '#120202', edge: 2, edgeColor: this.RED.color });
         ctx.restore();
     }
 }
 
 export function createBossEntrance(deps) {
     const instance = new BossEntrance(deps);
-    return { enemyAge: instance.enemyAge.bind(instance), stageLook: instance.stageLook.bind(instance), revealedBoss: instance.revealedBoss.bind(instance), shake: instance.shake.bind(instance), drawGround: instance.drawGround.bind(instance), drawScreen: instance.drawScreen.bind(instance), enteringSpans: instance.enteringSpans, bannerLine: instance.bannerLine.bind(instance), sceneryDim: instance.sceneryDim.bind(instance) };
+    return { enemyAge: instance.enemyAge.bind(instance), stageLook: instance.stageLook.bind(instance), revealedBoss: instance.revealedBoss.bind(instance), shake: instance.shake.bind(instance), drawGround: instance.drawGround.bind(instance), drawScreen: instance.drawScreen.bind(instance), enteringSpans: instance.enteringSpans, bannerLine: instance.bannerLine.bind(instance), sceneryDim: instance.sceneryDim.bind(instance), defeatMotes: instance.defeat.motes.bind(instance.defeat) };
 }

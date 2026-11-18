@@ -100,7 +100,8 @@ const timing = new BattlefieldFeedbackTiming({
     visual: () => battleVisualState,
     effects: () => battleFx,
     skillProfile: name => getSkillGemVfxProfile(name),
-    get feedbackProfile() { return getBattleFeedbackProfile; }
+    get feedbackProfile() { return getBattleFeedbackProfile; },
+    rich: () => uiDisplay.richPresentation() && !uiDisplay.reducedEffects()
 });
 const movement = new PlayerGridMotion({
     get classes() { return typeof PLAYER_CLASS_DEFS === 'undefined' ? null : PLAYER_CLASS_DEFS; },
@@ -175,6 +176,8 @@ const hits = new BattlefieldHitFeedback({
 }, body);
 const death = new EnemyDeathRenderer({
     reducedEffects: () => uiDisplay.reducedEffects(),
+    rich: () => uiDisplay.richPresentation(),
+    get defeatMotes() { return bossEntranceView.defeatMotes; },
     get story() { return stageStory; },
     get roster() { return stageRoster; },
     get feedback() { return worldTreeSkillFx.feedback; },

@@ -1,7 +1,10 @@
 import { clampNumber } from '../common/numbers.mjs';
+import { floorRing } from './cinema-frame.mjs';
 
 const LEGACY_BOSS_DEATH_MS = 840;
 const BOSS_FADE_FROM = 0.78;
+/** 정예가 쓰러질 때(2026-11-19 연출 보강): 처음 90 ms 동안 하얗게 번쩍이고, 발밑에서 속성 색 고리 하나가 퍼진다. */
+const ELITE_DEATH = Object.freeze({ flashMs: 90, ringCells: 1.4, ringMs: 380, flat: 0.36, alpha: 0.8 });
 
 function knockbackDirection(enemy, player) {
     let x = Number(enemy && enemy.x) - Number(player && player.x);
@@ -20,7 +23,7 @@ function deathMotion(enemy, player, progress, boss, elite) {
         x: Number(enemy && enemy.x) + direction.x * knockback,
         y: Number(enemy && enemy.y) + direction.y * knockback + dissolve * (boss ? 3 : 2),
         scaleX: scale, scaleY: scale, directionX: direction.x, directionY: direction.y,
-        dissolve, impactAlpha: Math.max(0, 1 - t / 0.18)
+        dissolve, impactAlpha: Math.max(0, 1 - t / 0.18), t
     };
 }
 
@@ -75,9 +78,29 @@ export class EnemyDeathRenderer {
         if (this.deps.reducedEffects()) Object.assign(motion, { x: enemy.x, y: enemy.y, scaleX: 1, scaleY: 1, impactAlpha: 0 });
         const look = { color: fx.color, boss, elite };
         groundReaction(ctx, enemy, motion, look);
+        this.eliteRing(ctx, fx, t, at);
         contactFlash(ctx, enemy, motion, look);
         if (!(boss && this.boss(ctx, fx, t, at))) this.afterimage(ctx, fx, motion, at);
+        this.deps.defeatMotes(ctx, fx, t, at);
         this.deps.feedback.death(ctx, fx, legacyT, enemy);
+    }
+
+    /** The added elite marks show unless reduced effects or the test panel's comparison switch turned them off. */
+    richElite(fx) { return !!fx.elite && !fx.boss && this.deps.rich() && !this.deps.reducedEffects(); }
+
+    eliteRing(ctx, fx, t, at) {
+        const p = t * fx.duration / ELITE_DEATH.ringMs, tile = at.gridProj && at.gridProj.tileW;
+        if (!tile || p <= 0 || p >= 1 || !this.richElite(fx)) return;
+        ctx.save();
+        ctx.globalAlpha = ELITE_DEATH.alpha * (1 - p);
+        floorRing(ctx, at.enemy, { radius: tile * ELITE_DEATH.ringCells * (1 - Math.pow(1 - p, 3)), flat: ELITE_DEATH.flat,
+            dot: Math.max(2, Math.round(tile / 16)), color: fx.color || '#e8d9b2' });
+        ctx.restore();
+    }
+
+    /** The whole picture painted white: the first ELITE_DEATH.flashMs of an elite's death, else the old impact frames. */
+    flashes(fx, t, motion) {
+        return motion.impactAlpha > 0.45 || (this.richElite(fx) && t * fx.duration < ELITE_DEATH.flashMs);
     }
 
     boss(ctx, fx, t, at) {
@@ -99,7 +122,7 @@ export class EnemyDeathRenderer {
         ctx.translate(motion.x, motion.y);
         ctx.scale(motion.scaleX, motion.scaleY);
         ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + motion.impactAlpha * 0.45 + dissolve * 0.16})`;
-        this.deps.drawAfterimage(ctx, dead, { x: 0, y: 0, scale: boss ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: motion.impactAlpha > 0.45,
+        this.deps.drawAfterimage(ctx, dead, { x: 0, y: 0, scale: boss ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: this.flashes(fx, motion.t, motion),
             gridProj: at.gridProj, now: at.now, facing: this.deps.facing(enemy, at.playerPos) });
         ctx.restore();
     }
