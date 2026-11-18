@@ -9,6 +9,8 @@ class Display {
         this.styles = new DisplayStyles(environment);
         this.cadence = new DisplayCadence(environment, inputs.getState);
         this.factor = 1; this.percent = 100; this.started = false; this.initialized = false; this.disposed = false;
+        // 연출 보강(2026-11-19)을 견주어 보는 시험 패널의 스위치: 저장하지 않고, 배포본에는 켜는 길이 없다(늘 켜짐).
+        this.presentationOff = false;
         this.motionQuery = environment.window.matchMedia('(prefers-reduced-motion: reduce)');
         this.refresh = () => this.apply(this.percent);
         this.syncEffects = this.syncEffects.bind(this);
@@ -186,6 +188,12 @@ export function createDisplay(environment, inputs) {
         matches: query => service.matches(query), registerStyles: () => service.registerStyles(),
         recommendedScale, isCrispStep, pcScaleStep: (value, dpr) => nearestPcScaleStep(inputs.normalizeScale(value), dpr),
         reducedEffects: () => service.reducedEffects(), syncEffects: () => service.syncEffects(),
+        /** The boss defeat, elite death, drop landing, story and entrance framing added on 2026-11-19 (on unless the test panel
+         * turned it off). Reduced effects still switch each of them off on their own. */
+        richPresentation: () => !service.presentationOff,
+        /*! @dev-only */
+        setTestPresentation: on => { service.presentationOff = !on; return !service.presentationOff; },
+        /*! @end-dev-only */
         get factor() { return service.factor; },
         get battleHudAtSide() { return !!service.sideBattleHudQuery && service.sideBattleHudQuery.matches; },
         get inputIdleMs() { return service.cadence.inputIdleMs; },
