@@ -1,4 +1,9 @@
 import { FADE_IN_MS, FADE_OUT_MS, LINE } from './story-presentation-values.mjs';
+import { ease } from './entrance-timing.mjs';
+import { letterbox, vignette } from './cinema-frame.mjs';
+
+/** 2026-11-19 연출 보강: 액트 제목 뒤의 그늘, 주인공이 이야기에 멈춰 선 동안의 얇은 띠와 그늘. */
+const FRAME = Object.freeze({ cardShade: 0.2, storyBar: 0.04, storyShade: 0.18, fill: '#050403' });
 
 class StoryText {
     constructor(deps) {
@@ -7,6 +12,7 @@ class StoryText {
         this.FADE_OUT_MS = FADE_OUT_MS;
         this.LINE = LINE;
         this.storyFont = () => this.deps.i18n.fontFamily("'Galmuri14', 'Galmuri11'");
+        this.rich = () => this.deps.uiDisplay.richPresentation() && !this.deps.uiDisplay.reducedEffects();
     }
     opacity(age, showMs) {
         return Math.max(0, Math.min(1, age / this.FADE_IN_MS, (showMs - age) / this.FADE_OUT_MS));
@@ -21,8 +27,9 @@ class StoryText {
         ctx.fillRect(0, view.top - view.size * 1.4, view.width, view.size * 3.2);
     }
 
+    /** The rules beside the kicker grow from the kicker outward over the card's fade-in (full width at once when not rich). */
     kicker(card, ctx, view) {
-        const half = view.size * 2.4;
+        const half = view.size * 2.4 * (this.rich() ? ease((view.now - card.startAt) / this.FADE_IN_MS) : 1);
         ctx.font = `${this.deps.pixelFontSize(view.size * 0.5, 15)}px ${this.storyFont()}`;
         ctx.fillStyle = card.style.kickerColour;
         this.deps.drawCrispCanvasText(ctx, card.kicker, view.x, view.top - view.size * 0.55);
@@ -43,14 +50,24 @@ class StoryText {
 
     drawTitleCard(card, ctx, width, height, now) {
         const size = Math.round(Math.max(20, Math.min(34, Math.min(width, height) * 0.04)));
-        const view = { x: Math.round(width / 2), top: Math.round(height * 0.2), size, width };
+        const view = { x: Math.round(width / 2), top: Math.round(height * 0.2), size, width, now };
         ctx.save();
         ctx.globalAlpha = this.opacity(now - card.startAt, card.style.showMs);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        if (this.rich()) vignette(ctx, { width, height }, FRAME.cardShade);
         this.band(ctx, view);
         this.kicker(card, ctx, view);
         this.title(card, ctx, view);
+        ctx.restore();
+    }
+
+    /** Thin bars and a soft shade while the hero stands for the story. open: 0..1 (already eased by the caller). */
+    drawStoryFrame(ctx, scene, open) {
+        if (!(open > 0)) return;
+        ctx.save();
+        vignette(ctx, scene, FRAME.storyShade * open);
+        letterbox(ctx, scene, { bar: scene.height * FRAME.storyBar * open, fill: FRAME.fill });
         ctx.restore();
     }
 
@@ -148,5 +165,5 @@ class StoryText {
 }
 export function createStoryText(deps) {
     const view=new StoryText(deps);
-    return Object.freeze({ drawTitleCard:view.drawTitleCard.bind(view), drawStoryLine:view.drawStoryLine.bind(view) });
+    return Object.freeze({ drawTitleCard:view.drawTitleCard.bind(view), drawStoryLine:view.drawStoryLine.bind(view), drawStoryFrame:view.drawStoryFrame.bind(view), rich:view.rich });
 }

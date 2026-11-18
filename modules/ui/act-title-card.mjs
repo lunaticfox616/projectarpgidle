@@ -1,6 +1,10 @@
 import { createStageNpcs } from '../rendering/stage-npcs.mjs';
 import { createStoryText } from '../rendering/story-text.mjs';
 import { LIVE_MS, LINE, TONES } from '../rendering/story-presentation-values.mjs';
+import { ease } from '../rendering/entrance-timing.mjs';
+
+/** The story frame slides in over inMs with the first held line and out over outMs after the last (2026-11-19). */
+const STORY_FRAME = Object.freeze({ inMs: 250, outMs: 300 });
 
 /** Act title card over the upper battlefield, like an area name in an ARPG: entering (or loading into) a story act
  * shows "액트 N" and the act name. It waits while a story or tutorial popup is open, so it is not spent behind it.
@@ -39,6 +43,8 @@ class ActTitleCard {
         this.watchedRun = null;
         this.covered = false;
         this.holding = false;
+        this.framed = 0;
+        this.framedAt = 0;
         this.greetSpent = 0;
         this.npcHead = null;
         this.woodsmanLine = null;
@@ -426,7 +432,18 @@ class ActTitleCard {
         this.npcHead=this.npcs.draw(ctx,actor,state,marked);
     }
 
+    /** While the hero stands for a spoken line (holdsGreeting), thin bars and a soft shade frame the stage; a line said during a
+     * fight holds nobody and gets none. */
+    drawStoryFrame(ctx, scene) {
+        const step = Math.max(0, scene.now - (this.framedAt || scene.now));
+        this.framedAt = scene.now;
+        const wanted = this.holding && !!this.line && !this.card && this.text.rich();
+        this.framed = wanted ? Math.min(1, this.framed + step / STORY_FRAME.inMs) : Math.max(0, this.framed - step / STORY_FRAME.outMs);
+        this.text.drawStoryFrame(ctx, scene, ease(this.framed));
+    }
+
     drawQueuedStory(ctx, scene) {
+        this.drawStoryFrame(ctx, scene);
         if (this.card) this.text.drawTitleCard(this.card, ctx, scene.width, scene.height, scene.now);
         else if (this.line) this.text.drawStoryLine({ line:this.line, npcHead:this.npcHead }, ctx, scene);
     }
