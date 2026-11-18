@@ -31,7 +31,7 @@ class GroundLootView {
         this.reveals = new Map();
         this.stateIdentity = undefined;
         this.runIdentity = undefined;
-        for (const name of ["reduced","narrow","displayLimit","later","remove","clear","mount","canvasBox","resize","room","spawn","launch","land","absorb","absorbMote","receive","pendingDrops","consume","revealUnique","floorRowKey","pickFloor","drawPile","floorMarker","launchFlyer","syncFlyers","addFloorPile","syncFloor","visible","prepare","hasPresentation","prepared","actorContext","onIncident","onAtlasFind","onFloorCollected"]) this[name] = this[name].bind(this);
+        for (const name of ["reduced","narrow","displayLimit","later","remove","clear","mount","canvasBox","resize","room","spawn","launch","land","absorb","absorbMote","receive","pendingDrops","consume","revealUnique","floorRowKey","pickFloor","drawPile","floorMarker","launchFlyer","syncFlyers","addFloorPile","syncFloor","visible","prepare","hasPresentation","prepared","actorContext","onIncident","onAtlasFind","onFloorCollected","landingMarks","glint","noteCell"]) this[name] = this[name].bind(this);
     }
 
     start() {
@@ -170,6 +170,34 @@ class GroundLootView {
         if (tier !== 'plain' && typeof this.deps.playLootDropSound === 'function') this.deps.playLootDropSound(tier === 'major' || tier === 'jackpot');
         if (!this.reduced()) landingPop(entry.marker.querySelector('.battle-loot-item'), tier);
         this.later(entry, () => contact.remove(), 550);
+        this.landingMarks(entry, tier);
+    }
+
+    /** 2026-11-19 연출 보강: a great or chase drop landing under its beam rings the floor in the beam's colour; a chase drop adds
+     * eight sparks and a gold glint along the battlefield's edges. A tier whose beam is switched off (lootFx.beams) gets none. */
+    landingMarks(entry, tier) {
+        const marker = entry.marker;
+        if (this.reduced() || marker.dataset.beam !== 'true' || !['major', 'jackpot'].includes(tier) || !this.deps.uiDisplay.richPresentation()) return;
+        const ring = this.deps.document.createElement('span'); ring.className = 'battle-loot-ring'; marker.append(ring);
+        ring.addEventListener('animationend', () => ring.remove(), { once: true });
+        if (tier !== 'jackpot') return;
+        const cell = parseFloat(this.ground.style.getPropertyValue('--loot-cell')) || 48;
+        for (let index = 0; index < 8; index++) {
+            const spark = this.deps.document.createElement('span'), angle = index / 8 * Math.PI * 2 + 0.2;
+            spark.className = 'battle-loot-spark';
+            spark.style.setProperty('--dx', Math.round(Math.cos(angle) * cell * 1.1) + 'px');
+            spark.style.setProperty('--dy', Math.round(Math.sin(angle) * cell * 0.4 - cell * 0.5) + 'px');
+            marker.append(spark);
+            spark.addEventListener('animationend', () => spark.remove(), { once: true });
+        }
+        this.glint();
+    }
+
+    glint() {
+        if (!this.air || this.motes.size >= 48) return;
+        const edge = this.deps.document.createElement('span'); edge.className = 'battle-loot-glint';
+        this.air.append(edge); this.motes.add(edge);
+        edge.addEventListener('animationend', () => { edge.remove(); this.motes.delete(edge); }, { once: true });
     }
 
     absorb(entry) {
@@ -367,8 +395,14 @@ class GroundLootView {
         if (this.canvas && this.canvas !== source) this.unmount();
         if (!this.canvas && !this.hasIncomingDrops(run)) return false;
         if (!this.canvas) this.mount(source);
-        this.resize(); projectEntries(this.entries, projection, this.canvasBox(this.canvas)); this.consume(now, projection); this.syncFloor(projection);
+        this.resize(); this.noteCell(projection); projectEntries(this.entries, projection, this.canvasBox(this.canvas)); this.consume(now, projection); this.syncFloor(projection);
         return this.hasPresentation();
+    }
+
+    /** One stage cell (px) for the landing rings, kept on the ground layer. */
+    noteCell(projection) {
+        const cell = Math.round(projection.tileW) + 'px';
+        if (this.ground.style.getPropertyValue('--loot-cell') !== cell) this.ground.style.setProperty('--loot-cell', cell);
     }
 
     hasPresentation() {
