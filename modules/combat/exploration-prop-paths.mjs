@@ -42,14 +42,40 @@ export function propReachable(env, map) {
     return keys;
 }
 
+/** The plan's blocked cells and required cells as indices, kept with the plan: each placed object adds one blocked cell, and the
+ * keys were parsed again for every object tried (2026-11-19: a tenth of a dying build's settlement). */
+function propWayIndex(map,plan,size) {
+    const way=plan.way || (plan.way={shut:new Uint8Array(size),synced:0,required:[...new Set(plan.required.map(key=>propKeyIndex(map,key)))]});
+    if(way.synced<plan.blocked.size) {
+        let index=0;
+        for(const key of plan.blocked){if(index++<way.synced)continue;const cell=propKeyIndex(map,key);if(cell>=0)way.shut[cell]=1;}
+        way.synced=plan.blocked.size;
+    }
+    return way;
+}
+
+/** Whether every required cell is still reached from start with the extra cell shut; stops once the last one is reached. */
+function propReachesAll(next,start,shut,required) {
+    if(required.some(index=>index<0))return false;
+    const want=new Uint8Array(next.length);
+    for(const index of required)want[index]=1;
+    let left=required.length-want[start];
+    const seen=new Uint8Array(next.length),queue=[start];
+    seen[start]=1;
+    for(let i=0;i<queue.length && left>0;i++)for(const to of next[queue[i]]) {
+        if(seen[to]||shut[to])continue;
+        seen[to]=1;queue.push(to);left-=want[to];
+    }
+    return left<=0;
+}
+
 export function propKeepsWay(env, plan,extra) {
-    const {map,blocked,required}=plan,start=propKeyIndex(map,propCellKey(map.entry));
+    const {map,required}=plan,start=propKeyIndex(map,propCellKey(map.entry));
     if(start<0)return required.every(key=>key===propCellKey(map.entry));
-    const {next}=propAdjacency(env, map),shut=new Uint8Array(next.length);
-    for(const key of blocked){const index=propKeyIndex(map,key);if(index>=0)shut[index]=1;}
-    const cut=propKeyIndex(map,extra);if(cut>=0)shut[cut]=1;
-    const seen=propFlood(next,start,shut);
-    return required.every(key=>{const index=propKeyIndex(map,key);return index>=0&&seen[index]===1;});
+    const {next}=propAdjacency(env, map),way=propWayIndex(map,plan,next.length);
+    const cut=propKeyIndex(map,extra),held=cut>=0?way.shut[cut]:0;
+    if(cut>=0)way.shut[cut]=1;
+    try { return propReachesAll(next,start,way.shut,way.required); } finally { if(cut>=0)way.shut[cut]=held; }
 }
 
 export function propWayPlan(run,map) {
