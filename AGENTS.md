@@ -27,7 +27,7 @@
 
 이 게임의 브라우저 런타임은 classic script이며, `index.html`의 순서와 명시적으로 노출된 전역이 계약이다.
 게임 원본은 `modules/`의 ES module이며, `*-classic.mjs` 어댑터를 통해 기존 호출 이름을 연결한다.
-게임 코드·데이터 또는 생성 도구를 수정할 때는 [ES module 원본·어댑터·생성 규칙](README.md#es-module-독립-기능-전환-2026-11-12)을 따른다.
+게임 코드·데이터 또는 생성 도구를 수정할 때는 [ES module 원본·어댑터·생성 규칙](README.md#es-module-원본과-생성-규칙)을 따른다.
 `js/`·`data/`의 생성 출력은 저장소에 없다(`.gitignore`, 2026-11-15). 직접 편집하거나 커밋하지 않는다. 검사·개발 서버·빌드 도구가
 실행 전에 원본과 비교해 필요할 때만 다시 만든다(`scripts/lib/ensure-modules.js`). 손으로 만들 때는 `npm run build:modules`다.
 그 전에 갈라진 브랜치에 main을 병합해 생성 파일 충돌이 나면 `node scripts/resolve-generated-conflicts.js`로 정리한다.

@@ -3,7 +3,6 @@
 현재 구현 위치(2026-11-13): 아래 내용은 개편 이력입니다. 화면·제작은 `modules/ui/passive-tree-view.mjs`,
 카메라·입력·공간 캐시는 `passive-scene-view.mjs`, 모바일 선택은 `passive-selection-view.mjs`, 트리 표시와 안내는 `passive-canvas-view.mjs`,
 그림 캐시는 `modules/rendering/passive-tree-art-view.mjs`가 소유합니다. `js/`의 대응 파일은 생성 출력입니다.
-현재 연결·남은 검증은 [개발본 안내](../README.md#패시브-화면그리기-소유권-2026-11-13-진행-중)를 따릅니다.
 
 현재 시작점 할당 규칙(2026-11-14): 여섯 시작점 키스톤은 설명대로 해당 직업의 시작점을 무료로 할당합니다.
 기존 직업의 길이 그 시작점에 닿지 않아도 그곳에서 새 노드를 할당할 수 있고, 새 노드의 포인트만 소모합니다.
