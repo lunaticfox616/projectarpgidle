@@ -121,5 +121,5 @@
 /* 자리 표식의 액트 번호: 새 표식의 어두운 돌판 위에서는 밝은 글자 */
 #ui-exploration-atlas .wm-pin>b,#exploration-location .exploration-place-tab>i>b{color:#fff1c9;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000}
 /* 좁은 창: 서랍이 차트 아래로, 도크는 세로로 */
-@container (max-width:640px){#ui-atlas .as-body{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-chart{border-right:0}#ui-atlas .as-drawer{contain:none;max-height:260px}#ui-atlas .as-dock{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-go{justify-items:stretch;max-width:none}}
+@container (max-width:640px){#ui-atlas .as-body{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-chart{border-right:0}#ui-atlas .as-drawer{contain:none;overflow:visible}#ui-atlas .as-dock{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-go{justify-items:stretch;max-width:none}}
 }

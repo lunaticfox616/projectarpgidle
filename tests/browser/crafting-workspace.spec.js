@@ -20,6 +20,8 @@ async function setup(page) {
         openTabPane('tab-items');switchItemSubtab('item-tab-craft');selectForCrafting(item.id,false);updateStaticUI();
     });
     await settle(page);
+    const goals=page.locator('#cl-toggle-advanced');
+    if(await goals.isVisible())await goals.click();
 }
 async function settle(page) {
     await page.waitForFunction(() => {
@@ -37,7 +39,6 @@ test('goal hit consumes once and requires acknowledgement before another craft',
         const row=equipmentCrafting.filterSporeMods(getAvailableMods({...getSelectedCraftItem(),stats:[]}),'fire')[0];return row.statId||row.id;
     });
     await page.locator('#cl-goal-stat').selectOption(stat);
-    // 사용 버튼은 둘이다(v0.3.58: 재화 보관함 아래에도 하나). 둘 다 같은 명령이다.
     await page.getByRole('button',{name:/1회 사용$/}).first().click();
     await expect(page.locator('.cl-goal-dialog')).toBeVisible();
     expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(49);
@@ -46,6 +47,8 @@ test('goal hit consumes once and requires acknowledgement before another craft',
     const confirm=page.locator('.cl-goal-dialog button');await expect(confirm).toBeEnabled();await confirm.click();
     await expect(page.locator('.cl-goal-dialog')).not.toBeVisible();
     expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(49);
+    const details=page.locator('#cl-toggle-item-options');
+    if(await details.isVisible())await details.click();
     await expect(page.locator('.cl-affixes .cl-goal-match').first()).toBeVisible();
 });
 

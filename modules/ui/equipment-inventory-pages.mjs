@@ -69,13 +69,20 @@ export function renderPageControls(runtime, layout, rows, query) {
     }
     renderTemporaryStorage(runtime);
     if (!root) return page;
-    let used = getPageCellsUsed(runtime, layout), cells = layout.columns * layout.rowsPerPage;
-    // 보고 있는 쪽을 줄 끝에 글로도 둔다(2026-11-07 사용자: 지금 몇 페이지인지 모르겠다). 단추 뒤에 두어 keepPageInView의 children[page]가 그대로다.
-    let now = layout.pageCount > 1 ? `<span class="equipment-inventory-page-now">${(0, runtime.deps._t)('{page} / {count} 페이지', { page: page + 1, count: layout.pageCount })}</span>` : '';
-    (0, runtime.deps.writeHtmlIfChanged)(root, Array.from({ length: layout.pageCount }, (_, index) =>
-            runtime.handlers.pageButtonHtml(index, index === page, search, found, { used: used[index], cells })).join('') + now);
+    (0, runtime.deps.writeHtmlIfChanged)(root, pageControlsHtml(runtime, layout, page, search, found));
     keepPageInView(runtime, root, page);
     return page;
+}
+
+function pageControlsHtml(runtime, layout, page, search, found) {
+    const used = getPageCellsUsed(runtime, layout), cells = layout.columns * layout.rowsPerPage;
+    let now = layout.pageCount > 1 ? `<span class="equipment-inventory-page-now">${(0, runtime.deps._t)('{page} / {count} 페이지', { page: page + 1, count: layout.pageCount })}</span>` : '';
+    const pages = Array.from({ length: layout.pageCount }, (_, index) =>
+        runtime.handlers.pageButtonHtml(index, index === page, search, found, { used: used[index], cells }));
+    const buttons = pages.map(row => row.button).join('');
+    if (pages.length <= 4) return buttons + now;
+    const options = pages.map(row => row.option).join('');
+    return buttons + `<select class="equipment-page-select" aria-label="${(0, runtime.deps._t)('장비 인벤토리 페이지')}" onchange="equipmentInventoryInteraction.setPage(Number(this.value))">${options}</select>` + now;
 }
 
 /** The cells each page's items cover (2026-10-27 사용자: 쪽 단추가 차오르게 해 눌러 보지 않고도 얼마나 찼는지 알게). */
@@ -98,8 +105,10 @@ export function createPageButtonHtml(runtime) {
         let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
         let share = Math.min(1, used / cells), fillClass = share >= 1 ? ' is-full' : share >= 0.75 ? ' is-high' : '';
         let text = (0, runtime.deps._t)('{value}페이지, {used}/{cells}칸{searchText}', { value: index + 1, used, cells, searchText });
-        return `<button type="button" class="${active ? 'active' : ''}${searchClass}${fillClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${active ? 'true' : 'false'}" aria-label="${text}" data-tip="${text}">`
+        const option = `<option value="${index}" ${active ? 'selected' : ''}>${text}</option>`;
+        const button = `<button type="button" class="equipment-page-button${active ? ' active' : ''}${searchClass}${fillClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${active}" aria-label="${text}" data-tip="${text}">`
             + `<i class="page-fill" style="height:${Math.round(share * 100)}%" aria-hidden="true"></i><span>${index + 1}</span>${badge}</button>`;
+        return { button, option };
     };
 }
 

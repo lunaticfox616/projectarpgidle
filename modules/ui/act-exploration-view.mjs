@@ -21,7 +21,7 @@ function initialize(runtime) {
     runtime.state.gateHintRun = null;
     runtime.state.BASE = ['run','map','packs','visited','discovered','status','sealed'];
     runtime.state.MODES = ['run','status','mode','hotkey','locked'];
-    runtime.state.MARK = ['gx','gy','goalX','goalY','large'];
+    runtime.state.MARK = ['gx','gy','goalX','goalY','large','mobile'];
     runtime.state.shown = {};
     runtime.state.baseRev = 0;
     runtime.state.MAP_INK = {fog:'#050807',grid:'rgba(201,164,92,.06)',floor:'#7d7152',wall:'#26342c',edge:'rgba(240,214,150,.85)'};

@@ -19,21 +19,26 @@ export function createRenderGemLibrary(runtime) {
                     : [runtime.deps.game.activeSkill, runtime.deps.game.mobilitySkill].includes(record.name) || (runtime.deps.game.equippedSummonSkills || []).includes(record.name));
             return runtime.deps.window.isGemLibraryMatchVisible(runtime.deps.window.getGemSearchText(record.name, definitions[record.name] || {}), filter, fold, active);
         });
-        const state = runtime.state.libraryPages[kind];
         if (support) return renderSupportLibrary(runtime, records, stats, filter);
         const query = JSON.stringify([filter || '', !!fold, slotKind]);
-        if (state.query !== query) { state.index = 0; state.query = query; }
-        const mobile = runtime.deps.uiDisplay.matches('(max-width: 1080px)');
-        const count = Math.max(1, Math.ceil(records.length / runtime.state.MOBILE_PAGE_SIZE));
-        state.index = Math.min(state.index, count - 1);
-        const visible = mobile ? records.slice(state.index * runtime.state.MOBILE_PAGE_SIZE, (state.index + 1) * runtime.state.MOBILE_PAGE_SIZE) : records;
-        const cards = visible.map(record => {
+        const page = libraryPage(runtime, kind, records, query);
+        const cards = page.rows.map(record => {
             const label = runtime.deps.window.highlightSearchText((0, runtime.deps._t)(record.name), filter);
             return record.sealed ? renderSealedRuneTile(runtime, record.name, label, false, stats) : withTileSeal(runtime, (0, runtime.deps.renderAttackGemCard)(record.name, label, stats), false, record.name);
         }).join('');
-        if (!mobile || records.length <= runtime.state.MOBILE_PAGE_SIZE) return cards;
-        return renderLibraryPager(runtime, kind, state.index, count, records.length) + cards;
+        return page.nav + cards;
     };
+}
+
+function libraryPage(runtime, kind, rows, query) {
+    if (!runtime.deps.uiDisplay.matches('(max-width: 1080px)')) return { rows, nav: '' };
+    const size = kind === 'support' ? 3 : runtime.state.MOBILE_PAGE_SIZE;
+    const count = Math.max(1, Math.ceil(rows.length / size));
+    const state = runtime.state.libraryPages[kind];
+    state.index = state.query === query ? Math.min(state.index, count - 1) : 0;
+    state.query = query;
+    return { rows: rows.slice(state.index * size, (state.index + 1) * size),
+        nav: count > 1 ? renderLibraryPager(runtime, kind, state.index, count, rows.length) : '' };
 }
 
 export function renderSupportLibrary(runtime, records, stats, filter) {
@@ -42,9 +47,10 @@ export function renderSupportLibrary(runtime, records, stats, filter) {
     rows.sort((a, b) => b.targets - a.targets || b.dps - a.dps);
     const card = row => row.sealed ? renderSealedRuneTile(runtime, row.name, runtime.deps.window.highlightSearchText((0, runtime.deps._t)(row.name), filter), true, stats)
         : withTileSeal(runtime, (0, runtime.deps.renderSupportGemCard)(row.name, runtime.deps.window.highlightSearchText((0, runtime.deps._t)(row.name), filter), stats), true, row.name);
-    const matched = rows.filter(row => row.targets > 0), unmatched = rows.filter(row => row.targets === 0);
+    const page = libraryPage(runtime, 'support', rows, JSON.stringify([filter, !!runtime.deps.game.gemFoldInactiveSupport]));
+    const matched = page.rows.filter(row => row.targets > 0), unmatched = page.rows.filter(row => row.targets === 0);
     const banner = full ? '<p class="support-full-banner">보조 칸이 차서 룬을 고르면 바꿀 칸을 고릅니다.</p>' : '';
-    return banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"><summary>${(0, runtime.deps._t)('지금 장착한 스킬에 안 맞음 ({length})', { length: unmatched.length })}</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');
+    return page.nav + banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"${page.nav && !matched.length ? ' open' : ''}><summary>${(0, runtime.deps._t)('지금 장착한 스킬에 안 맞음 ({length})', { length: unmatched.length })}</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');
 }
 
 export function supportLibraryRow(runtime, record, full, stats) {
@@ -64,10 +70,11 @@ export function supportDpsGain(runtime, name, stats) {
 }
 
 export function renderLibraryPager(runtime, kind, index, count, total) {
-    return '<nav class="gem-library-pager" aria-label="' + (kind === 'support' ? '보조' : '공격') + ' 룬 페이지">'
-        + '<button type="button" data-gem-page="' + kind + '" data-step="-1"' + (index === 0 ? ' disabled' : '') + '>이전</button>'
-        + '<span aria-live="polite">' + (index + 1) + ' / ' + count + '<small>총 ' + total + '개</small></span>'
-        + '<button type="button" data-gem-page="' + kind + '" data-step="1"' + (index === count - 1 ? ' disabled' : '') + '>다음</button></nav>';
+    const t = runtime.deps._t;
+    return '<nav class="gem-library-pager" aria-label="' + t('페이지') + '">'
+        + '<button type="button" data-gem-page="' + kind + '" data-step="-1"' + (index === 0 ? ' disabled' : '') + '>' + t('이전') + '</button>'
+        + '<span aria-live="polite">' + (index + 1) + ' / ' + count + '<small>' + t('{count}개', { count: total }) + '</small></span>'
+        + '<button type="button" data-gem-page="' + kind + '" data-step="1"' + (index === count - 1 ? ' disabled' : '') + '>' + t('다음') + '</button></nav>';
 }
 
 /** The 봉인 tab's count jumps once when a rune goes in (the tile leaves the list it was in). */
@@ -158,7 +165,10 @@ export function renderSealedLibrary(runtime, stats) {
     const group = (title, names, support) => names.length ? `<section class="sealed-library-group"><h4>${(0, runtime.deps._t)(title)}<small>${names.length}</small></h4>`
         + `<div class="sealed-library-grid">${names.map(name => renderSealedRuneTile(runtime, name, (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(name)), support, stats)).join('')}</div></section>` : '';
     const empty = total ? '' : `<p class="sealed-library-empty">${(0, runtime.deps._t)('봉인한 룬이 없습니다.')}</p>`;
-    return head + empty + group('공격 룬', skills, false) + group('보조스킬룬', supports, true);
+    const page = libraryPage(runtime, 'sealed', [...skills, ...supports], '');
+    const start = page.nav ? runtime.state.libraryPages.sealed.index * runtime.state.MOBILE_PAGE_SIZE : 0;
+    const split = Math.max(0, skills.length - start);
+    return head + page.nav + empty + group('공격 룬', page.rows.slice(0, split), false) + group('보조스킬룬', page.rows.slice(split), true);
 }
 
 /** One tab per rune list with the count it holds. */

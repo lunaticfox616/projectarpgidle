@@ -1,6 +1,6 @@
 /* 장비창(2026-10-10 개편, 사용자가 시안 6차에서 고른 고급 테마, js/equipment-window-ui.js): 금빛 제목 띠와 이중 테의 판, 모서리 장식 없음.
    PC 창이 넓으면(1170px부터) 세 칸: 장착 장비(머리에 세팅), 요약 | 가방 | 선택한 장비. 좁으면 두 칸에 선택한 장비가 떠서 나온다.
-   휴대폰은 요약 한 줄(장착 장비 ▾로 장착 칸과 세팅을 펼친다)과 가방, 선택한 장비는 아래에서 올라온다. 가방 칸은 PC 넓은 창에서 60px. */
+   휴대폰은 가방·장착 장비를 선택하고, 선택한 장비 상세는 아래에서 올라온다. 가방 칸은 PC 넓은 창에서 60px. */
 /* 도킹한 장비 창이 내용에 맞게 좁아지도록 장비 창이 필요한 폭을 길이로 알린다(js/ui-window-manager.js getDockFitWidth).
    등록해야 getComputedStyle이 계산된 px로 돌려준다. */
 @property --dock-fit-width { syntax: '<length>'; inherits: false; initial-value: 0px; }
@@ -169,7 +169,7 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool.is-danger { color: #f0b4a0; }
 /* 배치(손으로 끌어 옮기기)는 손가락으로 누르는 기기에서만 보인다 */
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #equipment-touch-arrange { display: none; }
-@media (pointer: coarse) { :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #equipment-touch-arrange { display: flex; } }
+@media (any-pointer: coarse) { :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #equipment-touch-arrange { display: flex; } }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool.is-danger svg .m { fill: #e0866a; }
 /* 필터가 걸려 있으면 금빛 점, 자동해체가 켜져 있으면 초록 점 */
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool:is([data-active="true"], [data-enabled="true"])::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px;
@@ -422,7 +422,8 @@
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 4px; right: 6px; min-height: 0; padding: 0 6px; }
 }
 
-/* 휴대폰: 요약 한 줄, 장착 장비 ▾로 장착 칸과 세팅을 펼친다. 선택한 장비는 아래에서 올라온다. */
+.eqw-pane-switch { display: none; }
+/* Keep bag and loadout controls mounted while combat stats refresh. */
 @media (max-width: 1080px) {
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-preset-row :is(.equipment-preset-slot, .equipment-preset-save, .equipment-preset-more > summary) { min-height: 44px; min-width: 36px; padding: 4px; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window { grid-template-columns: minmax(0, 1fr); gap: 8px; }
@@ -433,11 +434,12 @@
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .equipment-inventory-panel { display: block; }
   /* Let the tool rail scroll above the folded battle button (44px touch target, 4px padding and border, 8px above the menu, 8px air). */
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .eqw-bag-card { padding-bottom: calc(var(--size-control-touch) + 20px); }
-  /* 장비 창의 접힌 전투 보기 단추는 요약 줄 끝(장착 장비 ▾, DPS 옆)에 든다(js/ui.js battlePipDockTarget). 화면 아래에 떠 있을 때는 첫 화면에서
+  /* 장비 창의 접힌 전투 보기 단추는 요약 줄 끝(DPS 옆)에 든다. 화면 아래에 떠 있을 때는 첫 화면에서
      도구 줄의 복구와 배치를 12px 덮었다. 요약 판이 그 줄의 칸을 갖고, 가방 아래 여백도 필요 없어진다. */
-  :root body #item-tab-equip .eqw-summary-card:has(> #mobile-battle-pip.is-summary-docked) {
-    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; }
-  :root body #item-tab-equip .eqw-summary-card:has(> #mobile-battle-pip.is-summary-docked) :is(#ui-equipment-loadout-summary, .eqw-summary-mini) { display: contents; }
+  :root body #item-tab-equip .equipment-window .eqw-summary-card {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 8px; align-items: center;
+    padding: 0 0 6px; background: transparent; border: 0; border-bottom: 1px solid #50422f; box-shadow: none; }
+  :root body #item-tab-equip .eqw-summary-card :is(#ui-equipment-loadout-summary, .eqw-summary-mini) { display: contents; }
   :root body #item-tab-equip .eqw-summary-card > #mobile-battle-pip.is-summary-docked { position: static; grid-column: 3; grid-row: 1; box-shadow: none; }
   :root body #item-tab-equip .eqw-summary-card > #mobile-battle-pip.is-summary-docked [data-pip-toggle] { min-height: 40px; }
   :root body #item-tab-equip .equipment-window:has(#mobile-battle-pip.is-summary-docked) .eqw-bag-card { padding-bottom: 10px; }
@@ -447,8 +449,14 @@
   :root body #item-tab-equip #ui-equip-list .item-socket::before { content: ""; position: absolute; z-index: -1; top: -26px; left: -26px; right: 0; bottom: 0; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-summary-full { display: none; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-summary-mini { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; }
-  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-mini-toggle { min-height: 44px; padding: 4px 10px; border: 1px solid #e3bd72; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d);
-    color: var(--eqw-gold); font-size: 12px; }
+  :root body #item-tab-equip .eqw-pane-switch {
+    display: inline-flex; padding: 2px; border-radius: 4px; background: #100f0e; border: 1px solid #484034; align-self: center;
+    & > button { min-width: 44px; min-height: 44px; height: auto; padding: 4px 7px; border: 1px solid transparent; border-radius: 2px;
+      font-size: var(--font-size-ui); color: #b5a996; background: transparent; box-shadow: none; white-space: normal; }
+    & > [aria-pressed="true"] { background: linear-gradient(#433b2e,#312a20); color: #ffe4ad; border-color: #786344; box-shadow: inset 0 1px #645440; }
+    & > button:focus-visible { outline: 2px solid #f3d392; outline-offset: -3px; }
+  }
+  :root body #item-tab-equip .eqw-summary-card .eqw-mini-dps b { font-size: var(--font-size-reading); color: #e8c889; text-shadow: none; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-mini-dps { text-align: right; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-mini-dps small { display: block; color: var(--eqw-muted); font-size: 10px; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-mini-dps b { color: var(--c); font-size: var(--font-size-heading); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
@@ -488,7 +496,13 @@
 /* 장비 창이 680px 넘게 넓은 휴대폰 배치(절반 폭 PC 창, 태블릿): 장착 장비를 접지 않고 PC 두 칸 창처럼 가방 왼쪽에 둔다(2026-11-07 사용자: 좁은
    창에서 장착 장비가 사라졌다). 요약도 PC 것(장착 칸 아래 DPS, 유효 생명력)이고 펼치는 단추(장착 장비 ▾)는 없다. 680px은 PC 두 칸 창의 기준과 같다. */
 @media (max-width: 1080px) {
+  @container eqw (max-width: 679px) {
+    :root body #item-tab-equip .equipment-window[data-mobile-pane="loadout"] .eqw-bag-card,
+    :root body #item-tab-equip .equipment-window:not([data-mobile-pane="loadout"]) .eqw-mini-line { display: none; }
+  }
   @container eqw (min-width: 680px) {
+    :root body #item-tab-equip .equipment-window .eqw-summary-card { display: block; }
+    :root body #item-tab-equip .eqw-pane-switch, :root body #item-tab-equip .eqw-summary-card .eqw-summary-mini { display: none; }
     :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window { grid-template-columns: clamp(262px, calc(100cqw - 718px), 330px) minmax(0, 1fr); gap: 12px; }
     :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .equipment-loadout-panel { display: flex; }
     :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window :is(.eqw-doll-card, .eqw-summary-card) { order: 0; }
@@ -500,20 +514,35 @@
     :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-summary-full { display: grid; }
   }
 }
-/* 휴대폰: 가방 판이 한 단이 되어 도구 줄은 가방 아래 가로 한 줄, 펼침 창은 위로(가방을 덮으며) 연다. */
+.equipment-page-select { display: none; }
+#eqw-bag-tools { display: none; }
+/* Keep the bag tools above the grid. Menus open over the cells below. */
 @media (max-width: 640px) {
-  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  :root body #item-tab-equip .equipment-window .eqw-bag-card {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; align-items: center; gap: 6px;
+    padding: 8px; background: linear-gradient(155deg,#221e1c,#171618 70%); border-color: #4e4539; box-shadow: inset 0 1px #302a24;
+  }
+  #item-tab-equip .eqw-bag-card > :is(.eqw-bag-head, .inventory-search-status, .equipment-temporary-storage, .equipment-inventory-grid-shell) { grid-column: 1 / -1; }
+  :root body #item-tab-equip .eqw-bag-head { margin: 0; padding-bottom: 4px; }
+  :root body #item-tab-equip #eqw-bag-tools { display: block; grid-column: 2; min-height: 44px; padding: 4px 8px; border: 1px solid #564a39; color: #dbc7a6; background: #2b2621; box-shadow: inset 0 1px #3a3229; }
+  #item-tab-equip #eqw-bag-tools::after { content: ' ▾'; }
+  #item-tab-equip #eqw-bag-tools[aria-expanded="true"]::after { content: ' ▴'; }
+  :root body #item-tab-equip #eqw-bag-tools[aria-expanded="false"] ~ .equipment-inventory-grid-shell .eqw-rail { display: none; }
+  :root body #item-tab-equip .equipment-inventory-page-now { display: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid-shell { display: flex; flex-direction: column; gap: 6px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail { order: -1; display: flex; flex-wrap: wrap; gap: 4px; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu { display: flex; flex: 1 1 0; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail > .eqw-rail-tool, :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu > .eqw-rail-tool { flex: 1 1 0; flex-direction: row; height: 44px; }
   /* 가로 단추에서는 안쪽 모서리의 개수 표시가 "복구" 글자를 덮었다(글자 뒤에 두면 그림이 밀려났다): 바깥 모서리에 얹는다. */
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool { overflow: visible; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool small { z-index: 1; top: -6px; right: -4px; box-shadow: 0 0 0 2px #0d0a07; }
-  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-panel { left: 0; right: 0; top: auto; bottom: calc(100% + 6px); width: auto; max-height: 60vh; overflow: auto; }
-  /* 쪽 단추 줄은 옆으로 밀리지 않는다: 열두 쪽이면 9~12쪽과 'N / M 페이지'가 화면 밖이었다. 단추가 남은 폭을 나눠 좁아지고(쪽이 적으면 44px),
-     검색 개수 표시는 번호 오른쪽 대신 위 모서리에 얹는다. */
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-panel { left: 0; right: 0; top: calc(100% + 6px); bottom: auto; width: auto; max-height: min(60dvh, 360px); overflow: auto; }
+  /* 네 쪽까지는 직접 누르고 그 이상은 기본 선택창에서 고른다. */
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages { gap: 2px; overflow: visible; }
   /* 손가락 크기 최소 폭(css/themes/pixel-mobile.css, 44px)을 이기려고 쪽 줄의 id까지 쓴다. */
-  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-pages button { flex: 0 1 44px; min-width: 0; padding-inline: 0; }
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-pages button { flex: 0 0 44px; min-width: 44px; padding-inline: 0; }
+  #ui-equipment-inventory-pages:has(.equipment-page-select) > .equipment-page-button { display: none; }
+  #ui-equipment-inventory-pages .equipment-page-select { display: block; flex: 1; min-width: 0; min-height: 44px; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button:has(small) { padding-right: 0; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button small { top: 1px; right: 1px; transform: none; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-page-now { flex: none; margin-left: 2px; }

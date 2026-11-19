@@ -21,7 +21,7 @@ function initialize(runtime) {
         boss: '#7c2a2c', bossLight: '#c2554f', bossShade: '#4a1719', bossVeil: '#2a1113', bossEdge: '#a7443f', bossMark: '#ffd9cf',
         link: '#93a2b0', linkDim: '#46525d', gate: '#c2554f', elite: '#e2b457', eliteEdge: '#3a2a10',
         here: '#7ff0de', hereGlow: 'rgba(110,240,220,.85)', hero: '#f4fffd', heroEdge: '#0b2a27' });
-    runtime.state.SIZE = Object.freeze({ mini: { w: 152, h: 152, pad: 18, cap: 30, least: 19 }, large: { w: 560, h: 400, pad: 40, cap: 92, least: 0 } });
+    runtime.state.SIZE = Object.freeze({ mini: { w: 152, h: 152, pad: 18, cap: 30, least: 19 }, mobile: { w: 100, h: 62, pad: 6, cap: 50, least: 31 }, large: { w: 560, h: 400, pad: 40, cap: 92, least: 0 } });
     runtime.state.SS = 2;
     runtime.state.bases = new WeakMap();
 }

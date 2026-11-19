@@ -58,14 +58,18 @@ export function workspaceWardSlotsText(ctx, item) {
     return slots?(0, ctx.deps._t)('액막이 칸 +{slots} [{min} ~ {max}]', { slots, min: range.min, max: range.max }):'';
 }
 
+export function workspaceFoldButton(id, label) {
+    return `<button type="button" class="cl-fold-toggle" id="cl-toggle-${id}" aria-controls="cl-${id}" aria-expanded="false">${label}</button>`;
+}
+
 export function workspaceItemHtml(ctx) {
     const item=selected(ctx), sources=new Set(item.stats.map(stat=>ctx.deps.equipmentCrafting.getSource(stat)));
     return `<section id="forge-item-display" class="cl-item ${matches(ctx, item)?'goal-hit':''}"><div class="cl-item-head"><div class="cl-art"><img src="${esc(ctx, (0, ctx.deps.getEquipmentGridVisualAsset)(item))}" alt="${esc(ctx, (0, ctx.deps.getItemSlotDisplayLabel)(item))}"></div>
             <div><small>${(0, ctx.deps._t)('제작 중인 장비 &ensp; T{item}', { item: (0, ctx.deps.getItemCraftTier)(item) })}</small><h2>${esc(ctx, (0, ctx.deps.getItemDisplayName)(item))}${ctx.api.imprintMark(item)}</h2>${ctx.deps.itemInfluencesUi.tagsHtml(item)}<span>${(0, ctx.deps._t)('{baseName} &ensp; 추가 옵션 {item}/6', { baseName: esc(ctx, (0, ctx.deps._t)(item.baseName)), item: (0, ctx.deps.getItemExplicitOptionCount)(item) })}</span></div></div>
-            <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">${(0, ctx.deps._t)('수확 {value}/1', { value: sources.has('spore')?'1':'0' })}</span><span class="${sources.has('fossil')?'filled':''}">${(0, ctx.deps._t)('화석 {value}/1', { value: sources.has('fossil')?'1':'0' })}</span></div>
+            ${ctx.state.adapter.targetControls()}${workspaceFoldButton('item-options', (0, ctx.deps._t)('상세'))}<div id="cl-item-options"><div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">${(0, ctx.deps._t)('수확 {value}/1', { value: sources.has('spore')?'1':'0' })}</span><span class="${sources.has('fossil')?'filled':''}">${(0, ctx.deps._t)('화석 {value}/1', { value: sources.has('fossil')?'1':'0' })}</span></div>
             <div class="cl-section-title">${(0, ctx.deps._t)('추가 옵션')}</div><ul class="cl-affixes">${item.stats.map(ctx.handlers.workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">${(0, ctx.deps._t)('혼돈 주입 {id} +{chaosInfusion}', { id: esc(ctx, (0, ctx.deps.getStatName)(item.chaosInfusion.id)), chaosInfusion: esc(ctx, workspaceAffixValue(ctx, item.chaosInfusion,item.chaosInfusion.val)) })}</li>`:''}</ul>
             <div class="cl-base">기본 옵션 &ensp; ${[esc(ctx, workspaceWardSlotsText(ctx, item)),...(item.baseStats||[]).map(stat=>workspaceBaseStatHtml(ctx, item,stat))].filter(Boolean).join(' / ')}</div>${workspaceImprintHtml(ctx, item)}${workspaceEncroachmentHtml(ctx, item)}${ctx.deps.emberCorruptionUi.cardHtml(item)}
-            ${ctx.state.extras}</section>`;
+            ${ctx.state.extras}</div></section>`;
 }
 
 /** 기억 조각칼: shown when the hero holds one or the item is engraved (기억 새겨짐). Engrave, restore, and the engraved lines. */
@@ -116,7 +120,7 @@ export function workspaceEncroachmentHtml(ctx, item) {
 
 /** 재화 보관함과 고른 재화. 오른쪽 아래에도 사용 단추가 있다(2026-11-08 사용자: 목표 조건을 많이 달면 아래 단추까지 내려가야 했다). */
 export function workspaceMethodsHtml(ctx, state, stopped) {
-    return `<section class="cl-methods"><div class="cl-section-title">${(0, ctx.deps._t)('재화 보관함')}</div>${ctx.deps.craftingStashUi.html({recipe:ctx.state.recipe.key,omen:workspaceArmedOmen(ctx)?.key||''})}
+    return `<section class="cl-methods"><div id="cl-currency-picker"><div class="cl-section-title"><span>${(0, ctx.deps._t)('재화 보관함')}</span><button type="button" id="cl-method-select" data-command="methods" aria-haspopup="dialog">${(0, ctx.deps._t)('제작 방법 선택')}</button><button type="button" id="cl-inventory-open" data-command="inventory" aria-haspopup="dialog">${(0, ctx.deps._t)('재화 인벤토리')}</button></div>${ctx.deps.craftingStashUi.html({recipe:ctx.state.recipe.key,omen:workspaceArmedOmen(ctx)?.key||''})}</div>
             <p class="cl-method-note" data-theme="${ctx.deps.craftingCatalogUi.theme(ctx.state.recipe.key)}"><span class="cl-method-heading"><strong>${(0, ctx.deps._t)('선택 중 &ensp; {styledName}', { styledName: ctx.deps.craftingCatalogUi.styledName(ctx.state.recipe.key) })}</strong><small>${(0, ctx.deps._t)('보유 {currencies}', { currencies: ctx.deps.game.currencies[ctx.state.recipe.key] })}</small></span>${ctx.deps.craftingCatalogUi.description(ctx.state.recipe.key)}</p>${workspaceSporeHtml(ctx)}${workspaceOmenHtml(ctx)}
             <div class="cl-method-use">${workspacePrimaryButtonHtml(ctx, state,stopped)}</div></section>`;
 }

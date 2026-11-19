@@ -57,12 +57,13 @@ export function placePhoneFeed(runtime) {
     });
 }
 
-/** Picks the phone log panel's tab. The folded bar of a low landscape phone (uiDisplay.battleHudAtSide) unfolds to show it. */
+/** Opening chat reveals its panel. Boot also selects the log and must preserve its saved fold. */
 export function showPhoneTab(runtime, tab) {
     if (runtime.state.mounted || !runtime.state.TABS[tab]) return false;
     runtime.state.phoneTab = tab;
     placePhoneFeed(runtime);
-    if (runtime.deps.uiDisplay.battleHudAtSide && runtime.deps.document.body.classList.contains('combat-log-collapsed')) (0, runtime.deps.toggleCombatLogCollapse)();
+    const reveal = tab === 'chat' || runtime.deps.uiDisplay.battleHudAtSide;
+    if (reveal && runtime.deps.document.body.classList.contains('combat-log-collapsed')) (0, runtime.deps.toggleCombatLogCollapse)();
     noticeFrameVisibility(runtime);
     return true;
 }

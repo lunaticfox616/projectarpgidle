@@ -10,7 +10,7 @@ export function supportChoices(runtime) {
 
 export function supportStep(runtime, before) {
     if (!shown(runtime, runtime.state.slotDialog)) {
-        return runtime.handlers.step(1, 2, '빛나는 빈 보조스킬룬 칸을 누르세요.', '#tab-skills .support-slot.is-empty[data-board-pick="support"]');
+        return runtime.handlers.step(1, 2, '빛나는 빈 보조스킬룬 칸을 누르세요.', ['#tab-skills .support-slot.is-empty[data-board-pick="support"]', '#tab-skills[data-rune-pane="library"] #btn-rune-board']);
     }
     const buttons = before.choices.map(name => `${runtime.state.slotDialog} [data-slot-action="choose"][data-name="${runtime.deps.CSS.escape(name)}"]:not(:disabled)`);
     return runtime.handlers.step(2, 2, '적용되는 스킬과 필요한 공명력을 확인한 뒤 ‘장착’을 누르세요.', buttons, `${runtime.state.slotDialog} .gem-slot-list-head`);
@@ -19,7 +19,7 @@ export function supportStep(runtime, before) {
 export function engraveStep(runtime) {
     if (!shown(runtime, runtime.state.engraveDialog)) {
         return runtime.handlers.step(1, 2, '장착한 공격 룬의 빛나는 빈 각인 칸을 누르세요.',
-            ['#tab-skills [data-board-engrave].is-open', '#ui-gem-engrave-slots [data-slot-state="open"]:not(:disabled)']);
+            ['#tab-skills [data-board-engrave].is-open', '#ui-gem-engrave-slots [data-slot-state="open"]:not(:disabled)', '#tab-skills[data-rune-pane="library"] #btn-rune-board']);
     }
     return runtime.handlers.step(2, 2, '효과를 읽고 각인을 고르세요. 창공의 정수 1개가 소모됩니다.',
         `${runtime.state.engraveDialog} [data-action="apply"]:not(:disabled)`, `${runtime.state.engraveDialog} header`);
@@ -41,7 +41,7 @@ export function craftTargetStep(runtime) {
     const cards = runtime.deps.game.inventory.filter(runtime.handlers.canUseBud).map(item => `${runtime.state.craftPicker} ${spareCard(runtime, item)}`);
     const openers = slots.length ? ['#craft-target-equip-open', '#craft-target-inventory-open'] : ['#craft-target-inventory-open'];
     return runtime.handlers.step(1, 2, '제작할 일반 장비를 고르세요. 착용 중인 장비와 가방의 장비를 모두 고를 수 있습니다.',
-        [...slots, ...cards, ...openers], shown(runtime, runtime.state.craftPicker) ? `${runtime.state.craftPicker} .craft-picker-head` : undefined);
+        [...slots, ...cards, ...openers, '#cl-toggle-item-options[aria-expanded="false"]'], shown(runtime, runtime.state.craftPicker) ? `${runtime.state.craftPicker} .craft-picker-head` : undefined);
 }
 
 export function craftStep(runtime) {
@@ -52,7 +52,7 @@ export function craftStep(runtime) {
             [`${runtime.state.catalog}:has([data-resource="magicBud"][aria-pressed="true"]) [data-apply]:not(:disabled)`, `${runtime.state.catalog} [data-resource="magicBud"]`], `${runtime.state.catalog} > header`);
     }
     return runtime.handlers.step(2, 2, '‘1회 사용’을 눌러 일반 장비를 마법 장비로 바꾸고 새 옵션을 붙이세요.',
-        [use, '#cl-inventory-open']);
+        [use, '#cl-method-select', '#cl-inventory-open']);
 }
 
 export function shopStep(runtime, before) {

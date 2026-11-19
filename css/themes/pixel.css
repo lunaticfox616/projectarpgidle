@@ -708,7 +708,15 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   /* 휴대폰: 고르는 오버레이(직업 · 루프 · 보상 · 사망 · 패치 노트)는 하단 메뉴 띠(z 13100)보다 위 — 아래 줄 카드가 메뉴에 가려
      누를 수 없던 문제. 판은 화면 안에서 스크롤한다. 안내 카드(#tutorial-overlay)는 화면을 막지 않도록 그대로 둔다. */
   :root body[data-ui-skin] :is(#loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) { z-index: 13200; }
-  :root body[data-ui-skin] :is(#loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) .tutorial-card { max-height: calc(100dvh - 16px); overflow-y: auto; }
+  :root body[data-ui-skin] :is(#loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) .tutorial-card { max-height: calc(100dvh - 16px); overflow-y: auto; }
+  :root body[data-ui-skin] #death-overlay .deathlog-card {
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 12px 16px; overflow: hidden;
+  }
+  #death-overlay .deathlog-scroll { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+  #death-overlay .deathlog-scroll :is(.tutorial-body, .deathlog-panel) { max-height: none; overflow: visible; }
+  #death-overlay .deathlog-card :is(.tutorial-title, .tutorial-kicker, .tutorial-actions) { flex: none; }
+  :root body[data-ui-skin] #death-overlay :is(.deathlog-tab, .deathlog-hint-action, .deathlog-setting, .tutorial-actions button) { min-height: 44px; }
   /* 직업 선택: 카드 목록만 스크롤하고 확인 판("이 직업으로 시작")은 늘 판 아래에 보인다. 노치 · 홈 막대(안전 영역)는 비운다. */
   :root body[data-ui-skin] #loop-hero-select-overlay { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
   /* 카드가 넓은 화면(한 줄 여섯 칸이 아닌 때): 2:3 초상의 위쪽, 머리와 어깨까지 */

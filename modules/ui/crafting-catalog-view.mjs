@@ -30,10 +30,11 @@ export function catalogCard(ctx, key) {
 
 export function catalogList(ctx) {
     catalogCapture(ctx);
+    const query=ctx.state.query.toLocaleLowerCase(ctx.deps.i18n.locale);
     const keys=Object.keys(ctx.deps.ORB_DB).filter(ctx.handlers.listed)
         .filter(key=>(ctx.state.category==='all'||catalogGroup(ctx, key)===ctx.state.category)&&(!ctx.state.ownedOnly||ctx.deps.game.currencies[key]>0))
-        .filter(key=>(name(ctx, key)+' '+ctx.deps.ORB_DB[key].desc).includes(ctx.state.query));
-    ctx.state.dialog.querySelector('.cl-resource-list').innerHTML=keys.map(ctx.handlers.catalogCard).join('')||'<p class="cl-resource-empty">해당하는 재화가 없습니다.</p>';
+        .filter(key=>!query||[name(ctx,key),ctx.deps._t(catalogSummary(ctx,key)),ctx.deps._t(ctx.deps.ORB_DB[key].desc)].join(' ').toLocaleLowerCase(ctx.deps.i18n.locale).includes(query));
+    ctx.state.dialog.querySelector('.cl-resource-list').innerHTML=keys.map(ctx.handlers.catalogCard).join('')||`<p class="cl-resource-empty">${ctx.deps._t('해당하는 재화가 없습니다.')}</p>`;
     ctx.state.dialog.querySelector('.cl-resource-count').textContent=(0, ctx.deps._t)('{length}종', { length: keys.length });
 }
 
@@ -42,7 +43,7 @@ export function catalogSelect(ctx, key) {
     ctx.state.inspected=key;catalogList(ctx);
     const detail=ctx.state.dialog.querySelector('.cl-resource-detail');
     const available=ctx.state.recipes.some(row=>row.key===key)||/^(spore|fossil)/.test(key);
-    const label=['fossil','fossilPrimal','fossilAncientPrimal'].includes(key)?'정제/복원 열기':'제작실에서 선택';
+    const label=['fossil','fossilPrimal','fossilAncientPrimal'].includes(key)?ctx.deps._t('정제/복원 열기'):ctx.deps._t('제작실에서 선택');
     const state=ctx.state.useState(key), blocked=state&&!state.enabled;
     detail.innerHTML=`<div><strong>${styledName(ctx, key)}</strong><p>${catalogDescription(ctx, key)}</p>${blocked?`<small class="cl-use-reason">${esc(ctx, state.reason)}</small>`:''}</div>${available?`<button type="button" data-apply ${blocked?'disabled':''}>${label}</button>`:''}`;
     detail.hidden=false;
@@ -53,8 +54,7 @@ export function catalogSelect(ctx, key) {
 export function catalogClose(ctx) {ctx.state.dialog.close();ctx.deps.document.getElementById(ctx.state.openerId)?.focus({preventScroll:true});}
 
 export function catalogRenderNavigation(ctx) {
-    ctx.state.dialog.querySelector('#cl-catalog-title').textContent=ctx.state.craftingOnly?(0, ctx.deps._t)('제작 재화 선택'):(0, ctx.deps._t)('재화 인벤토리');
-    if(ctx.state.craftingOnly&&ctx.state.category==='omen')ctx.state.category='all';
+    ctx.state.dialog.querySelector('#cl-catalog-title').textContent=ctx.state.craftingOnly?(0, ctx.deps._t)('제작 방법 선택'):(0, ctx.deps._t)('재화 인벤토리');
     ctx.state.dialog.querySelectorAll('[data-category]').forEach(tab=>{
         tab.hidden=ctx.state.craftingOnly&&tab.dataset.category==='omen';
         tab.setAttribute('aria-pressed',String(tab.dataset.category===ctx.state.category));
@@ -64,6 +64,7 @@ export function catalogRenderNavigation(ctx) {
 export function catalogOpen(ctx, available, callback, settings={}) {
     ctx.state.recipes=available;ctx.state.onSelect=callback;ctx.state.active=settings.active||'';ctx.state.inspected='';
     ctx.state.craftingOnly=!!settings.craftingOnly;
+    if(ctx.state.craftingOnly)ctx.state.category='all';
     ctx.state.useState=settings.useState;
     ctx.state.openerId=ctx.deps.document.activeElement?.id||'cl-inventory-open';
     catalogCapture(ctx);if(!ctx.state.dialog)catalogCreate(ctx);
@@ -75,7 +76,7 @@ export function catalogOpen(ctx, available, callback, settings={}) {
 
 export function catalogSelectOpeningResource(ctx, key) {
     const target=key||ctx.state.active;
-    if(listed(ctx, target))catalogSelect(ctx, target);
+    if(listed(ctx,target)&&ctx.state.dialog.querySelector(`[data-resource="${target}"]`))catalogSelect(ctx,target);
 }
 
 export function catalogClick(ctx, event) {
@@ -100,6 +101,7 @@ export function catalogCreate(ctx) {
         if(event.target.type==='search')ctx.state.query=event.target.value.trim();
         else ctx.state.ownedOnly=!event.target.checked;
         catalogList(ctx);
+        if(!ctx.state.dialog.querySelector('.cl-resource.is-selected'))ctx.state.dialog.querySelector('.cl-resource-detail').hidden=true;
     });
     ctx.state.dialog.addEventListener('cancel',()=>ctx.deps.document.getElementById(ctx.state.openerId)?.focus({preventScroll:true}));
 }

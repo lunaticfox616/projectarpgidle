@@ -17,7 +17,7 @@ export function practiceRuneStep(runtime, before) {
     const kind = runtime.deps.skillGemBoardUi.currentKind();
     const picker = before.kinds.includes(kind) ? [] : before.kinds.map(type => `#ui-skill-picker-tabs [data-picker-kind="${type}"]`);
     return runtime.handlers.practiceStep(1, 2, '빛나는 룬을 고르세요. 다른 분류에 있다면 빛나는 분류 탭부터 누르세요.',
-        [...before.cards, ...picker], '#tab-skills #ui-skill-picker-tabs');
+        [...before.cards, ...picker, '#tab-skills[data-rune-pane="board"] #btn-skill-tab-equip'], '#tab-skills #ui-skill-picker-tabs');
 }
 
 export function practiceSeedStep(runtime, before) {

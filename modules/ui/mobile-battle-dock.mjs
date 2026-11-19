@@ -35,7 +35,11 @@ function syncContext(deps, host, context) {
 
 function itemTarget(document) {
     if (!document.querySelector('#tab-items.active')) return { context: '', anchor: null };
-    const toggle = document.querySelector('#tab-items.active #item-tab-equip.active .eqw-mini-toggle');
+    const runes = document.querySelector('#tab-items.active #tab-skills.active');
+    if (runes) return { context: 'runes', anchor: runes };
+    const craft = document.querySelector('#tab-items.active .merged-subtab-pane.active #item-tab-craft.active');
+    if (craft) return { context: 'craft', anchor: craft };
+    const toggle = document.querySelector('#tab-items.active #item-tab-equip.active .eqw-pane-switch');
     return { context: 'items', anchor: toggle && toggle.offsetParent ? toggle.closest('.eqw-summary-card') : null };
 }
 
@@ -48,6 +52,8 @@ function dockTarget(deps) {
     const title = deps.display.matches('(orientation: landscape) and (max-height: 600px)')
         ? document.querySelector('#tab-char.active .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) .h2-right') : null;
     if (title) return { context: 'tree', anchor: title };
+    const world = document.querySelector('#tab-map.active #map-tab-zones.active #map-explore-atlas.active');
+    if (world) return { context: 'world', anchor: world };
     const map = MAP_CONTEXTS.find(([, id]) => document.querySelector(`#tab-map.active #${id}.active`));
     return map ? { context: map[0], anchor: null } : itemTarget(document);
 }
@@ -59,6 +65,8 @@ export function dockBattlePreview(deps, host) {
     const docked = !!dock.anchor && (dock.context === 'fishing' || host.classList.contains('is-collapsed'));
     host.classList.toggle('is-tree-docked', docked && dock.context === 'tree');
     host.classList.toggle('is-summary-docked', docked && dock.context === 'items');
+    host.classList.toggle('is-panel-docked', docked && ['craft','runes'].includes(dock.context));
+    host.classList.toggle('is-map-docked', docked && dock.context === 'world');
     host.classList.toggle('is-workshop-docked', docked && dock.context === 'fishing');
     const parent = docked ? dock.anchor : deps.document.body;
     if (host.parentElement !== parent) parent.appendChild(host);

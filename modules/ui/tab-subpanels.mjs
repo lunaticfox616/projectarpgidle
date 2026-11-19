@@ -1,4 +1,5 @@
 import { selectSubtab, acknowledgeEquipmentTab } from '../state/navigation-selection.mjs';
+import { markGearRouteSelection } from './tab-merged-panels.mjs';
 
 export function runWindowOpenHooks(runtime, tabId, shownId) {
     const { deps } = runtime;
@@ -71,9 +72,11 @@ function redirectTradeTab(runtime, subtabId) {
 
 function showItemSubtabPanel(runtime, subtabId) {
     const { deps } = runtime;
-    clearSubtabPanels(runtime, '#tab-items .subtab-content', '#tab-items .subtab-btn');
+    clearSubtabPanels(runtime, '#tab-items .subtab-content[id^="item-tab-"]', '#tab-items .gear-item-routes > .subtab-btn');
     deps.document.getElementById(subtabId).classList.add('active');
-    deps.document.getElementById('btn-' + subtabId).classList.add('active');
+    const button = deps.document.getElementById('btn-' + subtabId);
+    button.classList.add('active');
+    markGearRouteSelection(button.parentElement);
     if (typeof deps.refitDockedWindows === 'function') deps.refitDockedWindows();
 }
 
@@ -89,14 +92,27 @@ function activateSubtab(runtime, subtabId) {
     if (button) button.classList.add('active');
 }
 
-export function switchSkillSubtab(runtime, subtabId) {
+export function switchSkillSubtab(runtime, subtabId, runePane) {
     const { deps } = runtime, owner = deps.game;
     if (!deps.contentProgression.canOpen(subtabId)) return;
-    if (subtabId === owner.skillSubtab && isSelectedSubtab(runtime, subtabId)) return;
+    if (runePane) deps.document.getElementById('tab-skills').dataset.runePane = runePane;
+    const selected = subtabId === owner.skillSubtab && isSelectedSubtab(runtime, subtabId);
+    if (runePane || !selected) markRunePane(runtime, subtabId);
+    if (selected) return;
     selectSubtab(owner, 'skillSubtab', subtabId);
     clearSubtabPanels(runtime, '#tab-skills .subtab-content', '#tab-skills .subtab-btn');
     activateSubtab(runtime, subtabId);
     deps.systemTutorialUi.visit(subtabId);
+}
+
+function markRunePane(runtime, subtabId) {
+    const root = runtime.deps.document.getElementById('tab-skills');
+    const board = root.querySelector('#btn-rune-board');
+    const list = root.querySelector('#btn-skill-tab-equip');
+    const split = !board.hidden && root.dataset.runePane === 'board';
+    const equip = subtabId === 'skill-tab-equip';
+    list.setAttribute('aria-pressed', String(equip && !split));
+    board.setAttribute('aria-pressed', String(equip && split));
 }
 
 export function switchMapSubtab(runtime, subtabId) {
@@ -134,9 +150,15 @@ function renderMapRegion(runtime, subtabId) {
 }
 
 export function syncSingleSubtabRows(runtime) {
+    const board = runtime.deps.document.getElementById('btn-rune-board');
+    const compact = runtime.deps.uiDisplay.matches('(max-width: 1080px)');
+    if (board && board.hidden === compact) {
+        board.hidden = !compact;
+        markRunePane(runtime, runtime.deps.game.skillSubtab);
+    }
     runtime.deps.document.querySelectorAll('.tab-content .subtab-row:not(.merged-tab-subtabs)').forEach(row => {
         const open = [...row.children].filter(button => !button.hasAttribute('data-content-locked') && !button.hidden && button.style.display !== 'none');
-        row.hidden = open.length < 2;
+        row.hidden = open.length < (row.parentElement.classList.contains('gear-route-bar') ? 1 : 2);
         const count = String(open.length);
         if (row.style.getPropertyValue('--subtab-count') !== count) row.style.setProperty('--subtab-count', count);
     });
