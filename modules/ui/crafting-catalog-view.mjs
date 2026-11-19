@@ -54,7 +54,9 @@ export function catalogSelect(ctx, key) {
 export function catalogClose(ctx) {ctx.state.dialog.close();ctx.deps.document.getElementById(ctx.state.openerId)?.focus({preventScroll:true});}
 
 export function catalogRenderNavigation(ctx) {
-    ctx.state.dialog.querySelector('#cl-catalog-title').textContent=ctx.state.craftingOnly?(0, ctx.deps._t)('제작 방법 선택'):(0, ctx.deps._t)('재화 인벤토리');
+    const title=ctx.state.methods?(0, ctx.deps._t)('제작 방법 선택'):ctx.state.craftingOnly?(0, ctx.deps._t)('제작 재화 선택'):(0, ctx.deps._t)('재화 인벤토리');
+    ctx.state.dialog.querySelector('#cl-catalog-title').textContent=title;
+    if(ctx.state.craftingOnly&&ctx.state.category==='omen')ctx.state.category='all';
     ctx.state.dialog.querySelectorAll('[data-category]').forEach(tab=>{
         tab.hidden=ctx.state.craftingOnly&&tab.dataset.category==='omen';
         tab.setAttribute('aria-pressed',String(tab.dataset.category===ctx.state.category));
@@ -64,7 +66,8 @@ export function catalogRenderNavigation(ctx) {
 export function catalogOpen(ctx, available, callback, settings={}) {
     ctx.state.recipes=available;ctx.state.onSelect=callback;ctx.state.active=settings.active||'';ctx.state.inspected='';
     ctx.state.craftingOnly=!!settings.craftingOnly;
-    if(ctx.state.craftingOnly)ctx.state.category='all';
+    ctx.state.methods=!!settings.methods;
+    if(ctx.state.methods)ctx.state.category='all';
     ctx.state.useState=settings.useState;
     ctx.state.openerId=ctx.deps.document.activeElement?.id||'cl-inventory-open';
     catalogCapture(ctx);if(!ctx.state.dialog)catalogCreate(ctx);

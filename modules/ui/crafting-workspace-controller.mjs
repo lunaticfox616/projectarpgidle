@@ -1,9 +1,9 @@
 import { selected, workspaceRestoreGoal, workspaceUseState, held, esc, signature, matches, workspaceAutoReason, workspaceGoalChoice, workspaceSetGoal, workspaceSaveGoals, workspaceArmedOmen, workspaceGoalOptions, workspaceCoin } from './crafting-workspace-selection.mjs';
 import { workspaceItemHtml, workspaceMethodsHtml, workspaceGoalHtml, workspaceCostText, workspaceActionHtml, workspaceResultHtml, workspaceAffixValue, workspaceFoldButton } from './crafting-workspace-markup.mjs';
 
-export function workspaceOpenInventory(ctx, inspect='', craftingOnly=false) {
+export function workspaceOpenInventory(ctx, inspect='', craftingOnly=false, methods=false) {
     if(ctx.state.auto){workspaceStopAuto(ctx, '재화 인벤토리를 열어 자동 사용을 멈췄어요.');workspaceRender(ctx);}
-    ctx.deps.craftingCatalogUi.open(ctx.state.recipes,ctx.handlers.workspacePickResource,{active:ctx.state.recipe.key,inspect:inspect,craftingOnly:craftingOnly,useState:ctx.handlers.workspaceResourceState});
+    ctx.deps.craftingCatalogUi.open(ctx.state.recipes,ctx.handlers.workspacePickResource,{active:ctx.state.recipe.key,inspect:inspect,craftingOnly:craftingOnly,methods:methods,useState:ctx.handlers.workspaceResourceState});
 }
 
 export function workspacePickResource(ctx, key) {

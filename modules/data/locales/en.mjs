@@ -7247,6 +7247,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '혜성 돌진': 'Comet Charge',
         '네 번째 공격마다 강한 돌진을 사용하며 이동 속도로 충격을 흘릴 수 있습니다.': 'Every fourth attack is a heavy charge whose impact can be shed with movement speed.',
         '{name} 전조': '{name} omen',
+        '제작 재화 선택': 'Select crafting currency',
         '재화 인벤토리': 'Currency inventory',
         '재화 목록 닫기': 'Close currency list',
         '재화 분류': 'Currency category',

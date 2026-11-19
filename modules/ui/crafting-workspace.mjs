@@ -53,6 +53,6 @@ function initialize(ctx) {
     ctx.state.STUDY_KINDS = {prefix:['접두','is-prefix'],suffix:['접미','is-suffix'],special:['특수','is-special']};
     ctx.state.STUDY_TAG_TONES = {physical:'physPctDmg',elemental:'elementalPctDmg',fire:'firePctDmg',cold:'coldPctDmg',light:'lightPctDmg',chaos:'chaosPctDmg',
         crit:'crit',speed:'aspd',life:'pctHp',defense:'armor',resistance:'resAll',recovery:'regen'};
-    ctx.state.WORKSPACE_COMMANDS = {'clear-spore':()=>workspaceClearSpore(ctx),study:()=>workspaceShowStudy(ctx),inventory:()=>workspaceOpenInventory(ctx),methods:()=>workspaceOpenInventory(ctx,ctx.state.recipe.key,true),
+    ctx.state.WORKSPACE_COMMANDS = {'clear-spore':()=>workspaceClearSpore(ctx),study:()=>workspaceShowStudy(ctx),inventory:()=>workspaceOpenInventory(ctx),methods:()=>workspaceOpenInventory(ctx,ctx.state.recipe.key,true,true),
         craft:()=>workspaceCraft(ctx),ack:()=>workspaceShowGoalDialog(ctx),engrave:()=>workspaceEngrave(ctx),restore:()=>workspaceRestore(ctx)};
 }
