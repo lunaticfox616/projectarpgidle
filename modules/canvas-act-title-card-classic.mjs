@@ -45,7 +45,8 @@ const native = createActTitleCard({
     get bossRevive() { return bossRevive; },
     get WOODSMAN_BATTLE() { return WOODSMAN_BATTLE; },
     get OUTSIDE_CHAOS_ZONE_ID() { return OUTSIDE_CHAOS_ZONE_ID; },
-    get uiDisplay() { return uiDisplay; }
+    get uiDisplay() { return uiDisplay; },
+    get stageDirector() { return stageDirector; }
 });
 const actTitleCard = Object.freeze({
     draw: (ctx, scene) => native.draw(game, ctx, scene),

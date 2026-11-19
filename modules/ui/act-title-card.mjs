@@ -93,7 +93,7 @@ class ActTitleCard {
     track(owner, now) {
         this.watchZone(owner);
         if (this.card && now - this.card.startAt >= this.card.style.showMs) this.card = null;
-        if (!this.card && this.pending && !this.popupOpen()) { this.card = { ...this.pending, startAt: now }; this.pending = null; }
+        if (!this.card && this.pending && !this.popupOpen()) { this.card = { ...this.pending, startAt: now }; this.pending = null; this.deps.stageDirector.arrival(); }
         this.trackStoryLine(owner, now);
     }
 
@@ -422,8 +422,25 @@ class ActTitleCard {
         // A first line queued after track still needs the current window state for the greeting hold and the next frame.
         if (unlooked && (this.line || this.queue.length)) this.covered = this.storyCovered();
         this.holding = this.holdsGreeting(owner, waited);
+        this.directStory(scene);
         if (!scene.observerScene && !this.drawWoodsmanIntroduction(owner, ctx, scene)) this.drawQueuedStory(ctx, scene);
         this.npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
+    }
+
+    /** The stage camera frames whoever speaks a line the hero stands for (2026-11-19); a line said during a fight gets nothing. */
+    directStory(scene) {
+        const line = this.holding && !this.card ? this.line : null;
+        this.deps.stageDirector.speak(line ? this.storySpeaker(line, scene) : null);
+    }
+
+    /** { speaker (who the camera is on), who ('plain' for narration, stele and guide lines: a lighter zoom on the hero), focus }. */
+    storySpeaker(line, scene) {
+        const hero = { hero: true };
+        if (line.who === 'hero') return { speaker: 'hero', who: 'speaker', focus: hero };
+        if (line.who === 'npc' && this.npcHead) return { speaker: 'npc', who: 'speaker', focus: { point: this.npcHead } };
+        if (line.who !== 'boss') return { speaker: 'plain', who: 'plain', focus: hero };
+        const row = (scene.layout || []).find(entry => entry.enemy && entry.enemy.id === line.bossId);
+        return { speaker: `boss${line.bossId}`, who: 'speaker', focus: { enemy: row ? row.enemy : null, enemyId: line.bossId, fallback: hero } };
     }
 
     drawNpc(ctx, actor, state) {
@@ -439,12 +456,12 @@ class ActTitleCard {
         this.framedAt = scene.now;
         const wanted = this.holding && !!this.line && !this.card && this.text.rich();
         this.framed = wanted ? Math.min(1, this.framed + step / STORY_FRAME.inMs) : Math.max(0, this.framed - step / STORY_FRAME.outMs);
-        this.text.drawStoryFrame(ctx, scene, ease(this.framed));
+        this.text.onScreen(ctx, scene, () => this.text.drawStoryFrame(ctx, scene, ease(this.framed)));
     }
 
     drawQueuedStory(ctx, scene) {
         this.drawStoryFrame(ctx, scene);
-        if (this.card) this.text.drawTitleCard(this.card, ctx, scene.width, scene.height, scene.now);
+        if (this.card) this.text.onScreen(ctx, scene, () => this.text.drawTitleCard(this.card, ctx, scene.width, scene.height, scene.now));
         else if (this.line) this.text.drawStoryLine({ line:this.line, npcHead:this.npcHead }, ctx, scene);
     }
 
