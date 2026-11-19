@@ -69,6 +69,8 @@ function flowSeatOceanGuardianArena(env, zone, run) {
  * startEncounterRun takes it over. */
 export function flowPrepareActExplorationArrival(env) {
     const zone = env.deps.getZone(env.owner.currentZoneId);
+    // A projected death departs twice (js/combat-replay.js beginProjectedEncounter); the first, flagged for the defeat only, builds nothing.
+    if (env.owner.backgroundDefeatLaysNoMap) return;
     if (!zone || zone.id !== env.owner.currentZoneId || !packGetZoneExplorationPlan(env, zone)) return;
     const run = packCreateActExplorationEncounter(env, zone);
     run.arrival = true;

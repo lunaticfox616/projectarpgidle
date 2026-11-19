@@ -99,7 +99,7 @@ export class ReplayRules {
         let overflowSalvaged = replay.game.backgroundOverflowSalvageCount;
         let stopReason = replay.game.backgroundStopReason;
         let projectedMs = replay.projection ? replay.projection.projectedMs : 0;
-        for (let field of ['isBackgroundCalculation', 'backgroundOverflowSalvageCount', 'backgroundKillMix', 'backgroundStopReason', 'backgroundProjecting']) delete replay.game[field];
+        for (let field of ['isBackgroundCalculation', 'backgroundOverflowSalvageCount', 'backgroundKillMix', 'backgroundStopReason', 'backgroundProjecting', 'backgroundDefeatLaysNoMap']) delete replay.game[field];
         return { game: replay.game, runtime: replay.runtime, steps: replay.processedMs / 100,
             simulatedNow: replay.simulatedNow, processedMs: replay.processedMs, metrics: replay.metrics,
             stopped: replay.processedMs < replay.elapsedMs, stopReason, overflowSalvaged,

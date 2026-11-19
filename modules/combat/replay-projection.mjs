@@ -181,10 +181,12 @@ export class ReplayProjection {
     // ------------------------------------------------------------------ projecting one map
     /** The next map at once: travel time is in the measured cycle. A completion has already set out: it is on its way
      * (moveTimer) with the next map laid out for arrival (or none outside a mapped zone), and that map is the one entered.
-     * Setting out again would build a second map and throw the first away. A death sets out too, but entering its map without
-     * setting out again changed the pace measured afterwards (the legal build that falls on every map: projected maps 7% shorter
-     * with 11% fewer kills over four seeds, 2026-11-19; the cause was not traced), so after a death (fell) the hero sets out
-     * again as before and that build settles exactly as it did. */
+     * Setting out again would build a second map and throw the first away. A death sets out too, but its departure is stamped
+     * before the projected clock moves on (the exploration motion clock, the arrival grace), so the map it laid out was entered a
+     * whole map's time late and the real maps measured from there ran shorter with fewer kills (the legal build that falls on
+     * every map, 2026-11-19). After a death (fell) the hero therefore sets out again as before, and the defeat's own departure
+     * lays no map out (backgroundDefeatLaysNoMap): this departure builds the one map entered. With the random stream aligned the
+     * state after it equals the two-map version's. */
     beginProjectedEncounter(fell) {
         const run = this.deps.actExplorationState.current(this.owner.game);
         if (fell || !(this.owner.game.moveTimer > 0) || (run && !run.arrival)) this.deps.startMoving(false);
@@ -249,7 +251,10 @@ export class ReplayProjection {
     finishProjectedCycle(plan, pStats) {
         if (plan.dies) {
             this.owner.game.playerHp = 0;
-            this.deps.handlePlayerDefeat(this.deps.getZone(this.owner.game.currentZoneId), pStats, null, { fatalElement: 'other', noToast: true });
+            // The departure the defeat makes lays no map out: beginProjectedEncounter departs again and builds the one entered.
+            this.owner.game.backgroundDefeatLaysNoMap = true;
+            try { this.deps.handlePlayerDefeat(this.deps.getZone(this.owner.game.currentZoneId), pStats, null, { fatalElement: 'other', noToast: true }); }
+            finally { delete this.owner.game.backgroundDefeatLaysNoMap; }
         } else if (this.deps.actExplorationProgress.canFinish()) this.deps.playerStatCache.during(this.deps.finishEncounterRun);
     }
 
