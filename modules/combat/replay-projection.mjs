@@ -161,12 +161,15 @@ export class ReplayProjection {
     }
 
     // ------------------------------------------------------------------ projecting one map
-    /** The next map at once: travel time is in the measured cycle. A death or a completion may already have set out: it is
-     * on its way (moveTimer) with the next map laid out for arrival (or none outside a mapped zone), and that map is the one
-     * entered. Setting out again would build a second map and throw the first away. */
-    beginProjectedEncounter() {
+    /** The next map at once: travel time is in the measured cycle. A completion has already set out: it is on its way
+     * (moveTimer) with the next map laid out for arrival (or none outside a mapped zone), and that map is the one entered.
+     * Setting out again would build a second map and throw the first away. A death sets out too, but entering its map without
+     * setting out again changed the pace measured afterwards (the legal build that falls on every map: projected maps 7% shorter
+     * with 11% fewer kills over four seeds, 2026-11-19; the cause was not traced), so after a death (fell) the hero sets out
+     * again as before and that build settles exactly as it did. */
+    beginProjectedEncounter(fell) {
         const run = this.deps.actExplorationState.current(this.owner.game);
-        if (!(this.owner.game.moveTimer > 0) || (run && !run.arrival)) this.deps.startMoving(false);
+        if (fell || !(this.owner.game.moveTimer > 0) || (run && !run.arrival)) this.deps.startMoving(false);
         this.owner.game.moveTimer = 0;
         this.deps.startEncounterRun();
     }
@@ -264,10 +267,11 @@ export class ReplayProjection {
     /** One projected map. Returns 'start' when real combat takes this map from its start (a new zone, a rule it does not model,
      * a cycle due to be measured), 'middle' when it stops inside it (a void rift opened), else ''. */
     projectReplayCycle(replay, calibration, fresh) {
-        if (!fresh) this.beginProjectedEncounter();
+        if (!fresh) this.beginProjectedEncounter(replay.projection.fell);
         if (!this.isProjectionEligible(this.owner.game) || this.projectionZoneKey(this.owner.game) !== calibration.key) return 'start';
         if (this.isProjectionRemeasureDue(replay, calibration, this.owner.game)) return 'start';
         const plan = this.planProjectedCycle(calibration, Math.min(1, (replay.elapsedMs - replay.processedMs) / calibration.cycleMs));
+        replay.projection.fell = plan.dies;
         const pStats = this.deps.getPlayerStats(), run = this.deps.actExplorationState.current(this.owner.game);
         const outcome = this.killProjectedPacks(run, calibration, plan, pStats);
         if (!outcome.interrupted) outcome.interrupted = this.settleProjectedObjects(run, calibration, plan, pStats);
