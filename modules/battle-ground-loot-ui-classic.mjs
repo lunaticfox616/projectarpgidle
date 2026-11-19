@@ -1,6 +1,7 @@
 import { createGroundLootView } from './ui/ground-loot-view.mjs';
 
 const battleGroundLoot = createGroundLootView({
+    get director() { return stageDirector; },
     get EMBER_CORRUPTION_TONE() { return typeof EMBER_CORRUPTION_TONE === 'undefined' ? undefined : EMBER_CORRUPTION_TONE; },
     get GROUND_LOOT_DROP() { return typeof GROUND_LOOT_DROP === 'undefined' ? undefined : GROUND_LOOT_DROP; },
     get LOOT_OMENS() { return typeof LOOT_OMENS === 'undefined' ? undefined : LOOT_OMENS; },

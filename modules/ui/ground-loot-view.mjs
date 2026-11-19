@@ -181,6 +181,7 @@ class GroundLootView {
         const ring = this.deps.document.createElement('span'); ring.className = 'battle-loot-ring'; marker.append(ring);
         ring.addEventListener('animationend', () => ring.remove(), { once: true });
         if (tier !== 'jackpot') return;
+        this.deps.director.drop(entry.cell);
         const cell = parseFloat(this.ground.style.getPropertyValue('--loot-cell')) || 48;
         for (let index = 0; index < 8; index++) {
             const spark = this.deps.document.createElement('span'), angle = index / 8 * Math.PI * 2 + 0.2;
