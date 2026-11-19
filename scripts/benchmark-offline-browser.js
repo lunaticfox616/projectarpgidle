@@ -14,11 +14,16 @@ async function settle(page, max) {
     return page.evaluate(async useMax => {
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
+        // The prologue holds the hero (away settlement pauses for it: actTitleCard.greeting) until it is skipped.
+        document.querySelector('#opening-intro [data-opening-skip]')?.click();
+        for (let wait = 0; wait < 150 && actTitleCard.greeting(); wait++) await new Promise(resolve => setTimeout(resolve, 100));
+        if (actTitleCard.greeting()) throw new Error('the hero is still held for a greeting');
         game.settings.pauseGameOnOverlay = false;
         game.settings.mapCompleteAction = 'repeatZone';
+        // Every 시간 인식 and 전투 효율 step of the unlock tree (2026-10-25: the steps replaced game.offlineProgress).
         if (useMax) {
-            game.offlineProgress.recognitionLevel = 7;
-            game.offlineProgress.efficiencyLevel = 6;
+            const steps = CONTENT_UNLOCK_CATALOG.filter(def => def.series === 'offlineHours' || def.series === 'offlineRate').map(def => def.id);
+            game.contentProgression.unlocked = [...new Set([...(game.contentProgression.unlocked || []), ...steps])];
         }
         const config = getOfflineProgressConfig(game);
         const absenceMs = config.recognitionHours * 3600000;
@@ -65,7 +70,7 @@ async function settle(page, max) {
         const result = await Promise.race([settle(page, maximum), new Promise((_, reject) => {
             timeout = setTimeout(() => reject(new Error('Settlement exceeded 15 minutes')), 900000);
         })]);
-        if (!result.ok || !result.summary) throw new Error('Settlement failed or omitted its result');
+        if (!result.ok || !result.summary) throw new Error(`Settlement failed or omitted its result: ${JSON.stringify(result)}`);
         if (profiler) {
             const { profile } = await profiler.send('Profiler.stop');
             fs.writeFileSync(output + '.cpuprofile', JSON.stringify(profile));

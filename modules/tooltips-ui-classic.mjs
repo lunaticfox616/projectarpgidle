@@ -1,4 +1,4 @@
-import { windowCancelAnimationFrame, windowCancelIdleCallback, windowClearTimeout, windowGetComputedStyle, windowRequestAnimationFrame, windowRequestIdleCallback, windowSetTimeout } from './browser/window-methods.mjs';
+import { windowCancelAnimationFrame, windowClearTimeout, windowGetComputedStyle, windowRequestAnimationFrame, windowSetTimeout } from './browser/window-methods.mjs';
 import { createTooltipView } from './ui/tooltip-view.mjs';
 const tooltipView = createTooltipView({
     get uiDisplay() { return uiDisplay; },
@@ -86,12 +86,11 @@ const tooltipView = createTooltipView({
     get switchTab() { return switchTab; },
     get openWindow() { return typeof openWindow === 'undefined' ? undefined : openWindow; },
     get switchItemSubtab() { return switchItemSubtab; },
-    get cancelIdleCallback() { return typeof cancelIdleCallback === 'undefined' ? undefined : windowCancelIdleCallback; },
     get getEquipCandidateSlots() { return getEquipCandidateSlots; },
     get getDualSlotDisplayLabel() { return getDualSlotDisplayLabel; },
     get isDualSlotItem() { return isDualSlotItem; },
     get console() { return console; },
-    get requestIdleCallback() { return typeof requestIdleCallback === 'undefined' ? undefined : windowRequestIdleCallback; },
+    get performance() { return performance; },
     get setTimeout() { return windowSetTimeout; },
     get ASCENDANCY_KEYSTONE_VALUES() { return ASCENDANCY_KEYSTONE_VALUES; },
     get previewBuildStats() { return previewBuildStats; }

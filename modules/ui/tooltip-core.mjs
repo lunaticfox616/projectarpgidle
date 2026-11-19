@@ -146,8 +146,7 @@ export function cancelTooltipComparison(runtime) {
     if (!job) return;
     if (job.delayHandle !== null) (0, runtime.deps.cancelAnimationFrame)(job.delayHandle);
     if (job.workHandle === null) return;
-    if (job.workKind === 'idle' && typeof runtime.deps.cancelIdleCallback === 'function') (0, runtime.deps.cancelIdleCallback)(job.workHandle);
-    else (0, runtime.deps.clearTimeout)(job.workHandle);
+    (0, runtime.deps.clearTimeout)(job.workHandle);
 }
 
 export function hideItemTooltip(runtime, event) {

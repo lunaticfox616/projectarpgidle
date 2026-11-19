@@ -32,7 +32,7 @@ export function restorePassiveChoices(deps, context) {
             && deps.PASSIVE_TREE.nodes[nodeId]
             && deps.PASSIVE_TREE.nodes[nodeId].kind === 'attribute'
             && (context.merged.passives || []).includes(nodeId)));
-    const passiveSpecializationOptions = { migrateWisdomBranchChoice: true, passiveIds: context.merged.passives };
+    const passiveSpecializationOptions = { migrateWisdomBranchChoice: true, passiveIds: context.merged.passives, owner: context.merged };
     context.merged.passiveSpecialization = typeof deps.normalizePassiveSpecializationState === 'function'
         ? (0, deps.normalizePassiveSpecializationState)(context.merged.passiveSpecialization, passiveSpecializationOptions)
         : JSON.parse(JSON.stringify(deps.defaultGame.passiveSpecialization));

@@ -25,9 +25,11 @@ class EquipmentRequirements {
     }
 
     permanentSnapshot(owner) {
-        // Exploration is not a stat input and is never mutated here. Keep it shared instead of copying the whole room map.
-        const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [], actExploration: undefined }));
+        // Exploration is not a stat input and is never mutated here. Keep it shared instead of copying the whole room map, and
+        // the karma history too (deps.copySpecialization): a save can hold tens of thousands of old entries.
+        const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [], actExploration: undefined, passiveSpecialization: undefined }));
         if (owner.actExploration !== undefined) snapshot.actExploration = owner.actExploration;
+        if (owner.passiveSpecialization !== undefined) snapshot.passiveSpecialization = this.deps.copySpecialization(owner.passiveSpecialization);
         snapshot.isBackgroundCalculation = true;
         snapshot.uniqueEliteTraitBuff = null;
         snapshot.incidentBreath = null;
