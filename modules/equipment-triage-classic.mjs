@@ -7,6 +7,7 @@ const analysis = createEquipmentTriage({
     get getEquipCandidateSlots() { return typeof getEquipCandidateSlots === 'function' ? getEquipCandidateSlots : undefined; },
     get getPersistentBuildSignature() { return getPersistentBuildSignature; },
     get takeFreshGearIds() { return takeFreshGearIds; },
+    copySpecialization: state => window.GameModules.passives.rules.copyPassiveSpecializationState(state),
     readStats: owner => combatEquipmentStats.read(false, owner)
 });
 const equipmentTriage = createEquipmentTriageUi(analysis, {

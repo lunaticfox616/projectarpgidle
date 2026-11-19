@@ -18,6 +18,7 @@ const requirements = createEquipmentRequirements({
     offhandLocked: owner => typeof hasKeystone === 'function' && !hasKeystone('w3', owner),
     thirdFingerOpen: owner => typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger', owner) > 0,
     memo: owner => getBackgroundBuildMemo(owner), signature: owner => getPersistentBuildSignature(owner),
+    copySpecialization: state => window.GameModules.passives.rules.copyPassiveSpecializationState(state),
     attributes: owner => withEquipmentCalculationOwner(owner, () => equipmentStatCalculator(false, true, true)),
     inspectBuild: inspectSavedRuneBuild, get runes() { return window.GameModules.skills.loadouts; },
     readStats: (owner, includeBreakdowns, memo, status) => playerStatCache.read(includeBreakdowns, memo, status, owner)

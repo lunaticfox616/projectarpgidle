@@ -67,6 +67,19 @@ function normalizeCycleBuffs(env, source) {
         .map(buff => ({ type: buff.type, cycle: Math.max(0, Number(buff.cycle)), expiresAt: Math.max(0, Number(buff.expiresAt)) }));
 }
 
+/** The state for a calculation copy of a game (stat previews, equipment analysis). The karma history is shared, not copied:
+ * only combat writes it (passive-karma-rules.mjs), a stat read never does, and keyed by enemy id it keeps every elite that ever
+ * hit the hero (a save held 32,405). Everything else is copied. A copy of a validated state needs no validation again.
+ * @param {ReturnType<typeof passiveRuleNormalizePassiveSpecializationState>|undefined} state */
+export const passiveRuleCopyPassiveSpecializationState = (env, state) => {
+    if (!state || typeof state !== 'object') return state;
+    const karma = state.karma && typeof state.karma === 'object' ? state.karma : null;
+    const copy = JSON.parse(JSON.stringify(karma ? { ...state, karma: { ...karma, byEnemy: undefined } } : state));
+    if (karma && karma.byEnemy !== undefined) copy.karma.byEnemy = karma.byEnemy;
+    if (env.normalizedSpecializations.has(state)) env.normalizedSpecializations.add(copy);
+    return copy;
+};
+
 export function passiveRuleEnsurePassiveSpecializationState(env, owner) {
     let state = owner.passiveSpecialization;
     // Save restoration normalizes once. JSON replay/preview copies and replaced states cross

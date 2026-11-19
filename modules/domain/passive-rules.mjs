@@ -1,5 +1,5 @@
 import { passiveRuleGetClassKeystoneDefs, passiveRuleIsPassiveTreePathEdge, passiveRuleIsPassiveTreeEdgeAvailable, passiveRuleGetPassiveTreeAdjacency, passiveRuleGetPassiveWisdomElementFromNodeIds } from './passive-tree-access.mjs';
-import { passiveRuleNormalizePassiveSpecializationState, passiveRuleEnsurePassiveSpecializationState } from './passive-specialization-state.mjs';
+import { passiveRuleNormalizePassiveSpecializationState, passiveRuleEnsurePassiveSpecializationState, passiveRuleCopyPassiveSpecializationState } from './passive-specialization-state.mjs';
 import { passiveRuleGetPassiveNodeRawEffects, passiveRuleGetPassiveNodeActivationState, passiveRuleGetEffectivePassiveNodeEffects, passiveRuleGetVoidLinkScale, passiveRuleGetAllocatedPassiveStatValue } from './passive-node-effects.mjs';
 import { passiveRuleHasAuthoredPassiveKeystone, passiveRuleFindAllocatedPassiveKeystone, passiveRuleGetPassiveKeystoneNodeId } from './passive-keystone-lookup.mjs';
 import { passiveRuleGetMystiqueAffinity, passiveRuleRecordPassiveCycleAilmentEnd, passiveRuleRecordPassiveCycleAilmentStart, passiveRuleGetActivePassiveCycleBuffEffects, passiveRuleRecordPassiveFanaticSkillUse } from './passive-cycle-rules.mjs';
@@ -22,6 +22,7 @@ export function createPassiveRules(deps) {
         getPassiveWisdomElementFromNodeIds: (...args) => passiveRuleGetPassiveWisdomElementFromNodeIds(env, ...args),
         normalizePassiveSpecializationState: (...args) => passiveRuleNormalizePassiveSpecializationState(env, ...args),
         ensurePassiveSpecializationState: (...args) => passiveRuleEnsurePassiveSpecializationState(env, ...args),
+        copyPassiveSpecializationState: (...args) => passiveRuleCopyPassiveSpecializationState(env, ...args),
         getPassiveNodeRawEffects: passiveRuleGetPassiveNodeRawEffects,
         getPassiveNodeActivationState: (...args) => passiveRuleGetPassiveNodeActivationState(env, ...args),
         getEffectivePassiveNodeEffects: (...args) => passiveRuleGetEffectivePassiveNodeEffects(env, ...args),
