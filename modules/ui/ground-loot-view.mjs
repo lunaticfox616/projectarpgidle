@@ -12,6 +12,7 @@ class GroundLootView {
         this.presentation = new GroundLootPresentation(deps);
         this.ground = undefined;
         this.air = undefined;
+        this.edge = undefined;
         this.foreground = undefined;
         this.canvas = undefined;
         this.geometry = '';
@@ -56,8 +57,8 @@ class GroundLootView {
 
     unmount() {
         this.clear();
-        for (const node of [this.ground, this.air, this.foreground]) node?.remove();
-        this.ground = this.air = this.foreground = this.canvas = undefined;
+        for (const node of [this.ground, this.air, this.edge, this.foreground]) node?.remove();
+        this.ground = this.air = this.edge = this.foreground = this.canvas = undefined;
         this.geometry = '';
     }
 
@@ -118,8 +119,10 @@ class GroundLootView {
         this.ground = this.deps.document.createElement('div'); this.ground.className = 'battle-loot-layer';
         this.air = this.deps.document.createElement('div'); this.air.className = 'battle-loot-air';
         this.foreground = this.deps.document.createElement('canvas'); this.foreground.className = 'battle-loot-foreground';
-        [this.ground, this.foreground, this.air].forEach(node => this.canvas.parentElement.append(node));
-        [this.foreground, this.air].forEach(node => node.setAttribute('aria-hidden', 'true'));
+        // The edge glint hugs the screen's edges: its layer is never moved by the stage camera (the air layer is, 2026-11-19).
+        this.edge = this.deps.document.createElement('div'); this.edge.className = 'battle-loot-edge';
+        [this.ground, this.foreground, this.air, this.edge].forEach(node => this.canvas.parentElement.append(node));
+        [this.foreground, this.air, this.edge].forEach(node => node.setAttribute('aria-hidden', 'true'));
     }
 
     canvasBox(source) {
@@ -134,7 +137,7 @@ class GroundLootView {
         this.geometry = next;
         this.entries.forEach(entry => { delete entry.marker.dataset.labelRow; });
         const rect = { left: box.left + 'px', top: box.top + 'px', width: box.width + 'px', height: box.height + 'px' };
-        [this.ground, this.foreground, this.air].forEach(node => Object.assign(node.style, rect));
+        [this.ground, this.foreground, this.air, this.edge].forEach(node => Object.assign(node.style, rect));
         this.ground.style.setProperty('--loot-width', box.width + 'px');
     }
 
@@ -195,9 +198,9 @@ class GroundLootView {
     }
 
     glint() {
-        if (!this.air || this.motes.size >= 48) return;
+        if (!this.edge || this.motes.size >= 48) return;
         const edge = this.deps.document.createElement('span'); edge.className = 'battle-loot-glint';
-        this.air.append(edge); this.motes.add(edge);
+        this.edge.append(edge); this.motes.add(edge);
         edge.addEventListener('animationend', () => { edge.remove(); this.motes.delete(edge); }, { once: true });
     }
 
