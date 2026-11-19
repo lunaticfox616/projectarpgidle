@@ -162,13 +162,13 @@ export function renderSealedLibrary(runtime, stats) {
     const head = `<div class="sealed-library-head">${(0, runtime.deps.renderPixelIcon)('lock', 'sealed-library-icon')}<div class="sealed-library-sum"><b>${(0, runtime.deps._t)('봉인 {total}개', { total })}</b>`
         + `<span class="sealed-library-power"><em>${(0, runtime.deps._t)('공명력 +{power}', { power: runtime.deps.gemDropRewards.sealResonance(runtime.deps.game) })}</em><span class="sealed-library-pips" aria-label="${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)('다음 공명력까지 {left}개', { left: 2 - total % 2 }))}">${pips}</span></span></div>`
         + `<div class="search-action-row sealed-library-actions">${bulk}</div></div>`;
-    const group = (title, names, support) => names.length ? `<section class="sealed-library-group"><h4>${(0, runtime.deps._t)(title)}<small>${names.length}</small></h4>`
+    const group = (title, names, support, count) => names.length ? `<section class="sealed-library-group"><h4>${(0, runtime.deps._t)(title)}<small>${count}</small></h4>`
         + `<div class="sealed-library-grid">${names.map(name => renderSealedRuneTile(runtime, name, (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(name)), support, stats)).join('')}</div></section>` : '';
     const empty = total ? '' : `<p class="sealed-library-empty">${(0, runtime.deps._t)('봉인한 룬이 없습니다.')}</p>`;
     const page = libraryPage(runtime, 'sealed', [...skills, ...supports], '');
     const start = page.nav ? runtime.state.libraryPages.sealed.index * runtime.state.MOBILE_PAGE_SIZE : 0;
     const split = Math.max(0, skills.length - start);
-    return head + page.nav + empty + group('공격 룬', page.rows.slice(0, split), false) + group('보조스킬룬', page.rows.slice(split), true);
+    return head + page.nav + empty + group('공격 룬', page.rows.slice(0, split), false, skills.length) + group('보조스킬룬', page.rows.slice(split), true, supports.length);
 }
 
 /** One tab per rune list with the count it holds. */

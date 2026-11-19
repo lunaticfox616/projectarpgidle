@@ -163,11 +163,18 @@ function syncGearRouteBar(runtime, strip, selected, available, titleHost) {
         bar.className = 'gear-route-bar';
         bar.append(routes, strip);
     }
-    bar.setAttribute('aria-label', runtime.deps._t('장비'));
-    bar.dataset.owner = selected;
-    bar.classList.toggle('has-item-routes', available.some(tab => tab.id === 'tab-items'));
-    bar.hidden = !bar.classList.contains('has-item-routes') && available.length <= 1;
+    writeGearRouteBar(runtime, bar, selected, available);
     markGearRouteSelection(routes);
+}
+
+/** The bar's label, owner and visibility, written only when they change (every screen refresh calls this). */
+function writeGearRouteBar(runtime, bar, selected, available) {
+    const label = runtime.deps._t('장비'), hasItems = available.some(tab => tab.id === 'tab-items');
+    const hidden = !hasItems && available.length <= 1;
+    if (bar.getAttribute('aria-label') !== label) bar.setAttribute('aria-label', label);
+    if (bar.dataset.owner !== selected) bar.dataset.owner = selected;
+    if (bar.classList.contains('has-item-routes') !== hasItems) bar.classList.toggle('has-item-routes', hasItems);
+    if (bar.hidden !== hidden) bar.hidden = hidden;
 }
 
 export function markGearRouteSelection(routes) {
