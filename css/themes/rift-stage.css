@@ -281,7 +281,6 @@
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-stage > #enemy-area { top: calc(max(var(--zone-row-bottom, 44px), var(--lesson-bottom, 0px)) + 4px); }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted { margin-top: 0; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud { grid-row: 2; align-self: center; }
-  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-panel:has(.combat-feed:not(.collapsed)) > .player-hud { visibility: visible; }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-panel > .combat-zone-actions {
     grid-row: 4; grid-column: 1; display: flex; position: relative; inset: auto; justify-content: center;
     justify-self: stretch; width: 100%; box-sizing: border-box; margin: 0;
