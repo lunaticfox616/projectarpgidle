@@ -22,7 +22,7 @@ export function createPassiveRules(deps) {
         getPassiveWisdomElementFromNodeIds: (...args) => passiveRuleGetPassiveWisdomElementFromNodeIds(env, ...args),
         normalizePassiveSpecializationState: (...args) => passiveRuleNormalizePassiveSpecializationState(env, ...args),
         ensurePassiveSpecializationState: (...args) => passiveRuleEnsurePassiveSpecializationState(env, ...args),
-        copyPassiveSpecializationState: (...args) => passiveRuleCopyPassiveSpecializationState(env, ...args),
+        copyPassiveSpecializationState: state => passiveRuleCopyPassiveSpecializationState(env, state),
         getPassiveNodeRawEffects: passiveRuleGetPassiveNodeRawEffects,
         getPassiveNodeActivationState: (...args) => passiveRuleGetPassiveNodeActivationState(env, ...args),
         getEffectivePassiveNodeEffects: (...args) => passiveRuleGetEffectivePassiveNodeEffects(env, ...args),
