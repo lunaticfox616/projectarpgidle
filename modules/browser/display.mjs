@@ -195,6 +195,7 @@ export function createDisplay(environment, inputs) {
         richPresentation: () => !service.presentationOff,
         /*! @dev-only */
         setTestPresentation: on => { service.presentationOff = !on; return !service.presentationOff; },
+        setTestFullCutscenes: on => { service.cutscenesFull = !!on; return service.cutscenesFull; },
         /*! @end-dev-only */
         /** True only while the test panel forces every boss entrance and boss kill to play its full camera shot (never in releases). */
         fullCutscenes: () => service.cutscenesFull,
