@@ -161,9 +161,12 @@ export class ReplayProjection {
     }
 
     // ------------------------------------------------------------------ projecting one map
-    /** The next map at once: travel time is in the measured cycle. A death or a completion may already have set out. */
+    /** The next map at once: travel time is in the measured cycle. A death or a completion may already have set out: it is
+     * on its way (moveTimer) with the next map laid out for arrival (or none outside a mapped zone), and that map is the one
+     * entered. Setting out again would build a second map and throw the first away. */
     beginProjectedEncounter() {
-        if (this.deps.actExplorationState.current(this.owner.game) || !(this.owner.game.moveTimer > 0)) this.deps.startMoving(false);
+        const run = this.deps.actExplorationState.current(this.owner.game);
+        if (!(this.owner.game.moveTimer > 0) || (run && !run.arrival)) this.deps.startMoving(false);
         this.owner.game.moveTimer = 0;
         this.deps.startEncounterRun();
     }
