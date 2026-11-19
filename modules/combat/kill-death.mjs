@@ -68,8 +68,16 @@ function* announceKilledEnemy(env, enemy) {
         enemyId: enemy.id, name: enemy.name, color: env.deps.getElementColor(enemy.ele),
         // Reviving bosses keep their standing fade until the story animation ends.
         duration: enemy.isBoss ? (env.deps.STAGE_STORY_ART.revives[enemy.bossAssetKey]?.total || 1600) : (enemy.isElite ? 500 : 340),
-        boss: !!enemy.isBoss, elite: !!enemy.isElite
+        boss: !!enemy.isBoss, elite: !!enemy.isElite, finisher: !!enemy.isBoss && isBossFinisher(env, enemy)
     }] };
+}
+
+/** The stage camera's full boss finisher (2026-11-19): a boss fought for at least 6 s of combat time since it joined, or any boss
+ * in a zone with no clear record yet (the record the boss entrance reads for a first sighting). Drawing reads only this flag. */
+function isBossFinisher(env, enemy) {
+    if (!Object.hasOwn((env.owner.records && env.owner.records.actBest) || {}, env.owner.currentZoneId)) return true;
+    const joined = env.deps.actExplorationState.joinedAt(enemy);
+    return joined !== null && env.deps.getCombatTime() - joined >= 6000;
 }
 
 function* splashOverkill(env, enemy, pStats) {

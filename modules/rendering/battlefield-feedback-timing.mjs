@@ -3,6 +3,8 @@ import { clampNumber } from '../common/numbers.mjs';
 const STATS_CACHE_MS = 150;
 const SKILL_EFFECT_CAP = 56;
 const KILL_HIT_STOP_MS = Object.freeze({ elite: 45, boss: 110 });
+/** 보스를 쓰러뜨린 타격의 멈춤(2026-11-19 연출 보강): 그림만 멈추고 싸움의 시간은 그대로 간다. */
+const RICH_BOSS_HIT_STOP_MS = 220;
 
 /** Cadence-adjusted load: on-time 30fps must not be treated as an overloaded 60fps frame. */
 export function battleFrameLoad(frameMs, targetMs) {
@@ -88,7 +90,8 @@ export class BattlefieldFeedbackTiming {
         const death = this.deps.effects().find(other => other && other.type === 'enemyDeath' && other.enemyId === fx.enemyId
             && Math.abs(Number(other.start) - Number(fx.start)) < 1);
         if (!death) return 0;
-        return death.boss ? KILL_HIT_STOP_MS.boss : (death.elite ? KILL_HIT_STOP_MS.elite : 0);
+        if (death.boss) return this.deps.rich() ? RICH_BOSS_HIT_STOP_MS : KILL_HIT_STOP_MS.boss;
+        return death.elite ? KILL_HIT_STOP_MS.elite : 0;
     }
 
     hitStop(fx) {

@@ -22,6 +22,7 @@ const openingJourney = createOpeningJourneyView({
     get clearTimeout() { return windowClearTimeout; },
     get uiDisplay() { return uiDisplay; },
     get battleVisualState() { return battleVisualState; },
+    get stageDirector() { return stageDirector; },
     get hotkeyBindings() { return hotkeyBindings; },
     get STAGE_HERO_RISE() { return STAGE_HERO_RISE; },
     get basicSkills() { return basicSkills; },

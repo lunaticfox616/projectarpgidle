@@ -228,8 +228,11 @@ HUD의 지속 피해 예고 게이지는 `updateCombatUI(pStats)`로 전달받�
 
 ## 장비 툴팁 비교
 
-PC 인벤토리와 장착 슬롯의 마우스 호버는 장비 설명을 즉시 표시한다. 비교 계산은 첫 렌더 기회 뒤
-idle callback(미지원 환경에서는 타이머)으로 슬롯 하나씩 처리한다. 기존 100ms 고정 대기는 제거했다.
+PC 인벤토리와 장착 슬롯의 마우스 호버는 장비 설명을 즉시 표시한다. 비교 계산은 첫 렌더 기회 뒤 일반 작업(타이머)에서
+처리한다: 첫 슬롯이 8ms 안이면 남은 슬롯도 같은 작업에서, 아니면 슬롯마다 작업 하나씩. idle callback은 240Hz 화면에서 전투가
+매 프레임 그리면 오지 않아 슬롯마다 240ms를 기다렸다(2026-11-19). 기존 100ms 고정 대기는 제거했다.
+미리보기 사본(`previewBuildStats`)과 장착 조건의 `permanentSnapshot`, 일괄 분석은 업보 기록(`karma.byEnemy`)을 복사하지 않고 함께 쓴다
+(`copyPassiveSpecializationState`, 2026-11-19 측정은 [방치 정산 성능](offline-performance.md)). 미리보기는 방 지도(`actExploration`)도 함께 쓴다.
 각 슬롯의 교체 전·후 수치는 같은 동기 작업 안에서 `getUiPlayerStats({}, false)`로 계산한다.
 이전 툴팁 스탯이나 오래 보관한 비교 HTML을 재사용하지 않는다. 수치 비교에는 설명 생성이 필요 없다.
 

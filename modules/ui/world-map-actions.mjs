@@ -175,6 +175,8 @@ export function link(runtime, id, on) {
 /** 한 번 누름: 설명 칸에 고정. 전체를 다시 그리지 않고 표시만 바꾼다(두 번 누름의 둘째 누름이 같은 단추에 닿아야 dblclick이 온다). */
 export function pick(runtime, id) {
     runtime.state.picked = id;
+    const picker = runtime.deps.document.querySelector('#ui-exploration-atlas .wm-place-select');
+    if (picker) picker.value = id;
     runtime.deps.document.querySelectorAll('#ui-exploration-atlas .is-picked').forEach(piece => piece.classList.remove('is-picked'));
     runtime.deps.document.querySelectorAll(`#ui-exploration-atlas [data-wm="${id}"]`).forEach(piece => piece.classList.add('is-picked'));
     peek(runtime, id);
@@ -296,8 +298,15 @@ export function overviewHtml(runtime, reader) {
     const shown = all.filter(e => e.state.open || e.state.next);
     const layers = `<svg class="wm-lines" viewBox="0 0 ${runtime.deps.WORLD_MAP.width} ${runtime.deps.WORLD_MAP.height}" aria-hidden="true">${shown.map(runtime.handlers.linesHtml).join('')}${nextLinkHtml(runtime, all)}</svg>`
         + shown.map(runtime.handlers.zoneHtml).join('') + shown.map(runtime.handlers.markHtml).join('') + shown.map(runtime.handlers.tagHtml).join('');
-    return `<div class="world-map${others ? ' has-others' : ''}">${open.length ? `<div class="wm-side-wrap">${sideFor(runtime, resting(runtime, open))}</div>` : ''}<div class="wm-view"><div class="wm-map" role="group" aria-label="${(0, runtime.deps._t)('세계 지도')}">`
+    const selected = resting(runtime, open);
+    const side = selected ? `<div class="wm-side-wrap">${placeSelectHtml(runtime, open, selected)}${sideFor(runtime, selected)}</div>` : '';
+    return `<div class="world-map${others ? ' has-others' : ''}">${side}<div class="wm-view"><div class="wm-map" role="group" aria-label="${(0, runtime.deps._t)('세계 지도')}">`
         + `<div class="wm-art" style="background-image:url('${runtime.deps.WORLD_MAP.src}')"></div>${layers}${atlasEntranceHtml(runtime)}</div></div>${others}</div>`;
+}
+
+function placeSelectHtml(runtime, open, selected) {
+    const options = open.map(({region, state}) => `<option value="${region.id}" ${region.id === selected.region.id ? 'selected' : ''}>${(0, runtime.deps.escapeHTML)(state.title)}</option>`);
+    return `<label class="wm-place-picker"><span>${(0, runtime.deps._t)('목적지')}</span><select class="wm-place-select" onchange="worldMapUi.pick(this.value)">${options.join('')}</select></label>`;
 }
 
 /** 세부 화면 위 길잡이의 자리 탭(explorationAtlasUi locationHtml): 지도의 열린 자리마다 표식 하나. 액트는 '나무' 하나에 현재 액트 번호. 눌린 자리만 이름이 펼쳐진다. */

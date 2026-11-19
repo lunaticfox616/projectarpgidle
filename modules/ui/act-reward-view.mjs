@@ -157,6 +157,7 @@ export class ActRewardView {
     isActRewardPromptBlocked() {
         if (this.deps.game.pendingLoopHeroSelection || this.deps.game.pendingLoopReady || this.deps.game.pendingLoopDecision) return true;
         if (this.deps.activeTutorial || this.actRewardWaitsForGuide() || this.deps.backgroundCombatRuntime.processing) return true;
+        if (this.deps.director.running()) return true;   // a stage camera shot (the boss finisher) plays to its end first, 2026-11-19
         return !!this.deps.document.querySelector('.tutorial-overlay.active, dialog:modal, .selection-overlay, .background-combat-progress-overlay, #background-combat-result-overlay');
     }
 

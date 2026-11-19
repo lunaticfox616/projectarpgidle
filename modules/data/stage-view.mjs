@@ -119,9 +119,9 @@ const STAGE_ROOMS = Object.freeze({
     /** 하단 HUD가 휴대폰 배치(전장 아래를 덮는 한 줄 판)인 가장 넓은 전장 폭(px): CSS의 max-width: 1080px와 같다. */
     phoneWidth: 1080,
     /** 세로 화면의 전투 탭(2026-11-03 사용자: 전투 화면과 생명력 HUD를 위로, 아래 빈 공간에 전투 기록): 전장, HUD, 펼친 전투 기록이 위아래로
-     * 쌓인다(css/themes/rift-stage.css). 전장은 가로로 columns칸을 다 보이고, 바닥의 앞쪽 끝은 전장 아래 끝에서 clear px 위다: 전장 아래쪽에
-     * 띠 없이 겹친 생명력 · 미니맵 · 경험치 HUD 위(2026-11-03 사용자). */
-    stacked: Object.freeze({ columns: 20, clear: 58 }),
+     * 쌓인다(css/themes/rift-stage.css). 전장은 가로로 columns칸을 다 보인다. 2026-11-19부터 HUD가 전장 밖의 줄이라 바닥의 앞쪽 끝은
+     * 전장 아래 끝에서 칸 하나와 sideHudGap 위다(앞쪽 문이 보일 만큼, 왼쪽 HUD 배치와 같은 규칙). 예전의 58px는 전장 아래를 덮던 HUD 몫이었다. */
+    stacked: Object.freeze({ columns: 20 }),
     /** 바닥의 앞쪽 끝 아래(걸어갈 수 없는 자리)를 덮는 어둠 (2026-10-14 사용자: "바닥 중 아래쪽의 못 가는 영역은 약간 그라데이션으로
      * 어둡게"). 앞쪽 끝에서 아래로 띠(bandDots 도트)마다 한 단씩 짙어져 bands번째 띠부터 alpha에 머문다. */
     frontShade: Object.freeze({ colour: '#06050a', alpha: 0.6, bands: 12, bandDots: 4 }),

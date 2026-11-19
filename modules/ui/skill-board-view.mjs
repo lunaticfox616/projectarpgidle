@@ -17,7 +17,7 @@ export function createSkillBoardView(deps) {
         const kind = slot.dataset.boardPick;
         if (kind !== 'support') { runtime.state.focusedSkill = { kind, name: slot.dataset.boardGem || '' }; render(runtime, (0, runtime.deps.getUiPlayerStats)()); }
         // 칸을 누르면 룬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 룬 / 빈 칸: 낄 룬).
-        if (kind !== runtime.state.pickerKind) pick(runtime, kind, true);
+        if (kind !== runtime.state.pickerKind) pick(runtime, kind);
         runtime.deps.gemSlotDialog.open(kind, slot.dataset.boardGem || '');
     });
     return runtime.api;

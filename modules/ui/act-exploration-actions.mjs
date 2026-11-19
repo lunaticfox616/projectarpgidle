@@ -12,7 +12,7 @@ export function summaryOf(runtime, run, map) {
     const hero=runtime.deps.game.gridPlayer,goal=runtime.deps.actExplorationState.markedDestination(run);
     return {run,map,packs:packDigest(runtime, run),visited:run.visitedRooms.length,discovered:run.discovered,status:run.status,sealed:!!run.sealed,
         mode:run.mode,hotkey:autoKey(runtime),locked:autoLocked(runtime),gx:hero.gx,gy:hero.gy,goalX:goal?goal.gx:-1,goalY:goal?goal.gy:-1,
-        large:runtime.deps.document.getElementById('act-exploration-dialog').open};
+        mobile:runtime.deps.document.body.classList.contains('mobile-battle-tab'),large:runtime.deps.document.getElementById('act-exploration-dialog').open};
 }
 
 export function render(runtime) {
@@ -110,7 +110,10 @@ export function autoKey(runtime) {return runtime.deps.hotkeyBindings.label(runti
 
 export function renderProgress(runtime, run) {
     const panel=runtime.deps.document.getElementById('act-exploration-panel');if(!panel)return;
-    panel.style.setProperty('--explore-pct',Math.round(runtime.deps.actExplorationSight.exploredShare(run)*100)+'%');
+    const percent = Math.round(runtime.deps.actExplorationSight.exploredShare(run)*100)+'%';
+    panel.style.setProperty('--explore-pct',percent);
+    const caption = runtime.deps.document.getElementById('mobile-map-progress');
+    if (caption && caption.textContent !== percent) caption.textContent = percent;
 }
 
 export function mode(runtime, value) {

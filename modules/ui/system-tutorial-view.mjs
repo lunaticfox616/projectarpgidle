@@ -1,6 +1,6 @@
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { cancelViewFrames } from './view-frames.mjs';
-import { canUseBud, skillBoardShown, supportStep, equipped, canEngrave, engraveStep, craftShown, craftStep, shopStep, salvageStep, beginSalvage, createStep, salvageCandidates, supportChoices, sampleAttackRune, tabShown, engraveRune, engravings, craftChoices, normalHelmet, shown, shopNpc, affordableGear } from './system-tutorial-steps.mjs';
+import { canUseBud, skillBoardShown, showRuneBoard, supportStep, equipped, canEngrave, engraveStep, craftShown, craftStep, shopStep, salvageStep, beginSalvage, createStep, salvageCandidates, supportChoices, sampleAttackRune, tabShown, engraveRune, engravings, craftChoices, normalHelmet, shown, shopNpc, affordableGear } from './system-tutorial-steps.mjs';
 import { offer, visit, startShopSalvage, refreshSystemGuide } from './system-tutorial-actions.mjs';
 
 export function createSystemTutorialView(deps) {
@@ -59,7 +59,7 @@ function disposeSystemTutorialView(runtime) {
 function supportLesson(runtime) {
     return { key: 'tutorial_support_equip', tabId: 'tab-skills', unlock: 'support', title: '보조스킬룬 장착',
         body: '빈 보조 칸을 열고, 적용 대상과 공명 비용을 확인해 룬을 장착합니다.',
-        view: runtime.handlers.skillBoardShown, available: () => supportChoices(runtime).length > 0, step: runtime.handlers.supportStep,
+        view: runtime.handlers.skillBoardShown, available: () => supportChoices(runtime).length > 0, step: runtime.handlers.supportStep, reveal: () => showRuneBoard(runtime),
         begin: () => ({ worn: new Set(equipped(runtime)), choices: supportChoices(runtime) }), read: runtime.handlers.equipped,
         completed: (current, before) => current.some(name => !before.worn.has(name)),
         result: () => '보조스킬룬을 장착했습니다.',
@@ -75,7 +75,7 @@ function engraveLesson(runtime) {
     return { key: 'tutorial_rune_engrave', tabId: 'tab-skills', unlock: 'engraving', title: '스킬룬 각인',
         body: '공격 룬의 빈 각인 칸에 창공의 정수를 써서 효과를 넣습니다.',
         view: () => tabShown(runtime, 'tab-skills') && ['skill-tab-equip', 'skill-tab-enhance'].includes(runtime.deps.game.skillSubtab),
-        available: runtime.handlers.canEngrave, step: runtime.handlers.engraveStep,
+        available: runtime.handlers.canEngrave, step: runtime.handlers.engraveStep, reveal: () => showRuneBoard(runtime),
         begin: () => ({ rune: engraveRune(runtime), effects: new Set(engravings(runtime, engraveRune(runtime))) }), read: () => runtime.deps.game.currencies.skyEssence,
         completed: (_, before) => engravings(runtime, before.rune).some(id => !before.effects.has(id)),
         result: () => '공격 룬에 각인을 넣었습니다.',

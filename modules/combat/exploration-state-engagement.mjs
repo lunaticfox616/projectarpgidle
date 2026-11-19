@@ -57,8 +57,14 @@ export function stateEngage(env, state,now=env.deps.getCombatTime()) {
         added.push(...ready);
     }
     if(added.length)state.enemies.push(...added);
+    stateNoteJoins(env, added);
     return added;
 }
+
+function stateNoteJoins(env, added) {for(const enemy of added)if(enemy.isBoss)env.memo.joins.set(enemy,env.deps.getCombatTime());}
+
+/** Combat ms when a boss joined the fight this session (null when it was not seen joining: a restored save, another mode). */
+export function stateJoinedAt(env, enemy) {return enemy && env.memo.joins.has(enemy) ? env.memo.joins.get(enemy) : null;}
 
 /** Ordinary monsters that have not noticed the hero yet, within reach tiles of cell (Chebyshev). Bosses wait for their entrance. */
 export function stateDormantNear(state,cell,reach) {

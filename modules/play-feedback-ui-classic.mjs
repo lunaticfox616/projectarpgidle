@@ -69,6 +69,7 @@ const reward = new ActRewardView({
     get setTimeout() { return setTimeout.bind(window); },
     get tutorialActionUi() { return typeof tutorialActionUi === 'undefined' ? undefined : tutorialActionUi; },
     get uiDisplay() { return uiDisplay; },
+    get director() { return stageDirector; },
 });
 
 window.GameModules.playFeedback = { death, reward, dispose() { death.dispose(); reward.dispose(); } };

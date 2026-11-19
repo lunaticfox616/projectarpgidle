@@ -19,7 +19,14 @@ const OFFLINE_PROGRESS_EFFICIENCY_CAP = 0.75;
 // 정산 처치가 실제의 46%였다. 후반 영웅은 몇 시간에 한 번 올라 거의 쓰지 않는다). 투영을 못 탄 실제
 // 전투가 realHoldMs를 넘으면 밀어붙이기를 멈추고 지금 지역을 반복해 투영이 재게 하고, realCapMs를 넘으면 남은 시간은 계산하지
 // 않는다(휴대폰은 실제 전투 1분에 약 2초).
+// 꾸준한 영웅(2026-11-19): 투영이 시작된 뒤 잰 실제 바퀴가 그 바퀴가 고치는 보정의 평균 ± max(steadyBandSpreads 표준편차,
+// 평균의 steadyBandFloor) 안이면 시간과 처치한 생명 모두에서 연속 횟수를 하나 올리고(steadyStreakCap까지), 하나라도 밖이면 0으로
+// 되돌린다. 주기 재측정 간격이 2^연속 횟수배가 되고(최대 160분), 마지막 측정 뒤 투영 remeasureEveryMs가 지나 오른 레벨은 보정보다
+// 2^연속 횟수 레벨 높을 때만 다시 잰다. 그 안에 오른 레벨은 전처럼 바로 잰다: 바퀴 퍼짐(제작 T15 표준편차 1~2%, 시작 전사 5~7%)이
+// 루프 초반 레벨당 빨라짐(5~10%)과 같은 크기라 띠만으로는 크는 영웅을 가려내지 못했다(시작 전사 3시간 처치 -5%). 표준편차만 쓰면
+// 바퀴가 고른 빌드의 띠가 거의 0이 되어 바닥을 둔다. 연속 횟수는 정산 동안만 있다.
 const OFFLINE_PROJECTION = Object.freeze({ minRealMs: 120000, minCycles: 3, minMeasuredMs: 180000, remeasureEveryMs: 1200000,
     realBudgetMs: 600000, realHoldMs: 1800000, realCapMs: 3600000, objectSampleMin: 6,
+    steadyStreakCap: 3, steadyBandSpreads: 2, steadyBandFloor: 0.1,
     timeScale: Object.freeze([0.5, 2]), zoneTypes: Object.freeze(['act', 'abyss', 'atlasMap']) });
 export { OFFLINE_PROGRESS_RECOGNITION_HOURS, OFFLINE_PROGRESS_EFFICIENCY_RATES, OFFLINE_PROGRESS_EFFICIENCY_CAP, OFFLINE_PROJECTION };

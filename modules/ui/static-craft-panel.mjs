@@ -29,7 +29,7 @@ export function getCraftEmptyStateHtml(runtime) {
 
 export function getCraftTargetControlsHtml(runtime) {
 
-    return `<div class="craft-target-actions"><button type="button" id="craft-target-equip-open" onclick="event.stopPropagation(); openCraftItemPickerOverlay('equip')">${(0, runtime.deps._t)('장비')}</button><button type="button" id="craft-target-inventory-open" onclick="event.stopPropagation(); openCraftItemPickerOverlay('inventory')">${(0, runtime.deps._t)('인벤토리')}</button></div>`;
+    return `<div class="craft-target-actions"><button type="button" id="craft-target-equip-open" onclick="event.stopPropagation(); openCraftItemPickerOverlay('equip')">${(0, runtime.deps._t)('장착 장비')}</button><button type="button" id="craft-target-inventory-open" onclick="event.stopPropagation(); openCraftItemPickerOverlay('inventory')">${(0, runtime.deps._t)('가방')}</button></div>`;
 
 }
 

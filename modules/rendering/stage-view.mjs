@@ -35,7 +35,7 @@ class StageView {
     /** Front edge of the floor as a share of viewport height, above the HUD. */
     floorShare(width, height) {
         const share = this.deps.STAGE_ROOMS.floorBottom;
-        if (this.stacked()) return 1 - this.deps.STAGE_ROOMS.stacked.clear / height;
+        if (this.stacked()) return 1 - (Math.floor(width / this.deps.STAGE_ROOMS.stacked.columns) + this.deps.STAGE_ROOMS.sideHudGap) / height;
         if (this.phonePortrait(width, height)) return Math.max(share.narrow, 1 - this.deps.STAGE_ROOMS.phoneClear / height);
         return width >= this.deps.STAGE_VIEW.minColumns.narrowBelow ? Math.min(share.wide, 1 - this.deps.STAGE_ROOMS.hudClear / height) : share.narrow;
     }

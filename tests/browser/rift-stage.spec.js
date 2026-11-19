@@ -162,7 +162,7 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(errors).toEqual([]);
 });
 
-test('mobile portrait battlefield fills the top with the zone row and HUD over it and the log below', async ({ page }, info) => {
+test('mobile portrait battlefield leaves its controls reachable and lends space to the expanded log', async ({ page }, info) => {
     test.skip(!info.project.use.isMobile, 'Mobile stage');
     const errors = await openGame(page, info);
     const zone = await rectOf(page, '#tab-battle .combat-zone-row');
@@ -170,13 +170,20 @@ test('mobile portrait battlefield fills the top with the zone row and HUD over i
     const hud = await rectOf(page, '#tab-battle .player-hud');
     const feed = await rectOf(page, '#tab-battle .combat-feed');
     const nav = await rectOf(page, '#tab-header-bottom');
-    // 2026-11-03 사용자: 전투 화면이 맨 위까지 차고 지역 줄과 단추가 그 위쪽에, HUD가 그 아래쪽에 겹친다. 전투 기록은 그 아래 남는 자리를 채운다.
+    const actions = await rectOf(page, '#tab-battle .combat-zone-actions');
     expect(field.top).toBeLessThanOrEqual(zone.top + 1);
     expect(zone.bottom).toBeLessThan(field.top + field.height / 2);
-    expect(hud.top).toBeGreaterThan(field.top + field.height / 2);
-    expect(hud.bottom).toBeLessThanOrEqual(field.bottom + 1);
-    expect(feed.top).toBeGreaterThanOrEqual(field.bottom - 1);
-    expect(feed.bottom).toBeLessThanOrEqual(nav.top + 1);
+    expect(hud.top).toBeGreaterThanOrEqual(field.bottom - 1);
+    expect(feed.top).toBeGreaterThanOrEqual(hud.bottom - 1);
+    expect(actions.top).toBeGreaterThanOrEqual(feed.bottom - 1);
+    expect(actions.bottom).toBeLessThanOrEqual(nav.top + 1);
+    await expect(page.locator('#log')).toBeHidden();
+    const toggle = page.locator('#btn-combat-log-toggle');
+    await toggle.tap();
+    await expect(page.locator('#log')).toBeVisible();
+    expect((await rectOf(page, '#battlefield-wrap')).height).toBeLessThan(field.height);
+    await toggle.tap();
+    await expect(page.locator('#log')).toBeHidden();
     expect(errors).toEqual([]);
 });
 

@@ -1,9 +1,9 @@
 import { selected, workspaceRestoreGoal, workspaceUseState, held, esc, signature, matches, workspaceAutoReason, workspaceGoalChoice, workspaceSetGoal, workspaceSaveGoals, workspaceArmedOmen, workspaceGoalOptions, workspaceCoin } from './crafting-workspace-selection.mjs';
-import { workspaceItemHtml, workspaceMethodsHtml, workspaceGoalHtml, workspaceCostText, workspaceActionHtml, workspaceResultHtml, workspaceAffixValue } from './crafting-workspace-markup.mjs';
+import { workspaceItemHtml, workspaceMethodsHtml, workspaceGoalHtml, workspaceCostText, workspaceActionHtml, workspaceResultHtml, workspaceAffixValue, workspaceFoldButton } from './crafting-workspace-markup.mjs';
 
-export function workspaceOpenInventory(ctx, inspect='', craftingOnly=false) {
+export function workspaceOpenInventory(ctx, inspect='', craftingOnly=false, methods=false) {
     if(ctx.state.auto){workspaceStopAuto(ctx, '재화 인벤토리를 열어 자동 사용을 멈췄어요.');workspaceRender(ctx);}
-    ctx.deps.craftingCatalogUi.open(ctx.state.recipes,ctx.handlers.workspacePickResource,{active:ctx.state.recipe.key,inspect:inspect,craftingOnly:craftingOnly,useState:ctx.handlers.workspaceResourceState});
+    ctx.deps.craftingCatalogUi.open(ctx.state.recipes,ctx.handlers.workspacePickResource,{active:ctx.state.recipe.key,inspect:inspect,craftingOnly:craftingOnly,methods:methods,useState:ctx.handlers.workspaceResourceState});
 }
 
 export function workspacePickResource(ctx, key) {
@@ -54,9 +54,11 @@ export function workspaceRender(ctx, reveal=false, controls) {
     if(!workspaceShown(ctx)){if(ctx.state.auto)workspaceStopAuto(ctx, '');return;}
     if(!item){workspacePaintEmpty(ctx);return;}
     const state=workspaceUseState(ctx), stopped=held(ctx);
-    const html=`<div class="cl-heading">${ctx.state.adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">${(0, ctx.deps._t)('재화 인벤토리')}</button></div>
-            <div class="cl-workspace">${workspaceItemHtml(ctx)}<div class="cl-controls">${workspaceMethodsHtml(ctx, state,stopped)}${workspaceGoalHtml(ctx)}<div class="cl-action"><small>${esc(ctx, workspaceCostText(ctx))}</small>
-            ${workspaceActionHtml(ctx, state,stopped)}<span class="cl-block cl-error" role="status">${!state.enabled?`<span class="px-center">${esc(ctx, state.reason)}</span>`:''}</span></div></div></div>${workspaceResultHtml(ctx)}`;
+    const goals=workspaceGoalHtml(ctx);
+    const goalLabel=ctx.state.recipe.kind==='value'?(0, ctx.deps._t)('목표 옵션'):(0, ctx.deps._t)('목표 옵션 및 자동 사용');
+    const html=`<div class="cl-workspace">${workspaceItemHtml(ctx)}<div class="cl-controls">${workspaceMethodsHtml(ctx, state,stopped)}
+            <div class="cl-use-cost"><small>${esc(ctx, workspaceCostText(ctx))}</small><span class="cl-block cl-error" role="status">${!state.enabled?`<span class="px-center">${esc(ctx, state.reason)}</span>`:''}</span></div>
+            ${goals?workspaceFoldButton('advanced', goalLabel):''}<div id="cl-advanced">${goals}<div class="cl-action">${workspaceActionHtml(ctx, state,stopped)}</div></div></div></div>${workspaceResultHtml(ctx)}`;
     workspaceReplaceMarkup(ctx, html,reveal);
     if(reveal)ctx.state.root.querySelector('.cl-item').classList.add('just-crafted');
     workspaceShowDialogs(ctx, reveal,stopped);
@@ -72,7 +74,9 @@ export function workspaceShowDialogs(ctx, reveal, stopped) {
 export function workspaceReplaceMarkup(ctx, html, reveal) {
     if(html===ctx.state.renderKey&&!reveal)return;
     const focusId=ctx.state.root.querySelector(':focus')?.id;
+    const expanded=Array.from(ctx.state.root.querySelectorAll('.cl-fold-toggle[aria-expanded="true"]'), button=>button.id);
     ctx.state.root.innerHTML=html;ctx.state.renderKey=html;
+    for(const id of expanded)ctx.state.root.querySelector('#'+id)?.setAttribute('aria-expanded','true');
     if(focusId)ctx.state.root.querySelector('#'+focusId)?.focus({preventScroll:true});
 }
 
@@ -303,6 +307,8 @@ export function workspaceWire(ctx) {
 }
 
 export async function workspaceHandleClick(ctx, event) {
+    const fold=event.target.closest('.cl-fold-toggle');
+    if(fold){fold.setAttribute('aria-expanded', String(fold.getAttribute('aria-expanded')!=='true'));return;}
     try {await workspaceClick(ctx, event);}
     catch(error){ctx.deps.console.error('Crafting action failed',error);ctx.state.notice=(0, ctx.deps._t)('제작 실패: {message}', { message: error.message });ctx.state.busy=false;workspaceRender(ctx);}
 }

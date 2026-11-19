@@ -1,4 +1,5 @@
 import { sceneEase } from './observer-scene-ease.mjs';
+import { letterbox } from './cinema-frame.mjs';
 
 class ObserverScene {
     constructor(deps) {
@@ -41,9 +42,7 @@ class ObserverScene {
     paintObserverDialogue(ctx, width, height, age, cue) {
         const bar = Math.round(Math.min(60,height * .072) * this.sceneEase(age / cue.close));
         const panelY = Math.round(Math.min(height * .69, height - 84));
-        ctx.fillStyle = '#100c18';
-        ctx.fillRect(0,0,width,bar);
-        ctx.fillRect(0,height-bar,width,bar);
+        letterbox(ctx, { width, height }, { bar, fill: '#100c18' });
         const fade = this.sceneEase((age-270)/200);
         if (fade <= 0) return;
         ctx.globalAlpha = fade;

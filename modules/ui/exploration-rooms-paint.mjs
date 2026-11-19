@@ -21,12 +21,17 @@ export function knownBounds(runtime, map, seen) {
 
 /** Plan units → canvas px: the known rooms fitted and centred; too many for the small map, it follows the hero's room. */
 export function fit(runtime, canvas, map, seen) {
-    const size = canvas.id === 'act-exploration-map' ? runtime.state.SIZE.mini : runtime.state.SIZE.large, plan = map.plan, shown = knownBounds(runtime, map, seen);
+    const size = mapSize(runtime, canvas), plan = map.plan, shown = knownBounds(runtime, map, seen);
     const room = runtime.deps.actExplorationRooms.roomAt(map, runtime.deps.game.gridPlayer), here = plan.boxes[room ? room.index : map.entry.index];
     const scale = Math.max(size.least, Math.min(size.cap, (size.w - size.pad * 2) / shown.width, (size.h - size.pad * 2) / shown.height));
     const left = planStart(runtime, shown.width * scale, size.w, size.pad, (here.x - shown.x0) * scale) - shown.x0 * scale;
     const top = planStart(runtime, shown.height * scale, size.h, size.pad, (here.y - shown.y0) * scale) - shown.y0 * scale;
     return { size, scale, x: value => left + value * scale, y: value => top + value * scale };
+}
+
+function mapSize(runtime, canvas) {
+    if (canvas.id !== 'act-exploration-map') return runtime.state.SIZE.large;
+    return runtime.deps.document.body.classList.contains('mobile-battle-tab') ? runtime.state.SIZE.mobile : runtime.state.SIZE.mini;
 }
 
 export function rectOf(runtime, box, view) {
@@ -133,7 +138,7 @@ export function drawCommand(runtime, ctx, run, map, view) {
 
 /** A single large arena shows its actual footprint and landmarks, rather than a tiny boss-room symbol. */
 export function arenaView(runtime, canvas, map) {
-    const size = canvas.id === 'act-exploration-map' ? runtime.state.SIZE.mini : runtime.state.SIZE.large, room = map.rooms[0];
+    const size = mapSize(runtime, canvas), room = map.rooms[0];
     const columns = room.x1 - room.x0 + 1, rows = room.y1 - room.y0 + 1;
     const scale = Math.min((size.w - size.pad * 2) / columns, (size.h - size.pad * 2) / rows);
     const left = (size.w - columns * scale) / 2, top = (size.h - rows * scale) / 2;

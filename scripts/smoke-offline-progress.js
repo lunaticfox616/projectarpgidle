@@ -12,12 +12,13 @@ const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 const { mergeDefaults, simulateBackgroundCombat, simulateBackgroundCombatChunked } = runtime;
 
 // Restored passive combat history is normalized once, but remains live and isolated across saves/replay copies.
-run(`game = mergeDefaults({heroSelectionInitialized:true, playerHp:100, passiveSpecialization:{
-    karma:{byEnemy:{elite:'125.9', invalid:'bad', negative:-1},buff:{targetId:'elite',morePct:10,actionsLeft:0}},
+// Entries of enemies the save no longer holds are dropped on restore (2026-11-19): 7 is still in the fight, 6 is long gone.
+run(`game = mergeDefaults({heroSelectionInitialized:true, playerHp:100, enemies:[{id:7,name:'정예',hp:50,maxHp:50,isElite:true}], passiveSpecialization:{
+    karma:{byEnemy:{7:'125.9', 6:40, invalid:'bad', negative:-1},buff:{targetId:'7',morePct:10,actionsLeft:0}},
     cycleBuffs:[null,{type:'unknown',cycle:1,expiresAt:500}],fanaticism:{stacks:-2}}});`);
-assert.deepStrictEqual(json('game.passiveSpecialization.karma'), {byEnemy:{elite:125},buff:null});
+assert.deepStrictEqual(json('game.passiveSpecialization.karma'), {byEnemy:{7:125},buff:null});
 run('getPlayerStats(); getPlayerStats();');
-assert.strictEqual(run('game.passiveSpecialization.karma.byEnemy.elite'),125,'stat reads preserve accumulated karma');
+assert.strictEqual(run('game.passiveSpecialization.karma.byEnemy[7]'),125,'stat reads preserve accumulated karma');
 run("recordPassiveCycleAilmentEnd('chill',5,1000);");
 const originalSpecialization = run('JSON.stringify(game.passiveSpecialization)');
 run('const committedKarmaGame=game; game=JSON.parse(JSON.stringify(game));');
@@ -25,10 +26,10 @@ run("ensurePassiveSpecializationState(); recordPassiveCycleAilmentEnd('chill',5,
 assert.strictEqual(run("getActivePassiveCycleBuffEffects(1001).find(effect=>effect.stat==='coldPctDmg').val"),10,'a copied state reads live buffs');
 assert.deepStrictEqual(json('getActivePassiveCycleBuffEffects(7000)'),[],'the buff still expires');
 assert.strictEqual(run('JSON.stringify(committedKarmaGame.passiveSpecialization)'),originalSpecialization,'a replay copy cannot expire committed buffs');
-run('game=committedKarmaGame; game.passiveSpecialization={karma:{byEnemy:{replacement:"20.8"}}}; ensurePassiveSpecializationState();');
-assert.deepStrictEqual(json('game.passiveSpecialization.karma.byEnemy'),{replacement:20},'a replacement is validated again');
+run('game=committedKarmaGame; game.passiveSpecialization={karma:{byEnemy:{7:"20.8"}}}; ensurePassiveSpecializationState();');
+assert.deepStrictEqual(json('game.passiveSpecialization.karma.byEnemy'),{7:20},'a replacement is validated again');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));');
-assert.deepStrictEqual(json('game.passiveSpecialization.karma.byEnemy'),{replacement:20},'reload preserves the remaining history');
+assert.deepStrictEqual(json('game.passiveSpecialization.karma.byEnemy'),{7:20},'reload preserves the remaining history');
 
 // A new game counts 3 hours at 30%; each step raises them, and the outside sources stop at the cap.
 run('game = mergeDefaults({})');

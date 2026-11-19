@@ -24,7 +24,9 @@ export class HeroMotionPlayback {
     playSkill(skillId) {
         let normalized = Number(skillId);
         if (!SKILL_CONFIG[normalized]) return false;
-        let now = this.deps.performance.now();
+        // On the drawing clock that getSkillPlaybackState is read with, so hit stop and the director's slow motion hold it too.
+        let visualNow = Number(this.runtime.scene.visualNow);
+        let now = Number.isFinite(visualNow) && visualNow > 0 ? visualNow : this.deps.performance.now();
         let skillCfg = SKILL_CONFIG[normalized];
         let motionFrames = HERO_MOTIONS[skillCfg.motion] || HERO_MOTIONS.idle;
         let duration = Math.max(560, motionFrames.length * 220);

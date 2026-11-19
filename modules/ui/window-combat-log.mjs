@@ -9,18 +9,15 @@ export function saveCombatLogReserve(runtime, px) {
     saveLayoutState(runtime);
 }
 
-/** What the stage leaves now (CSS px; a stage held by its 4:3 width leaves more than the stored share) and the most it may leave.
-* The stage's limit read with a zero share is the whole height the stage and the log split. Null outside the stacked layout. */
+/** Expanded messages and the battlefield share the free height below the region title. */
 export function measureCombatLogShare(runtime) {
     const stage = runtime.deps.document.querySelector('#tab-battle .combat-stage');
-    if (!stage) return null;
-    const root = runtime.deps.document.documentElement.style, stored = runtime.state.layoutState.combatLog.reserve || runtime.state.COMBAT_LOG_RESERVE_MIN;
-    root.setProperty('--combat-log-reserve', '0px');
-    const whole = (0, runtime.deps.parseFloat)((0, runtime.deps.getComputedStyle)(stage).maxHeight);
-    root.setProperty('--combat-log-reserve', stored + 'px');
-    if (!Number.isFinite(whole)) return null;
+    const feed = runtime.deps.document.querySelector('#tab-battle .combat-feed');
+    if (!stage || !feed || !runtime.deps.document.getElementById('combat-log-resize')?.getClientRects().length) return null;
     const factor = (runtime.deps.window.uiDisplay && runtime.deps.window.uiDisplay.factor) || 1;
-    return { now: whole - stage.getBoundingClientRect().height / factor, most: Math.max(runtime.state.COMBAT_LOG_RESERVE_MIN, whole - runtime.state.COMBAT_LOG_MIN_STAGE), factor };
+    const now = feed.getBoundingClientRect().height / factor;
+    const most = now + stage.getBoundingClientRect().height / factor - runtime.state.COMBAT_LOG_MIN_STAGE;
+    return { now, most: Math.max(runtime.state.COMBAT_LOG_RESERVE_MIN, most), factor };
 }
 
 export function startCombatLogResize(runtime, event) {

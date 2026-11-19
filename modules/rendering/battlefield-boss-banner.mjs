@@ -76,11 +76,16 @@ export class BattlefieldBossBanner {
         return Array.from(new Set(tags.filter(Boolean)));
     }
 
-    update(enemies, now) {
+    /** The boss the band names: an invading boss takes priority over the boss already fighting. A boss felled while its entrance
+     * still runs gives the line to the defeat plate. */
+    named(enemies, now) {
         const revealed = this.deps.entrance.revealedBoss(now);
-        // An invading boss takes priority over the boss already fighting.
         const boss = (revealed && revealed.redEntrance ? revealed : null) || (enemies || []).find(enemy => enemy && enemy.isBoss) || revealed;
-        const visual = this.deps.visual();
+        return boss && boss.hp > 0 ? boss : null;
+    }
+
+    update(enemies, now) {
+        const boss = this.named(enemies, now), visual = this.deps.visual();
         visual.bossBannerFor = null;
         if (!boss) return null;
         if (visual.bossAnnounceId !== boss.id) {
@@ -108,6 +113,14 @@ export class BattlefieldBossBanner {
         return y;
     }
 
+    /** The band's line is found among the drawn bodies (world px); while the stage camera is zoomed it moves with them, kept on the
+     * frame (area.project: world point to screen, 2026-11-19). */
+    screenY(area, y) {
+        const shown = area.project ? area.project({ x: 0, y }).y : y;
+        // Below the zone title (the same top limit the entrance's band line keeps), above the HUD.
+        return shown === y ? y : Math.round(Math.max(area.height * 0.18 + 38, Math.min(area.height * 0.8, shown)));
+    }
+
     subLines(ctx, boss, width) {
         const head = [this.deps._t('{ele} 속성 보스', { ele: elementLabel(boss.ele) })], defenses = defenseHighlights(boss);
         ctx.font = `12px ${this.text.font()}`;
@@ -120,7 +133,7 @@ export class BattlefieldBossBanner {
         this.deps.entrance.drawScreen(ctx, area);
         if (!banner) return;
         const { width } = area, lines = this.subLines(ctx, banner.boss, width);
-        const cy = this.y(area, banner, 32 + (lines.length - 1) * 14);
+        const cy = this.screenY(area, this.y(area, banner, 32 + (lines.length - 1) * 14));
         ctx.save();
         ctx.globalAlpha = bannerAlpha(banner.age);
         ctx.textAlign = 'center';

@@ -3,6 +3,8 @@ export function renderHudIdentity(runtime) {
     const { deps } = runtime;
     const identityId = deps.game.selectedClassId || deps.game.selectedHeroId;
     const hero = typeof deps.getHeroSelectionDef === 'function' ? deps.getHeroSelectionDef(identityId) : null;
+    const portrait = deps.document.querySelector('.mobile-battle-vitals:not([hidden]) .mobile-hero-portrait');
+    if (hero?.portrait) setElementAttribute(runtime, portrait, 'src', hero.portrait);
     const ascension = deps.game.ascendClass && deps.CLASS_TEMPLATES ? deps.CLASS_TEMPLATES[deps.game.ascendClass] : null;
     setTextById(runtime, 'ui-player-name-label', hero ? hero.label : '플레이어');
     setTextById(runtime, 'ui-player-class-label', ascension ? ascension.name : '미전직');

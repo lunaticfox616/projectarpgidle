@@ -428,7 +428,7 @@ const oceanWorkshop = Object.freeze({ ...oceanCraftRules, ...oceanCraftData,
 });
 export { passiveRules, passiveAllocation, passivePlanner, voidPassives, meteorProgress, oceanProgress, journalProgress, actRewards, oceanWorkshop, ascendTree };
 
-const buildPreview = new BuildStatPreview(window.GameModules.state, (...args) => getPlayerStats(...args));
+const buildPreview = new BuildStatPreview(window.GameModules.state, (...args) => getPlayerStats(...args), rules.copyPassiveSpecializationState);
 const voidLabels = new VoidPassiveLabels({
     get isVoidPassiveLineStat() { return isVoidPassiveLineStat; },
     get P_STATS() { return P_STATS; },

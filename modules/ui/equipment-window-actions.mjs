@@ -48,15 +48,16 @@ export function fullHtml(runtime, stats, dps) {
         + (ehp ? `<span class="eqw-sum-label"><span class="px-center">${(0, runtime.deps._t)('유효 생명력')}</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
 }
 
-/** Phone: DPS and 유효 생명력 under a toggle that unfolds the equipped gear and the presets (game.settings.equipmentMobilePane). */
+/** The status values can refresh independently of the phone's persistent pane controls. */
 export function miniHtml(runtime, stats, dps) {
-    const open = (runtime.deps.game.settings || {}).equipmentMobilePane === 'loadout';
-    return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">${(0, runtime.deps._t)('장착 장비')} ${open ? '▴' : '▾'}</button>
+    return `<div class="eqw-summary-mini">
             <div class="eqw-mini-dps" style="--c:${runtime.state.COLOR.dps}"><small>DPS</small><b>${dps}</b></div><div class="eqw-mini-line">${ehpHtml(runtime, stats)}</div></div>`;
 }
 
-export function toggleLoadout(runtime) {
-    (0, runtime.deps.setEquipmentMobilePane)((runtime.deps.game.settings || {}).equipmentMobilePane === 'loadout' ? 'inventory' : 'loadout');
+export function toggleLoadout(runtime, pane) {
+    const current=runtime.deps.game.settings.equipmentMobilePane;
+    if(pane===current)return;
+    (0, runtime.deps.setEquipmentMobilePane)(pane ?? (current==='loadout'?'inventory':'loadout'));
     (0, runtime.deps.updateStaticUI)();
 }
 
@@ -142,6 +143,7 @@ export function runRailToolOnDoubleClick(runtime, event) {
 
 /** 해체 panel opened from elsewhere (the triage's near-full hint): auto salvage is set there now. */
 export function openSalvage(runtime) {
+    runtime.deps.document.getElementById('eqw-bag-tools')?.setAttribute('aria-expanded', 'true');
     const menu = runtime.deps.document.getElementById('eqw-salvage-menu');
     if (menu) menu.open = true;
 }

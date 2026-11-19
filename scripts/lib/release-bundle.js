@@ -20,7 +20,7 @@ const RELEASE_EXCLUDED_SCRIPTS = Object.freeze(['js/dev-test-panel-ui.js']);
 const DEV_ONLY_START = '/* @dev-only */';
 const DEV_ONLY_END = '/* @end-dev-only */';
 const FORBIDDEN_IDENTIFIERS = Object.freeze(['devTestPanel', 'setTestCombatSpeed', 'testCombatSpeed', 'setCombatTestImmortal',
-    'combatTestImmortal', 'setTestLevel']);
+    'combatTestImmortal', 'setTestLevel', 'setTestPresentation', 'setTestFullCutscenes']);
 const PARSE_OPTIONS = Object.freeze({ ecmaVersion: 'latest', sourceType: 'script', loc: true });
 
 const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

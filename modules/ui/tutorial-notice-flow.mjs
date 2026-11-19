@@ -316,7 +316,10 @@ export function coachOpenGuidePane(runtime, action) {
     if (action.guide.open) return action.guide.open();
     if (action.notice.key === 'tutorial_passive_tree_unlock') runtime.deps.contentUnlockUi.select('passiveTree');
     if (action.notice.tabId === 'tab-items') coachOpenEquipment(runtime);
-    if (action.notice.tabId === 'tab-skills') (0, runtime.deps.switchSkillSubtab)('skill-tab-equip');
+    if (action.notice.tabId === 'tab-skills') {
+        const board = ['tutorial_support_equip', 'tutorial_rune_engrave'].includes(action.notice.key);
+        (0, runtime.deps.switchSkillSubtab)('skill-tab-equip', board ? 'board' : 'library');
+    }
 }
 
 export function coachOpenEquipment(runtime) {

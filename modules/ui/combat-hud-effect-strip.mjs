@@ -1,4 +1,5 @@
 import { buildPlayerCombatEffectIcons } from './combat-hud-realm-effects.mjs';
+import { setElementText } from './combat-hud-values.mjs';
 
 /** An effect icon strip's new markup. Its timer rings turn every tick (--effect-remaining-angle), and rebuilding the strip for that
 * removed and re-added its elements ten times a second, so the page re-checked every body:has() rule each time (2026-10-07 frame
@@ -38,7 +39,11 @@ export function syncEffectNode(runtime, live, fresh) {
 
 export function updatePlayerCombatEffectHud(runtime, pStats, hpAilBar) {
     let markup = buildPlayerCombatEffectIcons(runtime, pStats, (0, runtime.deps.getCombatTime)());
-    patchCombatEffectStrip(runtime, runtime.deps.document.getElementById('ui-player-ailments-under'), markup);
+    const strip = runtime.deps.document.getElementById('ui-player-ailments-under');
+    if (strip && strip.__lastHtml !== markup) {
+        patchCombatEffectStrip(runtime, strip, markup);
+        updateEffectSummary(runtime, strip);
+    }
     let projectedDamage = (runtime.deps.game.playerAilments || []).reduce((sum, ail) => {
         if (!ail || (ail.time || 0) <= 0 || !(0, runtime.deps.isUiDamageAilmentType)(ail.type)) return sum;
         return sum + Math.floor((0, runtime.deps.getUiPlayerDamageAilmentDps)(ail, pStats) * Math.max(0, ail.time || 0));
@@ -50,4 +55,20 @@ export function updatePlayerCombatEffectHud(runtime, pStats, hpAilBar) {
     hpAilBar.style.left = 'auto';
     hpAilBar.style.right = `${Math.max(0, 100 - playerHpPct)}%`;
     hpAilBar.style.display = pendingPct > 0.05 ? 'block' : 'none';
+}
+
+function updateEffectSummary(runtime, strip) {
+    const button = runtime.deps.document.getElementById('mobile-effects-toggle');
+    const first = button?.querySelector('.mobile-effects-first');
+    if (!first) return;
+    const effect = strip.firstElementChild;
+    const name = effect?.getAttribute('aria-label') || '';
+    const count = strip.childElementCount > 1 ? '+' + (strip.childElementCount - 1) : '';
+    setElementText(runtime, button.querySelector('b'), count);
+    setElementText(runtime, first, name);
+    const color = effect?.style.getPropertyValue('--effect-color') || '';
+    if (first.dataset.color !== color) {
+        first.style.color = color;
+        first.dataset.color = color;
+    }
 }

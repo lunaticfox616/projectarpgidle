@@ -19,7 +19,15 @@ export function handleItemClick(runtime, event, itemKey) {
     if (event) event.stopPropagation();
     if (runtime.state.swallowClick || runtime.state.carryState) return;
     runtime.state.doubleClickCandidateKey = itemKey;
-    focus(runtime, itemKey);
+    if (runtime.state.focusedItemKey !== itemKey || runtime.state.focusedEquipmentSlot) focus(runtime, itemKey);
+}
+
+/** A settled finger tap can end with pointerup alone after scrolling; native pans send pointercancel.
+ * Keep the ordinary click for keyboards and mouse, and let the craft picker own its own taps. */
+function inspectBagTouch(runtime, event) {
+    if (event.pointerType !== 'touch' || !event.isPrimary || runtime.state.touchArrange) return;
+    const item = event.target.closest?.('#item-tab-equip .equipment-grid-item');
+    if (item) handleItemClick(runtime, event, item.dataset.equipmentGridKey);
 }
 
 export function handleItemDoubleClick(runtime, event, itemKey, itemId) {
@@ -210,6 +218,7 @@ export function bindPointerEvents(runtime) {
     listen('pointerdown', runtime.handlers.startPointer);
     listen('pointermove', runtime.handlers.updatePointer, { passive: false });
     listen('pointerup', runtime.handlers.finishPointer);
+    listen('pointerup', event => inspectBagTouch(runtime, event));
     listen('pointercancel', runtime.handlers.cancelPointer);
     listen('keydown', runtime.handlers.handleKeydown, true);
     listen('pointerdown', event => {

@@ -7,7 +7,7 @@
 #ui-exploration-atlas .world-map { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 10px 12px; align-items: stretch; padding: 12px 14px 14px; }
 /* 설명 칸은 지도 오른쪽(2026-11-10 사용자: 아틀라스 지도의 오른쪽 서랍과 같은 쪽) */
 #ui-exploration-atlas .wm-side-wrap { grid-column: 2; grid-row: 1; min-height: 0; }
-#ui-exploration-atlas .world-map.has-others .wm-side-wrap { grid-row: 1 / span 2; }
+@container (min-width: 761px) { #ui-exploration-atlas .world-map.has-others .wm-side-wrap { grid-row: 1 / span 2; } }
 #ui-exploration-atlas .wm-side { box-sizing: border-box; height: 100%; }
 #ui-exploration-atlas .wm-view { grid-column: 1; grid-row: 1; align-self: start; }
 #ui-exploration-atlas .wm-others { grid-column: 1; align-self: start; }
@@ -164,11 +164,18 @@
     border-color: #d7f0ff; color: #fff; background: #283b54; outline: 2px solid #bcdbff; outline-offset: 1px;
 }
 @media (prefers-reduced-motion: reduce) { #ui-exploration-atlas .wm-pin { transition: none; animation: none; } }
-/* 좁은 칸: 지도가 한 줄을 다 쓰고 설명 칸은 그 아래 띠 한 줄(표식, 글, 단추)로 눕는다. 688px보다 좁은 칸(휴대폰)에서는 지도를 1배로 두고 가로로 스크롤한다. */
+#ui-exploration-atlas .wm-place-picker { display: none; align-items: center; gap: 10px; padding: 2px 0 8px; color: var(--color-text-secondary); }
+#ui-exploration-atlas .wm-place-select { flex: 1; min-width: 0; min-height: 44px; }
+@media (max-width: 1080px) and (any-pointer: coarse) {
+    #ui-exploration-atlas .wm-place-picker { display: flex; }
+    #ui-exploration-atlas .wm-side { height: auto; }
+}
 @container (max-width: 760px) {
     #ui-exploration-atlas .world-map { grid-template-columns: minmax(0, 1fr); }
     #ui-exploration-atlas .wm-view { grid-column: 1; }
-    #ui-exploration-atlas .wm-map { min-width: 688px; }
+    #ui-exploration-atlas .wm-map { min-width: 0; }
+    #ui-exploration-atlas .wm-place-picker { display: flex; }
+    #ui-exploration-atlas .wm-side { height: auto; }
     #ui-exploration-atlas .wm-atlas-region { min-height: 28px; }
     #ui-exploration-atlas .wm-side-wrap { grid-column: 1; grid-row: 2; }
     #ui-exploration-atlas .wm-others { grid-column: 1; }

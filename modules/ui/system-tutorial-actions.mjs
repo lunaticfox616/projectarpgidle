@@ -21,6 +21,7 @@ export function offer(runtime, key) {
     const lesson = runtime.state.guides[key];
     if (runtime.deps.game.isGuideReplay || runtime.deps.tutorialActionUi.active || runtime.deps.activeTutorial || !lesson.view()) return false;
     if (runtime.deps.game.seenTutorials.includes('action_' + key) || runtime.deps.game.seenTutorials.includes('dismiss_' + key) || !lesson.available()) return false;
+    if (lesson.reveal) lesson.reveal();
     runtime.deps.tutorialActionUi.start(lesson, false);
     return true;
 }

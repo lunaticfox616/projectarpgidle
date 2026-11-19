@@ -46,8 +46,11 @@ class EquipmentTriageAnalysis {
       // (js/combat-equipment-stats.js permanentSnapshot): one copy, shared by every slot.
       const inventory = freezeInventoryRecord(JSON.parse(JSON.stringify(owner.inventory)));
       const exploration = owner.actExploration === undefined ? undefined : JSON.parse(JSON.stringify(owner.actExploration));
-      const snapshot = { inventory, exploration,
-          gameJson: JSON.stringify({ ...owner, inventory: undefined, actExploration: undefined, combatTimeMs: readCombatTime() }) };
+      // The passive state is copied at the start like the rest; its karma history (tens of thousands of old entries in a long
+      // save) stays shared, as stat reads never touch it (copySpecialization).
+      const specialization = this.deps.copySpecialization(owner.passiveSpecialization);
+      const snapshot = { inventory, exploration, specialization, gameJson: JSON.stringify({ ...owner, inventory: undefined, actExploration: undefined,
+          passiveSpecialization: undefined, combatTimeMs: readCombatTime() }) };
       const items = inventory.filter(item => this.analyzable(item) && (!only || only.has(String(item.id))))
           .map(item => ({ item, slots: this.getCandidateSlots(item), key: JSON.stringify(item) }));
       return { items, index: 0, snapshot, baseline: this.createBaseline(snapshot) };
@@ -93,6 +96,7 @@ class EquipmentTriageAnalysis {
       const owner = JSON.parse(snapshot.gameJson);
       owner.inventory = snapshot.inventory;
       if (snapshot.exploration !== undefined) owner.actExploration = snapshot.exploration;
+      if (snapshot.specialization !== undefined) owner.passiveSpecialization = this.deps.copySpecialization(snapshot.specialization);
       if (item) owner.equipment[slot] = JSON.parse(JSON.stringify(item));
       return this.deps.readStats(owner);
   }

@@ -80,28 +80,37 @@ export function failTooltipComparison(runtime, job, error) {
     if (runtime.state.tooltipComparisonJob === job) runtime.state.tooltipComparisonJob = null;
 }
 
+// A slot quicker than this runs the remaining slots in the same task; a slower one yields a task between slots.
+const TOOLTIP_COMPARISON_BATCH_MS = 8;
+
+/** One slot of the comparison; false once the job ended (finished, failed or no longer shown). */
+function runTooltipComparisonSlot(runtime, job) {
+    if (!keepTooltipComparisonActive(runtime, job)) return false;
+    let slot = job.slots[job.index++];
+    try {
+        job.sections.push(buildTooltipComparisonPanel(runtime, job.item, slot));
+    } catch (error) {
+        failTooltipComparison(runtime, job, error);
+        return false;
+    }
+    if (job.index < job.slots.length) return true;
+    finishTooltipComparison(runtime, job);
+    return false;
+}
+
+/** A normal task, not idle time: a battle drawing every frame of a 240 Hz screen leaves no idle period, and each slot waited for
+ * the idle timeout. The first slot's time decides whether the rest run in the same task or one task each. */
 export function queueTooltipComparisonWork(runtime, job) {
     if (!keepTooltipComparisonActive(runtime, job)) return;
     let run = () => {
         job.workHandle = null;
-        if (!keepTooltipComparisonActive(runtime, job)) return;
-        let slot = job.slots[job.index++];
-        try {
-            job.sections.push(buildTooltipComparisonPanel(runtime, job.item, slot));
-        } catch (error) {
-            failTooltipComparison(runtime, job, error);
-            return;
-        }
-        if (job.index >= job.slots.length) finishTooltipComparison(runtime, job);
-        else queueTooltipComparisonWork(runtime, job);
+        const started = runtime.deps.performance.now();
+        if (!runTooltipComparisonSlot(runtime, job)) return;
+        if (runtime.deps.performance.now() - started >= TOOLTIP_COMPARISON_BATCH_MS) { queueTooltipComparisonWork(runtime, job); return; }
+        let more = true;
+        while (more) more = runTooltipComparisonSlot(runtime, job);
     };
-    if (typeof runtime.deps.requestIdleCallback === 'function') {
-        job.workKind = 'idle';
-        job.workHandle = (0, runtime.deps.requestIdleCallback)(run, { timeout: 240 });
-    } else {
-        job.workKind = 'timeout';
-        job.workHandle = (0, runtime.deps.setTimeout)(run, 0);
-    }
+    job.workHandle = (0, runtime.deps.setTimeout)(run, 0);
 }
 
 /** @param {{isActive: () => boolean, apply: (result: {hasSections: boolean, markup: string}) => void} | null} receiver */
@@ -111,10 +120,10 @@ export function scheduleTooltipComparison(runtime, item, tooltipToken, mainHtml,
     if (slots.length === 0) return;
     let job = {
         item, tooltipToken, mainHtml, receiver, slots, sections: [], index: 0,
-        delayHandle: null, workHandle: null, workKind: ''
+        delayHandle: null, workHandle: null
     };
     runtime.state.tooltipComparisonJob = job;
-    // Paint details first; each idle slice compares one slot against fresh stats.
+    // Paint details first (one frame), then compare against fresh stats in a task.
     job.delayHandle = (0, runtime.deps.requestAnimationFrame)(() => {
         job.delayHandle = null;
         queueTooltipComparisonWork(runtime, job);
