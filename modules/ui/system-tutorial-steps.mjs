@@ -16,6 +16,12 @@ export function supportStep(runtime, before) {
     return runtime.handlers.step(2, 2, '적용되는 스킬과 필요한 공명력을 확인한 뒤 ‘장착’을 누르세요.', buttons, `${runtime.state.slotDialog} .gem-slot-list-head`);
 }
 
+/** Phones show owned and equipped runes as two panes; a rune board guide offered on the owned pane opens the equipped one. */
+export function showRuneBoard(runtime) {
+    if (runtime.deps.game.skillSubtab !== 'skill-tab-equip' || !shown(runtime, '#tab-skills[data-rune-pane="library"] #btn-rune-board')) return;
+    (0, runtime.deps.switchSkillSubtab)('skill-tab-equip', 'board');
+}
+
 export function engraveStep(runtime) {
     if (!shown(runtime, runtime.state.engraveDialog)) {
         return runtime.handlers.step(1, 2, '장착한 공격 룬의 빛나는 빈 각인 칸을 누르세요.',

@@ -41,6 +41,7 @@ const systemTutorialUi = createSystemTutorialView({
     get selectionDialog() { return selectionDialog; },
     get closeGemEngraveSlotOverlay() { return closeGemEngraveSlotOverlay; },
     get switchItemSubtab() { return switchItemSubtab; },
+    get switchSkillSubtab() { return switchSkillSubtab; },
     get getCraftSelectionRef() { return getCraftSelectionRef; },
     get isCraftSelectionEquip() { return isCraftSelectionEquip; },
     get clearCraftSelection() { return clearCraftSelection; },
