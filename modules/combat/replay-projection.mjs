@@ -67,9 +67,28 @@ export class ReplayProjection {
         if (!cycle) return;
         const packs = cycle.packs.map(row => ({ kind: row.kind, size: row.size, hp: row.hp,
             killed: Math.max(0, row.size - row.pack.aliveIds.length) }));
-        log.closed.push({ key: cycle.key, ms: atMs - cycle.startMs, packs, objects: this.countProjectionObjects(cycle.run),
-            deaths: Math.max(0, (state.loopDeaths || 0) - cycle.deaths), level: state.level || 1 });
+        const closed = { key: cycle.key, ms: atMs - cycle.startMs, packs, objects: this.countProjectionObjects(cycle.run),
+            deaths: Math.max(0, (state.loopDeaths || 0) - cycle.deaths), level: state.level || 1 };
+        if (log.projectedMs > 0) this.noteProjectionSteadiness(log, closed);
+        log.closed.push(closed);
         log.sinceMeasureMs = 0;
+    }
+
+    /** Life killed in one measured cycle, the pace measure next to its time. */
+    cycleKilledHp(cycle) {
+        return cycle.packs.reduce((sum, row) => sum + row.hp * row.killed / Math.max(1, row.size), 0);
+    }
+
+    /** A real map measured after the projection began, against the calibration it refines: inside the calibration's own spread
+     * on both time and life killed, the hero is steady and is measured less often (isProjectionRemeasureDue); outside, every
+     * remeasure rule applies again at once. Session state only (the projection log is never saved). */
+    noteProjectionSteadiness(log, cycle) {
+        const calibration = log.cache.get(cycle.key), rules = this.deps.rules;
+        if (!calibration || !(cycle.ms > 0)) return;
+        const inside = (value, mean, spread) => Math.abs(value - mean) <= Math.max(rules.steadyBandSpreads * spread, rules.steadyBandFloor * mean);
+        const steady = inside(cycle.ms, calibration.cycleMs, calibration.cycleMsSpread)
+            && inside(this.cycleKilledHp(cycle), calibration.killedHp, calibration.killedHpSpread);
+        log.steady = steady ? Math.min(rules.steadyStreakCap, log.steady + 1) : 0;
     }
 
     readProjectionPackModel(cycles) {
@@ -118,14 +137,13 @@ export class ReplayProjection {
      * growing hero's newest maps are its pace (the first hour of a loop: map time 140 s at level 8, 58 s at level 15), older
      * ones only fill the minimum. A steady hero's cycles share one level and count evenly. */
     readProjectionPace(cycles, level) {
-        let total = 0, ms = 0, hp = 0;
-        for (const cycle of cycles) {
-            const weight = 0.5 ** Math.max(0, level - cycle.level);
-            total += weight;
-            ms += weight * cycle.ms;
-            hp += weight * cycle.packs.reduce((sum, row) => sum + row.hp * row.killed / Math.max(1, row.size), 0);
-        }
-        return { cycleMs: ms / total, killedHp: hp / total };
+        const rows = cycles.map(cycle => ({ weight: 0.5 ** Math.max(0, level - cycle.level), ms: cycle.ms, hp: this.cycleKilledHp(cycle) }));
+        const total = rows.reduce((sum, row) => sum + row.weight, 0);
+        const mean = field => rows.reduce((sum, row) => sum + row.weight * row[field], 0) / total;
+        const spread = (field, at) => Math.sqrt(rows.reduce((sum, row) => sum + row.weight * (row[field] - at) ** 2, 0) / total);
+        const cycleMs = mean('ms'), killedHp = mean('hp');
+        // The same weights measure the spread the steadiness band reads (noteProjectionSteadiness).
+        return { cycleMs, killedHp, cycleMsSpread: spread('ms', cycleMs), killedHpSpread: spread('hp', killedHp) };
     }
 
     /** Pace only: never a reward. Null until the zone has enough whole cycles, and enough time in them. */
@@ -257,11 +275,15 @@ export class ReplayProjection {
 
     /** Another real cycle is due after a level-up since the newest measured cycle ended (until realHoldMs of real combat: the
      * first hour of a loop levels every few minutes and gets faster with each, a late hero levels every few hours), or every
-     * remeasureEveryMs of projection while realBudgetMs lasts. */
+     * remeasureEveryMs of projection while realBudgetMs lasts. A steady hero (log.steady remeasured maps in a row inside the
+     * calibration's spread) waits 2^steady times as long for the periodic one, and a level-up that comes later than
+     * remeasureEveryMs of projection after the last measure waits until it is 2^steady levels above the calibration: a hero
+     * that levels again soon after a measure is growing (a loop's first hours) and is followed at every level as before. */
     isProjectionRemeasureDue(replay, calibration, state) {
-        const log = replay.projection, realMs = replay.processedMs - log.projectedMs;
-        if ((state.level || 1) > calibration.level) return realMs < this.deps.rules.realHoldMs;
-        return log.sinceMeasureMs >= this.deps.rules.remeasureEveryMs && realMs < this.deps.rules.realBudgetMs;
+        const log = replay.projection, rules = this.deps.rules, realMs = replay.processedMs - log.projectedMs, stretch = 2 ** log.steady;
+        const levelsUp = (state.level || 1) - calibration.level;
+        if (levelsUp > 0 && (levelsUp >= stretch || log.sinceMeasureMs < rules.remeasureEveryMs)) return realMs < rules.realHoldMs;
+        return log.sinceMeasureMs >= rules.remeasureEveryMs * stretch && realMs < rules.realBudgetMs;
     }
 
     /** One projected map. Returns 'start' when real combat takes this map from its start (a new zone, a rule it does not model,
@@ -319,7 +341,7 @@ export class ReplayProjection {
      * the player left is never measured: it may be a boss about to fall. */
     attachReplayProjection(replay) {
         replay.projection = { run: this.deps.actExplorationState.current(replay.game), open: null, closed: [], cache: new Map(),
-            active: null, fresh: false, projectedMs: 0, sinceMeasureMs: 0, held: false, cutMs: 0 };
+            active: null, fresh: false, projectedMs: 0, sinceMeasureMs: 0, steady: 0, held: false, cutMs: 0 };
         return replay;
     }
 
