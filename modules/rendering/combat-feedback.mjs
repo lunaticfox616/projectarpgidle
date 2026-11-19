@@ -47,7 +47,8 @@ class CombatFeedbackRenderer {
         const remaining = Math.max(0, Number(state.hitStopRemainingMs) || 0);
         const frozen = Math.min(rawDeltaMs, remaining);
         state.hitStopRemainingMs = Math.max(0, remaining - frozen);
-        const deltaMs = rawDeltaMs - frozen;
+        // The stage director's slow motion (2026-11-19) scales what the hit stop left; 1 when no shot asks for it.
+        const deltaMs = (rawDeltaMs - frozen) * clampNumber(Number(this.deps.timeScale(wallNow)), 0, 1);
         state.visualNow += deltaMs;
         return { now: state.visualNow, rawDeltaMs, deltaMs };
     }

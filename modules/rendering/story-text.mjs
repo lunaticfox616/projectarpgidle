@@ -148,11 +148,25 @@ class StoryText {
         this.deps.drawCrispCanvasText(ctx, speech.line.speaker, view.x, view.top - view.size * 0.6);
     }
 
+    /** Runs draw(project) without the stage camera while it is zoomed (scene.screen, 2026-11-19): text keeps its size and pixel grid,
+     * and project maps a world point (a speaker's head) to where it shows. Without a camera draw runs as it is. */
+    onScreen(ctx, scene, draw) {
+        if (!scene.screen) return draw(point => point);
+        ctx.save();
+        scene.screen.enter(ctx);
+        const result = draw(scene.screen.project);
+        ctx.restore();
+        return result;
+    }
+
     drawStoryLine(speech, ctx, scene) {
         if (speech.line.revive) this.deps.bossRevive.draw(ctx, scene, speech.line.revive, scene.now - speech.line.startAt, speech.line.showMs);
+        this.onScreen(ctx, scene, project => this.drawStoryWords(speech, ctx, scene, project(this.storyAnchor(speech, scene))));
+    }
+
+    drawStoryWords(speech, ctx, scene, anchor) {
         const size = Math.round(Math.max(13, Math.min(18, Math.min(scene.width, scene.height) * 0.022)));
         const view = { x: Math.round(scene.width / 2), top: Math.round(scene.height * 0.2), size, width: scene.width };
-        const anchor = this.storyAnchor(speech, scene);
         ctx.save();
         ctx.globalAlpha = this.opacity(scene.now - speech.line.startAt, speech.line.showMs);
         ctx.textAlign = 'center';
@@ -165,5 +179,5 @@ class StoryText {
 }
 export function createStoryText(deps) {
     const view=new StoryText(deps);
-    return Object.freeze({ drawTitleCard:view.drawTitleCard.bind(view), drawStoryLine:view.drawStoryLine.bind(view), drawStoryFrame:view.drawStoryFrame.bind(view), rich:view.rich });
+    return Object.freeze({ drawTitleCard:view.drawTitleCard.bind(view), drawStoryLine:view.drawStoryLine.bind(view), drawStoryFrame:view.drawStoryFrame.bind(view), onScreen:view.onScreen.bind(view), rich:view.rich });
 }

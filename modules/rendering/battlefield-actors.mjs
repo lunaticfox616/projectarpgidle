@@ -65,9 +65,11 @@ export class BattlefieldActors {
     }
 
     drawActor(ctx, actor, state, dim) {
-        if (actor.kind === 'player') return this.deps.drawPlayer(ctx, state);
+        // The director's impact frame (2026-11-19) draws the hero and the boss again as flat silhouettes.
+        if (actor.kind === 'player') return this.deps.director.silhouette(ctx, 'hero', target => this.deps.drawPlayer(target, state));
         if (actor.kind === 'trapRise' || actor.kind === 'woodsmanStump') return actor.draw(ctx);
-        if (actor.kind !== 'gate' && actor.kind !== 'scenery' && actor.kind !== 'object') return this.deps.drawEnemy(ctx, actor.entry, state);
+        if (actor.kind !== 'gate' && actor.kind !== 'scenery' && actor.kind !== 'object')
+            return this.deps.director.silhouette(ctx, actor.entry.enemy.id, target => this.deps.drawEnemy(target, actor.entry, state));
         ctx.save();
         if (dim && !actor.npc) ctx.filter = `brightness(${1 - dim})`;
         this.deps.exploration.drawScenery(ctx, actor, state);

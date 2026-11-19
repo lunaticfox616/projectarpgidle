@@ -26,7 +26,8 @@ export class BattleCanvasInteraction {
 
     command(event) {
         if (!this.active || this.deps.bossMoves.observer.sceneActive()) return;
-        const point = this.deps.canvasBox.clientPoint(this.canvas, event.clientX, event.clientY);
+        // While the stage camera is zoomed (2026-11-19) the click is mapped back to the stage point under it.
+        const point = this.deps.director.unproject(this.deps.canvasBox.clientPoint(this.canvas, event.clientX, event.clientY));
         const npc = this.deps.titleCard.npcAt(point);
         if (npc && this.deps.unlockUi.openNpc(npc)) { this.face(point); return; }
         const door = this.deps.doors.targetAt(point);

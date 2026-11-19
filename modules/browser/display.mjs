@@ -11,6 +11,8 @@ class Display {
         this.factor = 1; this.percent = 100; this.started = false; this.initialized = false; this.disposed = false;
         // 연출 보강(2026-11-19)을 견주어 보는 시험 패널의 스위치: 저장하지 않고, 배포본에는 켜는 길이 없다(늘 켜짐).
         this.presentationOff = false;
+        // 같은 패널의 컷씬 전체판 고정: 보스 입장과 처치가 늘 전체판으로 흐른다(저장하지 않는다).
+        this.cutscenesFull = false;
         this.motionQuery = environment.window.matchMedia('(prefers-reduced-motion: reduce)');
         this.refresh = () => this.apply(this.percent);
         this.syncEffects = this.syncEffects.bind(this);
@@ -194,6 +196,8 @@ export function createDisplay(environment, inputs) {
         /*! @dev-only */
         setTestPresentation: on => { service.presentationOff = !on; return !service.presentationOff; },
         /*! @end-dev-only */
+        /** True only while the test panel forces every boss entrance and boss kill to play its full camera shot (never in releases). */
+        fullCutscenes: () => service.cutscenesFull,
         get factor() { return service.factor; },
         get battleHudAtSide() { return !!service.sideBattleHudQuery && service.sideBattleHudQuery.matches; },
         get inputIdleMs() { return service.cadence.inputIdleMs; },
