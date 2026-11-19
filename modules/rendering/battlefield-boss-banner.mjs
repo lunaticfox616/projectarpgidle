@@ -76,11 +76,16 @@ export class BattlefieldBossBanner {
         return Array.from(new Set(tags.filter(Boolean)));
     }
 
-    update(enemies, now) {
+    /** The boss the band names: an invading boss takes priority over the boss already fighting. A boss felled while its entrance
+     * still runs gives the line to the defeat plate. */
+    named(enemies, now) {
         const revealed = this.deps.entrance.revealedBoss(now);
-        // An invading boss takes priority over the boss already fighting.
         const boss = (revealed && revealed.redEntrance ? revealed : null) || (enemies || []).find(enemy => enemy && enemy.isBoss) || revealed;
-        const visual = this.deps.visual();
+        return boss && boss.hp > 0 ? boss : null;
+    }
+
+    update(enemies, now) {
+        const boss = this.named(enemies, now), visual = this.deps.visual();
         visual.bossBannerFor = null;
         if (!boss) return null;
         if (visual.bossAnnounceId !== boss.id) {
