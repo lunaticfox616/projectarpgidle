@@ -1,5 +1,6 @@
 import { packGetZoneExplorationPlan } from '../domain/exploration-packs.mjs';
 import { packCreateActExplorationEncounter } from '../domain/exploration-packs.mjs';
+import { pruneKarmaHistory } from '../domain/passive-specialization-state.mjs';
 
 // Explicit current owner and combat services; yielded presentation commands are applied by the entry adapter.
 // Explicit false is retained for replaying legacy progress-based encounters in regression
@@ -33,6 +34,7 @@ export function* flowStartEncounterRun(env, exploration) {
     env.deps.primeTrialHazardTimer(zone);
     env.owner.encounterPlan = explorationRun ? [] : env.deps.generateEncounterPlan(zone);
     env.owner.enemies = [];
+    pruneKarmaHistory(env.owner);
     flowBeginEncounterZoneRules(env, zone, explorationRun);
 }
 
@@ -71,6 +73,7 @@ export function flowPrepareActExplorationArrival(env) {
     const run = packCreateActExplorationEncounter(env, zone);
     run.arrival = true;
     env.owner.actExploration = run;
+    pruneKarmaHistory(env.owner);
     env.deps.resetPlayerGridPosition();
     env.deps.restoreAndRecallSummons(env.deps.getPlayerStats());
     flowSeatOceanGuardianArena(env, zone, run);
