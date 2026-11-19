@@ -78,7 +78,7 @@ function hitEffect(fx, profile, layout, repeat) {
     const offset = repeat - (layout.repeats - 1) / 2;
     const element = vfxElement(fx.element, profile.accent);
     return {
-        skillName: fx.skillName, vfxGroupId: fx.damageTextGroupId || '', repeatIndex: Number(fx.repeatIndex) || 0,
+        skillName: fx.skillName, enemyId: fx.enemyId, vfxGroupId: fx.damageTextGroupId || '', repeatIndex: Number(fx.repeatIndex) || 0,
         element, family, footprint: fx.footprint, stageKind, imageKey, startAt: now + repeat * 44,
         duration: hitDuration(family, layout.connector), ...hitGeometry(fx, layout, offset),
         size: skillEffectBaseSize(family, stageKind) * scale * (1 - Math.abs(offset) * 0.08),

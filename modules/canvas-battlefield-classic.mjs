@@ -202,7 +202,8 @@ const images = new SkillEffectImages(() => document.createElement('canvas'));
 const impacts = new SkillImpactRenderer({
     get color() { return getElementColor; },
     get signature() { return drawSkillSignatureImpact; },
-    get ground() { return drawSkillFootprintGround; }
+    get ground() { return drawSkillFootprintGround; },
+    fallenBoss: enemyId => battleFx.some(fx => fx && fx.type === 'enemyDeath' && fx.boss && fx.enemyId === enemyId)
 }, images);
 const effectQueue = new SkillEffectQueue({
     profile: name => getSkillGemVfxProfile(name),
