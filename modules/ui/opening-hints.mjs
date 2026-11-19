@@ -144,7 +144,9 @@ export function showWakeMark(runtime, show, canvas) {
     if (runtime.state.wakeEl.hidden !== !hero) runtime.state.wakeEl.hidden = !hero;
     if (!hero) return;
     const head = (0, runtime.deps.getHeroHeadY)(runtime.deps.battleVisualState.visualNow), stand = head === null ? 160 : hero.y - head;
-    place(runtime, runtime.state.wakeEl, canvas.offsetLeft + hero.x, canvas.offsetTop + hero.y - stand / 4);
+    // Through the stage camera (2026-11-19): a zoomed shot keeps the arrow on the body.
+    const at = runtime.deps.stageDirector.project({ x: hero.x, y: hero.y - stand / 4 });
+    place(runtime, runtime.state.wakeEl, canvas.offsetLeft + at.x, canvas.offsetTop + at.y);
 }
 
 export function weaponInHand(runtime) { return runtime.deps.game.starterWeaponTutorialPending != null || seen(runtime, runtime.deps.basicSkills.weaponGuide); }

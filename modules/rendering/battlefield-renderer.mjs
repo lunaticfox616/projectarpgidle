@@ -36,8 +36,10 @@ export class BattlefieldRenderer {
     }
 
     clock(view, cadence) {
-        const wallNow = this.deps.now(), observerScene = this.deps.bossMoves.observerScene(wallNow);
+        const wallNow = this.deps.now(), observerScene = this.deps.bossMoves.observerScene(wallNow), game = this.deps.game();
+        this.deps.director.frame({ zoneId: game.currentZoneId, defeated: !(game.playerHp > 0), observer: !!observerScene });
         const time = this.deps.tree.feedback.advanceClock(wallNow, !!observerScene);
+        this.deps.director.watch(time.now, wallNow);
         this.deps.tree.feedback.begin(time.now);
         this.deps.visual().lastNow = time.now;
         this.deps.cleanupFx(time.now);
@@ -59,6 +61,7 @@ export class BattlefieldRenderer {
         const zone = this.deps.zone(this.deps.game().currentZoneId), theme = this.deps.theme(zone);
         view.gridProj = this.deps.projection(width, height, 'grid-contain');
         this.deps.bossMoves.observerCamera(ctx, view.observerScene, width, height, view.gridProj);
+        view.camera = this.deps.director.apply(ctx, view);
         this.deps.backdrop(ctx, width, height, theme, now, zone, view.gridProj);
     }
 
@@ -143,12 +146,21 @@ export class BattlefieldRenderer {
         if (typeof this.deps.stageScene === 'object') this.deps.stageScene.drawMarks(ctx, gridProj);
         const exclusions = view.box.enemyOverlays.map(rect => ({ ...rect, x: rect.x - cameraShake.x, y: rect.y - cameraShake.y }));
         this.deps.drawDamage(ctx, now, this.parts.bars.exclusions(exclusions));
+        const impact = this.deps.director.finishImpact(ctx);
+        // Story bubbles, the narration band and the act card stay at their size: drawn without the camera, anchors through it.
+        scene.screen = this.deps.director.screen(target => {
+            target.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+            target.translate(cameraShake.x, cameraShake.y);
+        });
         this.deps.titleCard.draw(ctx, scene);
         ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
-        this.parts.screen.hurtEdge(ctx, width, height, now);
+        // The impact frame stays flat black and white: no hurt edge, entrance flash, red veil, defeat flash or bars over it. Their own
+        // clocks run on, so they carry on from where they are on the next frame.
+        const banner = this.parts.banner.update(view.enemies, now);
+        if (!impact) this.parts.screen.hurtEdge(ctx, width, height, now);
         this.deps.tree.feedback.screen(ctx, { width, height, now });
-        this.parts.banner.draw(ctx, { width, height, now }, this.parts.banner.update(view.enemies, now));
-        if (typeof this.deps.rooms === 'object') this.deps.rooms.drawOverlay(ctx, view.box, gridProj);
+        if (!impact) this.parts.banner.draw(ctx, { width, height, now, project: this.deps.director.project }, banner);
+        if (typeof this.deps.rooms === 'object') this.deps.rooms.drawOverlay(ctx, view.box, this.deps.director.projection(gridProj));
         this.deps.bossMoves.drawObserverTransition(ctx, view.observerScene, width, height);
     }
 
@@ -175,6 +187,7 @@ export class BattlefieldRenderer {
         this.deps.setText(this.deps.document.getElementById('ui-battlefield-caption'), this.caption());
         const exploration = this.deps.explorationView;
         if (typeof exploration === 'object' && exploration.objects) exploration.objects.flushButtons();
+        this.deps.director.syncDom();
         this.deps.warmup.afterBattleDraw(view.ctx);
     }
 

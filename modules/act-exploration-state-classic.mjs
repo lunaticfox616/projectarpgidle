@@ -6,7 +6,7 @@ import * as part4 from './combat/exploration-state-validation.mjs';
 import * as part5 from './combat/exploration-state-restore.mjs';
 import { settlementMs } from './combat/exploration-state-values.mjs';
 // Session caches are shared by all calls; weak keys follow restored run ownership and never enter saves.
-const memo={entrances:new WeakMap(),discoveryMemos:new WeakMap(),noticeMemos:new WeakMap(),sights:new WeakMap(),deathNoises:new WeakMap(),arrivals:new WeakMap(),sightMemo:{run:null,key:'',seen:null,lit:null,reach:0},lockOns:new WeakMap(),unmarkedCommands:new WeakSet()};
+const memo={entrances:new WeakMap(),discoveryMemos:new WeakMap(),noticeMemos:new WeakMap(),sights:new WeakMap(),deathNoises:new WeakMap(),arrivals:new WeakMap(),sightMemo:{run:null,key:'',seen:null,lit:null,reach:0},lockOns:new WeakMap(),unmarkedCommands:new WeakSet(),joins:new WeakMap()};
 // Existing consumers and late-loaded extensions keep these bindings until the application entry is migrated.
 const deps={
     get EXPLORATION_ARRIVAL_GRACE_MS(){return EXPLORATION_ARRIVAL_GRACE_MS;},
@@ -53,6 +53,7 @@ const actExplorationState={
     wake(state,enemies) {return part2.stateWake(state,enemies);},
     alerted(state) {return part2.stateAlerted({owner:game,deps,memo}, state);},
     entrance(run) {return part2.stateEntrance({owner:game,deps,memo}, run);},
+    joinedAt(enemy) {return part2.stateJoinedAt({owner:game,deps,memo}, enemy);},
     bossRoomAt(run,cell) {return part0.stateBossRoomAt({owner:game,deps,memo}, run,cell);},
     recordDeath(state,enemy) {return part2.stateRecordDeath({owner:game,deps,memo}, state,enemy);},
     retireCombat(state) {return part2.stateRetireCombat(state);},

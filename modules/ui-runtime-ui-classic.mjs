@@ -412,6 +412,7 @@ const battlePresentation = createBattlePresentation({
     get recover() { return recoverRuntimeState; },
     get bossMoves() { return bossMoves; },
     get titleCard() { return actTitleCard; },
+    get director() { return stageDirector; },
     get unlockUi() { return contentUnlockUi; },
     get doors() { return stageDoorMarks; },
     get visual() { return battleVisualState; },

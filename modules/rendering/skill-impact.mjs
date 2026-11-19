@@ -137,7 +137,9 @@ export class SkillImpactRenderer {
         if (!footprint || ['projectile', 'chain', 'summon', 'stormStrike'].includes(effect.family)) return false;
         ctx.save();
         let fade = Math.min(1, progress / 0.045) * Math.pow(1 - progress, 1.1);
-        this.deps.ground(ctx, footprint, this.deps.color(effect.element), fade);
+        // The hit that fells a boss keeps its slash but not its pale cell outline: the kill's hit stop and slow motion held that
+        // outline as a box around the dying boss (2026-11-19).
+        if (!this.deps.fallenBoss(effect.enemyId)) this.deps.ground(ctx, footprint, this.deps.color(effect.element), fade);
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = (effect.alpha || 0.82) * fade;
         image = this.images.use(ctx, image, drawnEffectFilter(effect));

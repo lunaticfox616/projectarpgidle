@@ -1,6 +1,10 @@
 import { createStageNpcs } from '../rendering/stage-npcs.mjs';
 import { createStoryText } from '../rendering/story-text.mjs';
 import { LIVE_MS, LINE, TONES } from '../rendering/story-presentation-values.mjs';
+import { ease } from '../rendering/entrance-timing.mjs';
+
+/** The story frame slides in over inMs with the first held line and out over outMs after the last (2026-11-19). */
+const STORY_FRAME = Object.freeze({ inMs: 250, outMs: 300 });
 
 /** Act title card over the upper battlefield, like an area name in an ARPG: entering (or loading into) a story act
  * shows "액트 N" and the act name. It waits while a story or tutorial popup is open, so it is not spent behind it.
@@ -39,6 +43,8 @@ class ActTitleCard {
         this.watchedRun = null;
         this.covered = false;
         this.holding = false;
+        this.framed = 0;
+        this.framedAt = 0;
         this.greetSpent = 0;
         this.npcHead = null;
         this.woodsmanLine = null;
@@ -87,7 +93,7 @@ class ActTitleCard {
     track(owner, now) {
         this.watchZone(owner);
         if (this.card && now - this.card.startAt >= this.card.style.showMs) this.card = null;
-        if (!this.card && this.pending && !this.popupOpen()) { this.card = { ...this.pending, startAt: now }; this.pending = null; }
+        if (!this.card && this.pending && !this.popupOpen()) { this.card = { ...this.pending, startAt: now }; this.pending = null; this.deps.stageDirector.arrival(); }
         this.trackStoryLine(owner, now);
     }
 
@@ -416,8 +422,25 @@ class ActTitleCard {
         // A first line queued after track still needs the current window state for the greeting hold and the next frame.
         if (unlooked && (this.line || this.queue.length)) this.covered = this.storyCovered();
         this.holding = this.holdsGreeting(owner, waited);
+        this.directStory(scene);
         if (!scene.observerScene && !this.drawWoodsmanIntroduction(owner, ctx, scene)) this.drawQueuedStory(ctx, scene);
         this.npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
+    }
+
+    /** The stage camera frames whoever speaks a line the hero stands for (2026-11-19); a line said during a fight gets nothing. */
+    directStory(scene) {
+        const line = this.holding && !this.card ? this.line : null;
+        this.deps.stageDirector.speak(line ? this.storySpeaker(line, scene) : null);
+    }
+
+    /** { speaker (who the camera is on), who ('plain' for narration, stele and guide lines: a lighter zoom on the hero), focus }. */
+    storySpeaker(line, scene) {
+        const hero = { hero: true };
+        if (line.who === 'hero') return { speaker: 'hero', who: 'speaker', focus: hero };
+        if (line.who === 'npc' && this.npcHead) return { speaker: 'npc', who: 'speaker', focus: { point: this.npcHead } };
+        if (line.who !== 'boss') return { speaker: 'plain', who: 'plain', focus: hero };
+        const row = (scene.layout || []).find(entry => entry.enemy && entry.enemy.id === line.bossId);
+        return { speaker: `boss${line.bossId}`, who: 'speaker', focus: { enemy: row ? row.enemy : null, enemyId: line.bossId, fallback: hero } };
     }
 
     drawNpc(ctx, actor, state) {
@@ -426,8 +449,19 @@ class ActTitleCard {
         this.npcHead=this.npcs.draw(ctx,actor,state,marked);
     }
 
+    /** While the hero stands for a spoken line (holdsGreeting), thin bars and a soft shade frame the stage; a line said during a
+     * fight holds nobody and gets none. */
+    drawStoryFrame(ctx, scene) {
+        const step = Math.max(0, scene.now - (this.framedAt || scene.now));
+        this.framedAt = scene.now;
+        const wanted = this.holding && !!this.line && !this.card && this.text.rich();
+        this.framed = wanted ? Math.min(1, this.framed + step / STORY_FRAME.inMs) : Math.max(0, this.framed - step / STORY_FRAME.outMs);
+        this.text.onScreen(ctx, scene, () => this.text.drawStoryFrame(ctx, scene, ease(this.framed)));
+    }
+
     drawQueuedStory(ctx, scene) {
-        if (this.card) this.text.drawTitleCard(this.card, ctx, scene.width, scene.height, scene.now);
+        this.drawStoryFrame(ctx, scene);
+        if (this.card) this.text.onScreen(ctx, scene, () => this.text.drawTitleCard(this.card, ctx, scene.width, scene.height, scene.now));
         else if (this.line) this.text.drawStoryLine({ line:this.line, npcHead:this.npcHead }, ctx, scene);
     }
 

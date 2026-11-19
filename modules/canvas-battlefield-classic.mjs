@@ -27,6 +27,7 @@ import { BattlefieldActors } from './rendering/battlefield-actors.mjs';
 import { BattlefieldPlayerFrame } from './rendering/battlefield-player-frame.mjs';
 import { BattlefieldFrameEffects } from './rendering/battlefield-frame-effects.mjs';
 import { BattlefieldRenderer } from './rendering/battlefield-renderer.mjs';
+import { createStageDirector } from './rendering/stage-director.mjs';
 
 const text = new BattlefieldText({
     get i18n() { return i18n; },
@@ -62,6 +63,17 @@ const runtimeFunction = name => {
     const provider = window[name];
     return typeof provider === 'function' && provider.__placeholderGlobal !== true ? provider : null;
 };
+// One owner of the camera and time shots (2026-11-19); the act card, story, ground loot, reward window and stage clicks read it.
+const stageDirector = createStageDirector({
+    get uiDisplay() { return uiDisplay; },
+    effects: () => battleFx,
+    visual: () => battleVisualState,
+    now: () => performance.now(),
+    get heroHeadY() { return getHeroHeadY; },
+    bodyHeight: (enemy, tile) => body.drawnHeight(enemy) || (stageRoster.bodySize(enemy, tile) || {}).h,
+    unitCentre: enemy => getGridUnitCenter(enemy),
+    get document() { return document; }
+});
 const screen = new BattlefieldScreen({
     game: () => window.GameModules.state.game,
     effects: () => battleFx,
@@ -100,7 +112,8 @@ const timing = new BattlefieldFeedbackTiming({
     visual: () => battleVisualState,
     effects: () => battleFx,
     skillProfile: name => getSkillGemVfxProfile(name),
-    get feedbackProfile() { return getBattleFeedbackProfile; }
+    get feedbackProfile() { return getBattleFeedbackProfile; },
+    rich: () => uiDisplay.richPresentation() && !uiDisplay.reducedEffects()
 });
 const movement = new PlayerGridMotion({
     get classes() { return typeof PLAYER_CLASS_DEFS === 'undefined' ? null : PLAYER_CLASS_DEFS; },
@@ -175,6 +188,8 @@ const hits = new BattlefieldHitFeedback({
 }, body);
 const death = new EnemyDeathRenderer({
     reducedEffects: () => uiDisplay.reducedEffects(),
+    rich: () => uiDisplay.richPresentation(),
+    get defeatMotes() { return bossEntranceView.defeatMotes; },
     get story() { return stageStory; },
     get roster() { return stageRoster; },
     get feedback() { return worldTreeSkillFx.feedback; },
@@ -187,7 +202,8 @@ const images = new SkillEffectImages(() => document.createElement('canvas'));
 const impacts = new SkillImpactRenderer({
     get color() { return getElementColor; },
     get signature() { return drawSkillSignatureImpact; },
-    get ground() { return drawSkillFootprintGround; }
+    get ground() { return drawSkillFootprintGround; },
+    fallenBoss: enemyId => battleFx.some(fx => fx && fx.type === 'enemyDeath' && fx.boss && fx.enemyId === enemyId)
 }, images);
 const effectQueue = new SkillEffectQueue({
     profile: name => getSkillGemVfxProfile(name),
@@ -286,7 +302,8 @@ const actorLayer = new BattlefieldActors({
     get drawEnemy() { return window.drawBattleEnemyActor; },
     get tree() { return worldTreeSkillFx; },
     get mirrored() { return isBattlePlayerMirrored; },
-    get tintedPlayer() { return drawTintedBattlePlayerFigure; }
+    get tintedPlayer() { return drawTintedBattlePlayerFigure; },
+    director: stageDirector
 }, hits, body, returning);
 const playerFrame = new BattlefieldPlayerFrame({
     game: () => window.GameModules.state.game,
@@ -310,7 +327,8 @@ const frameEffects = new BattlefieldFrameEffects({
     get playFeedback() { return typeof playUiFeedbackSound === 'function' ? playUiFeedbackSound : undefined; },
     get cleanupVisual() { return cleanupBattleVisualState; },
     get bossAttacks() { return bossAttackView; },
-    get bossMoves() { return bossMoveView; }
+    get bossMoves() { return bossMoveView; },
+    director: stageDirector
 }, { events, death, travel: travelEffects, telegraphs, timing, body, queue: effectQueue, layer: effectLayer, hits, enemies, facing });
 const renderer = new BattlefieldRenderer({
     game: () => window.GameModules.state.game,
@@ -356,7 +374,8 @@ const renderer = new BattlefieldRenderer({
     get explorationView() { return typeof actExplorationView === 'object' ? actExplorationView : undefined; },
     get warmup() { return stageWarmup; },
     get doors() { return stageDoorMarks; },
-    get drawGround() { return window.drawBattleGroundLayer; }
+    get drawGround() { return window.drawBattleGroundLayer; },
+    director: stageDirector
 }, { timing, screen, player: playerFrame, actors: actorLayer, enemies, telegraphs, hits, frameEffects,
     bars, banner, text, ground });
 
@@ -415,5 +434,5 @@ window.GameModules.battlefieldHud = Object.freeze({
 });
 // Publish the render entry last: resolving its boot fallback may immediately draw a queued frame.
 // Public classic consumers remain at this adapter; the frame pipeline itself is native ESM.
-safeExposeGlobals({ battlePixelFont, drawEnemyDeathFx, drawBossDefeat, drawCombatTravelFx, isGroundSkillCast, drawTrialTrapGridFx, getEnemyTelegraphColor, drawBossPatternArea, drawEnemyAttackTelegraphs, drawEliteNameplate, noteEnemyDrawnHeight, getEnemyFieldBarLift, getBodyCueAnchor, getEnemyBodyHeight, updatePlayerGridVisualMotion, getStageHeroAirGround, drawPlayerReturnWarpEffect, drawPlayerReturnDepartureEffect, drawPlayerReturnWhiteShroud, getPlayerHurtPosition, resolveEnemyFacingDirection, noteEnemySpriteSide, shouldMirrorEnemySprite, getBossDrawScale, drawBattleActorLayer, getMapMonstersLeft, getBattleCameraShake, drawBattleScreenGrade, drawBattleLightingAndBars, drawLockOnMark, updateBossAnnouncement, drawBossAnnouncement, getEnemyDisplayName, getEnemyTraitSummary, resolveStageStrikeSide, drawBattleGroundLayer, drawSkillGemVfxLayer, drawBattlePlayerActor, drawBattleEnemyActor });
+safeExposeGlobals({ stageDirector, battlePixelFont, drawEnemyDeathFx, drawBossDefeat, drawCombatTravelFx, isGroundSkillCast, drawTrialTrapGridFx, getEnemyTelegraphColor, drawBossPatternArea, drawEnemyAttackTelegraphs, drawEliteNameplate, noteEnemyDrawnHeight, getEnemyFieldBarLift, getBodyCueAnchor, getEnemyBodyHeight, updatePlayerGridVisualMotion, getStageHeroAirGround, drawPlayerReturnWarpEffect, drawPlayerReturnDepartureEffect, drawPlayerReturnWhiteShroud, getPlayerHurtPosition, resolveEnemyFacingDirection, noteEnemySpriteSide, shouldMirrorEnemySprite, getBossDrawScale, drawBattleActorLayer, getMapMonstersLeft, getBattleCameraShake, drawBattleScreenGrade, drawBattleLightingAndBars, drawLockOnMark, updateBossAnnouncement, drawBossAnnouncement, getEnemyDisplayName, getEnemyTraitSummary, resolveStageStrikeSide, drawBattleGroundLayer, drawSkillGemVfxLayer, drawBattlePlayerActor, drawBattleEnemyActor });
 safeExposeGlobals({ renderBattlefield });

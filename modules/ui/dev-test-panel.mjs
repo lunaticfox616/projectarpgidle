@@ -388,9 +388,17 @@ export class DevTestPanel {
 
     combatSection() {
         const god = this.el('input', { type: 'checkbox', id: 'dtp-god', onchange: () => this.toggleGodMode(god.checked) });
+        // 2026-11-19 연출 보강(보스 처치, 정예 죽음, 드랍 착지, 이야기와 보스 입장의 띠)을 끄고 켜서 같은 싸움에서 견준다. 저장하지 않는다.
+        const cinema = this.el('input', { type: 'checkbox', id: 'dtp-cinema', checked: this.deps.uiDisplay.richPresentation(),
+            onchange: () => this.note(this.deps.uiDisplay.setTestPresentation(cinema.checked) ? '연출 보강 켬' : '연출 보강 끔') });
+        // 모든 보스 입장은 처음 만난 입장으로, 모든 보스 처치는 전체 마무리로 카메라가 움직인다(2026-11-19). 저장하지 않는다.
+        const fullShots = this.el('input', { type: 'checkbox', id: 'dtp-cinema-full', checked: this.deps.uiDisplay.fullCutscenes(),
+            onchange: () => this.note(this.deps.uiDisplay.setTestFullCutscenes(fullShots.checked) ? '컷씬 전체판 고정 켬' : '컷씬 전체판 고정 끔') });
         const soundRunes = this.soundRuneSelect();
         return this.section('전투', [
             this.row([this.el('label', { htmlFor: 'dtp-god' }, [god, ' 무적(생명력 유지)'])]),
+            this.row([this.el('label', { htmlFor: 'dtp-cinema' }, [cinema, ' 연출 보강']),
+                this.el('label', { htmlFor: 'dtp-cinema-full' }, [fullShots, ' 컷씬 전체판 고정'])]),
             this.row(SPEEDS.map(value => this.button(`×${value}`, () => this.setSpeed(value), { dataset: { speed: String(value) } }))),
             // 잔잔한 사건(js/combat-incidents.js): 지금 싸우는 무리 곁에 슬라임을 바로 세운다
             this.row([this.el('label', { textContent: '사건' }), this.button('금빛 슬라임', () => this.spawnCritter(false)), this.button('무지갯빛 슬라임', () => this.spawnCritter(true)),

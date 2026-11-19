@@ -75,6 +75,7 @@ const panel = new DevTestPanel({
     get setTestCombatSpeed() { return setTestCombatSpeed; },
     get skillEffectExpansion() { return skillEffectExpansion; },
     get stageRoster() { return stageRoster; },
+    get uiDisplay() { return uiDisplay; },
     get startBeehiveRun() { return startBeehiveRun; },
     get startColonyRun() { return startColonyRun; },
     get stumpBox() { return stumpBox; },

@@ -47,7 +47,8 @@ class CombatFeedbackRenderer {
         const remaining = Math.max(0, Number(state.hitStopRemainingMs) || 0);
         const frozen = Math.min(rawDeltaMs, remaining);
         state.hitStopRemainingMs = Math.max(0, remaining - frozen);
-        const deltaMs = rawDeltaMs - frozen;
+        // The stage director's slow motion (2026-11-19) scales what the hit stop left; 1 when no shot asks for it.
+        const deltaMs = (rawDeltaMs - frozen) * clampNumber(Number(this.deps.timeScale(wallNow)), 0, 1);
         state.visualNow += deltaMs;
         return { now: state.visualNow, rawDeltaMs, deltaMs };
     }
@@ -179,7 +180,7 @@ class CombatFeedbackRenderer {
         if (this.reduced() || this.fragments >= 10 || t <= 0 || t >= 1) return;
         this.fragments++;
         ctx.save();
-        const count = spec.large ? 10 : 6, spread = count * 4;
+        const count = this.chipCount(spec), spread = count * 4;
         for (let i = 0; i < count; i++) {
             const angle = spec.seed * .71 + i * 2.399;
             const x = point.x + Math.cos(angle) * spread * t;
@@ -191,9 +192,13 @@ class CombatFeedbackRenderer {
         ctx.restore();
     }
 
+    chipCount(spec) { return spec.count || (spec.large ? 10 : 6); }
+
     death(ctx, fx, t, point) {
+        // 2026-11-19 연출 보강: 보스 18, 정예 14 조각(끄면 예전처럼 10).
+        const count = this.deps.rich() && (fx.boss || fx.elite) ? (fx.boss ? 18 : 14) : 0;
         this.chips(ctx, { x: point.x, y: point.y - 12 }, t, {
-            large: fx.boss || fx.elite, seed: Number(fx.enemyId) || 1,
+            large: fx.boss || fx.elite, count, seed: Number(fx.enemyId) || 1,
             color: fx.boss ? '#c99b57' : fx.color || '#b2aaa0', light: '#e8d9b2'
         });
     }

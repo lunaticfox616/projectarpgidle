@@ -17,6 +17,9 @@ const native = createCombatFeedbackRenderer({
     get playUiFeedbackSound() { return playUiFeedbackSound; },
     get stageSkillRules() { return stageSkillRules; },
     get stripDecorativeEmoji() { return stripDecorativeEmoji; },
-    reducedEffects: () => uiDisplay.reducedEffects()
+    reducedEffects: () => uiDisplay.reducedEffects(),
+    rich: () => uiDisplay.richPresentation(),
+    // The director lives in the battlefield adapter, which may load after this one: read it when the clock runs.
+    timeScale: wallNow => (typeof stageDirector === 'object' ? stageDirector.timeScale(wallNow) : 1)
 });
 worldTreeSkillFx.feedback = native;
