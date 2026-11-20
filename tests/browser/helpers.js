@@ -34,4 +34,18 @@ async function revealLoopScreen(overlay) {
     for (let i = 0; i < 2 && await next.isVisible(); i++) await next.click();
 }
 
-module.exports = { pickClass, revealLoopScreen };
+/**
+ * A loop plays its transition scene (modules/ui/loop-cinematic-view.mjs) before the class window: skips it as a player does
+ * (건너뛰기, then 직업 선택 from the unlock step when it shows) and waits for the class window.
+ * @param {import('@playwright/test').Page} page
+ */
+async function passLoopCinematic(page) {
+    const scene = page.locator('#loop-cinematic'), skip = scene.locator('[data-cine-skip]'), go = scene.locator('[data-cine-go]');
+    await page.locator('#loop-cinematic, #loop-hero-select-overlay.active').first().waitFor();
+    if (await skip.isVisible()) await skip.click();
+    await page.locator('#loop-cinematic [data-cine-go], #loop-hero-select-overlay.active').first().waitFor();
+    if (await go.isVisible()) await go.click();
+    await page.locator('#loop-hero-select-overlay.active').waitFor();
+}
+
+module.exports = { pickClass, revealLoopScreen, passLoopCinematic };
