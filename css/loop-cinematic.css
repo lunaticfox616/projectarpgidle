@@ -1,0 +1,88 @@
+/* 루프 전환 연출(modules/ui/loop-cinematic-*.mjs, 2026-11-21): 게임 창과 정산 카드(12000~13300) 위, 시작과 로딩(14000~) 밑의 한 장.
+   그림은 캔버스가 그리고, 자막과 수치와 루프 제목은 장면 상자(--sx, --sy, --sw, --sh, 스크립트가 css px로 놓는다)를 따른다.
+   휴대폰(.is-phone)은 16:9 장면이 위쪽에 있고 자막과 수치는 장면 아래 띠에 온다. 글자는 갈무리 격자(자막 갈무리14 28/14, 말하는 이 갈무리11 22/11). */
+@layer features {
+.loop-cine { --sx:0px; --sy:0px; --sw:100%; --sh:100%; position:fixed; inset:0; z-index:13600; box-sizing:border-box; overflow:hidden; background:#000; color:#eee7dc;
+  font-family:var(--font-pixel); font-size:12px; line-height:1.45; word-break:keep-all; overflow-wrap:break-word; user-select:none; cursor:default; outline:none; container:loopcine / size; }
+.loop-cine *, .loop-cine *::before, .loop-cine *::after { box-sizing:border-box; }
+.loop-cine[data-mode="auto"] { pointer-events:none; }
+.loop-cine[data-mode="plain"] .loop-cine-canvas { display:none; }
+.loop-cine-canvas { position:absolute; inset:0; width:100%; height:100%; display:block; image-rendering:pixelated; pointer-events:none; }
+
+.loop-cine-subs { position:absolute; z-index:2; left:8%; right:8%; bottom:2.5%; display:none; text-align:center; pointer-events:none; }
+.loop-cine-subs.is-on { display:block; }
+.loop-cine-tag { margin-bottom:4px; font-size:22px; line-height:28px; color:#f4dba4; text-shadow:2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 2px 0 #000; }
+.loop-cine-line { margin:0; font-size:28px; line-height:40px; color:#f7efdf; text-shadow:2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 2px 0 #000; }
+.loop-cine-rest { visibility:hidden; }
+
+.loop-cine-rw { position:absolute; z-index:2; left:var(--sx); width:var(--sw); bottom:5%; display:none; flex-direction:column; align-items:center; gap:14px; pointer-events:none; }
+.loop-cine-rw.is-on { display:flex; }
+.loop-cine-chips { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; }
+.loop-cine-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 4px; background:rgba(20, 15, 10, .86); color:#ffeac0; font-size:12px; line-height:16px;
+  box-shadow:inset 0 0 0 1px #e0c283, 0 0 10px rgba(255, 214, 140, .45); text-shadow:1px 1px 0 #000; will-change:transform, opacity; }
+.loop-cine-chip img { display:block; width:24px; height:24px; image-rendering:pixelated; }
+.loop-cine-nums { display:flex; justify-content:center; gap:28px; }
+.loop-cine-num { display:grid; justify-items:center; gap:2px; width:132px; }
+.loop-cine-num span { font-size:12px; color:#c7bdad; text-shadow:1px 1px 0 #000; }
+.loop-cine-num b { font-size:24px; line-height:28px; font-weight:700; color:#fff1c8; text-shadow:2px 2px 0 #000; font-variant-numeric:tabular-nums; }
+.loop-cine-bar { display:block; width:100%; height:4px; background:rgba(0, 0, 0, .7); box-shadow:0 0 0 1px #000; }
+.loop-cine-bar i { display:block; width:100%; height:100%; background:#9cecff; }
+
+.loop-cine-title { position:absolute; z-index:2; left:var(--sx); width:var(--sw); top:calc(var(--sy) + var(--sh) * .30); transform:translateY(-50%); text-align:center; opacity:0; pointer-events:none;
+  font-size:48px; line-height:56px; font-weight:700; color:#fff1c8; text-shadow:3px 0 0 #000, -3px 0 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 3px 0 #000; }
+
+.loop-cine-skip { position:absolute; z-index:5; top:8px; right:8px; display:none; min-width:44px; min-height:44px; padding:0 14px; border:1px solid rgba(238, 231, 220, .28);
+  background:rgba(10, 8, 14, .72); color:var(--color-text-secondary); font-size:12px; font-weight:400; opacity:.6; cursor:pointer; }
+.loop-cine[data-mode="full"][data-phase="cine"] .loop-cine-skip { display:block; }
+.loop-cine-skip:is(:hover, :focus-visible) { opacity:1; color:var(--color-text); border-color:var(--color-accent); }
+
+/* 해금 단계: 도트 창 안에 해금 탭의 판(#content-unlock-panel)을 옮겨 와 그 크기로 그린다. 위에 베일라의 한 줄과 넘어가는 단추. */
+.loop-cine-unlock { position:absolute; inset:0; z-index:4; display:flex; padding:12px 14px 20px; }
+.loop-cine-unlock[hidden] { display:none; }
+.loop-cine-window { flex:1 1 auto; display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; border:var(--px-window-edge, 16px) solid transparent;
+  border-image:var(--px-window-frame, none); background:var(--px-wood, #15110c), var(--px-stone, #0b0a08); background-clip:padding-box; box-shadow:6px 6px 0 rgba(0, 0, 0, .62); image-rendering:pixelated; }
+.loop-cine-strip { flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:5px 10px; border-bottom:1px solid var(--skin-line); background:rgba(12, 18, 26, .62); }
+.loop-cine-face { flex:none; width:30px; height:30px; overflow:hidden; border:1px solid var(--color-cyan, #78d7ff); background:#0d1218; box-shadow:0 0 8px rgba(120, 215, 255, .4); }
+.loop-cine-face img { display:block; width:100%; height:128%; object-fit:cover; object-position:center top; }
+.loop-cine-speaker { flex:none; font-size:12px; line-height:16px; font-weight:700; color:#f4dba4; }
+.loop-cine-say { flex:1 1 220px; min-width:0; margin:0; font-size:15px; line-height:20px; color:var(--color-text); }
+.loop-cine-go { flex:none; min-height:32px; margin-left:auto; padding:4px 14px; border:1px solid var(--px-ink, #080508); background:var(--px-board-hot, #2c2417), var(--px-stone-raised, #25222a);
+  box-shadow:var(--px-gold-rim, none); color:#ffe3a0; font-size:12px; font-weight:700; text-shadow:1px 1px 0 #000; cursor:pointer; }
+.loop-cine-go:is(:hover, :focus-visible) { color:#fff3d2; filter:brightness(1.12); }
+.loop-cine-unlock-body { flex:1 1 auto; display:flex; flex-direction:column; min-height:0; margin:4px; }
+.loop-cine-unlock-body > #content-unlock-panel { flex:1 1 auto; display:flex; flex-direction:column; min-height:0; margin:0; }
+.loop-cine-unlock-body > #content-unlock-panel > .unlocks-view { flex:1 1 0; height:auto; }
+
+@container loopcine (min-width: 1280px) {
+  .loop-cine-rw { gap:18px; }
+  .loop-cine-chips { gap:16px; }
+  .loop-cine-chip { gap:10px; padding:6px 14px 6px 6px; font-size:24px; line-height:30px; text-shadow:2px 2px 0 #000; }
+  .loop-cine-chip img { width:48px; height:48px; }
+  .loop-cine-nums { gap:40px; }
+  .loop-cine-num { width:250px; gap:4px; }
+  .loop-cine-num span { font-size:24px; line-height:30px; text-shadow:2px 2px 0 #000; }
+  .loop-cine-num b { font-size:48px; line-height:56px; text-shadow:3px 3px 0 #000; }
+  .loop-cine-bar { height:6px; }
+}
+/* 휴대폰: 장면 아래 띠의 자막과 수치, 한 배 크기의 글자, 손가락 크기의 단추(44px) */
+.loop-cine.is-phone .loop-cine-subs { left:16px; right:16px; bottom:auto; top:calc(var(--sy) + var(--sh) + 16px); }
+.loop-cine.is-phone .loop-cine-tag { font-size:11px; line-height:16px; text-shadow:1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000; }
+.loop-cine.is-phone .loop-cine-line { font-size:14px; line-height:22px; text-shadow:1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 1px 0 #000; }
+.loop-cine.is-phone .loop-cine-rw { bottom:auto; top:calc(var(--sy) + var(--sh) + 14px); gap:10px; }
+.loop-cine.is-phone .loop-cine-chips { gap:8px; padding:0 8px; }
+.loop-cine.is-phone .loop-cine-nums { gap:10px; }
+.loop-cine.is-phone .loop-cine-num { width:96px; }
+.loop-cine.is-phone .loop-cine-title { font-size:24px; line-height:30px; text-shadow:2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000; }
+.loop-cine.is-phone .loop-cine-unlock { padding:6px; }
+.loop-cine.is-phone .loop-cine-window { border-width:8px; border-image-width:13px; }
+.loop-cine.is-phone .loop-cine-strip { padding:4px 8px; gap:4px 8px; }
+.loop-cine.is-phone .loop-cine-face { width:24px; height:24px; }
+.loop-cine.is-phone .loop-cine-go { min-height:44px; flex:1 1 100%; }
+}
+
+/* 직업 단계: 진짜 직업 선택 창을 연출 위로 올리고 배경과 흐림(css/ui-luxe.css의 .tutorial-overlay blur)을 비워 뒤 배경 B가 카드 뒤에 또렷이 보이게 한다. 도트 스킨의 층(overrides, pixel.css의
+   :root body[data-ui-skin] :is(#loop-hero-select-overlay, ...) z-index 13200)보다 무겁게 쓴다. 그 창의 툴팁(#info-tooltip)도 위로. */
+@layer overrides {
+:root body[data-ui-skin].loop-cinematic-active #loop-hero-select-overlay { z-index:13700; background:transparent; backdrop-filter:none; }
+:root body[data-ui-skin].loop-cinematic-active #info-tooltip { z-index:13800; }
+}
