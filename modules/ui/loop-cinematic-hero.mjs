@@ -80,11 +80,12 @@ function moteColour(fp, i, step) {
     return `rgb(${Math.round(lerp(d[i], 255, step))},${Math.round(lerp(d[i + 1], 240, step))},${Math.round(lerp(d[i + 2], 196, step))})`;
 }
 
-/** Where a scattering dot is at age u: a gentle counter-clockwise curve that ends on the ring's rim. */
+/** Where a scattering dot is at age u: a gentle counter-clockwise curve that crosses the ring's stone rim and ends inside the ring
+ * (2026-11-21 사용자: 가루가 테두리 위까지 나와야 한다. 돌테 위에서 끝나던 때는 그 경계에서 사라져 보였다). */
 function motePath(k, start, ring, u) {
     const sc = SHOTS.scatter, bend = Math.tan(sc.moteCurl * Math.PI / 2) / 2, e = smooth(u);
-    const a = Math.atan2(start.y - ring.y, start.x - ring.x) + (hash(k * 2.9) - 0.5) * 2 * sc.moteRimJitter;
-    const rim = sc.moteRimPx + (hash(k * 4.1) - 0.5) * 16, ex = ring.x + rim * Math.cos(a), ey = ring.y + rim * Math.sin(a);
+    const a = Math.atan2(start.y - ring.y, start.x - ring.x) + (hash(k * 2.9) - 0.5) * 2 * sc.moteEndJitter;
+    const rim = lerp(sc.moteEndPx[0], sc.moteEndPx[1], hash(k * 4.1)), ex = ring.x + rim * Math.cos(a), ey = ring.y + rim * Math.sin(a);
     const cl = Math.hypot(ex - start.x, ey - start.y) || 1, dx = (ex - start.x) / cl, dy = (ey - start.y) / cl;
     const cx = (start.x + ex) / 2 - dy * cl * bend, cy = (start.y + ey) / 2 + dx * cl * bend;
     return { x: (1 - e) * (1 - e) * start.x + 2 * (1 - e) * e * cx + e * e * ex, y: (1 - e) * (1 - e) * start.y + 2 * (1 - e) * e * cy + e * e * ey };
@@ -98,7 +99,7 @@ export function drawMotesOut(ctx, proj, hero, { frame, feet }, timing) {
         if (age < 0 || age >= life) continue;
         const q = fp.px[k], u = age / life, start = { x: feet.x + (q.x - s.ax) * HS(), y: feet.y + (q.y - s.ay) * HS() };
         const m = motePath(k, start, SHOTS.ring, u), at = proj.toScreen(m.x, m.y);
-        ctx.globalAlpha = 1 - smooth((u - 0.85) / 0.15);
+        ctx.globalAlpha = 1 - smooth((u - SHOTS.scatter.moteFadeFrom) / (1 - SHOTS.scatter.moteFadeFrom));
         ctx.fillStyle = moteColour(fp, q.i, Math.min(3, Math.floor(u * 4)) / 3);
         ctx.fillRect(Math.round(at.x), Math.round(at.y), size, size);
     }

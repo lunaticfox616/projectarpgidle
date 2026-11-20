@@ -20,10 +20,11 @@ export const SHOTS = freezeDeep({
     voice: { leadMs: 450, charMs: 55, commaMs: 160, stopMs: 280, holdMinMs: 1800, holdPerCharMs: 70, gapMs: 300,
         push: 1.12, anchor: { x: 690, y: 420 }, leanInMs: 1800, leanOutMs: 1000, leanFrontFrom: -0.4, leanFrontTo: 1.3 },
     breakShot: { freezeMs: 250, ringLightMs: 500, vortexRampMs: 900, vortexSpeed: 2.4 },
-    scatter: { dissolveMs: 1600, pullMs: 2000, moteLifeMs: [1500, 2300], moteCurl: 0.35, moteRimPx: 118, moteRimJitter: 0.35, coreLiftPx: 18, coreFadeMs: 150 },
+    scatter: { dissolveMs: 1600, pullMs: 2000, moteLifeMs: [1500, 2300], moteCurl: 0.35, moteEndPx: [14, 78], moteEndJitter: 0.35, moteFadeFrom: 0.9, coreLiftPx: 18, coreFadeMs: 150 },
     core: { haloR: [9, 14], pulseMs: 320, trail: 6, trailStepMs: 32 },
-    rewind: { ms: 3200, coreFlyMs: 600, flashMs: 34, irisOpenMs: 300, firstHoldMs: 240, lastHoldMs: 100, scrollPx: 36, tearMs: 60,
-        centre: { x: 688, y: 384 }, driftAt: 0.62, chipGapMs: 180 },
+    // 2026-11-21 사용자: 되감기가 너무 빨리 지나간다 (3.2초, 그림마다 240→100ms였다). 그림 11장이면 4.8초, 한 장도 눈에 남는다.
+    rewind: { ms: 6000, coreFlyMs: 700, flashMs: 34, irisOpenMs: 300, firstHoldMs: 620, lastHoldMs: 260, scrollPx: 36, tearMs: 80,
+        centre: { x: 688, y: 384 }, driftAt: 0.62, chipGapMs: 320 },
     // The pool of light is a whole circle inside the scene on a 16:9 desktop and in the phone's camera window (y 40 to 659).
     well: { ms: 2800, closeMs: 500, shaftMs: 400, poolAtMs: 900, poolRevealMs: 200, poolR0: 120, poolR1: 190, poolRimPx: 8, poolCentre: { x: 688, y: 450 },
         fallStartMs: 900, fallMs: 800, shaftThinMs: 300, titleAtMs: 2000, titleFadeMs: 300,
@@ -33,7 +34,7 @@ export const SHOTS = freezeDeep({
     graft: { fadeMs: 300, dropMs: 400, formMs: 900, poolOpenMs: 900, holdMs: 400, moteMs: 380 },
     short: {
         dissolveMs: 500, moteLifeMs: [350, 500], waveMs: 500,
-        rewind: { ms: 900, coreFlyMs: 150, flashMs: 34, irisOpenMs: 150, firstHoldMs: 80, lastHoldMs: 40, scrollPx: 24, tearMs: 30 },
+        rewind: { ms: 1500, coreFlyMs: 150, flashMs: 34, irisOpenMs: 150, firstHoldMs: 140, lastHoldMs: 70, scrollPx: 24, tearMs: 30 },
         well: { ms: 1000, closeMs: 200, shaftMs: 150, poolAtMs: 350, poolRevealMs: 100, fallStartMs: 350, fallMs: 250, shaftThinMs: 150, titleAtMs: 600, titleFadeMs: 200 }
     },
     auto: {
