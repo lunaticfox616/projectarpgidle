@@ -10913,6 +10913,14 @@ const LANGUAGE_PACK_EN = Object.freeze({
         "홈 뚫기": "Drill a socket",
         "이미 홈이 있거나 홈을 뚫을 수 없는 장비": "This item already has a socket or cannot be drilled.",
         "장신구에 홈 1개 추가": "Adds a socket to an accessory",
+        // ── 2026-11-20 표에서 넣음(i18n-en.json) ──
+        '루프 봉인 장비 {n}개': 'Sealed equipment: {n}',
+        '어둠 너머의 목소리': 'A Voice Beyond the Dark',
+        '“여기까지 왔군.”': '“So you made it this far.”',
+        '“하지만 아직은 얕다. 그 칼로는 뿌리 깊은 곳까지 닿지 못해.”': '“But you are still shallow. That blade cannot reach the deep roots.”',
+        '“처음부터 다시 올라와라.”': '“Climb up again from the very beginning.”',
+        '“몸은 흩어져도, 손에 익은 기억만큼은 남을 테니.”': '“Your body may scatter, but what your hands have learned will remain.”',
+        '“시간이 되감기는 틈이 열렸습니다.”': '“A gap has opened where time rewinds.”',
     })
 });
 
