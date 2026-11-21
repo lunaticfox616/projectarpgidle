@@ -45,7 +45,7 @@ const CLICKS = Object.freeze([
     ['data-ah-material', (runtime, value) => { runtime.state.materials.key = value; runtime.api.render(true); }],
     ['data-ah-side', (runtime, value) => { runtime.state.materials.side = value === 'sell' ? 'sell' : 'buy'; runtime.api.render(true); }],
     ['data-ah-preset', (runtime, value) => preset(runtime, value)],
-    ['data-ah-trade', runtime => trade(runtime)],
+    ['data-ah-trade', (runtime, value) => trade(runtime, Number(value))],
     ['data-ah-pick', runtime => pickItem(runtime)],
     ['data-ah-list', runtime => list(runtime)],
     ['data-ah-cancel', runtime => cancelDraft(runtime)],

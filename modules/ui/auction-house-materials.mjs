@@ -48,7 +48,8 @@ function countHtml(runtime, row) {
         <div class="ah-presets">${presets}<button type="button" data-ah-preset="max">${runtime.deps._t('최대')}</button></div></div>`;
 }
 
-/** The receipt, the reason line and the execute button for the current quote (repainted alone while the count is typed). */
+/** The receipt, the reason line and the execute button for the current quote (repainted alone while the count is typed). The button
+ * carries the shown value (cost or net): the trade is refused when the price moved since. */
 export function receiptHtml(runtime) {
     const view = runtime.state.materials, quote = runtime.deps.auctionHouse.materialQuote(runtime.deps.game, view.key, view.side, view.count);
     const units = quote.bundle > 1 ? runtime.deps._t('{name} {bundle}개 x {count}', { name: materialName(runtime, view.key), bundle: num(runtime, quote.bundle), count: num(runtime, quote.count) })
@@ -58,7 +59,7 @@ export function receiptHtml(runtime) {
         : `${line('판매가', quote.gross)}${line('수수료', quote.fee, ' is-fee')}${line('받을 이슬', quote.net, ' is-total')}`;
     return `<p class="ah-receipt-units">${units}</p><dl class="ah-receipt">${rows}</dl>
         ${quote.valid ? '' : `<p class="ah-why" role="status">${esc(runtime, quote.reason)}</p>`}
-        <button type="button" class="ah-primary" data-ah-trade ${quote.valid ? '' : 'disabled'}>${trHtml(runtime, view.side === 'buy' ? '구매' : '판매')}</button>`;
+        <button type="button" class="ah-primary" data-ah-trade="${view.side === 'buy' ? quote.cost : quote.net}" ${quote.valid ? '' : 'disabled'}>${trHtml(runtime, view.side === 'buy' ? '구매' : '판매')}</button>`;
 }
 
 function ticketHtml(runtime, row) {

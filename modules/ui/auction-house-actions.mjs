@@ -43,9 +43,10 @@ export function buyLot(runtime, id) {
     settle(runtime);
 }
 
-export function trade(runtime) {
+/** Trades what the receipt showed: expect is the cost or net the button carried (a moved price is refused and the section redraws). */
+export function trade(runtime, expect) {
     const view = runtime.state.materials;
-    const result = command(runtime, now => runtime.deps.auctionHouse.materialTrade(runtime.deps.game, { key: view.key, side: view.side, count: Number(view.count) }, now));
+    const result = command(runtime, now => runtime.deps.auctionHouse.materialTrade(runtime.deps.game, { key: view.key, side: view.side, count: Number(view.count), expect }, now));
     if (!result) return;
     runtime.deps.showGameToast(tradeToast(runtime, result), { tone: 'success' });
     settle(runtime);

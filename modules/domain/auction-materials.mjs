@@ -91,21 +91,38 @@ export function auctionMaterialQuote(env, owner, key, side, count) {
     return { ...quote, valid: !reason, reason };
 }
 
+/** The checked order: { quote, into, gain } or { reason, stale? } (no expect, the quote's own reason, a moved price, a holding cap). */
+export function auctionMaterialOrder(env, owner, order) {
+    const wanted = order || {};
+    if (!Number.isSafeInteger(wanted.expect) || wanted.expect < 0) return { reason: env.deps._t('거래 주문이 올바르지 않습니다.') };
+    const quote = auctionMaterialQuote(env, owner, wanted.key, wanted.side, wanted.count);
+    if (!quote.valid) return { reason: quote.reason };
+    if ((quote.side === 'buy' ? quote.cost : quote.net) !== wanted.expect) return { stale: true, reason: env.deps._t('시세가 바뀌었습니다. 값을 다시 확인하세요.') };
+    return auctionMaterialHolding(env, owner, quote);
+}
+
+/** What the trade gives ({ quote, into, gain }), or a refusal when it would pass the holding cap. */
+export function auctionMaterialHolding(env, owner, quote) {
+    const into = quote.side === 'buy' ? quote.key : 'formlessDew', gain = quote.side === 'buy' ? quote.units : quote.net;
+    if (!Number.isSafeInteger((Number(owner.currencies[into]) || 0) + gain)) return { reason: env.deps._t('보유 한도를 넘어 거래할 수 없습니다.') };
+    return { quote, into, gain };
+}
+
 /**
- * Trades order { key, side: 'buy' | 'sell', count (bundles) } at now (UTC ms; advances the clock first). Generator: yields
+ * Trades order { key, side: 'buy' | 'sell', count (bundles), expect } at now (UTC ms; advances the clock first). expect is the value the
+ * screen showed (buy: cost in dew, sell: net in dew): when the fresh quote after the advance differs, nothing changes and the trade is
+ * refused with stale: true. An order without an integer expect is refused as invalid. Generator: yields
  * { kind: 'auctionGrantCurrency', args: [key, amount] } for what owner receives (the reward path: currencySeen, receipts).
  * @returns {Generator<object, {ok: boolean, reason?: string, key?: string, side?: string, count?: number, units?: number, cost?: number, net?: number, settled: Array}, any>}
  */
 export function* auctionMaterialTrade(env, owner, order, now) {
     const clock = auctionClockFor(env, owner, now);
     if (!clock.ok) return clock;
-    const wanted = order || {}, quote = auctionMaterialQuote(env, owner, wanted.key, wanted.side, wanted.count);
-    const into = quote.side === 'buy' ? quote.key : 'formlessDew', gain = quote.side === 'buy' ? quote.units : quote.net;
-    const reason = !quote.valid ? quote.reason : Number.isSafeInteger((Number(owner.currencies[into]) || 0) + gain) ? '' : env.deps._t('보유 한도를 넘어 거래할 수 없습니다.');
-    if (reason) return { ok: false, reason, settled: clock.settled };
+    const checked = auctionMaterialOrder(env, owner, order), quote = checked.quote;
+    if (!quote) return { ok: false, reason: checked.reason, ...(checked.stale ? { stale: true } : {}), settled: clock.settled };
     if (quote.side === 'buy') owner.currencies.formlessDew -= quote.cost;
     else owner.currencies[quote.key] -= quote.units;
-    (yield { kind: 'auctionGrantCurrency', args: [into, gain] });
+    (yield { kind: 'auctionGrantCurrency', args: [checked.into, checked.gain] });
     auctionRecordMaterialTrade(owner.auction, quote);
     return { ok: true, key: quote.key, side: quote.side, count: quote.count, units: quote.units, cost: quote.cost, net: quote.net, settled: clock.settled };
 }

@@ -11014,6 +11014,8 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '모두 수령': 'Claim all',
         '{name} {amount} 수령': 'Received {amount} {name}',
         '[{name}] 회수': 'Took back [{name}]',
+        '거래 주문이 올바르지 않습니다.': 'The trade order is not valid.',
+        '시세가 바뀌었습니다. 값을 다시 확인하세요.': 'The market price changed. Check the price again.',
         '지하계 열기 고조': 'Underworld Heat Rising',
         '지핵 도전자가 늘어 화염 계열 장비와 불씨 기름 수요가 급등했습니다.': 'More challengers at the earth\'s core sent demand for fire gear and Ember Oil soaring.',
         '공허 대균열 개방': 'Void Grand Breach Opens',
