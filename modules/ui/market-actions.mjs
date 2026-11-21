@@ -10,7 +10,8 @@ export function moveTab(runtime, event) {
 
 export function openSections(runtime) {
     const market = (0, runtime.deps.isMarketUnlocked)();
-    const open = { npc: runtime.deps.contentProgression.npcsMet(runtime.deps.game) || market, stall: market, hall: runtime.deps.contentProgression.isUnlocked('hall') };
+    const open = { npc: runtime.deps.contentProgression.npcsMet(runtime.deps.game) || market, stall: market, hall: runtime.deps.contentProgression.isUnlocked('hall'),
+        auction: runtime.deps.auctionHouse.isUnlocked(runtime.deps.game) };
     return runtime.state.MARKET_SECTIONS.filter(id => open[id]);
 }
 
@@ -23,6 +24,8 @@ export function show(runtime, section) {
 
 export function open(runtime, section) {
     runtime.state.view_section = runtime.state.MARKET_SECTIONS.includes(section) ? section : runtime.state.view_section;
+    // 루프 정산 카드가 출품 때문에 막힌 루프에서 이 칸을 연다: 내 출품을 바로 보인다.
+    if (section === 'auction' && runtime.deps.game.auction.lots.length) runtime.deps.auctionHouseUi.showTab('mine');
     (0, runtime.deps.switchTab)('tab-trade');
     show(runtime, runtime.state.view_section);
 }
@@ -108,5 +111,6 @@ export function renderMarketSection(runtime, section) {
         runtime.deps.npcRosterUi.render();
     }
     if (section === 'stall') runtime.deps.playerStallUi.render();
+    if (section === 'auction') runtime.deps.auctionHouseUi.render();
     if (runtime.deps.document.getElementById('black-market-dialog')?.open) runtime.deps.blackMarketUi.render();
 }

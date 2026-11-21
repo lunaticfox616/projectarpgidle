@@ -945,7 +945,7 @@
 
     <!-- 거래(2026-11-06 사용자: "거래소에서 이름 바꾸고 탭 안에 NPC와 장비 전당을", "NPC 안에 암거래상도", 같은 날 "장비 탭에 있는 거래를 탭 하나 새로
          만들어서"): 제 메뉴 단추(Trade icon.zip, assets/ui/pixel/buttons/trade*.png)와 창. NPC(만난 NPC와 암거래상의 카드, 재화 교환은 베일라
-         js/orga-exchange-ui.js), 가판대, 장비 전당. 열린 칸만 보인다(js/market-ui.js). 암거래상의 판은 그 창이 열릴 때 창 안으로 옮겨 간다. -->
+         js/orga-exchange-ui.js), 가판대, 장비 전당, 경매장(js/auction-house-ui.js). 열린 칸만 보인다(js/market-ui.js). 암거래상의 판은 그 창이 열릴 때 창 안으로 옮겨 간다. -->
     <div id="tab-trade" class="tab-content">
         <div class="forge-panel market-shell">
             <div id="ui-market-panel">
@@ -953,11 +953,13 @@
                     <button type="button" role="tab" aria-controls="market-panel-npc" data-market-section="npc" aria-selected="true" onclick="marketUi.show('npc')"><span class="px-center">NPC</span></button>
                     <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')"><span class="px-center" data-i18n>가판대</span></button>
                     <button type="button" role="tab" aria-controls="market-panel-hall" data-market-section="hall" aria-selected="false" onclick="marketUi.show('hall')"><span class="px-center" data-i18n>장비 전당</span></button>
+                    <button type="button" role="tab" aria-controls="market-panel-auction" data-market-section="auction" aria-selected="false" onclick="marketUi.show('auction')" hidden><span class="px-center" data-i18n>경매장</span></button>
                 </nav>
                 <section id="market-panel-npc" role="tabpanel" aria-label="NPC"><div id="npc-roster-panel"></div>
                     <section id="market-panel-black" aria-label="암거래상" hidden data-i18n-attr="aria-label"></section></section>
                 <section id="market-panel-stall" role="tabpanel" aria-label="가판대" hidden data-i18n-attr="aria-label"></section>
                 <section id="market-panel-hall" role="tabpanel" aria-label="장비 전당" hidden data-i18n-attr="aria-label"><div id="map-player-hall"></div></section>
+                <section id="market-panel-auction" role="tabpanel" aria-label="경매장" hidden data-i18n-attr="aria-label"></section>
             </div>
         </div>
     </div>
@@ -2027,6 +2029,7 @@
 <script defer src="js/ghost-duel-stage-ui.js"></script>
 <script defer src="js/ghost-arena-ui.js"></script>
 <script defer src="js/player-exchange.js"></script>
+<script defer src="js/auction-house-ui.js"></script>
 <script defer src="js/message-frames-ui.js"></script>
     <script defer src="js/ui-window-manager.js"></script>
     <script defer src="js/hotkeys-ui.js"></script>

@@ -14,7 +14,9 @@ const marketUi = createMarketView({
     get hideItemTooltip() { return hideItemTooltip; },
     get selectPlayerHallItem() { return selectPlayerHallItem; },
     get playerStallUi() { return playerStallUi; },
-    get npcRosterUi() { return npcRosterUi; }
+    get npcRosterUi() { return npcRosterUi; },
+    get auctionHouse() { return auctionHouse; },
+    get auctionHouseUi() { return auctionHouseUi; }
 });
 safeExposeGlobals({ marketUi,
     marketPickHallItem: marketUi.marketPickHallItem,
