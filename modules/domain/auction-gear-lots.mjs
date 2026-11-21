@@ -5,7 +5,7 @@
  * finally에서 되돌린다(미리보기 규칙). 급매 여부, 값의 흔들림, 이미 팔렸는지는 따로 정해진 주사위(seed:bucket:deal:번호)라 생성이 바뀌어도 그대로다.
  * 값은 언제나 마법의 새싹(이슬 몇 개 값에서는 시세와 급매가 반올림에 묻혀서): 기준 = max(감정 marketValue, NPC 상점이 그 희귀에 매기는 값
  * x gear.premium)을 새싹 단위(감정의 단위표)로 나눈 값, price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세), 둘 다
- * gear.floorBud 이상이고 price는 기준 x 0.82(가장 깊은 급매) 아래로 내려가지 않는다.
+ * gear.floorBud 이상이고 price는 기준 x 0.82(가장 깊은 급매) 아래로 내려가지 않는다. 바닥에 걸려 시세보다 싸지 않은 급매는 'npc'로 낸다.
  * 산 장비를 분해해도 남는 것이 없다.
  * 산 장비는 새 번호, tradeLocked, auctionBound를 받는다: 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
  */
@@ -106,7 +106,10 @@ export function auctionGearLots(env, owner) {
     return auctionLotBases(env, owner).map(({ baseBuds, variance, floor, ...lot }) => {
         const value = baseBuds * auctionFactor(env, lot.family, state.bucket);
         const price = Math.max(floor, auctionPay(value * variance)), fairPrice = Math.max(GEAR.floorBud, auctionPay(value));
-        return { ...lot, price, fairPrice, ratioPct: Math.round(price / fairPrice * 100), boughtByMe: state.bought.includes(lot.index) };
+        const ratioPct = Math.round(price / fairPrice * 100);
+        // A bargain held up by a floor is no cheaper than the market: no 급매 without a shown discount.
+        const source = lot.source === 'bargain' && ratioPct >= 100 ? 'npc' : lot.source;
+        return { ...lot, source, price, fairPrice, ratioPct, boughtByMe: state.bought.includes(lot.index) };
     });
 }
 

@@ -59,11 +59,7 @@ function toolbarHtml(runtime, lots) {
 function badgeHtml(runtime, lot) {
     if (lot.boughtByMe) return `<em class="ah-badge is-closed">${runtime.deps._t('구매함')}</em>`;
     if (lot.soldOut) return `<em class="ah-badge is-closed">${runtime.deps._t('팔림')}</em>`;
-    if (lot.source === 'bargain') {
-        // 바닥값에 걸린 급매는 시세와 같은 값이다: 깎인 만큼이 있을 때만 적는다.
-        const off = 100 - lot.ratioPct;
-        return `<em class="ah-badge is-deal">${off > 0 ? runtime.deps._t('급매 -{n}%', { n: off }) : runtime.deps._t('급매')}</em>`;
-    }
+    if (lot.source === 'bargain') return `<em class="ah-badge is-deal">${runtime.deps._t('급매 -{n}%', { n: 100 - lot.ratioPct })}</em>`;
     return lot.source === 'user' ? `<em class="ah-badge is-copy">${runtime.deps._t('복제품')}</em>` : '';
 }
 
