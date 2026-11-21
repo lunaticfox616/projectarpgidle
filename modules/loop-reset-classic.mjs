@@ -27,6 +27,7 @@ const rules = createLoopReset({
     get clearWoodsmanBuildLock() { return clearWoodsmanBuildLock; },
     get getAvailableLoopAdvancePaths() { return typeof getAvailableLoopAdvancePaths === 'undefined' ? undefined : getAvailableLoopAdvancePaths; },
     get playerStall() { return typeof playerStall === 'undefined' ? undefined : playerStall; },
+    get auctionHouse() { return typeof auctionHouse === 'undefined' ? undefined : auctionHouse; },
     get hallState() { return window.GameModules.equipmentHall?.state; },
     get hallUserId() { return window.GameModules.cloudAccountState.current.user?.id; },
     get ensureMeteorSiteState() { return ensureMeteorSiteState; },

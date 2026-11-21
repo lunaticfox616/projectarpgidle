@@ -11,9 +11,11 @@ export function organize(runtime) {
     runtime.state.dismissedReadyLoop = runtime.deps.game.season;
     render(runtime);
     (0, runtime.deps.switchTab)('tab-items');
-    // When the stall or the hall is what blocks the loop, open it directly.
+    // When the stall, the hall or the auction is what blocks the loop, open it directly (the auction's reason comes last).
+    const held = (0, runtime.deps.getHeldGearLoopBlockReason)();
     if (runtime.deps.playerStall.loopBlockReason(runtime.deps.game)) runtime.deps.marketUi.open('stall');
-    else if ((0, runtime.deps.getHeldGearLoopBlockReason)()) runtime.deps.marketUi.open('hall'); // 장비 전당에 전시한 원본
+    else if (held && held === runtime.deps.auctionHouse.loopBlockReason(runtime.deps.game)) runtime.deps.marketUi.open('auction');
+    else if (held) runtime.deps.marketUi.open('hall'); // 장비 전당에 전시한 원본
 }
 
 export function reopen(runtime) {
