@@ -1,17 +1,22 @@
 -- ============================================================================
--- 경매장 서버 시세(2026-11-21): 시세 보정과 운영 모드를 담는 표 한 줄(auction_market_pulse)과 읽기 전용 RPC 하나(get_auction_snapshot).
+-- 경매장 서버 시세(2026-11-21): 시세 보정과 운영 모드를 담는 표 한 줄(auction_market_pulse)과 RPC 하나(get_auction_snapshot).
 -- ----------------------------------------------------------------------------
 -- 적용: Supabase 대시보드 > SQL Editor > New query에 이 파일 전체를 붙여 넣고 Run. 한 묶음이라 중간에 오류가 나면 아무것도 바뀌지 않는다.
---   여러 번 실행해도 안전하다(표와 한 줄은 없을 때만 만들고, 함수는 바꿔 쓴다). 기존 데이터는 지우지 않는다.
+--   여러 번 실행해도 안전하다(표, 한 줄, 인덱스는 없을 때만 만들고, 함수는 바꿔 쓴다). 기존 데이터는 지우지 않는다.
 --   db/cloud-and-playtest.sql(cloud_saves)과 db/anti-cheat.sql(cheat_holds, cheat_flags)을 실행한 프로젝트에 쓴다.
--- 하는 일: 로그인한 플레이어가 경매장을 열면 게임이 이 RPC를 부른다(modules/application/auction-pulse-service.mjs). 함수는 cloud_saves를
---   읽기만 한다(쓰지 않는다). 최근 24시간 안에 저장했고, 루프(season) 20 이상이고, 가입한 지 7일이 지났고, 운영 보류(cheat_holds)가 없고,
---   14일 안에 치트 기록(cheat_flags)이 없는 계정의 거래 흐름(save_data의 auction.trend: 산 계열과 재료는 +, 출품한 계열과 판 재료는 -,
---   시세 구간마다 반으로 준다)을 열쇠 26개마다 한 계정 한 표로 센다: 0보다 크면 +1, 작으면 -1, 숫자가 아니면 세지 않는다.
+-- 하는 일: 로그인한 플레이어가 경매장을 열면 게임이 이 RPC를 POST로 부른다(modules/application/auction-pulse-service.mjs). 함수는
+--   cloud_saves를 읽기만 하고, 쓰는 곳은 제 표 auction_market_pulse의 한 줄뿐이다(다시 센 값을 저장한다). 그 줄을 고치므로 읽기 전용
+--   트랜잭션이 되는 GET으로는 부를 수 없고 POST로 불러야 한다.
+--   다시 셀 때는 최근 24시간 안에 저장한 계정 가운데 가장 최근에 저장한 400명만 본다(그 밖의 저장은 JSON을 읽지 않는다). 그래서 표는
+--   가장 최근에 저장한 400개 계정 사이의 투표다. 그중 루프 20 이상(season과 loopCount + 1 가운데 큰 값, 다른 db 파일과 같은 식)이고,
+--   가입한 지 7일이 지났고, 운영 보류(cheat_holds)가 없고, 14일 안에 치트 기록(cheat_flags)이 없는 계정의 거래 흐름(save_data의
+--   auction.trend: 산 계열과 재료는 +, 출품한 계열과 판 재료는 -, 시세 구간마다 반으로 준다)을 열쇠 25개마다 한 계정 한 표로 센다:
+--   0보다 크면 +1, 작으면 -1, 숫자가 아니면 세지 않는다.
 --   한 표라도 낸 계정(voters)이 20명보다 적으면 보정이 없다. 20명 이상이면 열쇠마다 round(0.06 x (오름 - 내림) / voters, 2)이고 0이면 뺀다.
---   게임은 이 보정을 그 시세 구간(15분)에만 더하고, 그래도 시세는 0.85~1.15 밖으로 나가지 않는다.
+--   게임은 받은 보정을 그다음 시세 구간(15분) 것으로 저장해 그 구간에만 더하고, 그래도 시세는 0.85~1.15 밖으로 나가지 않는다.
 -- 비용: 마지막 계산이 10분보다 오래됐거나 15분 시세 구간이 바뀐 뒤 처음 부른 요청 하나만 다시 센다(다른 요청은 저장된 값을 그대로 읽는다).
---   다시 셀 때 최근 하루 사이 갱신된 cloud_saves 행을 읽는다(updated_at에 인덱스가 없어 표를 한 번 훑는다). 많아야 10분에 한 번이다.
+--   다시 셀 때 updated_at 인덱스(cloud_saves_updated_at_idx, 이 파일이 만든다)로 하루 안의 저장을 최근 순으로 400개까지만 고르고, 그
+--   400개의 save_data만 읽는다. 많아야 10분에 한 번이다.
 -- 운영 모드: 'hybrid'(기본, 경매장이 장비 전당의 다른 플레이어 장비도 보여 준다) 또는 'pulse_only'(상인 매물과 시세만). 바꿀 때는
 --   update public.auction_market_pulse set mode = 'pulse_only' where id = 1;
 --   (되돌릴 때는 'hybrid'). 함수는 모드를 바꾸지 않는다. 게임은 경매장을 열 때 다음 요청부터 새 모드를 쓴다.
@@ -33,6 +38,9 @@ alter table public.auction_market_pulse enable row level security;
 -- 정책을 두지 않는다. 아래 보안 정의자 함수만 읽고 쓴다(전당 표와 같다).
 revoke all on public.auction_market_pulse from anon, authenticated;
 
+-- 다시 셀 때 하루 안의 저장을 최근 순으로 고르는 인덱스. cloud_saves의 데이터는 바꾸지 않는다.
+create index if not exists cloud_saves_updated_at_idx on public.cloud_saves (updated_at);
+
 -- 경매장 시세 한 장: { serverNow: 서버 시각(UTC ms), bucket: 보정을 센 시세 구간(floor(초 / 900)), mode, voters, deltas: { 열쇠: 보정 } }.
 -- 다른 요청이 지금 다시 세고 있으면(줄이 잠겨 있으면) 기다리지 않고 저장된 값을 그대로 돌려준다. 그때 bucket은 저장된 구간이라 지난 구간일 수 있고,
 -- 게임은 제 구간과 다른 bucket의 보정을 쓰지 않는다.
@@ -44,10 +52,10 @@ set search_path = public
 as $$
 declare
     -- 열쇠 목록은 게임의 auctionHouse.pulseKeys()와 같다(modules/domain/auction-pulse.mjs auctionPulseKeys: modules/data/auction-house.mjs의
-    -- families 12개 다음 materials.keys 14개). 게임의 목록이 바뀌면 여기도 고친다.
+    -- families 12개 다음 materials.keys 13개). 게임의 목록이 바뀌면 여기도 고친다.
     pulse_keys constant text[] := array[
         'fire', 'cold', 'light', 'chaos', 'physical', 'critical', 'spell', 'summon', 'projectile', 'attack', 'armor', 'resistance',
-        'fossilPrimal', 'fossilAbyssal', 'fossilRift', 'fossilJagged', 'fossilPrismatic', 'oilFire', 'oilCold', 'oilLight',
+        'fossilAbyssal', 'fossilRift', 'fossilJagged', 'fossilPrismatic', 'oilFire', 'oilCold', 'oilLight',
         'oilChaos', 'catalystCrit', 'catalystSummon', 'emberBranch', 'voidChisel', 'magicBud'];
     now_at constant timestamptz := now();
     bucket_now constant bigint := floor(extract(epoch from now()) / 900)::bigint;
@@ -70,14 +78,25 @@ begin
             -- 다른 요청이 세는 중: 저장된 값을 그대로 돌려준다.
             select * into pulse from public.auction_market_pulse where id = 1;
         else
-            with eligible as (
-                -- 하루 안의 저장을 먼저 거른다. 숫자가 아닌 값은 case로 막아 형 변환이 실패하지 않는다.
+            with recent as (
+                -- 하루 안의 저장 가운데 최근 400개: 인덱스만으로 고르고 JSON은 아직 읽지 않는다.
+                select rs.user_id
+                  from public.cloud_saves rs
+                 where rs.updated_at >= now_at - interval '24 hours'
+                 order by rs.updated_at desc
+                 limit 400
+            ), eligible as (
+                -- 그 400개만 save_data를 읽는다. 숫자가 아닌 값은 case로 막아 형 변환이 실패하지 않는다.
+                -- 루프 번호는 db/equipment-hall.sql hall_inventory_limit와 같은 식이다: greatest(1, season, loopCount + 1).
                 select cs.user_id, cs.save_data #> '{auction,trend}' as trend
-                  from public.cloud_saves cs
+                  from recent
+                  join public.cloud_saves cs on cs.user_id = recent.user_id
                   join auth.users au on au.id = cs.user_id
-                 where cs.updated_at >= now_at - interval '24 hours'
-                   and (case when jsonb_typeof(cs.save_data -> 'season') = 'number'
-                             then (cs.save_data ->> 'season')::numeric end) >= 20
+                 where greatest(1,
+                           case when jsonb_typeof(cs.save_data -> 'season') = 'number'
+                                then floor((cs.save_data ->> 'season')::numeric) else 1 end,
+                           case when jsonb_typeof(cs.save_data -> 'loopCount') = 'number'
+                                then floor((cs.save_data ->> 'loopCount')::numeric) + 1 else 1 end) >= 20
                    and au.created_at < now_at - interval '7 days'
                    and not exists (select 1 from public.cheat_holds ch where ch.user_id = cs.user_id)
                    and not exists (select 1 from public.cheat_flags cf
