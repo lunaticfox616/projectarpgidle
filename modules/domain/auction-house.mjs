@@ -9,7 +9,7 @@ import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auctionSetPulseDelta, auctionSetMode, auctionPulseKeys } from './auction-pulse.mjs';
 import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLoopBlockReason } from './auction-clock.mjs';
 import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade } from './auction-materials.mjs';
-import { auctionGearLots, auctionBuyGearLot } from './auction-gear-lots.mjs';
+import { auctionGearLots, auctionBuyGearLot, auctionGearLotReason } from './auction-gear-lots.mjs';
 import { auctionListIssue, auctionListQuote, auctionList, auctionWithdraw, auctionClaim, auctionClaimAll } from './auction-my-lots.mjs';
 import { auctionRestore } from './auction-restore.mjs';
 
@@ -42,6 +42,8 @@ export function createAuctionHouse(deps) {
         materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),
         gearLots: owner => auctionGearLots(env, owner),
         buyGearLot: (owner, lotId, now) => auctionBuyGearLot(env, owner, lotId, now),
+        /** Why lot (a row of gearLots) cannot be bought now, or '': the reason buyGearLot would give, for the screen's buy button. */
+        gearLotIssue: (owner, lot) => auctionUseBlock(env, owner) || auctionGearLotReason(env, owner, lot),
         listIssue: (owner, item) => auctionListIssue(env, owner, item),
         listQuote: (owner, item) => auctionListQuote(env, owner, item),
         list: (owner, itemId, ask, now) => auctionList(env, owner, itemId, ask, now),

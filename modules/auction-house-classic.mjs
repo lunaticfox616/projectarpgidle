@@ -52,7 +52,7 @@ const auctionHouse = (() => {
         pulse: rules.pulse, setPulseDelta: rules.setPulseDelta, get mode() { return rules.mode; }, setMode: rules.setMode,
         itemFamily: rules.itemFamily, materials: rules.materials, materialQuote: rules.materialQuote,
         materialTrade: (owner, order, now) => run(rules.materialTrade(live(owner), order, now)),
-        gearLots: rules.gearLots,
+        gearLots: rules.gearLots, gearLotIssue: rules.gearLotIssue,
         buyGearLot: (owner, lotId, now) => run(rules.buyGearLot(live(owner), lotId, now)),
         listIssue: rules.listIssue, listQuote: rules.listQuote,
         list: rules.list, withdraw: rules.withdraw,
