@@ -7,7 +7,7 @@
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auctionSetPulseDelta, auctionSetMode, auctionPulseKeys } from './auction-pulse.mjs';
-import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLoopBlockReason } from './auction-clock.mjs';
+import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLotName, auctionLoopBlockReason } from './auction-clock.mjs';
 import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade } from './auction-materials.mjs';
 import { auctionGearLots, auctionBuyGearLot, auctionGearLotReason } from './auction-gear-lots.mjs';
 import { auctionListIssue, auctionListQuote, auctionList, auctionWithdraw, auctionClaim, auctionClaimAll } from './auction-my-lots.mjs';
@@ -16,7 +16,7 @@ import { auctionRestore } from './auction-restore.mjs';
 /**
  * deps: contentProgression, itemAppraisal (quote, unitValue), playerStall (listBlockReason), getZone, the generator primitives
  * (levelProgression, rollRealmItemDropTier, getRealmEquipmentAffixTierCap, getDroppedAffixTierRange, getEquipmentDropSlot, chooseItemBase,
- * createItemFromBase, maybeApplyExceptionalBase, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF), getItemCraftTier, readItemIdCounter, writeItemIdCounter, canStoreEquipmentItems(items, owner), normalizeItem, escapeHTML, console, ORB_DB, _t,
+ * createItemFromBase, maybeApplyExceptionalBase, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF), getItemCraftTier, getItemDisplayName, readItemIdCounter, writeItemIdCounter, canStoreEquipmentItems(items, owner), normalizeItem, escapeHTML, console, ORB_DB, _t,
  * defaultGame, PLAYER_STALL_RULES, STAT_AFFIX_TAGS, getEquipmentLoadoutOwnedItems, actExplorationLoot, actExplorationState.
  */
 export function createAuctionHouse(deps) {
@@ -29,6 +29,8 @@ export function createAuctionHouse(deps) {
         needsAdvance: auctionNeedsAdvance,
         advance: (owner, now) => auctionAdvance(env, owner, now),
         noticeText: row => auctionNoticeText(env, row),
+        /** A lot's saved Korean name as the player's language shows it (the notice and the sold stand). */
+        lotName: name => auctionLotName(env, name),
         pulseKeys: auctionPulseKeys,
         factor: (key, bucket) => auctionFactor(env, key, bucket),
         event: auctionEventAt,

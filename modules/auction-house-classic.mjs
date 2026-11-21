@@ -19,6 +19,7 @@ const auctionHouse = (() => {
         get maybeApplyExceptionalBase() { return maybeApplyExceptionalBase; },
         get DROPPED_AFFIX_TIER_WEIGHT_FALLOFF() { return DROPPED_AFFIX_TIER_WEIGHT_FALLOFF; },
         get getItemCraftTier() { return getItemCraftTier; },
+        get getItemDisplayName() { return getItemDisplayName; },
         readItemIdCounter: () => window.GameModules.state.session.itemIdCounter,
         writeItemIdCounter: value => { window.GameModules.state.session.itemIdCounter = value; },
         get canStoreEquipmentItems() { return canStoreEquipmentItems; },
@@ -48,7 +49,7 @@ const auctionHouse = (() => {
     return Object.freeze({
         rules: rules.rules,
         isUnlocked: rules.isUnlocked, useBlock: rules.useBlock, bucketOf: rules.bucketOf, needsAdvance: rules.needsAdvance,
-        advance: rules.advance, noticeText: rules.noticeText, pulseKeys: rules.pulseKeys, factor: rules.factor, event: rules.event,
+        advance: rules.advance, noticeText: rules.noticeText, lotName: rules.lotName, pulseKeys: rules.pulseKeys, factor: rules.factor, event: rules.event,
         pulse: rules.pulse, setPulseDelta: rules.setPulseDelta, get mode() { return rules.mode; }, setMode: rules.setMode,
         itemFamily: rules.itemFamily, materials: rules.materials, materialQuote: rules.materialQuote,
         materialTrade: (owner, order, now) => run(rules.materialTrade(live(owner), order, now)),

@@ -62,15 +62,9 @@ function openLotHtml(runtime, lot) {
         <div class="ah-stand-actions"><button type="button" data-ah-withdraw="${lot.id}">${runtime.deps._t('회수')}</button></div></article>`;
 }
 
-/** A sold lot keeps only its saved name: the generated 마법의 / 희귀한 names are shown through the item name rule with their base. */
-function soldName(runtime, name) {
-    const match = /^(마법의|희귀한) (.+)$/.exec(name || '');
-    return runtime.deps.getItemDisplayName({ name, baseName: match ? match[2] : '' });
-}
-
 function soldLotHtml(runtime, lot) {
     const row = (label, amount, extra = '') => `<div class="ah-receipt-row${extra}"><dt>${trHtml(runtime, label)}</dt><dd>${priceTag(runtime, lot.currency, amount)}</dd></div>`;
-    return `<article class="ah-stand is-sold">${headHtml(runtime, `<span class="ah-art is-coin">${runtime.deps.shopView.coinHtml(lot.currency)}</span>`, soldName(runtime, lot.name), '판매 완료', 'is-sold')}
+    return `<article class="ah-stand is-sold">${headHtml(runtime, `<span class="ah-art is-coin">${runtime.deps.shopView.coinHtml(lot.currency)}</span>`, runtime.deps.auctionHouse.lotName(lot.name), '판매 완료', 'is-sold')}
         <p class="ah-stand-buyer">${runtime.deps._t('구매자 {name}', { name: tr(runtime, lot.buyer || '') })}</p>
         <dl class="ah-receipt">${row('판매가', lot.gross)}${row('수수료', lot.fee, ' is-fee')}${row('받을 금액', lot.net, ' is-total')}</dl>
         <div class="ah-stand-actions"><button type="button" class="ah-primary" data-ah-claim="${lot.id}">${runtime.deps._t('대금 수령')}</button></div></article>`;

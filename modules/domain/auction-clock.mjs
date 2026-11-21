@@ -86,9 +86,15 @@ export function auctionClockFor(env, owner, now) {
     return clock.ok ? { ok: true, settled: clock.settled } : { ok: false, settled: [], reason: env.deps._t('기기의 시간을 확인해 주세요.') };
 }
 
+/** A lot's saved name in the player's language: the generated 마법의 / 희귀한 names go through the item name rule with their base. */
+export function auctionLotName(env, name) {
+    const match = /^(마법의|희귀한) (.+)$/.exec(name || '');
+    return env.deps.getItemDisplayName({ name, baseName: match ? match[2] : '' });
+}
+
 /** The notice for a settled lot, as log markup (the item name is escaped); the caller logs it as a toast. */
 export function auctionNoticeText(env, row) {
-    const name = env.deps.escapeHTML(env.deps._t(row.name));
+    const name = env.deps.escapeHTML(auctionLotName(env, row.name));
     if (row.status === 'sold') {
         return env.deps._t('경매장: [{name}] 판매, {currency} {amount}', { name, currency: env.deps._t(env.deps.ORB_DB[row.currency].name), amount: row.amount });
     }
