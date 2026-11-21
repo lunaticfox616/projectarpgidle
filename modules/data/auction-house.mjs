@@ -62,7 +62,11 @@ const AUCTION_HOUSE = Object.freeze({
     }),
     // 상인 매물: 구간마다 16개, 저장하지 않고 (seed, bucket, lotZone)에서 다시 만든다. 희귀 장비만(고유는 암거래상이 감정가의 100 ~ 1600배에
     // 팔아서, 감정가로 팔면 그 값을 무너뜨린다). 급매는 0.82 ~ 0.88배, 보통은 0.96 ~ 1.10배. 구간이 열릴 때 이미 팔린 매물이 있다.
+    // 값은 이슬로만 매기고 기준은 감정가와 NPC 상점의 희귀 값 가운데 큰 쪽이다(희귀 감정가는 대개 1 이슬 아래라 상점보다 싸게 팔렸다).
     gear: Object.freeze({
+        // 희귀를 분해하면 이슬 1개 확정에 많아야 1개를 더 받아 최대 2개다(modules/domain/equipment-salvage-rewards.mjs). 바닥이 3이라
+        // 산 매물을 분해해 남길 수 없다. 분해 보상이 늘면 이 값도 그 최대 + 1로 올린다.
+        floorDew: 3,
         lots: 16,
         bargainChance: 0.24,
         bargain: Object.freeze([0.82, 0.88]),

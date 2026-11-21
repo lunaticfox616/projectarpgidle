@@ -14,8 +14,9 @@ import { auctionListIssue, auctionListQuote, auctionList, auctionWithdraw, aucti
 import { auctionRestore } from './auction-restore.mjs';
 
 /**
- * deps: contentProgression, itemAppraisal (quote, unitValue), playerStall (listBlockReason), getZone, generateDrop(zone) (one rare-or-better
- * drop for zone), readItemIdCounter, writeItemIdCounter, canStoreEquipmentItems(items, owner), normalizeItem, escapeHTML, console, ORB_DB, _t,
+ * deps: contentProgression, itemAppraisal (quote, unitValue), playerStall (listBlockReason), getZone, the generator primitives
+ * (levelProgression, rollRealmItemDropTier, getRealmEquipmentAffixTierCap, getDroppedAffixTierRange, getEquipmentDropSlot, chooseItemBase,
+ * createItemFromBase, maybeApplyExceptionalBase, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF), getItemCraftTier, readItemIdCounter, writeItemIdCounter, canStoreEquipmentItems(items, owner), normalizeItem, escapeHTML, console, ORB_DB, _t,
  * defaultGame, PLAYER_STALL_RULES, STAT_AFFIX_TAGS, getEquipmentLoadoutOwnedItems, actExplorationLoot, actExplorationState.
  */
 export function createAuctionHouse(deps) {
