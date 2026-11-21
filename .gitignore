@@ -27,6 +27,9 @@ debug.log
 !/artifacts/player-stall-review/index.html
 !/artifacts/player-stall-review/fixture.js
 !/artifacts/player-stall-review/balance-report.json
+!/artifacts/auction-house/
+/artifacts/auction-house/*
+!/artifacts/auction-house/preview.html
 
 # Source art is retained locally; the game loads the compact WebP derivatives.
 /assets/items/illustrated/*.png

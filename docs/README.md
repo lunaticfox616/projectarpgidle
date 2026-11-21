@@ -54,6 +54,9 @@
   자산 파일이 남아 있어도 현재 화면에서 사용한다는 뜻은 아닙니다.
 - `skill-assets-v338/reference/`는 납품 원본 규격입니다. 현재 게임 수치로 덮어쓰지 않습니다.
   실제 연결은 [게임 이관 기록](skill-assets-v338/production-integration-20260912.md)과 현재 `js/skill-gem-*.js`를 대조합니다.
+- [비동기 하이브리드 중앙 경매장 확정안 (루프 20+)](auction-house-plan-20261121.md)과
+  [경매장 인터랙티브 프리뷰](../artifacts/auction-house/preview.html)는 보안 보강 시안(2026-11-21)이며
+  **아직 실제 게임 런타임에 반영되지 않은 구현 대기 규격**입니다.
 
 파일을 찾을 때는 `rg -n "기능명|심볼명" data js scripts tests index.html docs`로
 생산자, 호출부, 저장 경계, 검사를 함께 찾으세요.
