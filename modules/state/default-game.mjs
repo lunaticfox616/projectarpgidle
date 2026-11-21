@@ -362,6 +362,10 @@ const DEFAULT_GAME_BLUEPRINT = {
     // listings: {id, item, price: integer currency units, currency, slot, listedAt: UTC ms}[]; escrow owns listed gear.
     // proceeds/budProceeds/goldProceeds: unclaimed integer dew/buds/gold; rng: saved uint32; sequence: increasing listing ID.
     playerStall: { version: 8, sequence: 0, offerSequence: 0, eventSequence: 0, saleSequence: 0, nextOfferAt: 0, lastAt: 0, nextVisitAt: 0, rng: 1357911, proceeds: 0, budProceeds: 0, goldProceeds: 0, listings: [], history: [], sales: [] },
+    // 경매장(js/auction-house.js, modules/domain/auction-house.mjs): seed uint32 picked once (NPC lots only, never prices); lastAt UTC ms
+    // watermark; bucket floor(clock / 15 min), never lower; lotZone the zone id the NPC lots are rolled for; bought NPC lot indexes and
+    // quota { 'buy:key' | 'sell:key': bundles } of this bucket; lots my listings (escrow owns open and expired items); trend { key: int }.
+    auction: { version: 1, seed: 0, lastAt: 0, bucket: 0, lotZone: null, bought: [], quota: {}, lots: [], sequence: 0, trend: {} },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,
