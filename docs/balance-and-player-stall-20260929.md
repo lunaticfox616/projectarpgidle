@@ -30,6 +30,11 @@
 - 시안의 정산함은 내 출품에 접었다. 팔린 출품과 기간이 끝난 출품은 수령할 때까지 제 진열대에 남는다.
 - 꾸며 낸 플레이어 이름은 없다. 상인 매물은 데이터 표의 상인 이름, 전당 매물은 전시한 플레이어의 이름이다.
 
+서버 시세: [`db/auction-hybrid-20261121.sql`](../db/auction-hybrid-20261121.sql)은 표 한 줄과 읽기 전용 RPC `get_auction_snapshot` 하나다(시안의 세 RPC 대신, `cloud_saves`는 읽기만 한다).
+사용자가 Supabase SQL Editor에서 한 번 실행해야 켜진다. 운영 모드는 `update public.auction_market_pulse set mode = 'pulse_only' where id = 1;`로 바꾼다('hybrid'로 되돌린다).
+표는 하루 안에 저장한 루프 20 이상, 가입 7일 넘은, 보류와 14일 안 치트 기록이 없는 계정의 `game.auction.trend`를 열쇠마다 한 표(+1/-1)로 센다. 20명 이상일 때만 보정이 생긴다.
+게임(`modules/application/auction-pulse-service.mjs`)은 경매장을 그릴 때 구간마다 많아야 한 번, 10분 간격으로 묻는다. RPC가 없거나 실패하면 보정 없이 그대로 돈다.
+
 ## 현재 거래 규칙 (2026-10-06, main `4fd7c494` 대조)
 
 2026-11-13 ESM 원본: `modules/domain/player-stall.mjs`와 `stall-*.mjs`가 진열·시계·가격 제안·판매 대금·
