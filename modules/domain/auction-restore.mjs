@@ -50,7 +50,8 @@ export function auctionRestoreDeltas(source) {
     return unique.sort((a, b) => a.bucket - b.bucket).slice(-AUCTION_DELTA_SLOTS);
 }
 
-/** A sold lot's money record, or null (dropped with a warning) when it cannot be trusted. */
+/** A sold lot's money record, or null (dropped with a warning) when it cannot be trusted. The buyer is kept only when it is one of the data
+ * table's merchants (it is written into the screen), otherwise the first merchant. */
 export function auctionRestoreSoldLot(env, row, seen) {
     const amounts = [row.gross, row.fee, row.net].every(value => Number.isSafeInteger(value) && value >= 0) && row.net >= 1 && row.net <= row.gross;
     if (!seen.validId(row.id) || !env.deps.PLAYER_STALL_RULES.currencies.includes(row.currency) || !amounts) {
@@ -60,7 +61,7 @@ export function auctionRestoreSoldLot(env, row, seen) {
     seen.ids.add(row.id);
     return { id: row.id, name: typeof row.name === 'string' ? row.name : '', item: null, ask: row.gross, currency: row.currency,
         listedBucket: count(row.listedBucket), rolls: Math.min(count(row.rolls), MINE.buckets), status: 'sold', gross: row.gross, fee: row.fee, net: row.net,
-        buyer: typeof row.buyer === 'string' ? row.buyer : null };
+        buyer: AUCTION_HOUSE.gear.merchants.includes(row.buyer) ? row.buyer : AUCTION_HOUSE.gear.merchants[0] };
 }
 
 /** An open or expired lot with its item, or null: a missing or already owned item is dropped (warned), a broken record gives the item back. */
