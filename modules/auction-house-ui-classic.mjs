@@ -1,9 +1,22 @@
 import { createAuctionHouseView } from './ui/auction-house-view.mjs';
+import { AuctionPulseService } from './application/auction-pulse-service.mjs';
 
 // 경매장 칸(거래 창, modules/ui/auction-house-view.mjs)을 전역 객체 auctionHouseUi 하나로 잇는다. 장비 전당은 window.GameModules.equipmentHall
 // (js/player-exchange.js), 정산 알림은 게임 틱과 같은 함수(window.GameModules.application.announceAuction)를 쓴다.
+// 서버 시세(modules/application/auction-pulse-service.mjs)는 이 칸이 그릴 때 묻고, 답이 무엇을 바꾸면 이 칸을 한 번 다시 그린다.
+const auctionPulseService = new AuctionPulseService({
+    get auctionHouse() { return auctionHouse; },
+    get game() { return window.GameModules.state.game; },
+    isServerReady: () => !!window.GameModules.equipmentHall && window.GameModules.equipmentHall.isServerReady(),
+    get cloudState() { return cloudState; },
+    get cloudJsonRequest() { return cloudJsonRequest; },
+    rerender: () => auctionHouseUi.render(),
+    get console() { return console; },
+    now: () => Date.now()
+});
 const auctionHouseUi = createAuctionHouseView({
     get auctionHouse() { return auctionHouse; },
+    get auctionPulse() { return auctionPulseService; },
     get game() { return window.GameModules.state.game; },
     get document() { return document; },
     get window() { return window; },

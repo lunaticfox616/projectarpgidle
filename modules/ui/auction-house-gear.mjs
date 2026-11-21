@@ -117,6 +117,8 @@ export function gearViewHtml(runtime) {
     if (!lots.length) return `<p class="ah-empty">${runtime.deps._t('아직 매물이 없습니다.')}</p>`;
     // 지난 구간에 고른 부위가 이번 매물에 없으면 모든 부위로 돌아간다(고르기 상자와 목록이 어긋나지 않게).
     if (!lots.some(lot => lot.item.slot === runtime.state.gear.slot)) runtime.state.gear.slot = 'all';
+    // 운영 모드가 나중에 'pulse_only'로 오면 다른 플레이어 고르기도 사라진다: 전체로 돌아간다.
+    if (runtime.state.gear.source === 'user' && !hallActive(runtime)) runtime.state.gear.source = 'all';
     const shown = shownLots(runtime, lots), chosen = chosenLot(runtime, shown, lots);
     const list = shown.length ? `<ul class="ah-lots">${shown.map(lot => lotCardHtml(runtime, lot)).join('')}</ul>`
         : `<p class="ah-empty">${runtime.deps._t('조건에 맞는 매물이 없습니다.')}</p>`;

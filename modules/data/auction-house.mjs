@@ -18,7 +18,7 @@ const AUCTION_HOUSE = Object.freeze({
         eventBoost: 0.09,   // 사건이 띄우는 열쇠
         eventDip: -0.08,    // 사건이 누르는 열쇠
         history: 24,        // 그래프에 보이는 지난 구간 수(6시간)
-        voteSwing: 0.06     // 서버 시세 보정(나중 작업)의 한도(±), 그래도 min/max 밖으로는 못 간다
+        voteSwing: 0.06     // 서버 시세 보정(db/auction-hybrid-20261121.sql의 0.06과 같다)의 한도(±), 그래도 min/max 밖으로는 못 간다
     }),
     // 시세 사건: 구간 번호를 6으로 나눈 나머지로 돌아간다. boosts/dips는 계열이나 재료 열쇠다(띄우는 정도는 pulse.eventBoost/eventDip).
     events: Object.freeze([

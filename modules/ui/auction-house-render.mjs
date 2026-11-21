@@ -105,6 +105,7 @@ function signature(runtime) {
     const worn = Object.values(game.equipment || {}).map(item => (item ? item.id : 0));
     return JSON.stringify([state.bucket, state.lots.map(lot => [lot.id, lot.status, lot.rolls]), state.bought, state.quota, purse, bag, worn,
         game.woodsmanBuildLock ? 1 : 0, view.tab, view.gear, view.materials, view.mine.draft, view.hall.version, runtime.deps.i18n.locale,
+        runtime.deps.auctionHouse.mode, runtime.deps.auctionPulse.version,
         runtime.deps.shopView.busyReason()]);
 }
 
@@ -131,6 +132,8 @@ export function renderAuction(runtime, force = false) {
     const host = shownHost(runtime);
     if (!host) return;
     if (syncClock(runtime)) force = true;
+    // The server pulse (modules/application/auction-pulse-service.mjs): at most one request per bucket and 10 minutes; its reply redraws.
+    runtime.deps.auctionPulse.sync();
     watchHall(runtime);
     if (ensureSkeleton(runtime, host)) force = true;
     const print = signature(runtime);
