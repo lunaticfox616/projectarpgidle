@@ -104,7 +104,7 @@ export function auctionLotBases(env, owner) {
 export function auctionGearLots(env, owner) {
     const state = owner.auction;
     return auctionLotBases(env, owner).map(({ baseBuds, variance, floor, ...lot }) => {
-        const value = baseBuds * auctionFactor(env, lot.family, state.bucket);
+        const value = baseBuds * auctionFactor(state, lot.family, state.bucket);
         const price = Math.max(floor, auctionPay(value * variance)), fairPrice = Math.max(GEAR.floorBud, auctionPay(value));
         const ratioPct = Math.round(price / fairPrice * 100);
         // A bargain held up by a floor is no cheaper than the market: no 급매 without a shown discount.

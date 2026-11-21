@@ -54,42 +54,56 @@ export function auctionEventAt(bucket) {
     return events[((Math.floor(bucket) % count) + count) % count];
 }
 
-/** The server's correction for key in bucket (env.session.delta, set by setPulseDelta), 0 when none or for another bucket. */
-export function auctionDelta(env, key, bucket) {
-    const delta = env.session.delta;
-    return delta && delta.bucket === bucket && Number.isFinite(delta.values[key]) ? delta.values[key] : 0;
+/** The saved server correction (state.deltas, kept in the save: [{ bucket, values }]) for key in bucket, 0 when none for that bucket. */
+export function auctionDelta(state, key, bucket) {
+    const delta = state && Array.isArray(state.deltas) ? state.deltas.find(row => row.bucket === bucket) : null;
+    return delta && Number.isFinite(delta.values[key]) ? delta.values[key] : 0;
 }
 
-/** The price factor of key (a family or a material) in bucket: the same for every player.
- * round2(clamp(1 + sin(bucket x 0.42 + hash(key) mod 17) x wave + noise + event + delta, min, max)). */
-export function auctionFactor(env, key, bucket) {
+/** The price factor of key (a family or a material) in bucket for the auction state (owner.auction): the same for every player, plus the
+ * saved server correction when it is for that bucket. round2(clamp(1 + sin(bucket x 0.42 + hash(key) mod 17) x wave + noise + event + delta,
+ * min, max)). */
+export function auctionFactor(state, key, bucket) {
     const pulse = AUCTION_HOUSE.pulse, event = auctionEventAt(bucket);
     const wave = Math.sin(bucket * 0.42 + hashSeed(key) % 17) * pulse.wave;
     const noise = (createSeededRng(`pulse:${bucket}:${key}`)() * 2 - 1) * pulse.noise;
     const happening = event.boosts.includes(key) ? pulse.eventBoost : event.dips.includes(key) ? pulse.eventDip : 0;
-    return auctionRound2(clampNumber(1 + wave + noise + happening + auctionDelta(env, key, bucket), pulse.min, pulse.max));
+    return auctionRound2(clampNumber(1 + wave + noise + happening + auctionDelta(state, key, bucket), pulse.min, pulse.max));
 }
 
 /** The market at the saved bucket: { bucket, event, factors: { key: factor }, history(key) -> the factors of the last
- * AUCTION_HOUSE.pulse.history buckets, oldest first, ending with this one }. */
-export function auctionPulse(env, owner) {
-    const bucket = owner.auction.bucket;
-    const factors = Object.fromEntries(auctionPulseKeys().map(key => [key, auctionFactor(env, key, bucket)]));
+ * AUCTION_HOUSE.pulse.history buckets, oldest first, ending with this one (each with the saved correction when it is for that bucket) }. */
+export function auctionPulse(owner) {
+    const state = owner.auction, bucket = state.bucket;
+    const factors = Object.fromEntries(auctionPulseKeys().map(key => [key, auctionFactor(state, key, bucket)]));
     const length = AUCTION_HOUSE.pulse.history;
     return { bucket, event: auctionEventAt(bucket), factors,
-        history: key => Array.from({ length }, (_, index) => auctionFactor(env, key, bucket - length + 1 + index)) };
+        history: key => Array.from({ length }, (_, index) => auctionFactor(state, key, bucket - length + 1 + index)) };
 }
 
-/** Stores the server's correction for one bucket: each known key's value clamped to ±voteSwing, other keys dropped. Returns whether
- * it was taken. Factors stay inside min..max whatever the correction. */
-export function auctionSetPulseDelta(env, bucket, values) {
-    if (!Number.isSafeInteger(bucket) || bucket < 0 || !values || typeof values !== 'object') return false;
-    const swing = AUCTION_HOUSE.pulse.voteSwing, kept = {};
+/** Saved corrections: the current bucket's and the next one's. */
+export const AUCTION_DELTA_SLOTS = 2;
+
+/** A correction's values: the known pulse keys only, each a finite nonzero number clamped to ±voteSwing. */
+export function auctionDeltaValues(values) {
+    const swing = AUCTION_HOUSE.pulse.voteSwing, kept = {}, source = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
     for (const key of auctionPulseKeys()) {
-        const value = Number(values[key]);
-        if (Number.isFinite(value) && value !== 0) kept[key] = clampNumber(value, -swing, swing);
+        const value = source[key];
+        if (typeof value === 'number' && Number.isFinite(value) && value !== 0) kept[key] = clampNumber(value, -swing, swing);
     }
-    env.session.delta = { bucket, values: kept };
+    return kept;
+}
+
+/** Stores the server's correction fetched during bucketFetched in the save for the next bucket (bucketFetched + 1), so prices never move
+ * inside a bucket and a reload sees the same correction. The saved list keeps at most AUCTION_DELTA_SLOTS records (the current bucket's and
+ * the next one's): a fetch during bucket B never replaces B's own correction. Refused (nothing changes) when that bucket is not ahead of
+ * the saved bucket or the input is not an object. Returns whether it was taken. Factors stay inside min..max whatever the correction. */
+export function auctionSetPulseDelta(owner, bucketFetched, values) {
+    const state = owner && owner.auction, target = bucketFetched + 1;
+    if (!state || !Number.isSafeInteger(bucketFetched) || bucketFetched < 0 || target <= state.bucket) return false;
+    if (!values || typeof values !== 'object' || Array.isArray(values)) return false;
+    const kept = (Array.isArray(state.deltas) ? state.deltas : []).filter(row => row.bucket >= state.bucket && row.bucket !== target);
+    state.deltas = [...kept, { bucket: target, values: auctionDeltaValues(values) }].sort((a, b) => a.bucket - b.bucket).slice(-AUCTION_DELTA_SLOTS);
     return true;
 }
 

@@ -13,11 +13,12 @@ export function auctionChanceAt(ask, fairNow) {
     return row ? row[1] : AUCTION_HOUSE.myLots.overChance;
 }
 
-/** item's appraisal in currency units at bucket's factor for its family, or 0 when it no longer has an appraisal. */
-export function auctionFairNow(env, item, currency, bucket) {
+/** item's appraisal in currency units at bucket's factor for its family (with the saved correction of state, owner.auction, for that
+ * bucket), or 0 when it no longer has an appraisal. */
+export function auctionFairNow(env, state, item, currency, bucket) {
     const quote = env.deps.itemAppraisal.quote(item);
     if (!quote) return 0;
-    return quote.marketValue * auctionFactor(env, auctionItemFamily(env, item), bucket) / env.deps.itemAppraisal.unitValue(currency);
+    return quote.marketValue * auctionFactor(state, auctionItemFamily(env, item), bucket) / env.deps.itemAppraisal.unitValue(currency);
 }
 
 /** What a sale at ask pays: { gross, fee, net } (net at least 1). */
@@ -29,7 +30,7 @@ export function auctionSaleAmounts(ask) {
 /** One roll of an open lot at bucket. Returns the settled row ({ lotId, status: 'sold' | 'expired', name, currency, amount }) or null. */
 export function auctionRollLot(env, state, lot, bucket) {
     lot.rolls += 1;
-    const chance = auctionChanceAt(lot.ask, auctionFairNow(env, lot.item, lot.currency, bucket));
+    const chance = auctionChanceAt(lot.ask, auctionFairNow(env, state, lot.item, lot.currency, bucket));
     if (createSeededRng(`${state.seed}:${bucket}:${lot.id}`)() < chance) {
         const merchants = AUCTION_HOUSE.gear.merchants;
         Object.assign(lot, auctionSaleAmounts(lot.ask), { status: 'sold', item: null,

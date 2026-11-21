@@ -365,7 +365,9 @@ const DEFAULT_GAME_BLUEPRINT = {
     // 경매장(js/auction-house.js, modules/domain/auction-house.mjs): seed uint32 picked once (NPC lots only, never prices); lastAt UTC ms
     // watermark; bucket floor(clock / 15 min), never lower; lotZone the zone id the NPC lots are rolled for; bought NPC lot indexes and
     // quota { 'buy:key' | 'sell:key': bundles } of this bucket; lots my listings (escrow owns open and expired items); trend { key: int }.
-    auction: { version: 1, seed: 0, lastAt: 0, bucket: 0, lotZone: null, bought: [], quota: {}, lots: [], sequence: 0, trend: {} },
+    // deltas: the server corrections [{ bucket, values: { pulse key: -0.06..0.06 } }], at most two (this bucket's and the next one's), each
+    // fetched during the bucket before and saved so a reload cannot change a bucket's prices.
+    auction: { version: 1, seed: 0, lastAt: 0, bucket: 0, lotZone: null, bought: [], quota: {}, lots: [], sequence: 0, trend: {}, deltas: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,

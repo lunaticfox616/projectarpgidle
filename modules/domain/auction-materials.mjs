@@ -38,7 +38,7 @@ export function auctionQuotaLeft(state, side, key) { return Math.max(0, MATERIAL
 /** The material rows for the screen: [{ key, bundle, base (dew per unit), factor, seen (may be bought), held, quotaLeft: { buy, sell } }]. */
 export function auctionMaterialRows(env, owner) {
     const state = owner.auction;
-    return MATERIALS.keys.map(key => ({ key, bundle: auctionMaterialBundle(key), base: auctionMaterialBase(key), factor: auctionFactor(env, key, state.bucket),
+    return MATERIALS.keys.map(key => ({ key, bundle: auctionMaterialBundle(key), base: auctionMaterialBase(key), factor: auctionFactor(state, key, state.bucket),
         seen: currencyExchangeHasSeen(owner, key), held: Math.max(0, Math.floor(Number(owner.currencies[key]) || 0)),
         quotaLeft: { buy: auctionQuotaLeft(state, 'buy', key), sell: auctionQuotaLeft(state, 'sell', key) } }));
 }
@@ -82,7 +82,7 @@ export function auctionMaterialQuote(env, owner, key, side, count) {
     if (!MATERIALS.keys.includes(key) || !['buy', 'sell'].includes(side)) {
         return { key, side, valid: false, reason: env.deps._t('경매장에서 거래하지 않는 재료입니다.'), factor: 1, bundle: 1, count: 0, units: 0, max: 0, cost: 0, gross: 0, fee: 0, net: 0 };
     }
-    const factor = auctionFactor(env, key, owner.auction.bucket), bundle = auctionMaterialBundle(key), wanted = Number(count);
+    const factor = auctionFactor(owner.auction, key, owner.auction.bucket), bundle = auctionMaterialBundle(key), wanted = Number(count);
     const counted = Number.isSafeInteger(wanted) && wanted >= 1 ? wanted : 0;
     const sale = side === 'sell' && counted ? auctionSellAmounts(key, counted, factor) : { gross: 0, fee: 0, net: 0 };
     const quote = { key, side, factor, bundle, count: counted, units: counted * bundle, max: auctionMaterialMax(owner, key, side, factor),

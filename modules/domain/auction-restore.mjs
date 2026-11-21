@@ -7,7 +7,7 @@
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { stallRulesOwnedOutsideEscrow } from './stall-restoration.mjs';
 import { auctionBucketOf } from './auction-clock.mjs';
-import { auctionPulseKeys } from './auction-pulse.mjs';
+import { auctionPulseKeys, auctionDeltaValues, AUCTION_DELTA_SLOTS } from './auction-pulse.mjs';
 
 const MINE = AUCTION_HOUSE.myLots;
 const count = value => (Number.isSafeInteger(value) && value >= 0 ? value : 0);
@@ -24,7 +24,7 @@ export function auctionRestoreClock(state, source) {
     if (auctionBucketOf(state.lastAt) < state.bucket) state.lastAt = state.bucket * AUCTION_HOUSE.bucketMs;
 }
 
-/** The plain fields: clock, seed, zone, this bucket's bought lots and quota, trend. */
+/** The plain fields: clock, seed, zone, this bucket's bought lots and quota, trend, the saved server correction. */
 export function auctionRestoreFields(env, source) {
     const state = JSON.parse(JSON.stringify(env.deps.defaultGame.auction));
     auctionRestoreClock(state, source);
@@ -36,7 +36,18 @@ export function auctionRestoreFields(env, source) {
     state.quota = auctionRestoreKeyed(source.quota, (key, value) => sides.has(key) && count(value) ? Math.min(value, AUCTION_HOUSE.materials.quota) : 0);
     const trendKeys = new Set(auctionPulseKeys());
     state.trend = auctionRestoreKeyed(source.trend, (key, value) => trendKeys.has(key) && Number.isSafeInteger(value) ? Math.max(-99, Math.min(99, value)) : 0);
+    state.deltas = auctionRestoreDeltas(source.deltas);
     return state;
+}
+
+/** The saved server corrections: records { bucket (non-negative integer), values (known keys, clamped) }; malformed records and repeated
+ * buckets are dropped, the latest AUCTION_DELTA_SLOTS kept, oldest first. */
+export function auctionRestoreDeltas(source) {
+    const sound = row => row && typeof row === 'object' && !Array.isArray(row) && count(row.bucket) === row.bucket
+        && row.values && typeof row.values === 'object' && !Array.isArray(row.values);
+    const rows = (Array.isArray(source) ? source : []).filter(sound).map(row => ({ bucket: row.bucket, values: auctionDeltaValues(row.values) }));
+    const unique = rows.filter((row, index) => rows.findIndex(other => other.bucket === row.bucket) === index);
+    return unique.sort((a, b) => a.bucket - b.bucket).slice(-AUCTION_DELTA_SLOTS);
 }
 
 /** A sold lot's money record, or null (dropped with a warning) when it cannot be trusted. */

@@ -30,7 +30,7 @@ export function auctionListIssue(env, owner, item) {
 export function auctionListQuote(env, owner, item) {
     const quote = item ? env.deps.itemAppraisal.quote(item) : null;
     if (!quote) return null;
-    const family = auctionItemFamily(env, item), factor = auctionFactor(env, family, owner.auction.bucket);
+    const family = auctionItemFamily(env, item), factor = auctionFactor(owner.auction, family, owner.auction.bucket);
     const terms = auctionListCurrencies(env, quote.recommendedCurrency).map(currency => auctionAskRange(env, quote.marketValue * factor, currency));
     const { currency, fairNow, askMax } = terms.find(row => row.askMax >= MINE.askMin) || terms[0];
     return { currency, family, factor, fairNow, askMin: MINE.askMin, askMax, listable: askMax >= MINE.askMin,
