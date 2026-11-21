@@ -29,7 +29,8 @@ const CONTENT_UNLOCK_TREE_VERSION = 11;
 // 해금 루프를 또 늦추면 이 버전을 함께 올린다.
 const CONTENT_UNLOCK_LOOP_MOVE_VERSION = 14;
 // 장부 15(2026-11-09): 일반 스킬트리를 루프 2 유료 해금으로 옮기고(passiveTree), 기초 속성 셋, 넷 줄을 더했다. 모두 addedIn 15다.
-const CONTENT_UNLOCK_RECORD_VERSION = 15;
+// 장부 16(2026-11-22): 경매장(auction, 루프 20, 2점) 줄을 더했다. addedIn 16이다.
+const CONTENT_UNLOCK_RECORD_VERSION = 16;
 const CONTENT_UNLOCK_SERIES = Object.freeze([
     { series: 'offlineHours', rail: 'idle', name: '시간 인식', nameTemplate: '시간 인식 {n}단계', art: 'ui/pixel/buttons/loop.png',
         description: '방치 한도가 늘어납니다.',
@@ -92,6 +93,8 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"engraving","gain":"공격 방식 변경","art":"gems/active/heavenly-branch-v1.png","after":"gemForge","name":"룬 각인","group":"룬","minLoop":6,"cost":2,"description":"각인 슬롯에 특수 옵션을 넣어 룬의 공격 방식을 바꿀 수 있습니다.","sections":[".gem-inscription-section",".gem-current-inscriptions",".gem-engrave-status"],"action":{"tab":"tab-skills","skillSubtab":"skill-tab-enhance"},"lifecycle":{"label":"루프 초기화","kept":"","reset":"룬에 부여한 각인과 확장한 각인 슬롯"}},
     {"id":"market","name":"거래소","group":"편의","minLoop":2,"cost":1,"after":"craft","description":"암거래상과 가판대를 사용할 수 있습니다.","routes":["tab-trade"],"since":11,"art":"ui/currency/golden-rule.png","gain":"암거래, 가판대"},
     {"id":"hall","name":"장비 전당","group":"편의","minLoop":2,"cost":0,"after":"codex","description":"로그인하면 장비를 전시하고 소장품을 구매할 수 있습니다.","routes":["tab-trade"],"art":"items/ruby-ring-v3.png","gain":"장비 전시"},
+    { id: 'auction', name: '경매장', gain: '장비, 재료 즉시 거래', art: 'ui/currency/formless-dew.png', group: '편의', minLoop: 20, cost: 2, addedIn: 16, after: 'market',
+        description: '경매장에서 상인의 장비를 바로 구매하고, 재료를 시세로 거래하고, 장비를 출품할 수 있습니다.', routes: ['tab-trade'] },
     {"id":"codex","gain":"수집 보너스","art":"px/items/illustrated/constellation_core.png","after":"market","name":"고유 도감","group":"장비","minLoop":4,"cost":1,"description":"고유 장비를 등록해 도감 보너스를 얻을 수 있습니다.","routes":["tab-codex"],"gate":"codex","lifecycle":{"label":"성장 영구 유지","kept":"등록한 고유 장비의 도감 기록과 수집 보너스","reset":"일반 인벤토리/장착 장비. 루프 봉인 장비는 유지됩니다."},"since":11,"formerLoop":5},
     {"id":"journal","name":"저널","group":"기록","minLoop":1,"cost":0,"description":"발견한 기록과 영구 보상을 확인합니다.","routes":["tab-journal"],"gate":"journal"},
     {"id":"stump","name":"그루터기 함","group":"영구 성장","minLoop":1,"cost":0,"progress":"stump","description":"씨앗을 그루터기 함에 배치해 처치로 키웁니다.","routes":["tab-stump"],"gate":"stump","lifecycle":{"label":"일부 유지","kept":"그루터기 함, 열린 칸, 접붙이기, 봉인 칸의 아이템과 성장","reset":"봉인 칸 밖의 그루터기 아이템과 부적(판, 보관함, 생육함)"}},
