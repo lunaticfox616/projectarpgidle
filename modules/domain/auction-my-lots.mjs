@@ -17,7 +17,7 @@ const MINE = AUCTION_HOUSE.myLots;
 export function auctionListIssue(env, owner, item) {
     if (!item || !Number.isSafeInteger(item.id) || !env.deps.itemAppraisal.quote(item)) return env.deps._t('경매장에 올릴 수 없는 물건입니다.');
     if (item.auctionBound) return env.deps._t('경매장에서 산 장비는 다시 팔 수 없습니다.');
-    if (!['rare', 'unique'].includes(item.rarity)) return env.deps._t('희귀나 고유 장비만 출품할 수 있습니다.');
+    if (!['rare', 'unique'].includes(item.rarity)) return env.deps._t('희귀, 고유 장비만 출품할 수 있습니다.');
     return env.deps.playerStall.listBlockReason(item, owner);
 }
 
