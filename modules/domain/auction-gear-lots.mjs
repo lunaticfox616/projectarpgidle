@@ -3,9 +3,9 @@
  * createSeededRng(seed:bucket)로 바꿔 끼우고 finally에서 되돌린다. 장비는 몬스터 드랍과 같은 지역, 티어 입력으로 베이스를 고르고 희귀로 만든다
  * (chooseItemBase + createItemFromBase): 고유와 체이싱 고유 길을 타지 않으므로 그 기록과 로그가 생기지 않는다. 생성이 올린 아이템 번호만
  * finally에서 되돌린다(미리보기 규칙). 급매 여부, 값의 흔들림, 이미 팔렸는지는 따로 정해진 주사위(seed:bucket:deal:번호)라 생성이 바뀌어도 그대로다.
- * 값은 언제나 마법의 새싹(이슬 몇 개 값에서는 시세와 급매가 반올림에 묻혀서): 기준 = max(감정 marketValue, NPC 상점이 그 희귀에 매기는 값)을
- * 새싹 단위(감정의 단위표)로 나눈 값, price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세), 둘 다 gear.floorBud 이상이고
- * price는 상점 값 x 0.82(가장 깊은 급매) 아래로 내려가지 않는다.
+ * 값은 언제나 마법의 새싹(이슬 몇 개 값에서는 시세와 급매가 반올림에 묻혀서): 기준 = max(감정 marketValue, NPC 상점이 그 희귀에 매기는 값
+ * x gear.premium)을 새싹 단위(감정의 단위표)로 나눈 값, price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세), 둘 다
+ * gear.floorBud 이상이고 price는 기준 x 0.82(가장 깊은 급매) 아래로 내려가지 않는다.
  * 산 장비를 분해해도 남는 것이 없다.
  * 산 장비는 새 번호, tradeLocked, auctionBound를 받는다: 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
  */
@@ -73,14 +73,14 @@ export function auctionLotBase(env, state, item, index) {
     const deal = createSeededRng(`${state.seed}:${state.bucket}:deal:${index}`), bargain = deal() < GEAR.bargainChance;
     const [low, high] = bargain ? GEAR.bargain : GEAR.normal, variance = low + (high - low) * deal();
     const soldOut = deal() < (bargain ? GEAR.soldBargain : GEAR.soldNormal);
-    const unit = env.deps.itemAppraisal.unitValue('magicBud'), shopBuds = auctionShopPrice(env, item) / unit;
+    const unit = env.deps.itemAppraisal.unitValue('magicBud'), shopBuds = auctionShopPrice(env, item) * GEAR.premium / unit;
     const baseBuds = Math.max(env.deps.itemAppraisal.quote(item).marketValue / unit, shopBuds);
     // The generator's id was handed back with the counter: a negative id can never meet a bag item's.
     item.id = -(index + 1);
     return { id: `${state.bucket}:${index}`, index, item, family: auctionItemFamily(env, item), source: bargain ? 'bargain' : 'npc',
         merchant: GEAR.merchants[index % GEAR.merchants.length], currency: 'magicBud', baseBuds, variance, soldOut,
-        // A low pulse times the deepest bargain would go under the shop's own price x 0.82: that is where the lot stops.
-        floor: Math.max(GEAR.floorBud, auctionPay(shopBuds * GEAR.bargain[0])) };
+        // A low pulse times the deepest bargain would go under the base x 0.82: that is where the lot stops.
+        floor: Math.max(GEAR.floorBud, auctionPay(baseBuds * GEAR.bargain[0])) };
 }
 
 /** The bucket's lot bases, cached for the session by (seed, bucket, lotZone). [] before the first advance. */
@@ -96,7 +96,7 @@ export function auctionLotBases(env, owner) {
 
 /**
  * The NPC lots of the saved bucket (call advance first), priced in magicBud at this bucket's factors, never below gear.floorBud nor the
- * shop price x gear.bargain[0].
+ * lot's base x gear.bargain[0].
  * @returns {Array<{id: string, index: number, item: object, family: string, source: 'npc'|'bargain', merchant: string, currency: string,
  *   price: number, fairPrice: number, ratioPct: number, soldOut: boolean, boughtByMe: boolean}>} id is 'bucket:index'; item is a shared
  *   read-only preview whose id is -(index + 1), never a bag id (buying gives a copy with a fresh id).
