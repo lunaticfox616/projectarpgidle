@@ -39,6 +39,12 @@ export function auctionItemFamily(env, item) {
     return best || (item?.slot === '무기' ? 'attack' : 'armor');
 }
 
+/** The family's name: its affix tag's label (env.deps.AFFIX_TAG_LABELS, modules/data/affix-tags.mjs), '' for an unknown family. */
+export function auctionFamilyLabel(env, family) {
+    const tag = Object.keys(AUCTION_HOUSE.familyTags).find(key => AUCTION_HOUSE.familyTags[key] === family);
+    return (tag && env.deps.AFFIX_TAG_LABELS[tag]) || '';
+}
+
 /** Every key that has a price factor: the gear families, then the materials. */
 export function auctionPulseKeys() { return [...AUCTION_HOUSE.families, ...AUCTION_HOUSE.materials.keys]; }
 

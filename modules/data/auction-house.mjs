@@ -4,11 +4,6 @@
  * 모든 수치가 이 표에 있다. 재료 기준가는 베일라의 표(NPC_CURRENCY_EXCHANGE.prices, 형체 없는 이슬 값)만 쓴다: 두 번째 가격표는 없다.
  * 설계: docs/auction-house-plan-20261121.md(브랜치 auction-house-spec-20261121), 2026-11-22 검토로 고친 값이 여기 있다.
  */
-import { AFFIX_TAG_LABELS } from './affix-tags.mjs';
-
-const FAMILY_TAGS = Object.freeze({ fire: 'fire', cold: 'cold', light: 'light', chaos: 'chaos', physical: 'physical', crit: 'critical', spell: 'spell',
-    summon: 'summon', projectile: 'projectile', attack: 'attack', defense: 'armor', resistance: 'resistance' });
-
 const AUCTION_HOUSE = Object.freeze({
     // 15분: 시세가 자주 바뀌어 다시 볼 까닭이 되면서도 매 틱 계산할 일은 없다(구간이 바뀔 때만 계산한다).
     bucketMs: 900000,
@@ -50,9 +45,9 @@ const AUCTION_HOUSE = Object.freeze({
     // 앞선 계열). 해당 태그가 없으면 무기는 attack, 나머지는 armor다.
     families: Object.freeze(['fire', 'cold', 'light', 'chaos', 'physical', 'critical', 'spell', 'summon', 'projectile', 'attack', 'armor', 'resistance']),
     // 능력치 태그(modules/data/affix-tags.mjs) -> 계열. 목록에 없는 태그(damage, elemental, speed, life 같은)는 세지 않는다.
-    familyTags: FAMILY_TAGS,
-    // 계열 이름은 게임의 태그 이름(AFFIX_TAG_LABELS)을 그대로 쓴다: 12계열 모두 태그가 있어 따로 둔 이름이 없다.
-    familyLabels: Object.freeze(Object.fromEntries(Object.entries(FAMILY_TAGS).map(([tag, family]) => [family, AFFIX_TAG_LABELS[tag]]))),
+    // 계열 이름은 따로 두지 않고 그 태그의 이름(AFFIX_TAG_LABELS, auctionHouse.familyLabel)을 쓴다: 12계열 모두 태그가 있다.
+    familyTags: Object.freeze({ fire: 'fire', cold: 'cold', light: 'light', chaos: 'chaos', physical: 'physical', crit: 'critical', spell: 'spell',
+        summon: 'summon', projectile: 'projectile', attack: 'attack', defense: 'armor', resistance: 'resistance' }),
     // 재료 거래: 열쇠는 재화 키. 모두 NPC_CURRENCY_EXCHANGE.prices에서 형체 없는 이슬로 값이 매겨진 재화여야 한다(규칙이 확인한다).
     // bundle: 한 묶음의 개수. 1개 값이 1 이슬보다 작은 재화는 묶음으로만 거래해 반올림으로 값을 만들 수 없게 한다.
     // 목록 안의 다른 재화로 만들 수 있거나 그것으로 바꿀 수 있는 재화는 넣지 않는다: 싸게 사서 바꿔 비싸게 팔면 고리가 된다(2026-11-22 검토:

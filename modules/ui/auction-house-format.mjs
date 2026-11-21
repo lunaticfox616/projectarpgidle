@@ -31,9 +31,9 @@ export function priceTag(runtime, currency, amount, extra = '') {
     return `<span class="ah-price${extra}" data-tip="${esc(runtime, name)}">${runtime.deps.shopView.coinHtml(currency)}<b>${num(runtime, amount)}</b></span>`;
 }
 
-/** The family's label from the data table, translated. */
+/** The family's label (its affix tag's name), translated. */
 export function familyLabel(runtime, family) {
-    const label = runtime.deps.auctionHouse.rules.familyLabels[family];
+    const label = runtime.deps.auctionHouse.familyLabel(family);
     return label ? tr(runtime, label) : '';
 }
 

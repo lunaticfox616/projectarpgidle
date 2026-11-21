@@ -6,7 +6,7 @@
  * 세션 상태(env.session: 운영 모드, 서버 시세 보정; env.lotCache: 이번 구간 매물)는 저장하지 않는다.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
-import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auctionSetPulseDelta, auctionSetMode, auctionPulseKeys } from './auction-pulse.mjs';
+import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auctionSetPulseDelta, auctionSetMode, auctionPulseKeys, auctionFamilyLabel } from './auction-pulse.mjs';
 import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLotName, auctionLoopBlockReason } from './auction-clock.mjs';
 import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade } from './auction-materials.mjs';
 import { auctionGearLots, auctionBuyGearLot, auctionGearLotReason } from './auction-gear-lots.mjs';
@@ -17,7 +17,7 @@ import { auctionRestore } from './auction-restore.mjs';
  * deps: contentProgression, itemAppraisal (quote, unitValue), playerStall (listBlockReason), getZone, the generator primitives
  * (levelProgression, rollRealmItemDropTier, getRealmEquipmentAffixTierCap, getDroppedAffixTierRange, getEquipmentDropSlot, chooseItemBase,
  * createItemFromBase, maybeApplyExceptionalBase, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF), getItemCraftTier, getItemDisplayName, readItemIdCounter, writeItemIdCounter, canStoreEquipmentItems(items, owner), normalizeItem, escapeHTML, console, ORB_DB, _t,
- * defaultGame, PLAYER_STALL_RULES, STAT_AFFIX_TAGS, getEquipmentLoadoutOwnedItems, actExplorationLoot, actExplorationState.
+ * defaultGame, PLAYER_STALL_RULES, STAT_AFFIX_TAGS, AFFIX_TAG_LABELS, getEquipmentLoadoutOwnedItems, actExplorationLoot, actExplorationState.
  */
 export function createAuctionHouse(deps) {
     const env = { deps, session: { mode: AUCTION_HOUSE.defaultMode, delta: null }, lotCache: { key: '', lots: [] } };
@@ -39,6 +39,8 @@ export function createAuctionHouse(deps) {
         get mode() { return env.session.mode; },
         setMode: mode => auctionSetMode(env, mode),
         itemFamily: item => auctionItemFamily(env, item),
+        /** A family's Korean name (its affix tag's label); the screen translates it. */
+        familyLabel: family => auctionFamilyLabel(env, family),
         materials: owner => auctionMaterialRows(env, owner),
         materialQuote: (owner, key, side, count) => auctionMaterialQuote(env, owner, key, side, count),
         materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),

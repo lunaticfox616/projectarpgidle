@@ -31,6 +31,7 @@ const auctionHouse = (() => {
         get defaultGame() { return defaultGame; },
         get PLAYER_STALL_RULES() { return PLAYER_STALL_RULES; },
         get STAT_AFFIX_TAGS() { return STAT_AFFIX_TAGS; },
+        get AFFIX_TAG_LABELS() { return AFFIX_TAG_LABELS; },
         get getEquipmentLoadoutOwnedItems() { return getEquipmentLoadoutOwnedItems; },
         get actExplorationLoot() { return actExplorationLoot; },
         get actExplorationState() { return actExplorationState; }
@@ -51,7 +52,7 @@ const auctionHouse = (() => {
         isUnlocked: rules.isUnlocked, useBlock: rules.useBlock, bucketOf: rules.bucketOf, needsAdvance: rules.needsAdvance,
         advance: rules.advance, noticeText: rules.noticeText, lotName: rules.lotName, pulseKeys: rules.pulseKeys, factor: rules.factor, event: rules.event,
         pulse: rules.pulse, setPulseDelta: rules.setPulseDelta, get mode() { return rules.mode; }, setMode: rules.setMode,
-        itemFamily: rules.itemFamily, materials: rules.materials, materialQuote: rules.materialQuote,
+        itemFamily: rules.itemFamily, familyLabel: rules.familyLabel, materials: rules.materials, materialQuote: rules.materialQuote,
         materialTrade: (owner, order, now) => run(rules.materialTrade(live(owner), order, now)),
         gearLots: rules.gearLots, gearLotIssue: rules.gearLotIssue,
         buyGearLot: (owner, lotId, now) => run(rules.buyGearLot(live(owner), lotId, now)),
