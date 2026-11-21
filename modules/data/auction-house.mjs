@@ -4,6 +4,11 @@
  * 모든 수치가 이 표에 있다. 재료 기준가는 베일라의 표(NPC_CURRENCY_EXCHANGE.prices, 형체 없는 이슬 값)만 쓴다: 두 번째 가격표는 없다.
  * 설계: docs/auction-house-plan-20261121.md(브랜치 auction-house-spec-20261121), 2026-11-22 검토로 고친 값이 여기 있다.
  */
+import { AFFIX_TAG_LABELS } from './affix-tags.mjs';
+
+const FAMILY_TAGS = Object.freeze({ fire: 'fire', cold: 'cold', light: 'light', chaos: 'chaos', physical: 'physical', crit: 'critical', spell: 'spell',
+    summon: 'summon', projectile: 'projectile', attack: 'attack', defense: 'armor', resistance: 'resistance' });
+
 const AUCTION_HOUSE = Object.freeze({
     // 15분: 시세가 자주 바뀌어 다시 볼 까닭이 되면서도 매 틱 계산할 일은 없다(구간이 바뀔 때만 계산한다).
     bucketMs: 900000,
@@ -23,32 +28,31 @@ const AUCTION_HOUSE = Object.freeze({
     // 시세 사건: 구간 번호를 6으로 나눈 나머지로 돌아간다. boosts/dips는 계열이나 재료 열쇠다(띄우는 정도는 pulse.eventBoost/eventDip).
     events: Object.freeze([
         Object.freeze({ id: 'underworld_heat', title: '지하계 열기 고조',
-            description: '지핵 도전자 증가로 화염 계열 장비와 화염 기름과 원시 화석 수요가 급등했습니다.',
+            description: '지핵 도전자가 늘어 화염 계열 장비와 불씨 기름 수요가 급등했습니다.',
             boosts: Object.freeze(['fire', 'critical', 'oilFire', 'emberBranch']), dips: Object.freeze(['cold', 'armor', 'oilCold']) }),
         Object.freeze({ id: 'void_breach_surge', title: '공허 대균열 개방',
-            description: '카오스 저항과 균열 화석과 공허의 끌 거래가 활발하며 물리 계열 매물이 저점입니다.',
+            description: '카오스 저항과 균열 화석, 공허의 끌 거래가 활발하고 물리 계열 매물 값이 내렸습니다.',
             boosts: Object.freeze(['chaos', 'spell', 'fossilRift', 'voidChisel', 'oilChaos']), dips: Object.freeze(['physical', 'attack', 'fossilJagged']) }),
         Object.freeze({ id: 'sky_storm_front', title: '수관 폭풍 전조',
-            description: '창공의 탑 등반 메타로 번개와 투사체 장비와 번개 기름 시세가 강세입니다.',
+            description: '창공의 탑 등반이 늘어 번개, 투사체 장비와 뇌우 기름 값이 올랐습니다.',
             boosts: Object.freeze(['light', 'projectile', 'oilLight', 'catalystCrit']), dips: Object.freeze(['summon', 'oilFire', 'catalystSummon']) }),
         Object.freeze({ id: 'labyrinth_rush', title: '고대 미궁 개방 주간',
-            description: '화석 복원 수요가 몰리며 심연, 원시, 프리즘 화석이 강세이고 방어구 공급이 늘었습니다.',
+            description: '화석 복원 수요가 몰려 심연, 프리즘 화석 값이 오르고 방어구 값이 내렸습니다.',
             boosts: Object.freeze(['fossilAbyssal', 'fossilPrismatic', 'summon']), dips: Object.freeze(['armor', 'resistance', 'oilLight']) }),
         Object.freeze({ id: 'cosmos_resonance', title: '성간 공명기',
-            description: '치명타, 주문, 사역 종결 옵션과 촉매와 공허의 끌 시세가 동반 상승합니다.',
+            description: '치명타, 주문, 소환 장비와 기폭제, 공허의 끌 값이 함께 올랐습니다.',
             boosts: Object.freeze(['critical', 'spell', 'summon', 'catalystCrit', 'catalystSummon', 'voidChisel']), dips: Object.freeze(['physical', 'oilChaos']) }),
         Object.freeze({ id: 'guild_clearance', title: '대장장이 길드 정산',
-            description: '전반적인 장비 매물이 풍부해져 급매 특가가 늘고 잿불 가지와 톱니 화석 수요가 오릅니다.',
+            description: '물리, 방어도 장비와 잿불가지, 톱니 화석 값이 올랐습니다.',
             boosts: Object.freeze(['physical', 'armor', 'fossilJagged', 'emberBranch']), dips: Object.freeze(['spell', 'critical', 'fossilRift']) })
     ]),
     // 장비 계열. 장비의 계열은 추가 옵션(stats)의 능력치 태그(STAT_AFFIX_TAGS)를 familyTags로 옮겨 가장 많이 모인 계열이다(같으면 이 순서가
     // 앞선 계열). 해당 태그가 없으면 무기는 attack, 나머지는 armor다.
     families: Object.freeze(['fire', 'cold', 'light', 'chaos', 'physical', 'critical', 'spell', 'summon', 'projectile', 'attack', 'armor', 'resistance']),
-    familyLabels: Object.freeze({ fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', critical: '치명타', spell: '주문',
-        summon: '사역', projectile: '투사체', attack: '공격', armor: '방어도', resistance: '저항' }),
     // 능력치 태그(modules/data/affix-tags.mjs) -> 계열. 목록에 없는 태그(damage, elemental, speed, life 같은)는 세지 않는다.
-    familyTags: Object.freeze({ fire: 'fire', cold: 'cold', light: 'light', chaos: 'chaos', physical: 'physical', crit: 'critical', spell: 'spell',
-        summon: 'summon', projectile: 'projectile', attack: 'attack', defense: 'armor', resistance: 'resistance' }),
+    familyTags: FAMILY_TAGS,
+    // 계열 이름은 게임의 태그 이름(AFFIX_TAG_LABELS)을 그대로 쓴다: 12계열 모두 태그가 있어 따로 둔 이름이 없다.
+    familyLabels: Object.freeze(Object.fromEntries(Object.entries(FAMILY_TAGS).map(([tag, family]) => [family, AFFIX_TAG_LABELS[tag]]))),
     // 재료 거래: 열쇠는 재화 키. 모두 NPC_CURRENCY_EXCHANGE.prices에서 형체 없는 이슬로 값이 매겨진 재화여야 한다(규칙이 확인한다).
     // bundle: 한 묶음의 개수. 1개 값이 1 이슬보다 작은 재화는 묶음으로만 거래해 반올림으로 값을 만들 수 없게 한다.
     // 목록 안의 다른 재화로 만들 수 있거나 그것으로 바꿀 수 있는 재화는 넣지 않는다: 싸게 사서 바꿔 비싸게 팔면 고리가 된다(2026-11-22 검토:
