@@ -25,6 +25,15 @@
 
 begin;
 
+-- 먼저 실행해야 하는 파일의 표가 없으면 여기서 멈춘다(함수는 표가 없어도 만들어지고 부를 때에야 실패하기 때문이다).
+do $$
+begin
+    if to_regclass('public.cloud_saves') is null or to_regclass('public.cheat_holds') is null
+       or to_regclass('public.cheat_flags') is null then
+        raise exception 'db/cloud-and-playtest.sql과 db/anti-cheat.sql을 먼저 실행하세요';
+    end if;
+end $$;
+
 create table if not exists public.auction_market_pulse (
     id          smallint primary key default 1 check (id = 1),
     mode        text not null default 'hybrid' check (mode in ('hybrid', 'pulse_only')),
@@ -77,30 +86,38 @@ begin
         if not found then
             -- 다른 요청이 세는 중: 저장된 값을 그대로 돌려준다.
             select * into pulse from public.auction_market_pulse where id = 1;
-        else
-            with recent as (
-                -- 하루 안의 저장 가운데 최근 400개: 인덱스만으로 고르고 JSON은 아직 읽지 않는다.
-                select rs.user_id
+        elsif pulse.bucket <> bucket_now or pulse.computed_at < now_at - interval '10 minutes' then
+            -- 잠근 뒤 다시 본다: 잠그는 사이 다른 요청이 방금 세어 놓았으면 또 세지 않는다.
+            with recent as materialized (
+                -- 하루 안의 저장 가운데 최근 400개. 여기서는 save_data를 풀어 읽지 않고 그대로 넘긴다.
+                -- materialized: 아래 조건이 이 안으로 밀려 들어가 400개 밖의 저장을 읽는 일이 없게 한다.
+                select rs.user_id, rs.save_data
                   from public.cloud_saves rs
                  where rs.updated_at >= now_at - interval '24 hours'
                  order by rs.updated_at desc
                  limit 400
-            ), eligible as (
-                -- 그 400개만 save_data를 읽는다. 숫자가 아닌 값은 case로 막아 형 변환이 실패하지 않는다.
-                -- 루프 번호는 db/equipment-hall.sql hall_inventory_limit와 같은 식이다: greatest(1, season, loopCount + 1).
-                select cs.user_id, cs.save_data #> '{auction,trend}' as trend
+            ), picked as materialized (
+                -- 계정마다 필요한 세 값만 한 번씩 꺼낸다. 뒤에서는 이 작은 값만 쓴다(큰 저장을 열쇠마다 다시 풀지 않는다).
+                select recent.user_id,
+                       recent.save_data -> 'season' as season,
+                       recent.save_data -> 'loopCount' as loop_count,
+                       recent.save_data #> '{auction,trend}' as trend
                   from recent
-                  join public.cloud_saves cs on cs.user_id = recent.user_id
-                  join auth.users au on au.id = cs.user_id
+            ), eligible as (
+                -- 숫자가 아닌 값은 case로 막아 형 변환이 실패하지 않는다.
+                -- 루프 번호는 db/equipment-hall.sql hall_inventory_limit와 같은 식이다: greatest(1, season, loopCount + 1).
+                select picked.user_id, picked.trend
+                  from picked
+                  join auth.users au on au.id = picked.user_id
                  where greatest(1,
-                           case when jsonb_typeof(cs.save_data -> 'season') = 'number'
-                                then floor((cs.save_data ->> 'season')::numeric) else 1 end,
-                           case when jsonb_typeof(cs.save_data -> 'loopCount') = 'number'
-                                then floor((cs.save_data ->> 'loopCount')::numeric) + 1 else 1 end) >= 20
+                           case when jsonb_typeof(picked.season) = 'number'
+                                then floor((picked.season #>> '{}')::numeric) else 1 end,
+                           case when jsonb_typeof(picked.loop_count) = 'number'
+                                then floor((picked.loop_count #>> '{}')::numeric) + 1 else 1 end) >= 20
                    and au.created_at < now_at - interval '7 days'
-                   and not exists (select 1 from public.cheat_holds ch where ch.user_id = cs.user_id)
+                   and not exists (select 1 from public.cheat_holds ch where ch.user_id = picked.user_id)
                    and not exists (select 1 from public.cheat_flags cf
-                                    where cf.user_id = cs.user_id and cf.last_at >= now_at - interval '14 days')
+                                    where cf.user_id = picked.user_id and cf.last_at >= now_at - interval '14 days')
             ), votes as (
                 -- 계정 하나, 열쇠 하나에 한 표: JSON 숫자만 세고 그 부호가 표다(0이면 표가 없다).
                 select eligible.user_id, pk.key_name,
