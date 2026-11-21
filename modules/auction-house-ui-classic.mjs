@@ -14,7 +14,7 @@ const auctionPulseService = new AuctionPulseService({
     get console() { return console; },
     now: () => Date.now()
 });
-const auctionHouseUi = createAuctionHouseView({
+const view = createAuctionHouseView({
     get auctionHouse() { return auctionHouse; },
     get auctionPulse() { return auctionPulseService; },
     get game() { return window.GameModules.state.game; },
@@ -42,4 +42,6 @@ const auctionHouseUi = createAuctionHouseView({
     get announceAuction() { return window.GameModules.application.announceAuction; },
     now: () => Date.now()
 });
+// dispose: the four document listeners go and the section stops drawing (a late hall load or pulse reply then renders nothing).
+const auctionHouseUi = Object.freeze({ ...view, dispose: () => { auctionPulseService.dispose(); view.dispose(); } });
 safeExposeGlobals({ auctionHouseUi });

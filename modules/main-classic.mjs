@@ -127,6 +127,7 @@ const deps = {
         playerStallUi.dispose();
         npcRosterUi.dispose();
         marketUi.dispose();
+        auctionHouseUi.dispose();
         shopView.dispose();
     },
     disposeLoopViews: () => {
