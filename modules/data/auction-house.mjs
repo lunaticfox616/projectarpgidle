@@ -24,7 +24,7 @@ const AUCTION_HOUSE = Object.freeze({
     events: Object.freeze([
         Object.freeze({ id: 'underworld_heat', title: '지하계 열기 고조',
             description: '지핵 도전자 증가로 화염 계열 장비와 화염 기름과 원시 화석 수요가 급등했습니다.',
-            boosts: Object.freeze(['fire', 'critical', 'oilFire', 'fossilPrimal', 'emberBranch']), dips: Object.freeze(['cold', 'armor', 'oilCold']) }),
+            boosts: Object.freeze(['fire', 'critical', 'oilFire', 'emberBranch']), dips: Object.freeze(['cold', 'armor', 'oilCold']) }),
         Object.freeze({ id: 'void_breach_surge', title: '공허 대균열 개방',
             description: '카오스 저항과 균열 화석과 공허의 끌 거래가 활발하며 물리 계열 매물이 저점입니다.',
             boosts: Object.freeze(['chaos', 'spell', 'fossilRift', 'voidChisel', 'oilChaos']), dips: Object.freeze(['physical', 'attack', 'fossilJagged']) }),
@@ -33,7 +33,7 @@ const AUCTION_HOUSE = Object.freeze({
             boosts: Object.freeze(['light', 'projectile', 'oilLight', 'catalystCrit']), dips: Object.freeze(['summon', 'oilFire', 'catalystSummon']) }),
         Object.freeze({ id: 'labyrinth_rush', title: '고대 미궁 개방 주간',
             description: '화석 복원 수요가 몰리며 심연, 원시, 프리즘 화석이 강세이고 방어구 공급이 늘었습니다.',
-            boosts: Object.freeze(['fossilAbyssal', 'fossilPrimal', 'fossilPrismatic', 'summon']), dips: Object.freeze(['armor', 'resistance', 'oilLight']) }),
+            boosts: Object.freeze(['fossilAbyssal', 'fossilPrismatic', 'summon']), dips: Object.freeze(['armor', 'resistance', 'oilLight']) }),
         Object.freeze({ id: 'cosmos_resonance', title: '성간 공명기',
             description: '치명타, 주문, 사역 종결 옵션과 촉매와 공허의 끌 시세가 동반 상승합니다.',
             boosts: Object.freeze(['critical', 'spell', 'summon', 'catalystCrit', 'catalystSummon', 'voidChisel']), dips: Object.freeze(['physical', 'oilChaos']) }),
@@ -51,8 +51,10 @@ const AUCTION_HOUSE = Object.freeze({
         summon: 'summon', projectile: 'projectile', attack: 'attack', defense: 'armor', resistance: 'resistance' }),
     // 재료 거래: 열쇠는 재화 키. 모두 NPC_CURRENCY_EXCHANGE.prices에서 형체 없는 이슬로 값이 매겨진 재화여야 한다(규칙이 확인한다).
     // bundle: 한 묶음의 개수. 1개 값이 1 이슬보다 작은 재화는 묶음으로만 거래해 반올림으로 값을 만들 수 없게 한다.
+    // 목록 안의 다른 재화로 만들 수 있거나 그것으로 바꿀 수 있는 재화는 넣지 않는다: 싸게 사서 바꿔 비싸게 팔면 고리가 된다(2026-11-22 검토:
+    // 원시 화석을 사서 복원하면 여기서 파는 화석이 나와 극단 시세에서 7% 남았다, modules/domain/rune-fossil-refining.mjs). 원시 화석을 뺐다.
     materials: Object.freeze({
-        keys: Object.freeze(['fossilPrimal', 'fossilAbyssal', 'fossilRift', 'fossilJagged', 'fossilPrismatic', 'oilFire', 'oilCold', 'oilLight',
+        keys: Object.freeze(['fossilAbyssal', 'fossilRift', 'fossilJagged', 'fossilPrismatic', 'oilFire', 'oilCold', 'oilLight',
             'oilChaos', 'catalystCrit', 'catalystSummon', 'emberBranch', 'voidChisel', 'magicBud']),
         bundles: Object.freeze({ catalystCrit: 5, catalystSummon: 5, magicBud: 40 }),
         buy: 1.15,      // 사는 값 = 기준가 x 1.15 x 시세(0.98 ~ 1.32배): 베일라(1.8 ~ 2.2배)보다 싸다
@@ -68,8 +70,10 @@ const AUCTION_HOUSE = Object.freeze({
         // 경매장은 굴린 옵션을 먼저 보여 주고 한 번에 16개를 내놓으므로 상인이 NPC 장비 상점 값의 두 배를 부른다. 첫 어림값이다.
         premium: 2,
         // 희귀를 분해하면 이슬 1개 확정에 많아야 1개를 더 받아 최대 2개다(modules/domain/equipment-salvage-rewards.mjs). 이슬을 새싹으로
-        // 바꾸는 가장 좋은 길은 이 경매장의 새싹 묶음을 가장 싸게 사는 것이다(40개에 pay(5 x 1.15 x 0.85) = 이슬 5개, 이슬 1개에 8개).
-        // 그래서 이슬 2개는 많아야 새싹 16개이고, 매물은 그보다 비싸야 분해로 남길 수 없다. 분해 보상이나 그 환율이 바뀌면 다시 셈한다.
+        // 바꾸는 가장 좋은 길은 이 경매장의 새싹 묶음을 가장 싸게 사는 것이다. 새싹 시세는 보정 없이 0.90 아래로 가지 않는다(파도 -0.06,
+        // 잡음 -0.04, 새싹을 누르는 사건이 없다). 서버 보정 -voteSwing까지 더하면 0.84지만 pulse.min에 막혀 0.85가 보장된 바닥이다:
+        // 40개에 기준가 5 x 1.15 x 0.85 = 이슬 4.89개, 이슬 1개에 새싹 8.2개. 그래서 이슬 2개는 많아야 새싹 16.4개이고, 매물은 그보다 비싸야
+        // 분해로 남길 수 없다. 암거래상의 새싹 -> 이슬 거래는 반대 방향이라 이 바닥과 관계없다. 분해 보상, 그 환율, 시세 폭이 바뀌면 다시 셈한다.
         floorBud: 17,
         lots: 16,
         bargainChance: 0.24,
