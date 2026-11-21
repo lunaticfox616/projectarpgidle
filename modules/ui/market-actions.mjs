@@ -11,7 +11,7 @@ export function moveTab(runtime, event) {
 export function openSections(runtime) {
     const market = (0, runtime.deps.isMarketUnlocked)();
     const open = { npc: runtime.deps.contentProgression.npcsMet(runtime.deps.game) || market, stall: market, hall: runtime.deps.contentProgression.isUnlocked('hall'),
-        auction: runtime.deps.auctionHouse.isUnlocked(runtime.deps.game) };
+        auction: runtime.deps.auctionHouse.canOpen(runtime.deps.game) };
     return runtime.state.MARKET_SECTIONS.filter(id => open[id]);
 }
 

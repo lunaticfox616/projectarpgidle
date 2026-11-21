@@ -24,6 +24,9 @@ export function createAuctionHouse(deps) {
     return Object.freeze({
         rules: AUCTION_HOUSE,
         isUnlocked: owner => deps.contentProgression.isUnlocked('auction', owner),
+        /** Whether the section opens and the tick settles: unlocked, or lots are left (so a loop is never blocked by lots out of reach).
+         * Buying, material trades and new listings still need the unlock (useBlock). */
+        canOpen: owner => deps.contentProgression.isUnlocked('auction', owner) || (Array.isArray(owner?.auction?.lots) && owner.auction.lots.length > 0),
         useBlock: owner => auctionUseBlock(env, owner),
         bucketOf: auctionBucketOf,
         needsAdvance: auctionNeedsAdvance,

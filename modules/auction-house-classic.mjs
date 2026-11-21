@@ -49,7 +49,7 @@ const auctionHouse = (() => {
     const idle = Object.freeze({ ok: true, bucketChanged: false, settled: [] });
     return Object.freeze({
         rules: rules.rules,
-        isUnlocked: rules.isUnlocked, useBlock: rules.useBlock, bucketOf: rules.bucketOf, needsAdvance: rules.needsAdvance,
+        isUnlocked: rules.isUnlocked, canOpen: rules.canOpen, useBlock: rules.useBlock, bucketOf: rules.bucketOf, needsAdvance: rules.needsAdvance,
         advance: rules.advance, noticeText: rules.noticeText, lotName: rules.lotName, pulseKeys: rules.pulseKeys, factor: rules.factor, event: rules.event,
         pulse: rules.pulse, setPulseDelta: rules.setPulseDelta, get mode() { return rules.mode; }, setMode: rules.setMode,
         itemFamily: rules.itemFamily, familyLabel: rules.familyLabel, materials: rules.materials, materialQuote: rules.materialQuote,
@@ -62,10 +62,10 @@ const auctionHouse = (() => {
         claimAll: owner => run(rules.claimAll(live(owner))),
         loopBlockReason: rules.loopBlockReason,
         restore: rules.restore,
-        /** Per-tick settlement of the current game at now (UTC ms): nothing (one integer compare) unless unlocked and the bucket has
-         * turned. Returns advance's result; the caller announces result.settled (modules/application/foreground-loop.mjs announceAuction). */
+        /** Per-tick settlement of the current game at now (UTC ms): nothing (one integer compare) unless the auction can open (unlocked,
+         * or lots left) and the bucket has turned. Returns advance's result; the caller announces result.settled (modules/application/foreground-loop.mjs announceAuction). */
         tick(now) {
-            if (!game || game.isBackgroundCalculation || !rules.isUnlocked(game) || !rules.needsAdvance(game, now)) return idle;
+            if (!game || game.isBackgroundCalculation || !rules.canOpen(game) || !rules.needsAdvance(game, now)) return idle;
             return rules.advance(game, now);
         }
     });

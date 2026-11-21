@@ -117,7 +117,7 @@ function editingInput(host) {
 /** The section's host when it is shown and usable, else null (a closed or hidden section does no work). */
 function shownHost(runtime) {
     const { document, auctionHouse, game } = runtime.deps, host = runtime.active ? document.getElementById('market-panel-auction') : null;
-    return host && !host.hidden && game && auctionHouse.isUnlocked(game) ? host : null;
+    return host && !host.hidden && game && auctionHouse.canOpen(game) ? host : null;
 }
 
 /** Puts the frame (band, tabs, view) in when it is missing or was drawn in another language. Returns whether it did. */

@@ -117,10 +117,11 @@ export function stallRulesOwnedOutsideEscrow(deps, owner) {
         deps.actExplorationLoot.reservedItems(owner), deps.actExplorationState.groundLoot.reservedItems(owner)].flat().filter(Boolean);
 }
 
-/** The auction (owner.auction, restored after the stall) holds listed gear too: an id it holds is owned elsewhere. */
+/** The auction (owner.auction, restored after the stall) holds listed gear too: an id it holds is owned elsewhere. A sold lot has no item
+ * in a sound save, so one left in a sold record does not count. */
 export function stallRulesAuctionItems(owner) {
     const lots = owner.auction && Array.isArray(owner.auction.lots) ? owner.auction.lots : [];
-    return lots.map(row => row && row.item);
+    return lots.map(row => row && row.status !== 'sold' && row.item);
 }
 
 export function stallRulesRestore(env, owner) {

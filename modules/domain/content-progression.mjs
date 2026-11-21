@@ -29,8 +29,10 @@ function createContentProgressRoutes(env) {
         'tab-season': owner => owner.season >= 2,
         'tab-unlocks': owner => owner.season >= 2,
         'tab-guide': owner => contentCanOpen(env, 'tab-journal', owner),
-        // NPC, 거래소, 장비 전당 중 하나가 열리면 거래 창을 연다. 옛 칸 주소는 UI가 이 창으로 보낸다.
-        'tab-trade': owner => contentNpcsMet(owner) || contentIsUnlocked(env, 'market', owner) || contentIsUnlocked(env, 'hall', owner),
+        // NPC, 거래소, 장비 전당 중 하나가 열리면 거래 창을 연다. 옛 칸 주소는 UI가 이 창으로 보낸다. 경매장 출품이 남아 있으면 해금이 없어도
+        // 연다(수령하지 못한 출품이 루프를 막지 않게).
+        'tab-trade': owner => contentNpcsMet(owner) || contentIsUnlocked(env, 'market', owner) || contentIsUnlocked(env, 'hall', owner)
+            || (Array.isArray(owner?.auction?.lots) && owner.auction.lots.length > 0),
         // 아틀라스와 혼돈계의 최초 개방 기록은 서로 독립적이다.
         'map-explore-worldtree': owner => !!owner.atlas?.unlocked
     };
