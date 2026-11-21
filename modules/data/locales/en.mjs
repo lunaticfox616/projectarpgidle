@@ -11027,7 +11027,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '성간 공명기': 'Interstellar Resonance',
         '치명타, 주문, 소환 장비와 기폭제, 공허의 끌 값이 함께 올랐습니다.': 'Critical strike, spell and summon gear, catalysts and Void Chisels have all risen together.',
         '대장장이 길드 정산': "Smiths' Guild Settlement",
-        '물리, 방어도 장비와 잿불가지, 톱니 화석 값이 올랐습니다.': 'Physical and armor gear, Ember Branches and Jagged Fossils have risen in price.',
+        '물리, 방어 장비와 잿불가지, 톱니 화석 값이 올랐습니다.': 'Physical and armor gear, Ember Branches and Jagged Fossils have risen in price.',
         '시든 도시 중개인': 'Withered City Broker',
         '모루터 감정사': 'Anvil Yard Appraiser',
         '허공뿌리 행상': 'Voidroot Peddler',

@@ -38,7 +38,7 @@ const AUCTION_HOUSE = Object.freeze({
             description: '치명타, 주문, 소환 장비와 기폭제, 공허의 끌 값이 함께 올랐습니다.',
             boosts: Object.freeze(['critical', 'spell', 'summon', 'catalystCrit', 'catalystSummon', 'voidChisel']), dips: Object.freeze(['physical', 'oilChaos']) }),
         Object.freeze({ id: 'guild_clearance', title: '대장장이 길드 정산',
-            description: '물리, 방어도 장비와 잿불가지, 톱니 화석 값이 올랐습니다.',
+            description: '물리, 방어 장비와 잿불가지, 톱니 화석 값이 올랐습니다.',
             boosts: Object.freeze(['physical', 'armor', 'fossilJagged', 'emberBranch']), dips: Object.freeze(['spell', 'critical', 'fossilRift']) })
     ]),
     // 장비 계열. 장비의 계열은 추가 옵션(stats)의 능력치 태그(STAT_AFFIX_TAGS)를 familyTags로 옮겨 가장 많이 모인 계열이다(같으면 이 순서가
