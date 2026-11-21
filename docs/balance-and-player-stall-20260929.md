@@ -17,6 +17,19 @@
 - 팔면 시세의 0.5배(내림), 사면 2배(올림)이고, 시세는 루프마다 재화별로 0.9 ~ 1.1배다. 사이가 네 배라 되팔기로 늘릴 수 없다.
   `MARKET_EXCHANGES`는 감정(js/item-appraisal.js)과 암거래상 교환 제안이 쓰는 데이터로 남는다.
 
+## 경매장 (2026-11-22)
+
+거래 창의 넷째 칸(루프 20 해금 `auction`). 수치는 모두 `modules/data/auction-house.mjs`, 규칙은 `modules/domain/auction-*.mjs`(전역 `auctionHouse`),
+화면은 `modules/ui/auction-house-*.mjs`(전역 `auctionHouseUi`), 저장은 `game.auction`이다. Gemini 시안
+(브랜치 `auction-house-spec-20261121`의 `docs/auction-house-plan-20261121.md`)에서 바꾼 것:
+
+- 내 출품의 값은 그 구간 감정가의 1.2배까지다. 상한이 없으면 아무 값이나 구간마다 팔려 재화를 찍어 낸다.
+- 경매장에서 산 장비는 `tradeLocked`, `auctionBound`를 받아 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
+- 상인 매물에 고유는 없다(암거래상의 고유 값을 무너뜨린다). 값은 새싹으로만 매기고, 분해 보상과 NPC 상점의 희귀 값보다 싸지 않게 바닥값을 둔다.
+- 다른 플레이어의 장비는 장비 전당의 전시품과 그 구매 경로(확인 창, 서버)를 그대로 쓴다. `auction_user_lots` 표와 새 서버 호출은 없다.
+- 시안의 정산함은 내 출품에 접었다. 팔린 출품과 기간이 끝난 출품은 수령할 때까지 제 진열대에 남는다.
+- 꾸며 낸 플레이어 이름은 없다. 상인 매물은 데이터 표의 상인 이름, 전당 매물은 전시한 플레이어의 이름이다.
+
 ## 현재 거래 규칙 (2026-10-06, main `4fd7c494` 대조)
 
 2026-11-13 ESM 원본: `modules/domain/player-stall.mjs`와 `stall-*.mjs`가 진열·시계·가격 제안·판매 대금·
