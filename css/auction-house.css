@@ -107,8 +107,8 @@
 /* 넓은 칸: 머리줄과 두 줄 행(이름 칸 안에 이름 줄과 판매자 줄), 같은 열 너비. 열 너비는 가장 긴 값(부위 이름, 아이템 레벨 세 자리, 옵션 수와
    계열, 70분, 다섯 자리 값)과 머리 글이 잘리지 않는 너비다. */
 @container (min-width: 700px) {
-    .ah-board { --ah-cols: 30px minmax(0, 1fr) 52px 58px 76px 52px 64px; --ah-areas: "art name slot level options left price"; }
-    .ah-board.is-recent { --ah-cols: 30px minmax(0, 1fr) 52px 58px 76px 64px 64px; --ah-areas: "art name slot level options price ago"; }
+    .ah-board { --ah-cols: 30px minmax(0, 1fr) 52px 58px 70px 52px 58px; --ah-areas: "art name slot level options left price"; }
+    .ah-board.is-recent { --ah-cols: 30px minmax(0, 1fr) 52px 58px 70px 58px 52px; --ah-areas: "art name slot level options price ago"; }
     .ah-board-head, #market-panel-auction .ah-lot { grid-template-columns: var(--ah-cols); grid-template-areas: var(--ah-areas); column-gap: 6px; }
     .ah-cell-ago { grid-area: ago; }
     .ah-head-left, .ah-head-ago { text-align: right; }
@@ -138,7 +138,7 @@
 #market-panel-auction .ah-primary { min-height: 40px; padding: 6px 12px; border: 1px solid #927644; background: linear-gradient(#514127, #302719); color: #efdab0; }
 .ah-why { color: #e58a7f; font-size: 12px; line-height: 1.5; }
 @container (min-width: 700px) {
-    .ah-gear-body { grid-template-columns: minmax(0, 1fr) minmax(260px, 300px); grid-template-areas: "list detail"; }
+    .ah-gear-body { grid-template-columns: minmax(0, 1fr) minmax(260px, 280px); grid-template-areas: "list detail"; }
     .ah-detail { position: sticky; top: 0; }
 }
 
