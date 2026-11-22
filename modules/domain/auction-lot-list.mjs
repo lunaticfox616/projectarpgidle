@@ -80,7 +80,8 @@ function auctionWarmPlan(env, owner, clock, stop, prefer) {
  * @returns {{done: number, total: number, heads: boolean, preferred: {done: number, total: number}}} done of total lots have bodies (preferred:
  *   of the lots prefer passes); heads false while the heads are still being built.
  */
-export function auctionWarmLots(env, owner, now, { stop = NEVER, prefer = null } = {}) {
+export function auctionWarmLots(env, owner, now, options = {}) {
+    const { stop = NEVER, prefer = null } = options;
     const plan = auctionWarmPlan(env, owner, auctionListClock(owner.auction, now), stop, prefer);
     if (!plan) return { done: 0, total: 0, heads: false, preferred: { done: 0, total: 0 } };
     const { targets, wanted } = plan, missing = targets.filter(row => !warm(row)), first = new Set(wanted.filter(row => !warm(row)));

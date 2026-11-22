@@ -72,7 +72,7 @@ function auctionHeadUnique(env, zone, roll) {
 /**
  * Lot index's head from its own stream (seed:bucket:lot:index); every draw is made whatever the lot is, so the order stays fixed.
  * @returns {{id: string, birthBucket: number, index: number, kind: string, rarity: string, slot: string, zone: number|string|null, unique: string,
- *   flags: number, seller: number[], source: 'npc'|'bargain', variance: number, best: boolean, arriveAt: number, expireAt: number, soldAt: number|null}}
+ *   flags: number, seller: number[], source: string, variance: number, best: boolean, arriveAt: number, expireAt: number, soldAt: number|null}}
  *   rarity '' for a non-gear lot (its body decides); flags: bit k for AUCTION_VARIANT_KEYS[k] (gear lots other than uniques); times UTC ms.
  */
 export function auctionLotHead(env, record, index) {
