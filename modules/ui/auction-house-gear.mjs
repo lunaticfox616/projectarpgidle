@@ -7,7 +7,7 @@
  * 목록에 놓는다. 규칙이 싸게 내놓은 매물(source 'bargain')도 화면은 다른 상인 매물과 같게 보인다. 이름 찾기와 시계의 새로 고침
  * (modules/ui/auction-house-render.mjs)은 목록, 매물 수, 자세히 칸만 다시 그린다(repaintGearBoard): 고르기 줄과 찾기 칸의 입력, 목록의 밀린 자리가 남는다.
  */
-import { tr, esc, num, priceTag, familyLabel, itemName, slotLabel, itemArtHtml, paint } from './auction-house-format.mjs';
+import { tr, esc, num, priceTag, familyLabel, itemName, slotLabel, itemArtHtml, paint, sellerName } from './auction-house-format.mjs';
 import { userLots, userLotIssue, hallActive } from './auction-house-hall.mjs';
 
 const SOURCES = Object.freeze([['all', '전체'], ['merchant', '상인'], ['user', '다른 플레이어']]);
@@ -126,7 +126,8 @@ function tagsHtml(runtime, lot) {
     return tags.length ? `<span class="ah-tags">${tags.join('')}</span>` : '';
 }
 
-function sellerText(runtime, lot) { return lot.source === 'user' ? esc(runtime, lot.merchant) : esc(runtime, tr(runtime, lot.merchant)); }
+/** Who sells lot: a hall show's curator, or the merchant's composed name. */
+function sellerText(runtime, lot) { return esc(runtime, lot.source === 'user' ? lot.merchant : sellerName(runtime, lot.seller)); }
 
 /** Whole minutes rounded up: '{minutes}분'. */
 function minutesText(runtime, ms) { return runtime.deps._t('{minutes}분', { minutes: num(runtime, Math.max(1, Math.ceil(ms / MINUTE_MS))) }); }
@@ -187,7 +188,7 @@ function lotCardDetail(runtime, lot) {
 
 function sellerHtml(runtime, lot) {
     if (lot.source === 'user') return runtime.deps._t('{name}의 전시', { name: esc(runtime, lot.merchant) });
-    return runtime.deps._t('{name}의 매물', { name: tr(runtime, lot.merchant) });
+    return runtime.deps._t('{name}의 매물', { name: sellerText(runtime, lot) });
 }
 
 /** The deal part: the price and the buy button with its refusal, or for a recent trade the price and how long ago it sold. */

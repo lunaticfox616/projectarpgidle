@@ -3,7 +3,7 @@
  * 수수료와 받을 금액)이 된다. 판매 중, 판매 완료(대금 수령), 기간 끝남(장비 회수)은 수령할 때까지 제 진열대에 남는다(시안의 정산함을 여기에 접었다).
  * 가격의 느낌은 가판대의 말(금방 팔리는 가격, 적당한 가격, 오래 걸리는 가격)을 판매 확률(chanceAt)로 고른다.
  */
-import { trHtml, esc, num, priceTag, itemName, itemArtHtml } from './auction-house-format.mjs';
+import { trHtml, esc, num, priceTag, itemName, itemArtHtml, sellerName } from './auction-house-format.mjs';
 
 /** The draft's bag item when it is still listable, else null (the draft is dropped). */
 export function draftItem(runtime) {
@@ -65,7 +65,7 @@ function openLotHtml(runtime, lot) {
 function soldLotHtml(runtime, lot) {
     const row = (label, amount, extra = '') => `<div class="ah-receipt-row${extra}"><dt>${trHtml(runtime, label)}</dt><dd>${priceTag(runtime, lot.currency, amount)}</dd></div>`;
     return `<article class="ah-stand is-sold">${headHtml(runtime, `<span class="ah-art is-coin">${runtime.deps.shopView.coinHtml(lot.currency)}</span>`, runtime.deps.auctionHouse.lotName(lot.name), '판매 완료', 'is-sold')}
-        <p class="ah-stand-buyer">${runtime.deps._t('구매자 {name}', { name: trHtml(runtime, lot.buyer || '') })}</p>
+        <p class="ah-stand-buyer">${runtime.deps._t('구매자 {name}', { name: esc(runtime, sellerName(runtime, lot.buyer)) })}</p>
         <dl class="ah-receipt">${row('판매가', lot.gross)}${row('수수료', lot.fee, ' is-fee')}${row('받을 금액', lot.net, ' is-total')}</dl>
         <div class="ah-stand-actions"><button type="button" class="ah-primary" data-ah-claim="${lot.id}">${runtime.deps._t('대금 수령')}</button></div></article>`;
 }

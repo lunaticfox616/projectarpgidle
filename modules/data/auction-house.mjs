@@ -161,7 +161,16 @@ const AUCTION_HOUSE = Object.freeze({
         bargainChance: 0.24,
         bargain: Object.freeze([0.82, 0.88]),
         normal: Object.freeze([0.96, 1.10]),
-        merchants: Object.freeze(['시든 도시 중개인', '모루터 감정사', '허공뿌리 행상', '수관 수집상'])
+        // 판매자 이름 = 앞말 x 뒷말(화면은 두 말을 옮겨 '{prefix} {suffix}'로 잇는다). 묶음마다 sellersPerBatch명을 seed:bucket:seller 주사위로 뽑아
+        // 묶음의 매물에 하나씩 나눠 준다(한 판매자에 두세 개). 앞말의 넷 뒤는 게임의 장소 이름 그대로다(modules/data/maps.mjs의 액트 이름,
+        // modules/data/stage-regions.mjs의 지역 이름). 저장(내 출품의 구매자)은 두 목록의 번호다: 목록은 끝에만 더한다.
+        sellers: Object.freeze({
+            prefixes: Object.freeze(['시든 도시', '모루터', '허공뿌리', '수관', '뿌리끝 성소', '가지치기의 중정', '갈림뿌리 미궁', '말라가는 큰 줄기',
+                '비탄의 교차', '합일의 차륜', '고대 미궁', '지하계', '창공의 탑', '심해']),
+            suffixes: Object.freeze(['전사', '비술사', '궁수', '성직자', '연금술사', '방랑자', '중개인', '감정사', '행상인', '수집가', '대장장이', '세공사',
+                '약초꾼', '사냥꾼', '광부', '순례자', '용병', '학자', '뱃사람', '수도사'])
+        }),
+        sellersPerBatch: 8
     }),
     // 내 출품: 3칸. 구간이 바뀔 때마다 한 번 상인 수요가 붙고(최대 buckets번), 못 팔리면 기간이 끝난다. 값은 감정가(그 구간 시세)의 1.2배까지,
     // 최소 2(수수료 1을 떼고 1이 남는다). chances: [호가 / 감정가 상한, 판매 확률], 상한을 넘으면(시세가 떨어져서) overChance.

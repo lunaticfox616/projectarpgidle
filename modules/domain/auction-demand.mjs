@@ -27,14 +27,18 @@ export function auctionSaleAmounts(ask) {
     return { gross: ask, fee, net: Math.max(1, ask - fee) };
 }
 
+/** The merchant who bought my lot lotId: a [prefix index, suffix index] pair of gear.sellers, fixed by (seed, lot id). */
+export function auctionBuyerOf(state, lotId) {
+    const { prefixes, suffixes } = AUCTION_HOUSE.gear.sellers;
+    return [hashSeed(`${state.seed}:buyer:${lotId}`) % prefixes.length, hashSeed(`${state.seed}:buyer-suffix:${lotId}`) % suffixes.length];
+}
+
 /** One roll of an open lot at bucket. Returns the settled row ({ lotId, status: 'sold' | 'expired', name, currency, amount }) or null. */
 export function auctionRollLot(env, state, lot, bucket) {
     lot.rolls += 1;
     const chance = auctionChanceAt(lot.ask, auctionFairNow(env, state, lot.item, lot.currency, bucket));
     if (createSeededRng(`${state.seed}:${bucket}:${lot.id}`)() < chance) {
-        const merchants = AUCTION_HOUSE.gear.merchants;
-        Object.assign(lot, auctionSaleAmounts(lot.ask), { status: 'sold', item: null,
-            buyer: merchants[hashSeed(`${state.seed}:buyer:${lot.id}`) % merchants.length] });
+        Object.assign(lot, auctionSaleAmounts(lot.ask), { status: 'sold', item: null, buyer: auctionBuyerOf(state, lot.id) });
         return { lotId: lot.id, status: 'sold', name: lot.name, currency: lot.currency, amount: lot.net };
     }
     if (lot.rolls < AUCTION_HOUSE.myLots.buckets) return null;

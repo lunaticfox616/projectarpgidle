@@ -3,7 +3,7 @@
  * 시세 구간이 지날 때마다 상인 수요가 한 번 붙는다(auction-demand.mjs). 팔린 출품은 장비를 내려놓고 대금(net)을 수령할 때까지 지니고,
  * 기간이 끝난 출품은 장비를 수령할 때까지 지닌다. 칸은 수령한 뒤에야 빈다(정산함은 팔린 출품과 기간이 끝난 출품의 목록이다).
  * lot: { id, name, item (open, expired; null when sold), ask, currency, listedBucket, rolls, status: 'open'|'sold'|'expired',
- *   gross, fee, net, buyer }.
+ *   gross, fee, net, buyer ([prefix index, suffix index] of gear.sellers when sold, else null) }.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionFactor, auctionItemFamily } from './auction-pulse.mjs';

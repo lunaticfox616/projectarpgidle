@@ -14,7 +14,7 @@
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { createSeededRng, clampNumber } from '../common/numbers.mjs';
-import { auctionGenerateItems, auctionItemVariants } from './auction-gear-rolls.mjs';
+import { auctionGenerateItems, auctionItemVariants, auctionShuffle } from './auction-gear-rolls.mjs';
 import { NPC_SHOP_PRICE, npcTradeGearWarePrice } from './npc-shop-rolls.mjs';
 import { auctionFactor, auctionPay, auctionItemFamily, auctionLineFamilies, AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
 import { auctionUseBlock, auctionClockFor, auctionAddTrend, auctionBucketOf, auctionZoneOfBucket, auctionLotZoneId } from './auction-clock.mjs';
@@ -83,9 +83,23 @@ export function auctionLotTimes(deal, bucket, sold) {
     return { arriveAt, expireAt: arriveAt + life, soldAt: sold ? arriveAt + Math.round(life * point) : null };
 }
 
+/** The seller of each lot of batch: gear.sellersPerBatch distinct [prefix index, suffix index] pairs of gear.sellers drawn from the batch's
+ * own stream (seed:bucket:seller); each of them sells one lot and the other lots go to one of them at random, the order shuffled with the
+ * same stream (so every drawn seller is on the batch, most with two or three lots). */
+export function auctionBatchSellers(batch) {
+    const { prefixes, suffixes } = GEAR.sellers, random = createSeededRng(`${batch.seed}:${batch.bucket}:seller`), names = [], seen = new Set();
+    const want = Math.min(GEAR.sellersPerBatch, prefixes.length * suffixes.length);
+    while (names.length < want) {
+        const pair = Object.freeze([Math.floor(random() * prefixes.length), Math.floor(random() * suffixes.length)]);
+        if (!seen.has(pair.join(':'))) { seen.add(pair.join(':')); names.push(pair); }
+    }
+    const more = Array.from({ length: Math.max(0, GEAR.batch - names.length) }, () => names[Math.floor(random() * names.length)]);
+    return auctionShuffle([...names, ...more], random).slice(0, GEAR.batch);
+}
+
 /** The fixed part of lot index of batch ({ seed, bucket, zone }): its item, rarity, variants, family, quality, base value, deal and times
- * (from its own seeded stream: bargain, variance and sold first, the times after them). */
-export function auctionLotBase(env, batch, entry, index) {
+ * (from its own seeded stream: bargain, variance and sold first, the times after them); seller: its [prefix, suffix] pair. */
+export function auctionLotBase(env, batch, entry, index, seller) {
     const deal = createSeededRng(`${batch.seed}:${batch.bucket}:deal:${index}`), bargain = deal() < GEAR.bargainChance;
     const [low, high] = bargain ? GEAR.bargain : GEAR.normal, variance = low + (high - low) * deal();
     const times = auctionLotTimes(deal, batch.bucket, deal() < GEAR.soldChance[bargain ? 'bargain' : 'npc']);
@@ -93,7 +107,7 @@ export function auctionLotBase(env, batch, entry, index) {
     // The generator's id was handed back with the counter: a negative id, unique over batches, can never meet a bag item's.
     item.id = -(batch.bucket * GEAR.batch + index + 1);
     return { id: `${batch.bucket}:${index}`, birthBucket: batch.bucket, index, item, rarity: entry.rarity, variants: auctionItemVariants(env, item), family,
-        synergy: value.quality.synergy, rollQuality: value.quality.roll, source: bargain ? 'bargain' : 'npc', merchant: GEAR.merchants[index % GEAR.merchants.length],
+        synergy: value.quality.synergy, rollQuality: value.quality.roll, source: bargain ? 'bargain' : 'npc', seller,
         currency: value.currency, baseValue: value.base, variance, least: value.least, ...times,
         // A low pulse times the deepest bargain would go under the base x 0.82: that is where the lot stops.
         floor: Math.max(value.least, auctionPay(value.base * GEAR.bargain[0])) };
@@ -105,8 +119,8 @@ export function auctionBatchLots(env, owner, bucket) {
     const state = owner.auction, zone = auctionZoneOfBucket(state, bucket, auctionLotZoneId(env, owner));
     const key = `${state.seed}:${bucket}:${String(zone)}`;
     if (!env.lotCache.has(key)) {
-        const batch = { seed: state.seed, bucket, zone };
-        env.lotCache.set(key, auctionGenerateItems(env, batch).map((entry, index) => auctionLotBase(env, batch, entry, index)));
+        const batch = { seed: state.seed, bucket, zone }, sellers = auctionBatchSellers(batch);
+        env.lotCache.set(key, auctionGenerateItems(env, batch).map((entry, index) => auctionLotBase(env, batch, entry, index, sellers[index])));
         if (env.lotCache.size > CACHED_BATCHES) env.lotCache.delete(env.lotCache.keys().next().value);
     }
     return env.lotCache.get(key);
@@ -155,9 +169,10 @@ export function auctionPricedLot(state, row, clock) {
  * birth bucket's factors (magicBud, uniques goldenRule), never below the rarity's floor (gear.floor, a unique also the black market's
  * cheapest price) nor the lot's base x gear.bargain[0].
  * @returns {Array<{id: string, birthBucket: number, index: number, item: object, rarity: string, variants: string[], family: string,
- *   synergy: number, rollQuality: number, source: 'npc'|'bargain', merchant: string, currency: string, price: number, fairPrice: number,
+ *   synergy: number, rollQuality: number, source: 'npc'|'bargain', seller: [number, number], currency: string, price: number, fairPrice: number,
  *   ratioPct: number, arriveAt: number, expireAt: number, soldAt: number|null, phase: 'open'|'sold'|'bought', soldOut: boolean,
  *   boughtByMe: boolean, leftMs: number}>} variants: 'exceptional' | 'socket' | 'corrupted'. Times are UTC ms, leftMs = expireAt - clock.
+ *   seller: indexes into gear.sellers.prefixes and .suffixes (the screen composes the name).
  *   synergy and rollQuality: auctionLotQuality's s and q. id is 'birthBucket:index'; item is a shared read-only preview whose id is
  *   -(birthBucket x batch + index + 1), never a bag id (buying gives a copy with a fresh id).
  */

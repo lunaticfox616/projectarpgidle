@@ -37,6 +37,12 @@ export function familyLabel(runtime, family) {
     return label ? tr(runtime, label) : '';
 }
 
+/** A merchant's name from its [prefix index, suffix index] pair (gear.sellers): the two parts translated, joined by one template. */
+export function sellerName(runtime, seller) {
+    const { prefixes, suffixes } = runtime.deps.auctionHouse.rules.gear.sellers, [prefix, suffix] = Array.isArray(seller) ? seller : [0, 0];
+    return runtime.deps._t('{prefix} {suffix}|판매자 이름', { prefix: tr(runtime, prefixes[prefix] || prefixes[0]), suffix: tr(runtime, suffixes[suffix] || suffixes[0]) });
+}
+
 /** The item's shown name and its slot label. */
 export function itemName(runtime, item) { return runtime.deps.getItemDisplayName(item) || tr(runtime, item.name || '장비'); }
 
