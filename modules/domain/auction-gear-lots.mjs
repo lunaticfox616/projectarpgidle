@@ -4,7 +4,7 @@
  * 굴려도, 다시 불러와도 같다. 둘 중 나은 매물은 아이템을 두 번 굴려 품질 배율이 높은 쪽을 쓴다. 생성이 올린 아이템 번호는 되돌린다(미리보기 규칙).
  * 값: 일반, 마법, 희귀는 마법의 새싹이다. 기준 = max(감정 marketValue, NPC 장비 상점이 그 등급에 매기는 값 x gear.premium[등급])을 새싹 단위
  * (감정의 단위표)로 나누고 옵션 궁합(gear.synergy, auctionLotQuality, 마법과 희귀만)과 변형 배율(gear.variants)을 곱한 값이다. 고유는 황금률이고
- * 기준은 암거래상이 그 고유에 부른 값이다. price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 계열 시세는 매물이 태어난
+ * 기준은 암거래상이 그 고유에 부른 값(콘텐츠 고유는 그 매물의 값) x 굴림 배율(gear.uniqueRoll, auctionUniqueRollQuality)이다. price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 계열 시세는 매물이 태어난
  * 구간의 것이라(그 구간의 서버 보정은 목록이 보는 동안 저장에 남는다) 값은 매물이 머무는 동안 바뀌지 않는다. 둘 다 그 등급의 바닥
  * (gear.floor, 고유는 암거래상의 가장 싼 값도) 이상이고 price는 기준 x 0.82(가장 싼 흔들림) 아래로 내려가지 않는다.
  * 바닥에 걸려 시세보다 싸지 않은 bargain은 'npc'로 낸다(화면은 둘을 나누지 않는다). 산 장비를 분해해도 남는 것이 없다.
@@ -46,13 +46,21 @@ export function auctionVariantMultiplier(env, item) {
 export function auctionLotValue(env, entry, family) {
     const { item, rarity, offer } = entry;
     if (rarity === 'unique') {
-        const least = Math.max(GEAR.floor.unique, offer.min);
-        return { currency: 'goldenRule', base: offer.price, least, quality: { synergy: 0, roll: 0, multiplier: 1 } };
+        const least = Math.max(GEAR.floor.unique, offer.min), roll = auctionUniqueRollQuality(item), rule = GEAR.uniqueRoll;
+        return { currency: 'goldenRule', base: offer.price * (1 + rule.span * roll ** rule.power), least, quality: { synergy: 0, roll, multiplier: 1 } };
     }
     const unit = env.deps.itemAppraisal.unitValue('magicBud'), shopBuds = auctionShopPrice(env, item) * GEAR.premium[rarity] / unit;
     const quality = rarity === 'normal' ? { synergy: 0, roll: 0, multiplier: 1 } : auctionLotQuality(env, item, family);
     const base = Math.max(env.deps.itemAppraisal.quote(item).marketValue / unit, shopBuds) * quality.multiplier * auctionVariantMultiplier(env, item);
     return { currency: 'magicBud', base, least: GEAR.floor[rarity], quality };
+}
+
+/** The average place of a unique's variable lines in their roll ranges (valMin..valMax as the generator stamped them): 0 at the bottom, 1 at
+ * the top; 0.5 when no line can vary. */
+export function auctionUniqueRollQuality(item) {
+    const lines = (Array.isArray(item.stats) ? item.stats : []).filter(stat => Number(stat.valMax) > Number(stat.valMin));
+    if (!lines.length) return 0.5;
+    return lines.reduce((sum, stat) => sum + clampNumber((Number(stat.val) - stat.valMin) / (stat.valMax - stat.valMin), 0, 1), 0) / lines.length;
 }
 
 /** How well item's explicit lines (item.stats) fit family (gear.synergy): a line carrying family scores 1, one carrying only an affine family
@@ -197,7 +205,7 @@ export function auctionLotPhase(lot, clock, bought) {
  *   ratioPct: number, arriveAt: number, expireAt: number, soldAt: number|null, phase: 'coming'|'open'|'sold'|'bought'|'gone', soldOut: boolean,
  *   boughtByMe: boolean, leftMs: number}} variants: 'exceptional' | 'socket' | 'corrupted'. Times are UTC ms, leftMs = expireAt - clock.
  *   seller: indexes into gear.sellers.prefixes and .suffixes (the screen composes the name).
- *   synergy and rollQuality: auctionLotQuality's s and q. id is 'birthBucket:index'; item is a shared read-only preview whose id is
+ *   synergy and rollQuality: auctionLotQuality's s and q (a unique: auctionUniqueRollQuality's q). id is 'birthBucket:index'; item is a shared read-only preview whose id is
  *   -(birthBucket x batch + index + 1) for gear (the other kinds: auctionPreviewId), never a bag id (buying gives a copy with a fresh id).
  *   The other kinds also carry level (a ward's 아이템 Lv., else null), lines (line count) and grade (a talisman's shard key, else null);
  *   their family is '' when their lines carry none. A talisman's item is shaped as the stump box stores it. The head's own fields (slot, flags,
