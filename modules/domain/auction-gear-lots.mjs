@@ -82,10 +82,11 @@ export function auctionLotRollQuality(env, item) {
     return stats.reduce((sum, stat) => sum + (span > 0 ? clampNumber(((Number(stat.tier) || floor) - floor) / span, 0, 1) : 0.5), 0) / stats.length;
 }
 
-/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s x s x s) x (rollMin + rollSpan x q) }. */
+/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3) x (rollMin + rollSpan x q) }. */
 export function auctionLotQuality(env, item, family) {
     const rule = GEAR.synergy, synergy = auctionLotSynergy(env, item, family), roll = auctionLotRollQuality(env, item);
-    return { synergy, roll, multiplier: Math.min(rule.cap, 1 + rule.perCube * synergy ** 3) * (rule.rollMin + rule.rollSpan * roll) };
+    const match = 1 + rule.perCube * synergy ** 3 + rule.topCube * Math.max(0, synergy - rule.topFrom) ** 3;
+    return { synergy, roll, multiplier: Math.min(rule.cap, match) * (rule.rollMin + rule.rollSpan * roll) };
 }
 
 /** A gear entry's family and value, or a non-gear entry's (auction-kind-lots.mjs: family '' when its lines carry none, level and line count). */
