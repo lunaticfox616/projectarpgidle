@@ -10,6 +10,7 @@ import { auctionBucketOf } from './auction-clock.mjs';
 import { auctionPulseKeys, auctionDeltaValues, AUCTION_DELTA_SLOTS, AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
 import { auctionMaterialQuota } from './auction-materials.mjs';
 import { AUCTION_BATCH_LOTS } from './auction-kind-lots.mjs';
+import { auctionRestoreSearches } from './auction-search-query.mjs';
 
 const MINE = AUCTION_HOUSE.myLots;
 const count = value => (Number.isSafeInteger(value) && value >= 0 ? value : 0);
@@ -51,7 +52,7 @@ export function auctionRestoreBought(state, source) {
     return [...new Set((Array.isArray(source.bought) ? source.bought : []).filter(sound))];
 }
 
-/** The plain fields: clock, seed, lot zones, bought lots, this bucket's quota, trend, the saved server corrections. */
+/** The plain fields: clock, seed, lot zones, bought lots, this bucket's quota, trend, the saved server corrections, the saved searches. */
 export function auctionRestoreFields(env, source) {
     const state = JSON.parse(JSON.stringify(env.deps.defaultGame.auction));
     auctionRestoreClock(state, source);
@@ -64,6 +65,7 @@ export function auctionRestoreFields(env, source) {
     const trendKeys = new Set(auctionPulseKeys());
     state.trend = auctionRestoreKeyed(source.trend, (key, value) => trendKeys.has(key) && Number.isSafeInteger(value) ? Math.max(-99, Math.min(99, value)) : 0);
     state.deltas = auctionRestoreDeltas(source.deltas);
+    state.searches = auctionRestoreSearches(env, source.searches);
     return state;
 }
 

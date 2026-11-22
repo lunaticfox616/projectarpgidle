@@ -6,17 +6,22 @@
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { renderAuction, stopWork, frameStep, tickStep, dropGeneratedLots } from './auction-house-render.mjs';
 import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearKind,
-    moreLots, findLots } from './auction-house-actions.mjs';
+    moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, addSeller, saveQuery, runSaved, deleteSaved } from './auction-house-actions.mjs';
+import { pickSuggest, hideSuggest } from './auction-house-suggest.mjs';
+import { liveQuery } from './auction-house-conditions.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
+// The panel's selects: a slot is checked by the rules when the search normalizes the conditions.
 const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'user'], rarity: ['all', 'normal', 'magic', 'rare', 'unique'] });
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
 export function createAuctionHouseView(deps) {
-    // search: the item tab's snapshot (modules/ui/auction-house-search.mjs); jobs: rows waiting to be drawn; frame, tick, dropTimer: the
-    // pending animation frame, the once-a-second check and the drop of the generated lots (modules/ui/auction-house-render.mjs).
-    const runtime = { deps, state: initialState(), api: null, active: true, listeners: [], search: null, jobs: [], headsReady: false, warmDone: false, refill: false, seen: false, lastWarm: null, observer: null, visible: false, detailPhase: '',
-        frame: 0, tick: 0, dropTimer: 0 };
+    // search: the item tab's snapshot (modules/ui/auction-house-search.mjs); index: the lots' search fields (modules/ui/auction-house-index.mjs);
+    // saved: the saved searches' counts (modules/ui/auction-house-saved.mjs); myBuys: the merchant lots bought this session (id -> { at, kind },
+    // never saved); jobs: rows waiting to be drawn; frame, tick, dropTimer: the pending animation frame, the once-a-second check and the drop
+    // of the generated lots (modules/ui/auction-house-render.mjs); suggestTimer: the pending suggestions (modules/ui/auction-house-suggest.mjs).
+    const runtime = { deps, state: initialState(), api: null, active: true, listeners: [], search: null, index: null, saved: null, myBuys: new Map(), jobs: [], headsReady: false,
+        warmDone: false, refill: false, seen: false, lastWarm: null, observer: null, visible: false, detailPhase: '', toolsStale: false, frame: 0, tick: 0, dropTimer: 0, suggestTimer: 0 };
     runtime.frameStep = () => frameStep(runtime);
     runtime.tickStep = () => tickStep(runtime);
     runtime.dropLots = () => dropGeneratedLots(runtime);
@@ -27,6 +32,7 @@ export function createAuctionHouseView(deps) {
         dispose: () => {
             stopWork(runtime, true);
             if (runtime.dropTimer) deps.window.clearTimeout(runtime.dropTimer);
+            if (runtime.suggestTimer) deps.window.clearTimeout(runtime.suggestTimer);
             releaseViewEvents(runtime);
         }
     });
@@ -37,12 +43,12 @@ export function createAuctionHouseView(deps) {
 function initialState() {
     return {
         tab: 'gear', print: '', card: { key: '', html: '' },
-        gear: { mode: 'open', kind: 'all', slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'newest', dir: -1, family: '', selected: '' },
+        // query: the search conditions being chosen (made from the rules' empty query on first use, modules/ui/auction-house-conditions.mjs);
+        // panel: whether the 조건 panel is open.
+        gear: { mode: 'open', query: null, panel: false, sort: 'newest', dir: -1, selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
-        hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 },
-        // The search text of each lot's item (modules/ui/auction-house-gear.mjs searchText), kept by item while the item lives.
-        search: new WeakMap()
+        hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 }
     };
 }
 
@@ -50,10 +56,21 @@ function initialState() {
  * @type {ReadonlyArray<[string, (runtime: any, value: string, el: Element) => void]>} */
 const CLICKS = Object.freeze([
     ['data-ah-tab', (runtime, value) => { if (TABS.includes(value)) { runtime.state.tab = value; runtime.api.render(true); } }],
+    // A seller's name sits inside its row's button: it is looked up first.
+    ['data-ah-seller', (runtime, value) => addSeller(runtime, value)],
+    ['data-ah-suggest-pick', (runtime, value, el) => { pickSuggest(runtime, el); runtime.api.render(true); }],
     ['data-ah-lot', (runtime, value, el) => selectLot(runtime, value, el)],
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],
     ['data-ah-sort', (runtime, value) => sortGear(runtime, value)],
     ['data-ah-find', runtime => findLots(runtime)],
+    ['data-ah-panel', runtime => togglePanel(runtime)],
+    ['data-ah-save', runtime => saveQuery(runtime)],
+    ['data-ah-saved', (runtime, value) => runSaved(runtime, value)],
+    ['data-ah-unsave', (runtime, value) => deleteSaved(runtime, value)],
+    ['data-ah-clear', (runtime, value) => editCondition(runtime, 'clear', value)],
+    ['data-ah-variant', (runtime, value) => editCondition(runtime, 'variant', value)],
+    ['data-ah-opt-x', (runtime, value) => editCondition(runtime, 'option-x', value)],
+    ['data-ah-opt-add', runtime => editCondition(runtime, 'option-add', '')],
     ['data-ah-research', runtime => findLots(runtime)],
     ['data-ah-more', runtime => moreLots(runtime)],
     ['data-ah-mode', (runtime, value) => gearMode(runtime, value)],
@@ -93,6 +110,8 @@ function selectMaterial(runtime, key, el) {
 function onClick(runtime, event) {
     const host = event.target.closest?.('#market-panel-auction');
     if (!host || !runtime.active) return;
+    // A click outside a box closes its suggestions.
+    if (!event.target.closest('.ah-name-box')) hideSuggest(runtime, host);
     for (const [attr, handle] of CLICKS) {
         const el = event.target.closest(`[${attr}]`);
         if (!el || !host.contains(el) || el.disabled) continue;
@@ -102,11 +121,13 @@ function onClick(runtime, event) {
 }
 
 function onChange(runtime, event) {
+    const select = event.target.closest?.('#market-panel-auction select[data-ah-q]');
+    if (select && runtime.active) { typeCondition(runtime, select); return; }
     const el = event.target.closest?.('#market-panel-auction [data-ah-filter]');
     if (!el || !runtime.active) return;
     const name = el.dataset.ahFilter, allowed = FILTERS[name];
     if (!Object.prototype.hasOwnProperty.call(FILTERS, name) || (allowed && !allowed.includes(el.value))) return;
-    runtime.state.gear[name] = el.value;
+    liveQuery(runtime)[name] = el.value;
     runtime.api.render(true);
 }
 
@@ -115,16 +136,27 @@ function onInput(runtime, event) {
     if (!el || !runtime.active) return;
     if (el.matches('[data-ah-count]')) typeCount(runtime, el);
     else if (el.matches('[data-ah-search]')) typeSearch(runtime, el);
+    else if (el.matches('[data-ah-q]')) typeCondition(runtime, el);
+    else if (el.matches('[data-ah-opt-name], [data-ah-opt-min]')) typeOption(runtime, el);
     else if (el.matches('[data-ah-ask]')) typeAsk(runtime, el);
 }
 
-// Enter in an input presses its box's button: the count trades, the ask lists, the search box searches.
-const ENTER_KEYS = Object.freeze([['[data-ah-count]', '[data-ah-trade]'], ['[data-ah-ask]', '[data-ah-list]'], ['[data-ah-search]', '[data-ah-find]']]);
+// Enter in an input presses its box's button: the count trades, the ask lists, the name box and the panel's boxes search.
+const ENTER_KEYS = Object.freeze([['[data-ah-count]', '[data-ah-trade]'], ['[data-ah-ask]', '[data-ah-list]'],
+    ['[data-ah-search], [data-ah-q], [data-ah-opt-name], [data-ah-opt-min]', '[data-ah-find]']]);
+
+/** Escape in a box with suggestions closes them. Returns whether it did. */
+function escapeSuggest(runtime, event) {
+    const box = event.key === 'Escape' && event.target.closest?.('#market-panel-auction .ah-name-box');
+    if (box) hideSuggest(runtime, box.closest('.ah-gear'));
+    return !!box;
+}
 
 function onKeydown(runtime, event) {
+    if (escapeSuggest(runtime, event)) return;
     if (event.key !== 'Enter' || !event.target.closest?.('#market-panel-auction input')) return;
     const row = ENTER_KEYS.find(([input]) => event.target.matches(input));
-    const button = row && event.target.closest('.ah-ticket, .ah-stand, .ah-tools')?.querySelector(row[1]);
+    const button = row && event.target.closest('.ah-ticket, .ah-stand, .ah-gear')?.querySelector(row[1]);
     if (!button || button.disabled) return;
     event.preventDefault();
     button.click();

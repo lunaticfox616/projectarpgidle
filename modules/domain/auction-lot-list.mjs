@@ -42,13 +42,15 @@ function sortRow(row, clock, live, sold) {
 /** Whether a row's body was rolled. */
 const warm = row => row.record.bodies.has(row.head.index);
 
-/** A row as a head view: id, kind, rarity ('' for a non-gear lot: its body decides), slot, times (UTC ms), phase at the clock, boughtByMe, warm. */
-const headView = row => ({ id: row.head.id, kind: row.head.kind, rarity: row.head.rarity, slot: row.head.slot, arriveAt: row.head.arriveAt,
+/** A row as a head view: id, kind, rarity ('' for a non-gear lot: its body decides), slot, unique name, seller, times (UTC ms), phase at the
+ * clock, boughtByMe, warm. */
+const headView = row => ({ id: row.head.id, kind: row.head.kind, rarity: row.head.rarity, slot: row.head.slot, unique: row.head.unique, seller: row.head.seller,
+    arriveAt: row.head.arriveAt,
     expireAt: row.head.expireAt, soldAt: row.head.soldAt, phase: row.phase, boughtByMe: row.bought, warm: warm(row) });
 
 /**
  * The listed lots at now as heads only (no body is rolled): what a search can filter and order before any body exists.
- * @returns {Array<{id: string, kind: string, rarity: string, slot: string, arriveAt: number, expireAt: number, soldAt: number|null,
+ * @returns {Array<{id: string, kind: string, rarity: string, slot: string, unique: string, seller: number[], arriveAt: number, expireAt: number, soldAt: number|null,
  *   phase: 'open'|'sold'|'bought', boughtByMe: boolean, warm: boolean}>}
  */
 export function auctionLotHeads(env, owner, now) {

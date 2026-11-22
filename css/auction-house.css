@@ -54,13 +54,51 @@
 .ah-kinds { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 /* 목록 행은 몇 개씩 붙고 1초 확인이 제자리에서 고친다: 아이템 칸에는 공용 단추와 입력 칸의 빛 바뀜(transition)을 두지 않는다. */
 #market-panel-auction .ah-gear :is(button, input, select) { transition: none; }
+/* 검색 띠: [이름 칸] [조건 n] [검색] [저장] 매물 수. 이름 칸과 옵션 칸 아래에 추천 상자가 뜬다. */
 .ah-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-#market-panel-auction .ah-tools select { flex: 1 1 96px; width: auto; min-height: var(--ah-tap); padding: 4px 8px; border-radius: 0; font-size: 12px; }
-#market-panel-auction .ah-search { flex: 2 1 150px; min-width: 0; min-height: var(--ah-tap); padding: 4px 8px; border: 1px solid #594931; border-radius: 0; background: #090908;
-    color: var(--color-text); font-size: 12px; }
-#market-panel-auction .ah-find { flex: none; padding: 2px 14px; border: 1px solid #927644; background: linear-gradient(#514127, #302719); color: #efdab0; }
+.ah-name-box { position: relative; display: flex; min-width: 0; }
+.ah-name-box.is-name { flex: 2 1 180px; }
+#market-panel-auction :is(.ah-search, .ah-opt-name, .ah-num) { flex: 1 1 auto; width: 100%; min-width: 0; min-height: var(--ah-tap); padding: 4px 8px; border: 1px solid #594931;
+    border-radius: 0; background: #090908; color: var(--color-text); font-size: 12px; }
+#market-panel-auction :is(.ah-find, .ah-cond, .ah-save) { flex: none; padding: 2px 14px; border: 1px solid #927644; background: #1a1610; color: #efdab0; }
+#market-panel-auction .ah-find { background: linear-gradient(#514127, #302719); }
+#market-panel-auction .ah-cond { display: inline-flex; align-items: center; gap: 6px; }
+#market-panel-auction .ah-cond.is-on { border-color: var(--ah-gold); color: var(--ah-gold); }
+.ah-cond b { min-width: 16px; padding: 0 4px; background: var(--ah-gold); color: #17130c; font-size: 12px; font-weight: 400; line-height: 16px; text-align: center; }
 .ah-lot-count { margin-left: auto; color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
-#market-panel-auction .ah-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--ah-gold); color: var(--ah-gold); background: none; }
+.ah-suggest { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; display: grid; max-height: 280px; overflow-y: auto; border: 1px solid #594931; background: #0f0e0c; }
+.ah-suggest[hidden] { display: none; }
+#market-panel-auction .ah-suggest button { min-height: 32px; padding: 2px 8px; border: 0; background: none; color: var(--color-text); text-align: left; overflow-wrap: anywhere; }
+#market-panel-auction .ah-suggest button:hover { background: #1d1a14; }
+/* 고른 조건의 칩: ✕는 그 조건만 지운다. */
+.ah-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.ah-chips:empty { display: none; }
+#market-panel-auction .ah-filter-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 10px; border: 1px solid var(--ah-gold); color: var(--ah-gold);
+    background: none; overflow-wrap: anywhere; text-align: left; }
+/* 조건 칸: 넓으면 격자, 좁으면 한 줄에 하나. 옵션 조건은 줄마다 이름, 최소, ✕. */
+.ah-panel { padding: 10px; border: 1px solid var(--ah-line); background: var(--ah-panel); }
+.ah-panel[hidden] { display: none; }
+.ah-panel-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.ah-field { display: grid; gap: 4px; min-width: 0; }
+.ah-field-label { color: var(--color-text-secondary); font-size: 12px; }
+.ah-field-body { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+#market-panel-auction .ah-field select { flex: 1 1 96px; width: auto; min-width: 0; min-height: var(--ah-tap); padding: 4px 8px; border-radius: 0; font-size: 12px; }
+#market-panel-auction .ah-field .ah-num { flex: 1 1 64px; width: auto; }
+.ah-dash { color: var(--color-text-secondary); }
+#market-panel-auction .ah-variant { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--ah-line); background: #100f0d; color: var(--color-text-secondary); }
+.ah-variant small { font-size: 12px; color: inherit; opacity: .8; }
+#market-panel-auction .ah-variant.is-yes { border-color: var(--ah-gold); color: var(--ah-gold); }
+#market-panel-auction .ah-variant.is-no { border-color: color-mix(in srgb, var(--ah-down) 55%, var(--ah-line)); color: #e58a7f; }
+.ah-field.is-options .ah-field-body { display: grid; gap: 6px; }
+.ah-opt-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px auto; gap: 6px; }
+#market-panel-auction :is(.ah-opt-x, .ah-opt-add) { padding: 2px 10px; border: 1px solid var(--ah-line); background: #100f0d; color: var(--color-text-secondary); }
+#market-panel-auction .ah-opt-add { justify-self: start; }
+@container (min-width: 700px) {
+    .ah-panel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ah-field.is-variants { grid-column: span 2; }
+    .ah-field.is-options { grid-column: 1 / -1; }
+    .ah-field.is-options .ah-field-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .ah-gear-body { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "detail" "list"; gap: 10px; align-items: start; }
 /* 자세히 칸을 따로 다시 그리는 자리: 상자를 만들지 않아 자세히 칸이 그대로 격자의 한 칸이다. */
 .ah-detail-slot { display: contents; }
@@ -76,6 +114,17 @@
 .ah-landing:not([open]) > summary { border-bottom: 0; }
 /* 첫 화면의 두 묶음은 다 보이는 짧은 목록이라 스스로 밀지 않는다: 휠은 창이 받는다. */
 .ah-landing .ah-lots { max-height: none; overflow-y: visible; }
+/* 저장한 검색: 단추마다 조건 글(길면 말줄임)과 맞는 매물 수, 옆에 ✕. */
+.ah-saved-slot:empty { display: none; }
+.ah-saved-list { display: grid; gap: 1px; }
+.ah-saved-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+#market-panel-auction .ah-saved-run { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; padding: 2px 8px; border: 0; background: none;
+    color: var(--color-text); text-align: left; }
+.ah-saved-run span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ah-saved-run small { flex: none; color: var(--ah-gold); font-size: 12px; }
+#market-panel-auction .ah-saved-run:hover { background: #15130f; }
+#market-panel-auction .ah-saved-x { min-width: 36px; border: 0; background: none; color: var(--color-text-secondary); }
+.ah-saved-slot + .ah-landing { border-top: 1px solid var(--ah-line); }
 #market-panel-auction :is(.ah-new-lots, .ah-more) { width: 100%; border: 0; background: color-mix(in srgb, var(--ah-gold) 7%, #100f0d); color: var(--ah-gold); }
 #market-panel-auction .ah-new-lots { border-bottom: 1px solid var(--ah-line); }
 #market-panel-auction .ah-more { border-top: 1px solid var(--ah-line); }
@@ -151,6 +200,14 @@
 .ah-detail-card .shop-tooltip { min-width: 0; }
 #market-panel-auction .ah-primary { min-height: 40px; padding: 6px 12px; border: 1px solid #927644; background: linear-gradient(#514127, #302719); color: #efdab0; }
 .ah-why { color: #e58a7f; font-size: 12px; line-height: 1.5; }
+/* 판매자 이름: 누르면 그 판매자가 조건이 된다. */
+#market-panel-auction .ah-lot-seller.is-pick { cursor: pointer; }
+#market-panel-auction .ah-lot-seller.is-pick:hover { color: var(--ah-gold); text-decoration: underline; }
+#market-panel-auction button.ah-lot-seller { min-height: 0; padding: 0; border: 0; background: none; color: var(--ah-gold); font-size: 12px; }
+/* 비슷한 거래: 같은 종류, 부위, 등급(고유는 같은 고유)의 최근 거래 셋의 값과 시간. */
+.ah-similar { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--ah-line); }
+.ah-similar h5 { margin: 0; color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
+.ah-similar li { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-text-secondary); font-size: 12px; }
 @container (min-width: 700px) {
     .ah-gear-body { grid-template-columns: minmax(0, 1fr) minmax(260px, 280px); grid-template-areas: "list detail"; }
     .ah-detail { position: sticky; top: 0; }
@@ -266,7 +323,13 @@
 /* 휴대폰: 누르는 칸은 44px 이상 */
 @container (max-width: 520px) {
     .ah-root { --ah-tap: 44px; }
-    #market-panel-auction :is(.ah-chip, .ah-tabs button, .ah-primary, .ah-lot, .ah-mat, .ah-group, .ah-mode, .ah-find, .ah-new-lots, .ah-more) { min-height: 44px; }
+    #market-panel-auction :is(.ah-chip, .ah-tabs button, .ah-primary, .ah-lot, .ah-mat, .ah-group, .ah-mode, .ah-find, .ah-cond, .ah-save, .ah-new-lots, .ah-more, .ah-filter-chip,
+        .ah-variant, .ah-opt-x, .ah-opt-add, .ah-saved-run, .ah-saved-x, .ah-suggest button) { min-height: 44px; }
+    /* 이름 칸이 한 줄을 다 쓰고 조건, 검색, 저장이 그 아래 한 줄에 나란히 선다. */
+    .ah-name-box.is-name { flex-basis: 100%; }
+    #market-panel-auction :is(.ah-find, .ah-cond, .ah-save) { flex: 1 1 0; justify-content: center; }
+    .ah-lot-count { flex-basis: 100%; text-align: right; }
+    .ah-opt-row { grid-template-columns: minmax(0, 1fr) 64px 44px; }
     /* 묶음 단추는 한 줄에서 옆으로 밀고, 목록은 거래표 아래에서 화면의 절반 남짓만 차지한다 */
     :is(.ah-groups, .ah-kinds) { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
     :is(.ah-groups, .ah-kinds) .ah-group { flex: none; }

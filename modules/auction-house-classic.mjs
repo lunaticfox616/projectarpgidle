@@ -49,7 +49,10 @@ const auctionHouse = (() => {
         get colonyWards() { return colonyWards; },
         get talismans() { return talismans; },
         get stumpBox() { return stumpBox; },
-        get CONTENT_UNLOCK_CATALOG() { return CONTENT_UNLOCK_CATALOG; }
+        get CONTENT_UNLOCK_CATALOG() { return CONTENT_UNLOCK_CATALOG; },
+        get JEWEL_OPTION_POOL() { return JEWEL_OPTION_POOL; },
+        get COLONY_WARD_POOL() { return COLONY_WARD_POOL; },
+        get TALISMAN_STAT_POOL() { return TALISMAN_STAT_POOL; }
     });
     const effects = {
         auctionGrantCurrency: (key, amount) => awardCurrency(key, amount),
@@ -72,6 +75,7 @@ const auctionHouse = (() => {
         itemFamily: rules.itemFamily, familyLabel: rules.familyLabel, materials: rules.materials, materialQuote: rules.materialQuote,
         materialBook: rules.materialBook, materialPrices: rules.materialPrices,
         materialTrade: (owner, order, now) => run(rules.materialTrade(live(owner), order, now)),
+        searchRules: rules.searchRules, normalizeQuery: rules.normalizeQuery, searchStats: rules.searchStats, searchNames: rules.searchNames, saveSearch: rules.saveSearch, deleteSearch: rules.deleteSearch,
         lotHeads: rules.lotHeads, lot: rules.lot, warmLots: rules.warmLots, dropLots: rules.dropLots, lotKinds: rules.lotKinds, recentHeads: rules.recentHeads,
         gearLotIssue: rules.gearLotIssue,
         buyGearLot: (owner, lotId, now) => run(rules.buyGearLot(live(owner), lotId, now)),

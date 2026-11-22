@@ -8,8 +8,11 @@
  * 남겼다가(DROP_MS, 그 안에 다시 열면 그대로 쓴다) 버린다. 화면을 치우면 바로 멈춘다.
  */
 import { trHtml, esc, pct, trendClass, familyLabel, paint } from './auction-house-format.mjs';
-import { gearViewHtml, fillGear, liveHeads, paintCount } from './auction-house-gear.mjs';
+import { gearViewHtml, fillGear, liveHeads } from './auction-house-gear.mjs';
+import { paintCount } from './auction-house-panel.mjs';
 import { appendRows } from './auction-house-board.mjs';
+import { indexStep, dropIndex } from './auction-house-index.mjs';
+import { savedCountStep, savedCountsPending, paintSaved } from './auction-house-saved.mjs';
 import { stepSearch, searchPrefer } from './auction-house-search.mjs';
 import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-materials.mjs';
 import { standsViewHtml, claimable } from './auction-house-stands.mjs';
@@ -20,6 +23,8 @@ const MOVERS = 3;
 const WALLET = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
 // The work one animation frame may do (ms of performance.now): drawing rows, the search and warming the lots' bodies. A 240 Hz frame is 4 ms.
 const FRAME_BUDGET_MS = 1.5;
+/** What a search click may spend making its result at once (the rest goes to the frames). */
+export const SEARCH_CLICK_MS = 6;
 // The check while the section is shown, and how long the generated lots are kept after it closed.
 const TICK_MS = 1000;
 const DROP_MS = 180000;
@@ -163,10 +168,10 @@ function gearRoot(runtime, host) {
     return runtime.state.tab === 'gear' ? host.querySelector('.ah-gear') : null;
 }
 
-/** A stop() for the domain and the row drawing: true once FRAME_BUDGET_MS passed since it was made. */
-function budgetStop(runtime) {
+/** A stop() for the domain and the row drawing: true once ms (default FRAME_BUDGET_MS) passed since it was made. */
+export function budgetStop(runtime, ms = FRAME_BUDGET_MS) {
     const clock = runtime.deps.window.performance, start = clock.now();
-    return () => clock.now() - start > FRAME_BUDGET_MS;
+    return () => clock.now() - start > ms;
 }
 
 /** Asks for one animation frame (none when one is pending). runtime.frameStep is made once with the view. */
@@ -186,20 +191,28 @@ function warmStep(runtime, stop) {
     return warm;
 }
 
-/** The budgeted work of a frame: queued rows, the search, then the bodies with what is left (a waiting search follows the latest warming);
- * a search that changed phase asks for a refill of the 아이템 view. */
+/** The budgeted work of a frame: queued rows, the search, then the bodies with what is left (a waiting search follows the latest warming),
+ * then the lots' search fields and the saved searches' counts; a search that changed phase asks for a refill of the 아이템 view. */
 function budgetWork(runtime, root) {
     const stop = budgetStop(runtime), phase = runtime.search?.phase;
     appendRows(runtime, stop);
     stepSearch(runtime, stop, runtime.lastWarm);
     if (!stop() || !runtime.search || runtime.search.phase === 'warm') warmStep(runtime, stop);
+    if (!stop()) searchFieldsStep(runtime, root, stop);
     if (runtime.search && runtime.search.phase !== phase) runtime.refill = true;
     paintCount(runtime, root);
 }
 
-/** Whether another frame has work: a refill to paint, a search, bodies to warm, rows to draw. */
+/** With the time left: the lots' search fields, then the saved searches' counts (painted when one was added). */
+function searchFieldsStep(runtime, root, stop) {
+    indexStep(runtime, stop);
+    if (!stop() && savedCountStep(runtime, stop) && root) paintSaved(runtime, root);
+}
+
+/** Whether another frame has work: a refill to paint, a search, bodies to warm, search fields to make, saved searches to count, rows to draw. */
 function frameWorkLeft(runtime, root) {
-    return (runtime.refill && !!root) || (!!runtime.search && runtime.search.phase !== 'done') || !runtime.warmDone || runtime.jobs.length > 0;
+    return (runtime.refill && !!root) || (!!runtime.search && runtime.search.phase !== 'done') || !runtime.warmDone || runtime.jobs.length > 0
+        || !(runtime.index && runtime.index.done) || savedCountsPending(runtime);
 }
 
 /** One animation frame of work: a pending refill of the 아이템 view alone (it takes a frame of its own), else the budgeted work. Asks for the
@@ -237,6 +250,7 @@ export function dropGeneratedLots(runtime) {
     runtime.dropTimer = 0;
     runtime.headsReady = false;
     runtime.warmDone = false;
+    dropIndex(runtime);
     runtime.deps.auctionHouse.dropLots();
 }
 
@@ -258,7 +272,7 @@ export function tickStep(runtime) {
     const root = host.querySelector('.ah-root'), gear = gearRoot(runtime, host);
     if (syncClock(runtime)) paint(root.querySelector('.ah-band'), bandHtml(runtime));
     warmStep(runtime, budgetStop(runtime));
-    if (!runtime.warmDone || runtime.refill) wantFrame(runtime);
+    if (!runtime.warmDone || runtime.refill || savedCountsPending(runtime)) wantFrame(runtime);
     if (gear) fillGear(runtime, gear, false, liveHeads(runtime), true);
 }
 

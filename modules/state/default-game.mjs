@@ -368,7 +368,8 @@ const DEFAULT_GAME_BLUEPRINT = {
     // ('birthBucket:index') I bought from those batches; quota { 'buy:key' | 'sell:key': bundles } of this bucket; lots my listings (escrow
     // owns open and expired items); trend { key: int }. deltas: the server corrections [{ bucket, values: { pulse key: -0.06..0.06 } }] of
     // the lookback buckets, this one and the next one, each fetched during the bucket before and saved so a reload cannot change a price.
-    auction: { version: 2, seed: 0, lastAt: 0, bucket: 0, lotZones: [], bought: [], quota: {}, lots: [], sequence: 0, trend: {}, deltas: [] },
+    // searches: the item search's saved conditions, at most 5 (modules/domain/auction-search-query.mjs query shape).
+    auction: { version: 2, seed: 0, lastAt: 0, bucket: 0, lotZones: [], bought: [], quota: {}, lots: [], sequence: 0, trend: {}, deltas: [], searches: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,

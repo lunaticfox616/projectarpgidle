@@ -4,6 +4,7 @@
  * 같은 툴팁을 그린다), 부적은 그루터기 함의 이름, 그림, 카드(stumpBoxUi.itemTipHtml)를 쓴다.
  */
 import { tr, esc, num, itemName, slotLabel } from './auction-house-format.mjs';
+import { liveQuery } from './auction-house-conditions.mjs';
 
 // The defence lines the tooltip writes as 'name: value' (modules/ui/tooltip-items.mjs appendItemBaseStats).
 const DEFENCE_LINES = Object.freeze(['armor', 'evasion', 'energyShield']);
@@ -44,21 +45,27 @@ export function lotArtHtml(runtime, lot) {
     return `<span class="ah-art" style="--item-rarity:${esc(runtime, runtime.deps.getRarityColor(lot.item.rarity))}"><img src="${esc(runtime, lotArtSrc(runtime, lot))}" alt="" draggable="false"></span>`;
 }
 
-/** The shown text of a gear, jewel or ward item's lines as the item tooltip writes them: base lines, explicit lines (a compound line's parts
- * joined by ' / ') and the unique effect. */
-function itemLines(runtime, item) {
+/** A gear, jewel or ward item's stat lines as the item tooltip writes them: { ids (the line's stats), text } of the base lines and the
+ * explicit lines (a compound line's parts joined by ' / '). */
+function itemLineRows(runtime, item) {
     const { getStatName, formatValue, formatSignedValue } = runtime.deps, label = stat => tr(runtime, stat.statName || getStatName(stat.id));
-    const base = (Array.isArray(item.baseStats) ? item.baseStats : []).filter(Boolean)
-        .map(stat => (DEFENCE_LINES.includes(stat.id) ? `${getStatName(stat.id)}: ${Math.floor(Number(stat.val) || 0)}` : `${label(stat)} ${formatSignedValue(stat.id, stat.val)}`));
-    const explicit = (Array.isArray(item.stats) ? item.stats : []).filter(Boolean)
-        .map(stat => [stat, ...(Array.isArray(stat.extraStats) ? stat.extraStats : [])].map(line => `${label(line)} +${formatValue(line.id, line.val)}`).join(' / '));
-    return [...base, ...explicit, ...(item.uniqueEffect ? [tr(runtime, item.uniqueEffect)] : [])];
+    const base = (Array.isArray(item.baseStats) ? item.baseStats : []).filter(Boolean).map(stat => ({ ids: [stat.id],
+        text: DEFENCE_LINES.includes(stat.id) ? `${getStatName(stat.id)}: ${Math.floor(Number(stat.val) || 0)}` : `${label(stat)} ${formatSignedValue(stat.id, stat.val)}` }));
+    const explicit = (Array.isArray(item.stats) ? item.stats : []).filter(Boolean).map(stat => {
+        const parts = [stat, ...(Array.isArray(stat.extraStats) ? stat.extraStats : [])];
+        return { ids: parts.map(line => line.id), text: parts.map(line => `${label(line)} +${formatValue(line.id, line.val)}`).join(' / ') };
+    });
+    return [...base, ...explicit];
 }
 
-/** The shown text of the lot's lines: a talisman's lines as its card writes them (talismans.describeLine), the item lines otherwise. */
-export function lotLines(runtime, lot) {
-    if (lotKind(lot) !== 'talisman') return itemLines(runtime, lot.item);
-    return (Array.isArray(lot.item.lines) ? lot.item.lines : []).map(line => runtime.deps.talismans.describeLine(line));
+/** The text of the lot's line that carries stat ('' when none does): a talisman's stat line as its card writes it, an item line otherwise. */
+export function statLineText(runtime, lot, stat) {
+    if (lotKind(lot) === 'talisman') {
+        const line = (Array.isArray(lot.item.lines) ? lot.item.lines : []).find(row => row && row.kind === 'stat' && row.id === stat);
+        return line ? runtime.deps.talismans.describeLine(line) : '';
+    }
+    const row = itemLineRows(runtime, lot.item).find(entry => entry.ids.includes(stat));
+    return row ? row.text : '';
 }
 
 /** The chosen lot's card: a piece of gear with the comparison against worn gear, a jewel or a ward as the bag shows it, a talisman as the
@@ -81,7 +88,7 @@ export function kindChipsHtml(runtime, counted) {
 
 /** The chips inside the box. */
 export function kindChipsInner(runtime, counted) {
-    const chosen = runtime.state.gear.kind, labels = { all: '전체', gear: '장비' };
+    const chosen = liveQuery(runtime).kind, labels = { all: '전체', gear: '장비' };
     const chip = kind => {
         const label = labels[kind] || kindRow(runtime, kind).label, count = counted.filter(lot => kind === 'all' || lotKind(lot) === kind).length;
         return `<button type="button" class="ah-group${chosen === kind ? ' is-on' : ''}" data-ah-kind="${esc(runtime, kind)}" aria-pressed="${chosen === kind}">

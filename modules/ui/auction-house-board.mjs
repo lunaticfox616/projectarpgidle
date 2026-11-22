@@ -1,5 +1,6 @@
 /**
- * 경매장 아이템 칸의 목록 상자(data-ah-board). 상자가 보이는 것은 넷 가운데 하나다: 검색 전의 첫 화면(방금 올라온 매물 8개와 최근 거래 10개),
+ * 경매장 아이템 칸의 목록 상자(data-ah-board). 상자가 보이는 것은 넷 가운데 하나다: 검색 전의 첫 화면(저장한 검색, 방금 올라온 매물 8개와
+ * 최근 거래 10개, 최근 거래는 이 세션에 내가 산 매물이 위에),
  * 기다리는 검색(머리줄과 빈 목록, 진행은 매물 수 자리에), 끝난 검색(새 매물 줄, 머리줄, 50개씩 더 보기), 최근 거래 30개. 무엇을 보이는지가
  * 바뀔 때만 상자를 새로 짓고, 행은 한 번에 그리지 않고 시간 예산 안에서 몇 개씩 붙인다(appendRows, 화면의 그림 틀이 부른다).
  * 1초 확인은 목록을 다시 짓지 않는다: 그려진 행 가운데 방금 팔렸거나 산 매물만 고치고(patchRows), 남은 시간 글을 고치고, 새 매물 줄을 센다.
@@ -8,15 +9,16 @@
 import { esc, num, tr } from './auction-house-format.mjs';
 import { lotRowHtml, headHtml, badgeHtml, minutesText } from './auction-house-rows.mjs';
 import { PAGE_ROWS, rowLot, countNewLots } from './auction-house-search.mjs';
+import { liveQuery } from './auction-house-conditions.mjs';
 
 // The first view: how many newest lots and latest trades it shows.
 const LANDING = Object.freeze({ newest: 8, trades: 10 });
 
 /** What the board shows now: one key per structure (a change rebuilds the board). */
 function boardKey(runtime) {
-    const view = runtime.state.gear, search = runtime.search;
-    if (view.mode === 'recent') return `recent|${view.kind}|${runtime.headsReady ? 1 : 0}`;
-    if (!search) return `landing|${runtime.headsReady ? 1 : 0}`;
+    const view = runtime.state.gear, search = runtime.search, ready = runtime.headsReady ? 1 : 0;
+    if (view.mode === 'recent') return `recent|${liveQuery(runtime).kind}|${ready}|${runtime.myBuys.size}`;
+    if (!search) return `landing|${ready}|${runtime.myBuys.size}`;
     return `search|${search.serial}|${search.phase === 'done' ? 'done' : 'wait'}`;
 }
 
@@ -27,26 +29,33 @@ function queueRows(runtime, list, ids, tail) {
 
 function listHtml(name) { return `<ul class="ah-lots" role="list" data-ah-rows="${name}"></ul>`; }
 
-/** The first view: the newest open lots and the latest trades, each block with its title. */
-function landingBoard(runtime, board) {
-    if (!runtime.headsReady) return;
-    const { auctionHouse, game } = runtime.deps, now = runtime.deps.now();
-    const newest = auctionHouse.lotHeads(game, now).filter(head => head.phase === 'open').sort((a, b) => b.arriveAt - a.arriveAt).slice(0, LANDING.newest);
-    const trades = auctionHouse.recentHeads(game, now).slice(0, LANDING.trades);
-    if (!newest.length && !trades.length) { board.innerHTML = `<p class="ah-empty">${runtime.deps._t('아직 매물이 없습니다.')}</p>`; return; }
-    board.innerHTML = `<section class="ah-landing"><h4>${runtime.deps._t('방금 올라온 매물')}</h4>${listHtml('newest')}</section>
-        <details class="ah-landing is-recent"><summary>${esc(runtime, tr(runtime, '최근 거래'))}</summary>${listHtml('trades')}</details>`;
-    queueRows(runtime, board.querySelector('[data-ah-rows="newest"]'), newest.map(head => head.id), 'open');
-    queueRows(runtime, board.querySelector('[data-ah-rows="trades"]'), trades.map(head => head.id), 'recent');
+/** The latest trades of kind ('all': every kind) as ids: my purchases of this session first (newest first), then the trades with others. */
+function tradeIds(runtime, kind, limit = Infinity) {
+    const mine = [...runtime.myBuys].filter(([, row]) => kind === 'all' || row.kind === kind).sort((a, b) => b[1].at - a[1].at).map(([id]) => id);
+    const others = runtime.deps.auctionHouse.recentHeads(runtime.deps.game, runtime.deps.now()).filter(head => kind === 'all' || head.kind === kind).slice(0, limit);
+    return [...mine, ...others.map(head => head.id)];
 }
 
-/** The 최근 거래 list: the latest trades of the chosen kind. */
+/** The first view: the saved searches' slot (modules/ui/auction-house-saved.mjs), the newest open lots and the latest trades. */
+function landingBoard(runtime, board) {
+    const slot = '<div class="ah-saved-slot" data-ah-saved-box></div>';
+    if (!runtime.headsReady) { board.innerHTML = slot; return; }
+    const { auctionHouse, game } = runtime.deps, now = runtime.deps.now();
+    const newest = auctionHouse.lotHeads(game, now).filter(head => head.phase === 'open').sort((a, b) => b.arriveAt - a.arriveAt).slice(0, LANDING.newest);
+    const trades = tradeIds(runtime, 'all', LANDING.trades);
+    if (!newest.length && !trades.length) { board.innerHTML = `${slot}<p class="ah-empty">${runtime.deps._t('아직 매물이 없습니다.')}</p>`; return; }
+    board.innerHTML = `${slot}<section class="ah-landing"><h4>${runtime.deps._t('방금 올라온 매물')}</h4>${listHtml('newest')}</section>
+        <details class="ah-landing is-recent"><summary>${esc(runtime, tr(runtime, '최근 거래'))}</summary>${listHtml('trades')}</details>`;
+    queueRows(runtime, board.querySelector('[data-ah-rows="newest"]'), newest.map(head => head.id), 'open');
+    queueRows(runtime, board.querySelector('[data-ah-rows="trades"]'), trades, 'recent');
+}
+
+/** The 최근 거래 list: the latest trades of the chosen kind (my purchases of this session on top). */
 function recentBoard(runtime, board) {
     if (!runtime.headsReady) return;
-    const kind = runtime.state.gear.kind, trades = runtime.deps.auctionHouse.recentHeads(runtime.deps.game, runtime.deps.now())
-        .filter(head => kind === 'all' || head.kind === kind);
+    const trades = tradeIds(runtime, liveQuery(runtime).kind);
     board.innerHTML = trades.length ? `${headHtml(runtime, 'recent')}${listHtml('recent')}` : `<p class="ah-empty">${runtime.deps._t('조건에 맞는 매물이 없습니다.')}</p>`;
-    queueRows(runtime, board.querySelector('[data-ah-rows]'), trades.map(head => head.id), 'recent');
+    queueRows(runtime, board.querySelector('[data-ah-rows]'), trades, 'recent');
 }
 
 /** The more button of a result ('' when every row is queued). */
