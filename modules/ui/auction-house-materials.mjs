@@ -1,7 +1,7 @@
 /**
  * 경매장 재료 칸: 위에 묶음 단추 줄(전체와 가져 본 재료가 있는 묶음, 단추마다 그 수), 왼쪽은 이 저장이 가져 본 재료의 목록(전체에서는
  * 묶음 머리줄로 나눈다: 그림, 이름, 보유, 지난 24구간의 시세 선과 시세, 남은 가장 싼 판매 호가와 가장 비싼 구매 호가)으로 제 칸 안에서
- * 밀리고, 오른쪽은 고른 재료의 거래표(사기/팔기, 그 재료의 남은 양, 호가 두 줄, 묶음 수와 1, 5, 10, 최대, 영수증과 한 묶음 평균, 못 하는 까닭,
+ * 밀리고, 오른쪽은 고른 재료의 거래표(지난 6시간의 한 묶음 값 막대와 최저, 최고, 지금, 사기/팔기, 그 재료의 남은 양, 호가 두 줄, 묶음 수와 1, 5, 10, 최대, 영수증과 한 묶음 평균, 못 하는 까닭,
  * 실행 단추). 값과 까닭은 모두 auctionHouse.materialQuote가, 호가는 auctionHouse.materialBook이 낸다. 시세 선은 라이브러리 없이 정수 좌표의 계단 선(SVG)으로 그려 도트처럼 또렷하다.
  * 다시 그려도 목록의 밀린 자리는 남고 고른 재료가 목록 칸 안에 보인다(keepListScroll).
  */
@@ -131,12 +131,23 @@ export function receiptHtml(runtime) {
         <button type="button" class="ah-primary" data-ah-trade="${view.side === 'buy' ? quote.cost : quote.net}" ${quote.valid ? '' : 'disabled'}>${trHtml(runtime, view.side === 'buy' ? '구매' : '판매')}</button>`;
 }
 
+/** The chosen material's past prices: one bar per bucket of the last six hours (one bundle at the first buy step, oldest left, the newest
+ * marked), scaled between their lowest and highest, and those two with the current price under it. */
+function chartHtml(runtime, key) {
+    const prices = runtime.deps.auctionHouse.materialPrices(runtime.deps.game, key), low = Math.min(...prices), high = Math.max(...prices);
+    const height = price => (high === low ? 60 : Math.round(15 + 85 * (price - low) / (high - low)));
+    const bars = prices.map((price, index) => `<span class="ah-bar${index === prices.length - 1 ? ' is-now' : ''}" style="--h:${height(price)}%" data-price="${price}" data-tip="${num(runtime, price)}"></span>`).join('');
+    const figure = (label, price) => `<span><small>${trHtml(runtime, label)}</small>${priceTag(runtime, 'formlessDew', price)}</span>`;
+    return `<section class="ah-chart" aria-label="${trHtml(runtime, '지난 6시간')}"><h4>${trHtml(runtime, '지난 6시간')}</h4><div class="ah-bars">${bars}</div>
+        <div class="ah-chart-nums">${figure('최저|시세', low)}${figure('최고|시세', high)}${figure('지금', prices[prices.length - 1])}</div></section>`;
+}
+
 function ticketHtml(runtime, row) {
     return `<section class="ah-ticket" aria-label="${runtime.deps._t('거래표')}">
         <header class="ah-ticket-head"><span class="ah-mat-art is-big">${runtime.deps.shopView.coinHtml(row.key)}</span>
             <span><strong>${esc(runtime, materialName(runtime, row.key))}</strong><small>${runtime.deps._t('보유 {count}', { count: num(runtime, row.held) })}</small></span>
             <b class="ah-factor ${trendClass(row.factor)}">${pct(runtime, row.factor)}</b></header>
-        ${sideHtml(runtime, row)}<div class="ah-book" data-ah-book>${bookHtml(runtime)}</div>${countHtml(runtime, row)}<div class="ah-receipt-box" data-ah-receipt aria-live="polite">${receiptHtml(runtime)}</div></section>`;
+        ${chartHtml(runtime, row.key)}${sideHtml(runtime, row)}<div class="ah-book" data-ah-book>${bookHtml(runtime)}</div>${countHtml(runtime, row)}<div class="ah-receipt-box" data-ah-receipt aria-live="polite">${receiptHtml(runtime)}</div></section>`;
 }
 
 /** The whole 재료 view. A chosen group without seen rows falls back to 전체; a chosen material outside the shown rows to the first shown. */

@@ -8,7 +8,7 @@
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auctionSetPulseDelta, auctionSetMode, auctionPulseKeys, auctionFamilyLabel } from './auction-pulse.mjs';
 import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLotName, auctionLoopBlockReason } from './auction-clock.mjs';
-import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade, auctionMaterialBook } from './auction-materials.mjs';
+import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade, auctionMaterialBook, auctionMaterialPriceHistory } from './auction-materials.mjs';
 import { auctionGearLots, auctionRecentTrades, auctionGearNextChange, auctionBuyGearLot, auctionGearLotReason } from './auction-gear-lots.mjs';
 import { auctionListIssue, auctionListQuote, auctionList, auctionWithdraw, auctionClaim, auctionClaimAll } from './auction-my-lots.mjs';
 import { auctionRestore } from './auction-restore.mjs';
@@ -51,7 +51,9 @@ export function createAuctionHouse(deps) {
         materials: owner => auctionMaterialRows(env, owner),
         materialQuote: (owner, key, side, count) => auctionMaterialQuote(env, owner, key, side, count),
         /** This bucket's book of key for owner: { buy, sell }, each [{ mult, size, left, price }] (price: one bundle at that step, sale before the fee). */
-        materialBook: (owner, key) => auctionMaterialBook(owner, key),        materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),
+        materialBook: (owner, key) => auctionMaterialBook(owner, key),
+        /** One bundle's first-step buy cost of key over the last pulse.history buckets, oldest first. */
+        materialPrices: (owner, key) => auctionMaterialPriceHistory(owner, key),        materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),
         /** The merchant lots listed at now (UTC ms; read at max(now, lastAt)). */
         gearLots: (owner, now) => auctionGearLots(env, owner, now),
         /** The merchant lots sold to someone else by now, newest first. */

@@ -91,6 +91,13 @@ export function auctionMaterialBook(owner, key) {
     return { buy: side('buy'), sell: side('sell') };
 }
 
+/** One bundle's first-step buy cost of key over the last pulse.history buckets, oldest first, ending with the saved bucket (each at that
+ * bucket's factor; the same function the trade charges for its first bundle). */
+export function auctionMaterialPriceHistory(owner, key) {
+    const state = owner.auction, length = AUCTION_HOUSE.pulse.history, first = MATERIALS.book.ask[0];
+    return Array.from({ length }, (_, index) => auctionBuyCost(key, first, auctionFactor(state, key, state.bucket - length + 1 + index)));
+}
+
 /** The group id of key (materials.groups). */
 export function auctionMaterialGroup(key) { return MATERIALS.groups.find(group => group.keys.includes(key)).id; }
 

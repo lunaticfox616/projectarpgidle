@@ -170,6 +170,16 @@
 .ah-step.is-take { border-left-color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 10%, transparent); }
 .ah-step.is-used { opacity: .4; }
 .ah-step.is-used .ah-price b { text-decoration: line-through; }
+/* 지난 6시간: 구간마다 막대 하나(높이는 --h, 최저와 최고 사이), 맨 오른쪽 지금 막대만 금빛. 그 아래 최저, 최고, 지금. */
+.ah-chart { display: grid; gap: 4px; }
+.ah-chart h4 { margin: 0; color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
+.ah-bars { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 2px; height: 40px; padding-bottom: 1px;
+    border-bottom: 1px solid var(--ah-line); }
+.ah-bar { height: var(--h); background: #4a4236; }
+.ah-bar.is-now { background: var(--ah-gold); }
+.ah-chart-nums { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; font-size: 12px; }
+.ah-chart-nums > span { display: inline-flex; align-items: center; gap: 4px; }
+.ah-chart-nums small { color: var(--color-text-secondary); font-size: 12px; }
 .ah-factor { font-weight: 400; font-size: 12px; }
 .ah-spark { display: block; color: var(--ah-tone, var(--color-text-secondary)); shape-rendering: crispEdges; }
 .ah-spark-line { fill: none; stroke: currentColor; stroke-width: 1; }
