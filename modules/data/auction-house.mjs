@@ -133,7 +133,7 @@ const AUCTION_HOUSE = Object.freeze({
             socket: Object.freeze({ chance: 0.2, price: 1.5 }),
             corrupted: Object.freeze({ chance: 0.08, price: 1.25 })
         }),
-        // 지역 사다리: lotZone(맨 위)과 그 앞의 보통 지역(번호 하나씩 앞) 몇 개까지. 매물 i는 사다리[i % 길이]에서 굴린다.
+        // 지역 사다리: 묶음의 지역(맨 위)과 그 앞의 보통 지역(번호 하나씩 앞) 몇 개까지. 매물 i는 사다리[i % 길이]에서 굴린다.
         ladder: 3,
         // 부위 계획에서 무기가 한 바퀴에 나오는 횟수, 같은 부위에서 이미 나온 베이스를 피해 다시 고르는 횟수.
         weaponTurns: 2,
