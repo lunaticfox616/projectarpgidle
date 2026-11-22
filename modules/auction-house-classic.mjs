@@ -62,6 +62,7 @@ const auctionHouse = (() => {
         advance: rules.advance, noticeText: rules.noticeText, lotName: rules.lotName, pulseKeys: rules.pulseKeys, factor: rules.factor, event: rules.event,
         pulse: rules.pulse, setPulseDelta: rules.setPulseDelta, get mode() { return rules.mode; }, setMode: rules.setMode,
         itemFamily: rules.itemFamily, familyLabel: rules.familyLabel, materials: rules.materials, materialQuote: rules.materialQuote,
+        materialBook: rules.materialBook,
         materialTrade: (owner, order, now) => run(rules.materialTrade(live(owner), order, now)),
         gearLots: rules.gearLots, recentTrades: rules.recentTrades, gearNextChange: rules.gearNextChange, gearLotIssue: rules.gearLotIssue,
         buyGearLot: (owner, lotId, now) => run(rules.buyGearLot(live(owner), lotId, now)),

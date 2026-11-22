@@ -67,7 +67,8 @@ const AUCTION_HOUSE = Object.freeze({
     // 값이 매겨진 재화여야 한다(규칙이 확인한다). 화면은 groups의 차례로 묶어 보여 주고, keys는 그 차례의 한 줄 목록이다(시세 열쇠, 저장 복원,
     // db/auction-hybrid-20261121.sql의 pulse_keys가 이 차례를 쓴다). label은 지갑, 제작 보관함, 베일라 창이 이미 쓰는 이름이다.
     // bundle: 한 묶음의 개수. 한 묶음 값이 이슬 몇 개가 되게 해 반올림으로 값을 만들 수 없게 한다.
-    // 고리 검사(2026-11-22, 사는 값 최저 0.9775 x 기준가, 파는 실수령 최고 0.899 x 기준가): 게임 안에서 기준가의 0.90배보다 싸게 얻거나
+    // 고리 검사(2026-11-22, 사는 값 최저 0.9775 x 기준가, 파는 실수령 최고 0.899 x 기준가, 둘 다 첫 호가의 값이고 아래 book의 다른 호가는 사는 값을
+    // 1.03 ~ 1.18배로 올리고 파는 값을 0.97 ~ 0.82배로 내릴 뿐이다): 게임 안에서 기준가의 0.90배보다 싸게 얻거나
     // 0.9775배보다 비싸게 팔 길, 또는 바꿔서 늘릴 길이 있는 재화는 넣지 않는다. 뺀 것:
     //   형체 없는 이슬: 값을 치르는 재화다.
     //   수액 봉우리, 황금률: 암거래상에서 서로, 또 이슬과 바뀐다. 봉우리를 싸게 팔면 황금률 값이 반으로 준다.
@@ -91,7 +92,16 @@ const AUCTION_HOUSE = Object.freeze({
         quota: 20,      // 품목마다, 사기와 팔기 각각, 한 시세 구간에 20묶음까지(quotas에 적은 품목은 그 수)
         // 입장권은 3, 귀하고 비싼 재료는 5: 한 구간에 쌓아 두고 쓰는 물건이 아니다.
         quotas: Object.freeze({ bossKeyFlame: 3, bossKeyFrost: 3, bossKeyStorm: 3, beastKeyCerberus: 3, trialKey3: 3, chaosKey: 3, coreKey: 3, hiveKey: 3,
-            colonyTrace: 3, altarEmber: 5, altarIchor: 5, bossCore: 5, enchantedHoney: 5, burningEmberBranch: 5, radiantSealShard: 5 })
+            colonyTrace: 3, altarEmber: 5, altarIchor: 5, bossCore: 5, enchantedHoney: 5, burningEmberBranch: 5, radiantSealShard: 5 }),
+        // 호가: 한 구간의 거래량 Q를 min(5, Q)개의 호가로 나눈다. 사기는 지금 사는 값 x ask[k], 팔기는 지금 파는 값 x bid[k](앞에서부터 그 수만큼).
+        // 첫 호가가 지금 값이라 어느 호가도 지금 사는 값보다 싸지 않고 지금 파는 값보다 비싸지 않다: 위 고리 검사와 시세 min/max의 무차익이 그대로다.
+        // 호가마다 1묶음 이상, 나머지 Q - 호가 수를 weight 안의 고른 무게로 나눈다(큰 나머지 순). 무게는 (구간, 재료, 방향)의 씨앗으로 정해
+        // 모든 플레이어가 같은 호가를 본다. 이번 구간에 거래한 양(quota 'buy:재료', 'sell:재료')은 첫 호가부터 센다. 총액은 끝에 한 번 반올림한다.
+        book: Object.freeze({
+            ask: Object.freeze([1.00, 1.03, 1.07, 1.12, 1.18]),
+            bid: Object.freeze([1.00, 0.97, 0.93, 0.88, 0.82]),
+            weight: Object.freeze([0.6, 1.4])
+        })
     }),
     // 상인 매물: 구간 b마다 batch개의 묶음이 생기고, 저장하지 않고 (seed, b, b의 지역)에서 다시 만든다. 등급은 rarities의 수를 씨앗으로 섞어 매물 번호마다 정한다.
     // 매물마다 제 주사위로 놓이는 때(구간 안 아무 때), 머무는 시간(lifeMs), 다른 손님에게 팔리는지와 그때를 정한다: 목록은 그 시각에 놓여 있는 매물이다.

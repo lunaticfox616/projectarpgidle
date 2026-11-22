@@ -153,6 +153,23 @@
 .ah-mat-text strong { font-weight: 400; overflow-wrap: anywhere; word-break: keep-all; }
 .ah-mat-text small { color: var(--color-text-secondary); font-size: 12px; }
 .ah-mat-side { display: grid; justify-items: end; gap: 2px; min-width: 64px; }
+.ah-mat-trend { display: grid; justify-items: end; gap: 2px; }
+/* 목록 행의 값: 위는 남은 가장 싼 판매 호가(금빛), 아래는 남은 가장 비싼 구매 호가(흐리게), 다 쓴 쪽은 - */
+.ah-best.is-sell .ah-price b { color: var(--color-text-secondary); }
+.ah-price.is-none { color: var(--color-text-secondary); }
+/* 호가: 판매 호가(살 수 있는 값)와 구매 호가(팔 수 있는 값, 수수료 전)를 나란히. 고른 방향의 칸은 금빛 머리, 입력한 수가 가져갈 호가는 금줄,
+   이번 구간에 다 쓴 호가는 흐리게 줄을 긋는다. */
+.ah-book { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ah-ladder { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.ah-ladder h4 { margin: 0; padding: 0 0 2px; border-bottom: 1px solid var(--ah-line); color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
+.ah-ladder.is-on h4 { color: var(--ah-gold); border-bottom-color: color-mix(in srgb, var(--ah-gold) 50%, var(--ah-line)); }
+.ah-ladder ol { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.ah-step { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 22px; padding: 0 4px; border-left: 2px solid transparent; font-size: 12px; }
+.ah-step small { color: var(--color-text-secondary); font-size: 12px; }
+.ah-ladder.is-sell .ah-step .ah-price b { color: #d8c8a4; }
+.ah-step.is-take { border-left-color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 10%, transparent); }
+.ah-step.is-used { opacity: .4; }
+.ah-step.is-used .ah-price b { text-decoration: line-through; }
 .ah-factor { font-weight: 400; font-size: 12px; }
 .ah-spark { display: block; color: var(--ah-tone, var(--color-text-secondary)); shape-rendering: crispEdges; }
 .ah-spark-line { fill: none; stroke: currentColor; stroke-width: 1; }

@@ -8,7 +8,7 @@
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auctionSetPulseDelta, auctionSetMode, auctionPulseKeys, auctionFamilyLabel } from './auction-pulse.mjs';
 import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLotName, auctionLoopBlockReason } from './auction-clock.mjs';
-import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade } from './auction-materials.mjs';
+import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade, auctionMaterialBook } from './auction-materials.mjs';
 import { auctionGearLots, auctionRecentTrades, auctionGearNextChange, auctionBuyGearLot, auctionGearLotReason } from './auction-gear-lots.mjs';
 import { auctionListIssue, auctionListQuote, auctionList, auctionWithdraw, auctionClaim, auctionClaimAll } from './auction-my-lots.mjs';
 import { auctionRestore } from './auction-restore.mjs';
@@ -50,7 +50,8 @@ export function createAuctionHouse(deps) {
         familyLabel: family => auctionFamilyLabel(env, family),
         materials: owner => auctionMaterialRows(env, owner),
         materialQuote: (owner, key, side, count) => auctionMaterialQuote(env, owner, key, side, count),
-        materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),
+        /** This bucket's book of key for owner: { buy, sell }, each [{ mult, size, left, price }] (price: one bundle at that step, sale before the fee). */
+        materialBook: (owner, key) => auctionMaterialBook(owner, key),        materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),
         /** The merchant lots listed at now (UTC ms; read at max(now, lastAt)). */
         gearLots: (owner, now) => auctionGearLots(env, owner, now),
         /** The merchant lots sold to someone else by now, newest first. */

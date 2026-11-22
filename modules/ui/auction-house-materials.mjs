@@ -1,8 +1,8 @@
 /**
  * 경매장 재료 칸: 위에 묶음 단추 줄(전체와 가져 본 재료가 있는 묶음, 단추마다 그 수), 왼쪽은 이 저장이 가져 본 재료의 목록(전체에서는
- * 묶음 머리줄로 나눈다: 그림, 이름, 보유, 지난 24구간의 시세 선, 지금 한 묶음 사는 값, 시세)으로 제 칸 안에서 밀리고, 오른쪽은
- * 고른 재료의 거래표(사기/팔기, 그 재료의 남은 양, 묶음 수와 1, 5, 10, 최대, 영수증, 못 하는 까닭, 실행 단추). 값과 까닭은 모두
- * auctionHouse.materialQuote가 낸다. 시세 선은 라이브러리 없이 정수 좌표의 계단 선(SVG)으로 그려 도트처럼 또렷하다.
+ * 묶음 머리줄로 나눈다: 그림, 이름, 보유, 지난 24구간의 시세 선과 시세, 남은 가장 싼 판매 호가와 가장 비싼 구매 호가)으로 제 칸 안에서
+ * 밀리고, 오른쪽은 고른 재료의 거래표(사기/팔기, 그 재료의 남은 양, 호가 두 줄, 묶음 수와 1, 5, 10, 최대, 영수증과 한 묶음 평균, 못 하는 까닭,
+ * 실행 단추). 값과 까닭은 모두 auctionHouse.materialQuote가, 호가는 auctionHouse.materialBook이 낸다. 시세 선은 라이브러리 없이 정수 좌표의 계단 선(SVG)으로 그려 도트처럼 또렷하다.
  * 다시 그려도 목록의 밀린 자리는 남고 고른 재료가 목록 칸 안에 보인다(keepListScroll).
  */
 import { trHtml, esc, num, pct, trendClass, priceTag } from './auction-house-format.mjs';
@@ -64,14 +64,41 @@ export function sparkHtml(runtime, history) {
 
 function materialName(runtime, key) { return runtime.deps.shopView.currencyName(key); }
 
+/** A row's best price still left on one side (the book's 판매 호가 or 구매 호가), or a dash when that side is used up this bucket. */
+function bestHtml(runtime, amount, side) {
+    const label = runtime.deps._t(side === 'buy' ? '판매 호가' : '구매 호가');
+    return `<span class="ah-best is-${side}" data-tip="${esc(runtime, label)}">${amount ? priceTag(runtime, 'formlessDew', amount) : '<span class="ah-price is-none">-</span>'}</span>`;
+}
+
 function rowHtml(runtime, row, pulse) {
-    const chosen = row.key === runtime.state.materials.key, buyOne = runtime.deps.auctionHouse.materialQuote(runtime.deps.game, row.key, 'buy', 1);
+    const chosen = row.key === runtime.state.materials.key;
     const bundle = row.bundle > 1 ? `<small>${runtime.deps._t('{count}개 묶음', { count: num(runtime, row.bundle) })}</small>` : '';
     return `<li><button type="button" class="ah-mat${chosen ? ' is-chosen' : ''}" data-ah-material="${esc(runtime, row.key)}" aria-pressed="${chosen}">
         <span class="ah-mat-art">${runtime.deps.shopView.coinHtml(row.key)}</span>
         <span class="ah-mat-text"><strong>${esc(runtime, materialName(runtime, row.key))}</strong><small>${runtime.deps._t('보유 {count}', { count: num(runtime, row.held) })}</small>${bundle}</span>
-        ${sparkHtml(runtime, pulse.history(row.key))}
-        <span class="ah-mat-side">${priceTag(runtime, 'formlessDew', buyOne.cost)}<b class="ah-factor ${trendClass(row.factor)}">${pct(runtime, row.factor)}</b></span></button></li>`;
+        <span class="ah-mat-trend">${sparkHtml(runtime, pulse.history(row.key))}<b class="ah-factor ${trendClass(row.factor)}">${pct(runtime, row.factor)}</b></span>
+        <span class="ah-mat-side">${bestHtml(runtime, row.ask, 'buy')}${bestHtml(runtime, row.bid, 'sell')}</span></button></li>`;
+}
+
+/** One ladder of the book: its steps in order (used-up steps stay, dimmed), the steps the typed count takes marked when its side is chosen. */
+function ladderHtml(runtime, steps, side, take) {
+    const view = runtime.state.materials, label = side === 'buy' ? '판매 호가' : '구매 호가', on = view.side === side;
+    let skip = steps.reduce((sum, step) => sum + step.size - step.left, 0), want = on ? take : 0;
+    const rows = steps.map(step => {
+        const used = Math.min(step.size, skip), taken = Math.min(want, step.size - used);
+        skip -= used;
+        want -= taken;
+        const state = `${step.left ? '' : ' is-used'}${taken ? ' is-take' : ''}`;
+        return `<li class="ah-step${state}">${priceTag(runtime, 'formlessDew', step.price)}<small>x${num(runtime, step.left)}</small></li>`;
+    }).join('');
+    return `<section class="ah-ladder is-${side}${on ? ' is-on' : ''}" aria-label="${trHtml(runtime, label)}"><h4>${trHtml(runtime, label)}</h4><ol>${rows}</ol></section>`;
+}
+
+/** The chosen material's book: 판매 호가 (what I can buy) and 구매 호가 (what I can sell into, before the fee). Repainted with the count. */
+export function bookHtml(runtime) {
+    const view = runtime.state.materials, book = runtime.deps.auctionHouse.materialBook(runtime.deps.game, view.key);
+    const take = Math.max(0, Math.floor(Number(view.count) || 0));
+    return `${ladderHtml(runtime, book.buy, 'buy', take)}${ladderHtml(runtime, book.sell, 'sell', take)}`;
 }
 
 function sideHtml(runtime, row) {
@@ -96,8 +123,9 @@ export function receiptHtml(runtime) {
     const units = quote.bundle > 1 ? runtime.deps._t('{name} {bundle}개 x {count}', { name: materialName(runtime, view.key), bundle: num(runtime, quote.bundle), count: num(runtime, quote.count) })
         : runtime.deps._t('{name} {count}개', { name: materialName(runtime, view.key), count: num(runtime, quote.count) });
     const line = (label, amount, extra = '') => `<div class="ah-receipt-row${extra}"><dt>${trHtml(runtime, label)}</dt><dd>${priceTag(runtime, 'formlessDew', amount)}</dd></div>`;
-    const rows = view.side === 'buy' ? line('낼 이슬', quote.cost, ' is-total')
-        : `${line('판매가', quote.gross)}${line('수수료', quote.fee, ' is-fee')}${line('받을 이슬', quote.net, ' is-total')}`;
+    const average = quote.count ? line(quote.bundle > 1 ? '한 묶음 평균' : '한 개 평균', Math.round((view.side === 'buy' ? quote.cost : quote.gross) / quote.count * 10) / 10) : '';
+    const rows = view.side === 'buy' ? `${average}${line('낼 이슬', quote.cost, ' is-total')}`
+        : `${average}${line('판매가', quote.gross)}${line('수수료', quote.fee, ' is-fee')}${line('받을 이슬', quote.net, ' is-total')}`;
     return `<p class="ah-receipt-units">${units}</p><dl class="ah-receipt">${rows}</dl>
         ${quote.valid ? '' : `<p class="ah-why" role="status">${esc(runtime, quote.reason)}</p>`}
         <button type="button" class="ah-primary" data-ah-trade="${view.side === 'buy' ? quote.cost : quote.net}" ${quote.valid ? '' : 'disabled'}>${trHtml(runtime, view.side === 'buy' ? '구매' : '판매')}</button>`;
@@ -108,7 +136,7 @@ function ticketHtml(runtime, row) {
         <header class="ah-ticket-head"><span class="ah-mat-art is-big">${runtime.deps.shopView.coinHtml(row.key)}</span>
             <span><strong>${esc(runtime, materialName(runtime, row.key))}</strong><small>${runtime.deps._t('보유 {count}', { count: num(runtime, row.held) })}</small></span>
             <b class="ah-factor ${trendClass(row.factor)}">${pct(runtime, row.factor)}</b></header>
-        ${sideHtml(runtime, row)}${countHtml(runtime, row)}<div class="ah-receipt-box" data-ah-receipt aria-live="polite">${receiptHtml(runtime)}</div></section>`;
+        ${sideHtml(runtime, row)}<div class="ah-book" data-ah-book>${bookHtml(runtime)}</div>${countHtml(runtime, row)}<div class="ah-receipt-box" data-ah-receipt aria-live="polite">${receiptHtml(runtime)}</div></section>`;
 }
 
 /** The whole 재료 view. A chosen group without seen rows falls back to 전체; a chosen material outside the shown rows to the first shown. */

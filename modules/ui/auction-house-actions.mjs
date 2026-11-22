@@ -6,7 +6,7 @@ import { itemName } from './auction-house-format.mjs';
 import { syncClock, announce } from './auction-house-render.mjs';
 import { findLot, repaintGearBoard, SORTABLE } from './auction-house-gear.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
-import { tradeToast, maxCount, receiptHtml } from './auction-house-materials.mjs';
+import { tradeToast, maxCount, receiptHtml, bookHtml } from './auction-house-materials.mjs';
 import { startingAsk, askTermsHtml, draftItem, claimToast } from './auction-house-stands.mjs';
 
 function refuse(runtime, reason) {
@@ -52,11 +52,12 @@ export function trade(runtime, expect) {
     settle(runtime);
 }
 
-/** The count input typed: the receipt alone is repainted (the input keeps its focus and caret). */
+/** The count input typed: the book and the receipt alone are repainted (the input keeps its focus and caret). */
 export function typeCount(runtime, input) {
     runtime.state.materials.count = input.value === '' ? '' : Math.max(0, Math.floor(Number(input.value) || 0));
-    const box = input.closest('.ah-ticket')?.querySelector('[data-ah-receipt]');
+    const ticket = input.closest('.ah-ticket'), box = ticket?.querySelector('[data-ah-receipt]'), book = ticket?.querySelector('[data-ah-book]');
     if (box) box.innerHTML = receiptHtml(runtime);
+    if (book) book.innerHTML = bookHtml(runtime);
 }
 
 /** A sortable column header: that column ascending, a second click on it descending. */
