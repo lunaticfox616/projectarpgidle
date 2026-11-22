@@ -11,9 +11,14 @@ export function trHtml(runtime, text, params) { return runtime.deps.escapeHTML(r
 
 export function esc(runtime, text) { return runtime.deps.escapeHTML(String(text ?? '')); }
 
+// One number format per locale: toLocaleString with options builds a new format on every call (rows and chips write many numbers).
+const NUMBER_FORMATS = new Map();
+
 /** A number in the player's locale (at most one decimal). */
 export function num(runtime, value) {
-    return Number(value || 0).toLocaleString(runtime.deps.i18n.locale, { maximumFractionDigits: 1 });
+    const locale = runtime.deps.i18n.locale;
+    if (!NUMBER_FORMATS.has(locale)) NUMBER_FORMATS.set(locale, new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }));
+    return NUMBER_FORMATS.get(locale).format(Number(value || 0));
 }
 
 /** A price factor as a signed percent: 1.07 -> '+7%', 0.91 -> '-9%', 1 -> '0%'. */

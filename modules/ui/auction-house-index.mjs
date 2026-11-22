@@ -91,18 +91,25 @@ function optionsPass(rows, stats) {
     return rows.every(row => stats.has(row.stat) && (row.min === null || stats.get(row.stat) >= row.min));
 }
 
-function variantsPass(variants, have) {
-    return Object.entries(variants).every(([key, want]) => want === 'any' || (want === 'yes') === have.has(key));
+/** Every variant asked for or against (rules: [[key, wanted]] of the variants not 'any'). */
+function variantsPass(rules, have) {
+    return rules.every(([key, wanted]) => wanted === have.has(key));
+}
+
+/** The variants a query asks for or against, made once per search: [[key, wanted]]. */
+export function variantRules(query) {
+    return Object.entries(query.variants).filter(([, want]) => want !== 'any').map(([key, want]) => [key, want === 'yes']);
 }
 
 /**
  * Whether fields pass a search's body conditions. view: { query (normalized), words (queryWords of its name), unit (the dew value of one
- * unit of query.currency) }. A lot without a level fails a level bound; a lot without variants fails a required one.
+ * unit of query.currency), variants (variantRules of the query) }. A lot without a level fails a level bound; a lot without variants fails a
+ * required one.
  */
 export function fieldsPass(view, fields) {
     const query = view.query;
     if (!view.words.every(word => fields.name.includes(word))) return false;
     if ((query.rarity !== 'all' && fields.rarity !== query.rarity) || (query.family && fields.family !== query.family)) return false;
     if (query.priceMax !== null && fields.dew > query.priceMax * view.unit) return false;
-    return levelPasses(query, fields.level) && optionsPass(query.options, fields.stats) && variantsPass(query.variants, fields.variants);
+    return levelPasses(query, fields.level) && optionsPass(query.options, fields.stats) && variantsPass(view.variants, fields.variants);
 }

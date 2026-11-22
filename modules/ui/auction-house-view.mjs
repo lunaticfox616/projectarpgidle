@@ -6,7 +6,7 @@
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { renderAuction, stopWork, frameStep, tickStep, dropGeneratedLots } from './auction-house-render.mjs';
 import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearKind,
-    moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, addSeller, saveQuery, runSaved, deleteSaved } from './auction-house-actions.mjs';
+    moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, addSeller, saveQuery, runSaved, deleteSaved, repaintGear } from './auction-house-actions.mjs';
 import { pickSuggest, hideSuggest } from './auction-house-suggest.mjs';
 import { liveQuery } from './auction-house-conditions.mjs';
 
@@ -58,7 +58,7 @@ const CLICKS = Object.freeze([
     ['data-ah-tab', (runtime, value) => { if (TABS.includes(value)) { runtime.state.tab = value; runtime.api.render(true); } }],
     // A seller's name sits inside its row's button: it is looked up first.
     ['data-ah-seller', (runtime, value) => addSeller(runtime, value)],
-    ['data-ah-suggest-pick', (runtime, value, el) => { pickSuggest(runtime, el); runtime.api.render(true); }],
+    ['data-ah-suggest-pick', (runtime, value, el) => { pickSuggest(runtime, el); repaintGear(runtime); }],
     ['data-ah-lot', (runtime, value, el) => selectLot(runtime, value, el)],
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],
     ['data-ah-sort', (runtime, value) => sortGear(runtime, value)],
@@ -93,7 +93,7 @@ const CLICKS = Object.freeze([
 
 function selectLot(runtime, id, el) {
     runtime.state.gear.selected = id;
-    runtime.api.render(true);
+    repaintGear(runtime);
     const detail = el.ownerDocument.querySelector('#market-panel-auction .ah-detail');
     // 좁은 칸에서는 자세히 칸이 목록 위에 있다: 고른 매물이 보이게 올린다.
     if (detail && detail.getBoundingClientRect().top < 0) detail.scrollIntoView({ block: 'start' });
@@ -128,7 +128,7 @@ function onChange(runtime, event) {
     const name = el.dataset.ahFilter, allowed = FILTERS[name];
     if (!Object.prototype.hasOwnProperty.call(FILTERS, name) || (allowed && !allowed.includes(el.value))) return;
     liveQuery(runtime)[name] = el.value;
-    runtime.api.render(true);
+    repaintGear(runtime);
 }
 
 function onInput(runtime, event) {

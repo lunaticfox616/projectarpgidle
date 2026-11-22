@@ -8,7 +8,7 @@
  */
 import { userLots } from './auction-house-hall.mjs';
 import { statLineText } from './auction-house-kinds.mjs';
-import { lotFields, fieldsOf, fieldsPass, queryWords } from './auction-house-index.mjs';
+import { lotFields, fieldsOf, fieldsPass, queryWords, variantRules, searchIndex } from './auction-house-index.mjs';
 
 /** Rows a result shows at first and adds per 더 보기. */
 export const PAGE_ROWS = 50;
@@ -20,13 +20,13 @@ const NEVER = () => false;
 export function slotApplies(query) { return query.kind === 'all' || query.kind === 'gear'; }
 
 /**
- * A search view of query (any shape: the rules normalize it) in an order: { query, sort, dir, words, unit } (unit: the dew value of one unit of
- * the price limit's currency). The saved searches are counted with the same view.
+ * A search view of query (any shape: the rules normalize it) in an order: { query, sort, dir, words, unit, variants } (unit: the dew value of
+ * one unit of the price limit's currency; variants: the variants asked for or against). The saved searches are counted with the same view.
  */
 export function searchViewOf(runtime, raw, sort = 'newest', dir = -1) {
     const query = runtime.deps.auctionHouse.normalizeQuery(raw);
     if (!slotApplies(query)) query.slot = 'all';
-    return { query, sort, dir: dir === 1 ? 1 : -1, words: queryWords(runtime, query.name), unit: runtime.deps.itemAppraisal.unitValue(query.currency) };
+    return { query, sort, dir: dir === 1 ? 1 : -1, words: queryWords(runtime, query.name), unit: runtime.deps.itemAppraisal.unitValue(query.currency), variants: variantRules(query) };
 }
 
 /** Whether a merchant head passes what a head can tell: source, kind, slot, seller, a gear lot's rarity. */
@@ -60,13 +60,24 @@ const ORDER_KEYS = Object.freeze({
 /** The column ids a header click may order by. */
 export const SORTABLE = Object.freeze(['name', 'level', 'options', 'left', 'price']);
 
-/** Orders entries ({ id, key }) by the view's order in place (names by the player's language, one collator per language). */
+/** Each shown name's place in the player's language (Map name -> rank), made from every indexed name and names: kept while it knows them
+ * all, so a name order compares numbers (the collator runs once per new name set, not per comparison). */
+function nameRanks(runtime, names) {
+    const locale = runtime.deps.i18n.locale, kept = runtime.nameRanks;
+    if (kept && kept.locale === locale && names.every(name => kept.ranks.has(name))) return kept.ranks;
+    const all = new Set(names);
+    for (const fields of searchIndex(runtime).fields.values()) all.add(fields.sortName);
+    const compare = new Intl.Collator(locale).compare;
+    runtime.nameRanks = { locale, ranks: new Map([...all].sort(compare).map((name, rank) => [name, rank])) };
+    return runtime.nameRanks.ranks;
+}
+
+/** Orders entries ({ id, key }) by the view's order in place (names by their place in the player's language). */
 function orderEntries(runtime, view, entries) {
     const dir = view.dir;
     if (view.sort === 'name') {
-        const locale = runtime.deps.i18n.locale;
-        if (!runtime.collator || runtime.collator.locale !== locale) runtime.collator = { locale, compare: new Intl.Collator(locale).compare };
-        return entries.sort((a, b) => dir * runtime.collator.compare(a.key, b.key));
+        const ranks = nameRanks(runtime, entries.map(entry => entry.key));
+        for (const entry of entries) entry.key = ranks.get(entry.key);
     }
     return entries.sort((a, b) => dir * (a.key === b.key ? 0 : a.key < b.key ? -1 : 1));
 }

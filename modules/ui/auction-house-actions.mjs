@@ -9,7 +9,7 @@ import { startSearch, rowLot, SORTABLE } from './auction-house-search.mjs';
 import { liveQuery, clearCondition, cycleVariant, addOptionRow, typeOptionName } from './auction-house-conditions.mjs';
 import { scheduleSuggest, hideSuggest } from './auction-house-suggest.mjs';
 import { paintTools } from './auction-house-panel.mjs';
-import { liveHeads } from './auction-house-gear.mjs';
+import { liveHeads, fillGear } from './auction-house-gear.mjs';
 import { showMore } from './auction-house-board.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
 import { tradeToast, maxCount, receiptHtml, bookHtml } from './auction-house-materials.mjs';
@@ -69,20 +69,28 @@ export function typeCount(runtime, input) {
 
 function gearRoot(runtime) { return runtime.deps.document.querySelector('#market-panel-auction .ah-gear'); }
 
+/** Repaints the 아이템 view's boxes in place after a command of its own (the band, the tabs and the frame stay; the section's print is
+ * renewed by its next render), or the whole section when the view is not shown. */
+export function repaintGear(runtime) {
+    const root = runtime.state.tab === 'gear' ? gearRoot(runtime) : null;
+    if (root) fillGear(runtime, root, false);
+    else runtime.api.render(true);
+}
+
 /** Searches with the chosen conditions now (검색, Enter in the name box, 새 매물, a header, a saved search): the panel closes, the snapshot is
  * taken (with every candidate's search fields made, the result too, under SEARCH_CLICK_MS) and the frame work starts. */
 export function findLots(runtime) {
     runtime.state.gear.panel = false;
     hideSuggest(runtime, gearRoot(runtime));
     startSearch(runtime, budgetStop(runtime, SEARCH_CLICK_MS));
-    runtime.api.render(true);
+    repaintGear(runtime);
     wantFrame(runtime);
 }
 
 /** The 조건 button: opens or closes the panel. */
 export function togglePanel(runtime) {
     runtime.state.gear.panel = !runtime.state.gear.panel;
-    runtime.api.render(true);
+    repaintGear(runtime);
 }
 
 /** Repaints the bar, the chips and the panel alone after a condition was typed or changed (no search). */
@@ -98,7 +106,7 @@ export function editCondition(runtime, kind, value) {
     else if (kind === 'option-x') clearCondition(runtime, `option:${value}`);
     else if (kind === 'option-add') addOptionRow(runtime);
     runtime.toolsStale = true;
-    runtime.api.render(true);
+    repaintGear(runtime);
 }
 
 /** A number or currency of the panel ('levelMin', 'levelMax', 'priceMax', 'currency'), kept as typed (the rules normalize it on search). */
@@ -125,7 +133,7 @@ export function addSeller(runtime, id) {
     const lot = rowLot(runtime, id);
     if (!lot || lot.source === 'user') return;
     liveQuery(runtime).seller = lot.seller;
-    runtime.api.render(true);
+    repaintGear(runtime);
 }
 
 /** 저장: keeps the chosen conditions in the save (the rules refuse a repeat or a sixth) and saves the game. */
@@ -134,7 +142,7 @@ export function saveQuery(runtime) {
     if (!result.ok) { refuse(runtime, result.reason); return; }
     runtime.deps.showGameToast(runtime.deps._t('검색을 저장했습니다.'), { tone: 'success' });
     runtime.deps.saveGame();
-    runtime.api.render(true);
+    repaintGear(runtime);
 }
 
 /** A saved search's button: its conditions become the chosen ones and it runs. */
@@ -151,7 +159,7 @@ export function runSaved(runtime, index) {
 export function deleteSaved(runtime, index) {
     if (!runtime.deps.auctionHouse.deleteSearch(runtime.deps.game, Number(index))) return;
     runtime.deps.saveGame();
-    runtime.api.render(true);
+    repaintGear(runtime);
 }
 
 /** A sortable column header: that column ascending, a second click on it descending; the search runs again in that order. */
@@ -186,7 +194,7 @@ export function gearKind(runtime, kind) {
     const query = liveQuery(runtime);
     if (!['all', ...openKinds(runtime)].includes(kind) || query.kind === kind) return;
     query.kind = kind;
-    runtime.api.render(true);
+    repaintGear(runtime);
     wantFrame(runtime);
 }
 

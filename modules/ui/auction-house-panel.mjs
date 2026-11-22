@@ -30,12 +30,13 @@ function rarityRows(runtime) {
 /** A typed value for a box ('' for the key, which leaves typed values out). */
 const typed = (values, value) => (values && value !== null && value !== undefined ? value : '');
 
-/** The bar: the name box with its suggestions, the 조건 button with its count, 검색, 저장, the count line (filled by paintCount). */
+/** The bar: the name box with its suggestions, the 조건 button (its state and count patched by patchCond), 검색, 저장, the count line (filled
+ * by paintCount). */
 function barHtml(runtime, values) {
-    const query = liveQuery(runtime), open = !!runtime.state.gear.panel, count = panelCount(runtime, query), label = runtime.deps._t('이름 검색');
+    const query = liveQuery(runtime), label = runtime.deps._t('이름 검색');
     return `<span class="ah-name-box is-name"><input type="search" class="ah-search" data-ah-search value="${esc(runtime, typed(values, query.name))}" placeholder="${esc(runtime, label)}" aria-label="${esc(runtime, label)}" autocomplete="off" spellcheck="false">
         <span class="ah-suggest" role="listbox" data-ah-suggest hidden></span></span>
-        <button type="button" class="ah-cond${open ? ' is-on' : ''}" data-ah-panel aria-expanded="${open}">${esc(runtime, tr(runtime, '조건'))}${count ? `<b>${num(runtime, count)}</b>` : ''}</button>
+        <button type="button" class="ah-cond" data-ah-panel aria-expanded="false">${esc(runtime, tr(runtime, '조건'))}<b data-ah-cond-count hidden></b></button>
         <button type="button" class="ah-find" data-ah-find>${esc(runtime, tr(runtime, '검색'))}</button>
         <button type="button" class="ah-save" data-ah-save>${esc(runtime, tr(runtime, '저장'))}</button>
         <span class="ah-lot-count" role="status" data-ah-lot-count></span>`;
@@ -94,12 +95,21 @@ function panelHtml(runtime, heads, values) {
     return `<div class="ah-panel-grid">${selectFields(runtime, heads)}${numberFields(runtime, values)}${variantField(runtime)}${optionField(runtime, values)}</div>`;
 }
 
-/** Repaints box when its shape (html without typed values) changed; a control focused inside gets the focus back. */
+/** The 조건 button's open state and condition count, patched in place (rebuilding the bar would move the focus off the button just pressed). */
+function patchCond(runtime, bar) {
+    const button = bar && bar.querySelector('[data-ah-panel]'), badge = button && button.querySelector('[data-ah-cond-count]');
+    if (!badge) return;
+    const open = !!runtime.state.gear.panel, count = panelCount(runtime, liveQuery(runtime)), text = count ? num(runtime, count) : '';
+    if (button.classList.contains('is-on') !== open) { button.classList.toggle('is-on', open); button.setAttribute('aria-expanded', String(open)); }
+    if (badge.textContent !== text) { badge.textContent = text; badge.hidden = !count; }
+}
+
+/** Repaints box with html() when its shape (key: the html without typed values) changed; a control focused inside gets the focus back. */
 function paintShaped(box, key, html) {
     if (!box || box.ahKey === key) return;
     const active = box.ownerDocument.activeElement, attr = active && box.contains(active) ? [...active.attributes].find(row => row.name.startsWith('data-ah-')) : null;
     box.ahKey = key;
-    box.innerHTML = html;
+    box.innerHTML = html();
     if (attr) box.querySelector(`[${attr.name}="${attr.value.replace(/["\\]/g, '\\$&')}"]`)?.focus({ preventScroll: true });
 }
 
@@ -112,9 +122,10 @@ export function paintTools(runtime, root, heads) {
         runtime.toolsStale = false;
     }
     const shown = (make, values) => (recent ? '' : make(values));
-    paintShaped(bar, shown(values => barHtml(runtime, values), false), shown(values => barHtml(runtime, values), true));
+    paintShaped(bar, shown(values => barHtml(runtime, values), false), () => shown(values => barHtml(runtime, values), true));
+    patchCond(runtime, bar);
     paint(root.querySelector('[data-ah-chips]'), shown(() => chipsHtml(runtime)));
-    paintShaped(panel, shown(values => panelHtml(runtime, heads, values), false), shown(values => panelHtml(runtime, heads, values), true));
+    paintShaped(panel, shown(values => panelHtml(runtime, heads, values), false), () => shown(values => panelHtml(runtime, heads, values), true));
     if (panel) panel.hidden = recent || !runtime.state.gear.panel;
     paintCount(runtime, root);
 }
