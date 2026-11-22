@@ -4,20 +4,31 @@
  * 명령은 auction-house-actions.mjs. 화면 상태는 저장하지 않는다.
  */
 import { listenView, releaseViewEvents } from './view-events.mjs';
-import { renderAuction, stopGearRefresh } from './auction-house-render.mjs';
-import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearKind } from './auction-house-actions.mjs';
+import { renderAuction, stopWork, frameStep, tickStep, dropGeneratedLots } from './auction-house-render.mjs';
+import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearKind,
+    moreLots, findLots } from './auction-house-actions.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
 const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'user'], rarity: ['all', 'normal', 'magic', 'rare', 'unique'] });
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
 export function createAuctionHouseView(deps) {
-    const runtime = { deps, state: initialState(), api: null, active: true, listeners: [], refresh: 0, refreshAt: 0 };
+    // search: the item tab's snapshot (modules/ui/auction-house-search.mjs); jobs: rows waiting to be drawn; frame, tick, dropTimer: the
+    // pending animation frame, the once-a-second check and the drop of the generated lots (modules/ui/auction-house-render.mjs).
+    const runtime = { deps, state: initialState(), api: null, active: true, listeners: [], search: null, jobs: [], headsReady: false, warmDone: false, refill: false, seen: false, lastWarm: null, observer: null, visible: false, detailPhase: '',
+        frame: 0, tick: 0, dropTimer: 0 };
+    runtime.frameStep = () => frameStep(runtime);
+    runtime.tickStep = () => tickStep(runtime);
+    runtime.dropLots = () => dropGeneratedLots(runtime);
     runtime.api = Object.freeze({
         render: (force = false) => renderAuction(runtime, force),
         /** The trade window opens this section on tab (the loop card asks for 내 출품). */
         showTab: tab => { if (TABS.includes(tab)) runtime.state.tab = tab; },
-        dispose: () => { stopGearRefresh(runtime); releaseViewEvents(runtime); }
+        dispose: () => {
+            stopWork(runtime, true);
+            if (runtime.dropTimer) deps.window.clearTimeout(runtime.dropTimer);
+            releaseViewEvents(runtime);
+        }
     });
     installEvents(runtime);
     return runtime.api;
@@ -26,7 +37,7 @@ export function createAuctionHouseView(deps) {
 function initialState() {
     return {
         tab: 'gear', print: '', card: { key: '', html: '' },
-        gear: { mode: 'open', kind: 'all', slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'price', dir: 1, family: '', selected: '' },
+        gear: { mode: 'open', kind: 'all', slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'newest', dir: -1, family: '', selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
         hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 },
@@ -42,6 +53,9 @@ const CLICKS = Object.freeze([
     ['data-ah-lot', (runtime, value, el) => selectLot(runtime, value, el)],
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],
     ['data-ah-sort', (runtime, value) => sortGear(runtime, value)],
+    ['data-ah-find', runtime => findLots(runtime)],
+    ['data-ah-research', runtime => findLots(runtime)],
+    ['data-ah-more', runtime => moreLots(runtime)],
     ['data-ah-mode', (runtime, value) => gearMode(runtime, value)],
     ['data-ah-kind', (runtime, value) => gearKind(runtime, value)],
     ['data-ah-family', (runtime, value) => jumpFamily(runtime, value)],
@@ -104,10 +118,13 @@ function onInput(runtime, event) {
     else if (el.matches('[data-ah-ask]')) typeAsk(runtime, el);
 }
 
+// Enter in an input presses its box's button: the count trades, the ask lists, the search box searches.
+const ENTER_KEYS = Object.freeze([['[data-ah-count]', '[data-ah-trade]'], ['[data-ah-ask]', '[data-ah-list]'], ['[data-ah-search]', '[data-ah-find]']]);
+
 function onKeydown(runtime, event) {
     if (event.key !== 'Enter' || !event.target.closest?.('#market-panel-auction input')) return;
-    const action = event.target.matches('[data-ah-count]') ? '[data-ah-trade]' : event.target.matches('[data-ah-ask]') ? '[data-ah-list]' : '';
-    const button = action && event.target.closest('.ah-ticket, .ah-stand')?.querySelector(action);
+    const row = ENTER_KEYS.find(([input]) => event.target.matches(input));
+    const button = row && event.target.closest('.ah-ticket, .ah-stand, .ah-tools')?.querySelector(row[1]);
     if (!button || button.disabled) return;
     event.preventDefault();
     button.click();

@@ -11054,6 +11054,10 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '뱃사람': 'Sailor',
         '수도사': 'Monk',
         '최근 거래': 'Recent trades',
+        '방금 올라온 매물': 'Just listed',
+        '새 매물 {count}건': '{count} new lots',
+        '찾는 중 {done}/{total}': 'Searching {done}/{total}',
+        '더 보기': 'Show more',
         '{minutes}분 전': '{minutes}m ago',
         '이미 내려간 매물입니다.': 'This lot is no longer listed.',
     })

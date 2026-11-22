@@ -2,11 +2,15 @@
  * 경매장 칸 그리기. 칸이 보일 때(marketUi가 이 칸을 그릴 때)와 명령 전에 시계를 지금으로 옮기고(advance), 거래 창의 기존 갱신
  * (renderMarketUI)이 부를 때는 저장과 화면 상태의 짧은 서명이 같으면 아무것도 다시 만들지 않는다. 시세 띠, 칸 단추, 본문을 따로 칠해
  * 바뀐 부분만 바꾼다(칸 단추는 제자리에서 속성만 고친다: 화살표 키의 초점이 남는다). 닫힌 칸은 일을 하지 않는다.
- * 아이템 칸이 보이는 동안은 1초마다 도는 확인 하나가 다음 매물이 놓이거나 팔리거나 내려가는 때(길어야 15초 뒤)에 목록만 새로 그린다
- * (repaintGearBoard). 칸이나 창이 닫히면 다음 확인에서 멈추고(칸을 다시 그릴 때 다시 건다), 화면을 치우면 바로 멈춘다.
+ * 칸이 보이는 동안 그림 틀마다 한 번(requestAnimationFrame) 예산(FRAME_BUDGET_MS) 안에서만 일한다: 목록 행 붙이기, 검색, 매물의 몸 미리 굴리기
+ * (auctionHouse.warmLots, 머리 만들기도 같은 예산). 할 일이 없으면 틀을 더 걸지 않는다. 1초마다 도는 확인 하나는 시계를 옮기고, 새로 놓인 매물의
+ * 몸을 굴리고, 아이템 칸이면 그려진 행만 고친다(목록을 다시 짓지 않는다). 칸이나 창이 닫히면 다음 확인에서 둘 다 멈추고, 만든 매물은 3분 동안
+ * 남겼다가(DROP_MS, 그 안에 다시 열면 그대로 쓴다) 버린다. 화면을 치우면 바로 멈춘다.
  */
 import { trHtml, esc, pct, trendClass, familyLabel, paint } from './auction-house-format.mjs';
-import { gearViewHtml, repaintGearBoard } from './auction-house-gear.mjs';
+import { gearViewHtml, fillGear, liveHeads, paintCount } from './auction-house-gear.mjs';
+import { appendRows } from './auction-house-board.mjs';
+import { stepSearch, searchPrefer } from './auction-house-search.mjs';
 import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-materials.mjs';
 import { standsViewHtml, claimable } from './auction-house-stands.mjs';
 import { watchHall } from './auction-house-hall.mjs';
@@ -14,8 +18,11 @@ import { watchHall } from './auction-house-hall.mjs';
 const TABS = Object.freeze([['gear', '아이템'], ['materials', '재료'], ['mine', '내 출품']]);
 const MOVERS = 3;
 const WALLET = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
-// The gear list's refresh: at the next change of the list, at least this soon and at most this late (the 남은 시간 column counts minutes).
-const REFRESH_MS = Object.freeze({ min: 500, max: 15000, tick: 1000 });
+// The work one animation frame may do (ms of performance.now): drawing rows, the search and warming the lots' bodies. A 240 Hz frame is 4 ms.
+const FRAME_BUDGET_MS = 1.5;
+// The check while the section is shown, and how long the generated lots are kept after it closed.
+const TICK_MS = 1000;
+const DROP_MS = 180000;
 
 /** Moves the auction clock to now and announces what settled (as the game tick does). Returns whether the bucket turned. */
 export function syncClock(runtime) {
@@ -96,13 +103,11 @@ function focusKey(view) {
 }
 
 function paintView(runtime, view) {
-    const key = focusKey(view), top = listScroll(view), lotsTop = view.querySelector('.ah-lots')?.scrollTop;
-    if (!paint(view, VIEWS[runtime.state.tab](runtime))) return;
-    keepListScroll(view, top);
-    // The gear list stays where it was scrolled (a clock step, a filter or a purchase redraws the whole view).
-    const lots = view.querySelector('.ah-lots');
-    if (lots && lotsTop !== undefined) lots.scrollTop = lotsTop;
-    if (key) view.querySelector(key)?.focus({ preventScroll: true });
+    const key = focusKey(view), top = listScroll(view), painted = paint(view, VIEWS[runtime.state.tab](runtime));
+    if (painted) keepListScroll(view, top);
+    // The 아이템 view paints its boxes in place (its rows stay); its frame is rebuilt only when the mode changes.
+    if (runtime.state.tab === 'gear') fillGear(runtime, view.querySelector('.ah-gear'), painted);
+    if (painted && key) view.querySelector(key)?.focus({ preventScroll: true });
 }
 
 /** A short print of everything this section shows: the same print means nothing to redraw. */
@@ -135,61 +140,138 @@ function ensureSkeleton(runtime, host) {
     return true;
 }
 
-/** The section's host when the gear list can be seen now (shown, and its window open: a closed window lays out no boxes), else null. */
-function seenGearHost(runtime) {
-    const host = runtime.state.tab === 'gear' ? shownHost(runtime) : null;
-    return host && host.getClientRects().length ? host : null;
+/** The section's host when it can be seen now (shown, and its window open), else null. The observer (watchVisibility) tells without reading
+ * the layout; without one a closed window is the one that lays out no boxes. */
+function seenHost(runtime) {
+    const host = shownHost(runtime);
+    if (!host) return null;
+    if (runtime.observer) return runtime.visible ? host : null;
+    return host.getClientRects().length ? host : null;
 }
 
-/** Stops the gear list's refresh check. */
-export function stopGearRefresh(runtime) {
-    if (!runtime.refresh) return;
-    runtime.deps.window.clearInterval(runtime.refresh);
-    runtime.refresh = 0;
+/** Watches whether the host is on screen (an IntersectionObserver reports it after layout, so the check never forces one). */
+function watchVisibility(runtime, host) {
+    const Observer = runtime.deps.window.IntersectionObserver;
+    if (runtime.observer || !Observer) return;
+    runtime.visible = true;
+    runtime.observer = new Observer(entries => { runtime.visible = entries[entries.length - 1].isIntersecting; });
+    runtime.observer.observe(host);
 }
 
-/** When the gear list should next be repainted (UTC ms on the auction clock): its next change (a lot arrives, sells or leaves), within
- * REFRESH_MS. */
-function nextRefreshAt(runtime) {
-    return Math.max(runtime.deps.now(), runtime.deps.game.auction.lastAt) + REFRESH_MS.max;
+/** The 아이템 view's root inside a seen host when it is the shown tab, else null. */
+function gearRoot(runtime, host) {
+    return runtime.state.tab === 'gear' ? host.querySelector('.ah-gear') : null;
 }
 
-/** Keeps one check a second while the gear tab can be seen (it repaints the list when refreshAt comes); stops it otherwise. painted: the
- * view was just drawn, so the next repaint is counted from now. */
-function keepGearRefresh(runtime, painted) {
-    if (!seenGearHost(runtime)) { stopGearRefresh(runtime); return; }
-    if (painted || !runtime.refreshAt) runtime.refreshAt = nextRefreshAt(runtime);
-    if (!runtime.refresh) runtime.refresh = runtime.deps.window.setInterval(() => gearRefreshTick(runtime), REFRESH_MS.tick);
+/** A stop() for the domain and the row drawing: true once FRAME_BUDGET_MS passed since it was made. */
+function budgetStop(runtime) {
+    const clock = runtime.deps.window.performance, start = clock.now();
+    return () => clock.now() - start > FRAME_BUDGET_MS;
 }
 
-/** The check: stops when the list cannot be seen, repaints it when its time came. */
-function gearRefreshTick(runtime) {
-    if (!seenGearHost(runtime)) { stopGearRefresh(runtime); return; }
-    if (Math.max(runtime.deps.now(), runtime.deps.game.auction.lastAt) >= runtime.refreshAt) refreshGear(runtime);
+/** Asks for one animation frame (none when one is pending). runtime.frameStep is made once with the view. */
+export function wantFrame(runtime) {
+    if (!runtime.frame) runtime.frame = runtime.deps.window.requestAnimationFrame(runtime.frameStep);
 }
 
-/** The clock moves (a turned bucket repaints the band), then the list, the count and the detail alone are repainted. A gear view without a
- * list (no lots yet) is left for the next render, which then draws it whole. */
-function refreshGear(runtime) {
-    const root = seenGearHost(runtime)?.querySelector('.ah-root');
-    if (!root) return;
+/** Warms the lots' bodies under stop (the waiting search's candidates first) and notes whether the heads are ready and every body is warm.
+ * When the heads just became ready the 아이템 view must be filled again (its first view needs them): runtime.refill. */
+function warmStep(runtime, stop) {
+    const { auctionHouse, game } = runtime.deps, prefer = searchPrefer(runtime), warm = auctionHouse.warmLots(game, runtime.deps.now(), { stop, prefer });
+    // A waiting search reads the progress of its own candidates only (warm.prefer is the filter this result was made with).
+    runtime.lastWarm = { ...warm, prefer };
+    if (warm.heads && !runtime.headsReady) runtime.refill = true;
+    runtime.headsReady = warm.heads;
+    runtime.warmDone = warm.heads && warm.done >= warm.total;
+    return warm;
+}
+
+/** The budgeted work of a frame: queued rows, the search, then the bodies with what is left (a waiting search follows the latest warming);
+ * a search that changed phase asks for a refill of the 아이템 view. */
+function budgetWork(runtime, root) {
+    const stop = budgetStop(runtime), phase = runtime.search?.phase;
+    appendRows(runtime, stop);
+    stepSearch(runtime, stop, runtime.lastWarm);
+    if (!stop() || !runtime.search || runtime.search.phase === 'warm') warmStep(runtime, stop);
+    if (runtime.search && runtime.search.phase !== phase) runtime.refill = true;
+    paintCount(runtime, root);
+}
+
+/** Whether another frame has work: a refill to paint, a search, bodies to warm, rows to draw. */
+function frameWorkLeft(runtime, root) {
+    return (runtime.refill && !!root) || (!!runtime.search && runtime.search.phase !== 'done') || !runtime.warmDone || runtime.jobs.length > 0;
+}
+
+/** One animation frame of work: a pending refill of the 아이템 view alone (it takes a frame of its own), else the budgeted work. Asks for the
+ * next frame while work is left. No layout is read here (it would force a style pass on a frame the game is drawing): the check and
+ * renderAuction keep runtime.seen. */
+export function frameStep(runtime) {
+    runtime.frame = 0;
+    const host = runtime.seen ? shownHost(runtime) : null, root = host && gearRoot(runtime, host);
+    if (!host) return;
+    if (runtime.refill && root) {
+        runtime.refill = false;
+        fillGear(runtime, root, false);
+    } else budgetWork(runtime, root);
+    if (frameWorkLeft(runtime, root)) wantFrame(runtime);
+}
+
+/** Stops the frame work and the check (the section closed or the screen was disposed; disposing also stops watching the host). */
+export function stopWork(runtime, disposing = false) {
+    if (disposing && runtime.observer) runtime.observer.disconnect();
+    if (runtime.frame) runtime.deps.window.cancelAnimationFrame(runtime.frame);
+    if (runtime.tick) runtime.deps.window.clearInterval(runtime.tick);
+    runtime.frame = 0;
+    runtime.tick = 0;
+}
+
+/** The section closed: the work stops and the generated lots are dropped DROP_MS later unless it opens again. */
+function closeSection(runtime) {
+    runtime.seen = false;
+    stopWork(runtime);
+    if (!runtime.dropTimer) runtime.dropTimer = runtime.deps.window.setTimeout(runtime.dropLots, DROP_MS);
+}
+
+/** Drops the generated lots (runtime.dropLots, made once with the view): the next opening builds them again. */
+export function dropGeneratedLots(runtime) {
+    runtime.dropTimer = 0;
+    runtime.headsReady = false;
+    runtime.warmDone = false;
+    runtime.deps.auctionHouse.dropLots();
+}
+
+/** The section is shown: a pending drop is called off, the check runs once a second and the frame work starts. */
+function openSection(runtime, host) {
+    watchVisibility(runtime, host);
+    if (runtime.dropTimer) runtime.deps.window.clearTimeout(runtime.dropTimer);
+    runtime.dropTimer = 0;
+    runtime.seen = true;
+    if (!runtime.tick) runtime.tick = runtime.deps.window.setInterval(runtime.tickStep, TICK_MS);
+    wantFrame(runtime);
+}
+
+/** The check: closes when the section cannot be seen; else moves the clock (a turned bucket repaints the band), warms the lots that just
+ * arrived under the budget and, on the 아이템 view, patches the drawn rows, the new lots line, the chips and the detail. */
+export function tickStep(runtime) {
+    const host = seenHost(runtime);
+    if (!host) { closeSection(runtime); return; }
+    const root = host.querySelector('.ah-root'), gear = gearRoot(runtime, host);
     if (syncClock(runtime)) paint(root.querySelector('.ah-band'), bandHtml(runtime));
-    const gear = root.querySelector('.ah-gear');
-    if (gear && gear.querySelector('[data-ah-board]')) repaintGearBoard(runtime, gear);
-    else runtime.state.print = '';
-    runtime.refreshAt = nextRefreshAt(runtime);
+    warmStep(runtime, budgetStop(runtime));
+    if (!runtime.warmDone || runtime.refill) wantFrame(runtime);
+    if (gear) fillGear(runtime, gear, false, liveHeads(runtime), true);
 }
 
 /** Draws the section when it is shown (force: a user action or the section was just opened). */
 export function renderAuction(runtime, force = false) {
     const host = shownHost(runtime);
-    if (!host) { stopGearRefresh(runtime); return; }
+    if (!host) { closeSection(runtime); return; }
     if (syncClock(runtime)) force = true;
     // The server pulse (modules/application/auction-pulse-service.mjs): at most one request per bucket and 10 minutes; its reply redraws.
     runtime.deps.auctionPulse.sync();
     watchHall(runtime);
     if (ensureSkeleton(runtime, host)) force = true;
-    keepGearRefresh(runtime, false);
+    openSection(runtime, host);
     const print = signature(runtime);
     if (!force && (print === runtime.state.print || editingInput(host))) return;
     runtime.state.print = print;
@@ -197,5 +279,4 @@ export function renderAuction(runtime, force = false) {
     paint(root.querySelector('.ah-band'), bandHtml(runtime));
     paintTabs(runtime, root);
     paintView(runtime, root.querySelector('.ah-view'));
-    keepGearRefresh(runtime, true);
 }

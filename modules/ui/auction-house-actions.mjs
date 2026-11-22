@@ -4,8 +4,9 @@
  */
 import { itemName } from './auction-house-format.mjs';
 import { lotName, openKinds } from './auction-house-kinds.mjs';
-import { syncClock, announce } from './auction-house-render.mjs';
-import { findLot, repaintGearBoard, SORTABLE } from './auction-house-gear.mjs';
+import { syncClock, announce, wantFrame } from './auction-house-render.mjs';
+import { startSearch, rowLot, SORTABLE } from './auction-house-search.mjs';
+import { showMore } from './auction-house-board.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
 import { tradeToast, maxCount, receiptHtml, bookHtml } from './auction-house-materials.mjs';
 import { startingAsk, askTermsHtml, draftItem, claimToast } from './auction-house-stands.mjs';
@@ -35,7 +36,7 @@ function command(runtime, run) {
 }
 
 export function buyLot(runtime, id) {
-    const lot = findLot(runtime, id);
+    const lot = rowLot(runtime, id);
     if (!lot) { refuse(runtime, runtime.deps._t('이미 내려간 매물입니다.')); return; }
     if (lot.source === 'user') { buyUserLot(runtime, lot).catch(error => runtime.deps.console.error('auction hall buy failed:', error)); return; }
     const result = command(runtime, now => runtime.deps.auctionHouse.buyGearLot(runtime.deps.game, id, now));
@@ -61,38 +62,52 @@ export function typeCount(runtime, input) {
     if (book) book.innerHTML = bookHtml(runtime);
 }
 
-/** A sortable column header: that column ascending, a second click on it descending. */
+/** Searches with the toolbar's filters now (검색, Enter in the box, 새 매물): the snapshot is taken and the frame work starts. */
+export function findLots(runtime) {
+    const box = runtime.deps.document.querySelector('#market-panel-auction [data-ah-search]');
+    if (box) runtime.state.gear.query = box.value.slice(0, 40);
+    startSearch(runtime);
+    runtime.api.render(true);
+    wantFrame(runtime);
+}
+
+/** A sortable column header: that column ascending, a second click on it descending; the search runs again in that order. */
 export function sortGear(runtime, column) {
     if (!SORTABLE.includes(column)) return;
     const view = runtime.state.gear;
     view.dir = view.sort === column ? -view.dir : 1;
     view.sort = column;
-    runtime.api.render(true);
+    findLots(runtime);
 }
 
-/** The 판매 중 | 최근 거래 switch: that list, nothing chosen yet (its first row is chosen). */
+/** 더 보기: the next rows of the result. */
+export function moreLots(runtime) {
+    showMore(runtime, runtime.deps.document.querySelector('#market-panel-auction .ah-gear'));
+    wantFrame(runtime);
+}
+
+/** The 판매 중 | 최근 거래 switch: that list, nothing chosen. */
 export function gearMode(runtime, mode) {
     const view = runtime.state.gear;
     if (!['open', 'recent'].includes(mode) || view.mode === mode) return;
     view.mode = mode;
     view.selected = '';
     runtime.api.render(true);
+    wantFrame(runtime);
 }
 
-/** A kind chip (전체 or an open kind): that kind's lots, nothing chosen yet (its first row is chosen). */
+/** A kind chip (전체 or an open kind): the next search's kind (최근 거래 shows that kind's trades at once). */
 export function gearKind(runtime, kind) {
     const view = runtime.state.gear;
     if (!['all', ...openKinds(runtime)].includes(kind) || view.kind === kind) return;
     view.kind = kind;
-    view.selected = '';
     runtime.api.render(true);
+    wantFrame(runtime);
 }
 
-/** The search typed (names and option lines): the list, the count and the detail alone are repainted (the box keeps its focus and caret). */
+/** The search typed (names and option lines): kept for the next search (nothing is searched yet). */
 export function typeSearch(runtime, input) {
     runtime.state.gear.query = input.value.slice(0, 40);
-    const root = input.closest('.ah-gear');
-    if (root) repaintGearBoard(runtime, root);
 }
 
 export function preset(runtime, value) {
@@ -171,10 +186,13 @@ export function claimAll(runtime) {
     settle(runtime);
 }
 
-/** A family chip of the band: the gear list filtered to that family. A material chip: that material in the materials view. */
+/** A family chip of the band: the item tab searches that family (the chip's ✕ only clears the filter). A material chip: that material in the
+ * materials view. */
 export function jumpFamily(runtime, family) {
     runtime.state.tab = 'gear';
+    runtime.state.gear.mode = 'open';
     runtime.state.gear.family = family;
+    if (family) { findLots(runtime); return; }
     runtime.api.render(true);
 }
 

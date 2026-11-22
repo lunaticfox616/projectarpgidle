@@ -72,7 +72,7 @@ const auctionHouse = (() => {
         itemFamily: rules.itemFamily, familyLabel: rules.familyLabel, materials: rules.materials, materialQuote: rules.materialQuote,
         materialBook: rules.materialBook, materialPrices: rules.materialPrices,
         materialTrade: (owner, order, now) => run(rules.materialTrade(live(owner), order, now)),
-        lotHeads: rules.lotHeads, lot: rules.lot, warmLots: rules.warmLots, dropLots: rules.dropLots, lotKinds: rules.lotKinds, recentTrades: rules.recentTrades,
+        lotHeads: rules.lotHeads, lot: rules.lot, warmLots: rules.warmLots, dropLots: rules.dropLots, lotKinds: rules.lotKinds, recentHeads: rules.recentHeads,
         gearLotIssue: rules.gearLotIssue,
         buyGearLot: (owner, lotId, now) => run(rules.buyGearLot(live(owner), lotId, now)),
         listIssue: rules.listIssue, listQuote: rules.listQuote,
