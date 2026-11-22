@@ -11027,6 +11027,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '물리, 방어 장비와 잿불가지, 톱니 화석 값이 올랐습니다.': 'Physical and armor gear, Ember Branches and Jagged Fossils have risen in price.',
         '{prefix} {suffix}|판매자 이름': '{prefix} {suffix}',
         '이름, 옵션 검색': 'Search name, affix',
+        'Lv.': 'Lv.',
         '아이템': 'Items',
         '그루터기 함을 먼저 얻어야 합니다.': 'Obtain the Stump Box first.',
         '그루터기 함 보관함이 가득 찼습니다.': 'The Stump Box storage is full.',

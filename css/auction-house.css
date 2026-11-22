@@ -46,12 +46,14 @@
 .ah-price b { color: var(--ah-gold); font-weight: 400; }
 .ah-price.is-big .shop-coin { width: 20px; height: 20px; }
 
-/* 아이템: 판매 중 | 최근 거래 단추, 종류 단추 줄(재료의 묶음 단추와 같은 모양), 고르기 줄, 거래소 목록(넓으면 머리줄과 한 줄 행, 좁으면 두 줄 행)과 자세히 칸. 목록은 제 칸 안에서 민다. */
+/* 아이템: 판매 중 | 최근 거래 단추, 종류 단추 줄(재료의 묶음 단추와 같은 모양), 고르기 줄, 거래소 목록(넓으면 머리줄과 두 줄 행, 좁아도 두 줄 행)과 자세히 칸. 목록은 제 칸 안에서 민다. */
 .ah-gear { display: grid; gap: 8px; min-width: 0; }
 .ah-modes { display: flex; gap: 4px; }
 #market-panel-auction .ah-mode { padding: 2px 14px; border: 1px solid var(--ah-line); background: #100f0d; color: var(--color-text-secondary); }
 #market-panel-auction .ah-mode.is-on { border-color: var(--ah-gold); color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 8%, #100f0d); }
 .ah-kinds { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+/* 목록은 새로 고칠 때마다 행 단추를 새로 그린다: 아이템 칸에는 공용 단추와 입력 칸의 빛 바뀜(transition)을 두지 않는다. */
+#market-panel-auction .ah-gear :is(button, input, select) { transition: none; }
 .ah-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 #market-panel-auction .ah-tools select { flex: 1 1 96px; width: auto; min-height: var(--ah-tap); padding: 4px 8px; border-radius: 0; font-size: 12px; }
 #market-panel-auction .ah-search { flex: 2 1 150px; min-width: 0; min-height: var(--ah-tap); padding: 4px 8px; border: 1px solid #594931; border-radius: 0; background: #090908;
@@ -66,25 +68,29 @@
 .ah-board-head { display: none; }
 .ah-lots { display: grid; min-width: 0; max-height: clamp(280px, calc(100vh - 420px), 720px); overflow-y: auto; overscroll-behavior: contain; }
 .ah-lots li + li { border-top: 1px solid #1f1c17; }
-/* 좁은 칸: 두 줄 행(이름과 표시, 값 / 부위, 레벨, 옵션, 남은 시간이나 팔린 때) */
-#market-panel-auction .ah-lot { --item-rarity: #7d8996; display: grid; grid-template-columns: 36px auto auto minmax(0, 1fr) auto;
-    grid-template-areas: "art name name name price" "art slot level options left"; align-items: center; gap: 2px 10px; width: 100%; min-height: 48px;
+/* 좁은 칸: 두 줄 행(이름과 표시, 남은 시간, 값 / 판매자, 부위, Lv., 옵션). 찾기가 옵션 줄을 맞히면 그 줄이 셋째 줄에 선다.
+   이름 칸과 그 아랫줄은 상자를 만들지 않아(display: contents) 이름 줄, 판매자, 맞힌 줄이 행 격자의 칸에 바로 놓인다. 남은 시간과 값은 Lv., 옵션과
+   같은 열이라 둘째 줄의 값을 짧게 쓴다(휴대폰은 계열 표시를 빼서 가장 긴 판매자 이름이 들어간다). */
+#market-panel-auction .ah-lot { --item-rarity: #7d8996; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "art name name left price" "art seller slot level options"; align-items: center; gap: 2px 6px; width: 100%; min-height: 48px;
     padding: 5px 8px 5px 6px; border: 0; border-left: 3px solid transparent; background: none; color: var(--color-text); text-align: left; }
 #market-panel-auction .ah-lot:hover { background: #15130f; }
 #market-panel-auction .ah-lot.is-chosen { border-left-color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 8%, #100f0d); }
-.ah-lot.is-closed > :not(.ah-cell-price) { opacity: .45; }
+.ah-lot.is-closed :is(.ah-art, .ah-name-line, .ah-lot-seller, .ah-match, .ah-cell-slot, .ah-cell-level, .ah-cell-options, .ah-cell-left) { opacity: .45; }
 .ah-lot .ah-art { grid-area: art; width: 36px; height: 36px; }
 .ah-lot .ah-art img { width: 30px; height: 30px; }
-.ah-cell-name { grid-area: name; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
+.ah-cell-name, .ah-lot-sub { display: contents; }
+.ah-name-line { grid-area: name; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
 .ah-lot-name { color: var(--item-rarity); font-weight: 400; overflow-wrap: anywhere; word-break: keep-all; }
+/* 판매자: 휴대폰에서 가장 긴 이름이 가장 긴 부위 이름과 만나면 말줄임(온 이름은 고른 매물의 자세히 칸 머리에 있다) */
+.ah-lot-seller { grid-area: seller; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ah-cell-slot { grid-area: slot; }
 .ah-cell-level { grid-area: level; }
 .ah-cell-options { grid-area: options; display: flex; align-items: center; gap: 4px; min-width: 0; }
-/* 검색이 찾은 옵션 줄: 계열 표시 자리에, 길면 말줄임 */
-.ah-match { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #d8c8a4; font-style: normal; }
-.ah-cell-seller { display: none; }
+/* 검색이 찾은 옵션 줄: 판매자 다음(좁은 칸은 셋째 줄), 길면 말줄임(온 줄은 마우스를 올리면 보인다) */
+.ah-match { grid-column: 2 / -1; grid-row: 3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d8c8a4; font-size: 12px; font-style: normal; }
 .ah-cell-left, .ah-cell-ago { grid-area: left; justify-self: end; }
-:is(.ah-cell-slot, .ah-cell-level, .ah-cell-options, .ah-cell-seller, .ah-cell-left, .ah-cell-ago) { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
+:is(.ah-lot-seller, .ah-cell-slot, .ah-cell-level, .ah-cell-options, .ah-cell-left, .ah-cell-ago) { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
 .ah-cell-key { margin-right: 3px; color: #7f776a; font-size: 12px; }
 .ah-cell-price { grid-area: price; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .ah-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
@@ -98,10 +104,11 @@
 .ah-art img { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
 .ah-art.is-coin .shop-coin { width: 28px; height: 28px; }
 .ah-badge { padding: 0 4px; border: 1px solid var(--ah-line); color: var(--color-text-secondary); font-size: 12px; font-style: normal; line-height: 16px; white-space: nowrap; }
-/* 넓은 칸: 머리줄과 한 줄 행, 같은 열 너비 */
+/* 넓은 칸: 머리줄과 두 줄 행(이름 칸 안에 이름 줄과 판매자 줄), 같은 열 너비. 열 너비는 가장 긴 값(부위 이름, 아이템 레벨 세 자리, 옵션 수와
+   계열, 70분, 다섯 자리 값)과 머리 글이 잘리지 않는 너비다. */
 @container (min-width: 700px) {
-    .ah-board { --ah-cols: 30px minmax(0, 1fr) 48px 58px 76px minmax(0, 88px) 52px 64px; --ah-areas: "art name slot level options seller left price"; }
-    .ah-board.is-recent { --ah-cols: 30px minmax(0, 1fr) 48px 58px 76px 64px 64px; --ah-areas: "art name slot level options price ago"; }
+    .ah-board { --ah-cols: 30px minmax(0, 1fr) 52px 58px 76px 52px 64px; --ah-areas: "art name slot level options left price"; }
+    .ah-board.is-recent { --ah-cols: 30px minmax(0, 1fr) 52px 58px 76px 64px 64px; --ah-areas: "art name slot level options price ago"; }
     .ah-board-head, #market-panel-auction .ah-lot { grid-template-columns: var(--ah-cols); grid-template-areas: var(--ah-areas); column-gap: 6px; }
     .ah-cell-ago { grid-area: ago; }
     .ah-head-left, .ah-head-ago { text-align: right; }
@@ -111,13 +118,15 @@
     #market-panel-auction .ah-board-head button { min-height: 32px; padding: 0; border: 0; background: none; color: inherit; font-size: 12px; }
     #market-panel-auction .ah-board-head button.is-on { color: var(--ah-gold); }
     .ah-board-head i { margin-left: 3px; font-style: normal; font-size: 12px; }
-    #market-panel-auction .ah-lot { min-height: 40px; padding: 3px 8px 3px 6px; }
+    #market-panel-auction .ah-lot { min-height: 46px; padding: 4px 8px 4px 6px; }
     .ah-lot .ah-art { width: 30px; height: 30px; }
     .ah-lot .ah-art img { width: 26px; height: 26px; }
-    .ah-cell-name { gap: 1px 6px; }
-    .ah-lot-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ah-cell-name { grid-area: name; display: grid; gap: 1px; min-width: 0; }
+    .ah-lot-sub { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+    .ah-name-line, .ah-lot-seller, .ah-match { grid-area: auto; }
+    .ah-name-line { gap: 1px 6px; }
+    .ah-lot-seller { flex: none; overflow: visible; }
     .ah-cell-key { display: none; }
-    .ah-cell-seller { display: block; overflow: hidden; text-overflow: ellipsis; }
 }
 .ah-detail { grid-area: detail; display: grid; gap: 10px; padding: 10px; border: 1px solid var(--ah-line); background: var(--ah-panel); min-width: 0; }
 .ah-detail-deal { display: grid; gap: 6px; }
@@ -248,6 +257,10 @@
     :is(.ah-groups, .ah-kinds) { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
     :is(.ah-groups, .ah-kinds) .ah-group { flex: none; }
     .ah-mats { max-height: 52vh; }
+    .ah-tag.is-family { display: none; }
+    #market-panel-auction .ah-lot { grid-template-columns: 32px minmax(0, 1fr) auto auto auto; padding-right: 5px; }
+    .ah-lot .ah-art { width: 32px; height: 32px; }
+    .ah-lot .ah-art img { width: 28px; height: 28px; }
     .ah-lots { max-height: 60vh; }
     /* 자세히 칸이 목록 위에 서므로 카드는 화면의 40%까지만, 나머지는 카드 안에서 민다 */
     .ah-detail-card { max-height: 40vh; }
