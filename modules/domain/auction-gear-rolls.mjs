@@ -1,14 +1,13 @@
 /**
- * 경매장 상인 매물 생성: 시세 구간 b의 묶음(gear.batch개)을 (seed, b, 그 구간의 지역)에서 다시 만든다(저장하지 않는다). 한 동기 함수 안에서
- * Math.random을 createSeededRng(seed:bucket)로 바꿔 끼우고 finally에서 되돌리며, 생성이 올린 아이템 번호도 되돌린다(미리보기 규칙).
- * 매물 i의 등급은 따로 정해진 주사위(seed:bucket:rarity)로 섞은 gear.rarities 목록의 i번째, 지역은 번호로 정한다: 다섯 개마다 셋은
- * 묶음의 지역과 그 앞 보통 지역 둘의 사다리를 번갈아, 둘은 그보다 앞의 보통 지역(0 ~ 지역 - 3)에 고르게. 부위는 드랍 부위를 한 바퀴씩
- * (무기는 두 번) 섞어 돌고, 같은 부위에서 이미 나온 베이스는 몇 번 다시 골라 피한다(묶음 안에서).
- * 일반, 마법, 희귀는 몬스터 드랍과 같은 지역, 티어 입력으로 chooseItemBase + createItemFromBase(그 등급)를 쓴다. 고유는 암거래상이 그 지역의
- * 티어에서 내놓을 수 있는 고유(체이스 제외, modules/domain/black-market-uniques.mjs)를 이름으로 정해 generateUniqueItem으로 만든다:
+ * 경매장 상인 장비 매물의 계획과 아이템 굴림. 묶음의 계획(매물 번호마다 등급, 지역, 부위)은 번호로 정한다: 등급은 따로 정해진 주사위
+ * (seed:bucket:rarity)로 섞은 gear.rarities 목록의 i번째, 지역은 다섯 개마다 셋은 묶음의 지역과 그 앞 보통 지역 둘의 사다리를 번갈아,
+ * 둘은 그보다 앞의 보통 지역(0 ~ 지역 - 3)에 고르게, 부위는 드랍 부위를 한 바퀴씩(무기는 두 번) 섞어 돈다. 같은 베이스나 고유가 겹쳐도 된다.
+ * 아이템(매물의 몸, modules/domain/auction-gear-lots.mjs)은 부르는 쪽이 Math.random을 매물 제 주사위로 바꿔 끼운 동안(auctionWithSeededRandom)
+ * 굴린다. 일반, 마법, 희귀는 몬스터 드랍과 같은 지역, 티어 입력으로 chooseItemBase + createItemFromBase(그 등급)를 쓴다. 고유는 머리가 고른
+ * 이름(암거래상이 그 지역의 티어에서 내놓을 수 있는 고유, 체이스 제외, modules/domain/black-market-uniques.mjs)으로 generateUniqueItem이 만든다:
  * 이름을 정한 고유는 체이스 기록과 로그를 남기지 않는다. 값은 암거래상의 제안(createBlackMarketUniqueOffer)과 같은 범위에서 굴린다.
- * 변형은 드랍이 가질 수 있는 것만 게임의 함수로 붙인다(gear.variants): 특출난 베이스(boostExceptionalBaseLine), 공허 소켓 장신구
- * (equipmentSockets.openVoidSocket), 타락(드랍 변형의 corrupt).
+ * 변형은 머리의 추첨이 맞은 것 가운데 드랍이 가질 수 있는 것만 게임의 함수로 붙인다(gear.variants): 특출난 베이스(boostExceptionalBaseLine),
+ * 공허 소켓 장신구(equipmentSockets.openVoidSocket), 타락(드랍 변형의 corrupt).
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { createSeededRng } from '../common/numbers.mjs';
@@ -68,45 +67,41 @@ export function auctionRarityPlan(batch) {
     return auctionShuffle(plan, createSeededRng(`${batch.seed}:${batch.bucket}:rarity`));
 }
 
-/** The slot of each of count lots: rounds of every drop slot (slots: EQUIPMENT_DROP_SLOTS) once and the weapon slot gear.weaponTurns times,
- * each round shuffled. */
-export function auctionSlotPlan(slots, count) {
-    const round = [...slots, ...Array.from({ length: GEAR.weaponTurns - 1 }, () => '무기')], plan = [];
-    while (plan.length < count) plan.push(...auctionShuffle([...round]));
+/** The slot of each of count lots of batch: rounds of every drop slot (slots: EQUIPMENT_DROP_SLOTS) once and the weapon slot gear.weaponTurns
+ * times, each round shuffled with the batch's own slot stream (seed:bucket:slot). */
+export function auctionSlotPlan(batch, slots, count) {
+    const round = [...slots, ...Array.from({ length: GEAR.weaponTurns - 1 }, () => '무기')], plan = [], random = createSeededRng(`${batch.seed}:${batch.bucket}:slot`);
+    while (plan.length < count) plan.push(...auctionShuffle([...round], random));
     return plan.slice(0, count);
 }
 
-/** A base for slot in zone, drawn again (up to gear.baseRetries times) while it is one of the used base ids. */
-export function auctionPickBase(env, zone, slot, dropTier, used) {
-    let base = env.deps.chooseItemBase(slot, dropTier, zone);
-    for (let retry = 0; retry < GEAR.baseRetries && used.has(base.id); retry++) base = env.deps.chooseItemBase(slot, dropTier, zone);
-    return base;
-}
-
 /** One normal, magic or rare item of slot for zone with a monster drop's zone and tier inputs (item level, drop tier, affix tier cap and
- * floor, base); used: the base ids this slot already had. A normal item has no option lines. */
-export function auctionRollPlain(env, zone, rarity, slot, used) {
+ * floor, base). A normal item has no option lines. */
+export function auctionRollPlain(env, zone, rarity, slot) {
     const deps = env.deps, itemLevel = deps.levelProgression.itemLevel(zone, {});
     const dropTier = Math.min(deps.rollRealmItemDropTier(zone, {}), deps.levelProgression.maxDropTier(itemLevel));
     const affixTierCap = Math.min(deps.levelProgression.affixCap(itemLevel), deps.getRealmEquipmentAffixTierCap(zone, dropTier));
-    const base = auctionPickBase(env, zone, slot, dropTier, used);
+    const base = env.deps.chooseItemBase(slot, dropTier, zone);
     const item = deps.createItemFromBase(base, rarity, dropTier, { dropRealm: zone.type || null, dropRegion: null, affixTierCap,
         affixTierFloor: deps.getDroppedAffixTierRange(affixTierCap).min, tierWeightFalloff: deps.DROPPED_AFFIX_TIER_WEIGHT_FALLOFF });
     deps.maybeApplyExceptionalBase(item);
     return deps.levelProgression.stampItem(item, itemLevel);
 }
 
-/** A unique the black market could offer at zone's tier (no chase uniques, none already among usedNames), made by name: { item, offer:
- * { price, min } } in goldenRule, or null when there is none or the game refuses to make it. */
-export function auctionRollUnique(env, zone, usedNames) {
-    const deps = env.deps, tier = Number(zone.tier) || 1;
-    const pool = marketTradeGetBlackMarketUniquePool({ deps }, tier, 'any', { includeChase: false }).filter(unique => !usedNames.has(unique.name));
-    if (!pool.length) return null;
-    const unique = pool[Math.floor(Math.random() * pool.length)], offer = marketTradeCreateBlackMarketUniqueOffer({ deps }, unique, tier);
-    const item = deps.generateUniqueItem(offer.reqTier, offer.slot, offer.name);
-    if (!item) return null;
-    usedNames.add(unique.name);
-    return { item, offer: { price: offer.price, min: marketTradeBlackMarketUniquePriceRange(unique, offer.reqTier).min } };
+/** The uniques the black market could offer at zone's tier (no chase uniques), kept per tier for the session (env.uniquePools). */
+export function auctionUniquePool(env, zone) {
+    const tier = Number(zone.tier) || 1;
+    if (!env.uniquePools.has(tier)) env.uniquePools.set(tier, marketTradeGetBlackMarketUniquePool({ deps: env.deps }, tier, 'any', { includeChase: false }));
+    return env.uniquePools.get(tier);
+}
+
+/** The unique named name at zone's tier, made by name: { item, offer: { price, min } } in goldenRule, or null when it is not in the pool
+ * or the game refuses to make it. */
+export function auctionRollUnique(env, zone, name) {
+    const deps = env.deps, tier = Number(zone.tier) || 1, unique = auctionUniquePool(env, zone).find(row => row.name === name);
+    if (!unique) return null;
+    const offer = marketTradeCreateBlackMarketUniqueOffer({ deps }, unique, tier), item = deps.generateUniqueItem(offer.reqTier, offer.slot, offer.name);
+    return item ? { item, offer: { price: offer.price, min: marketTradeBlackMarketUniquePriceRange(unique, offer.reqTier).min } } : null;
 }
 
 /** The drop variants (modules/domain/loot-variants.mjs) with the tables corruption reads. */
@@ -119,11 +114,13 @@ function dropVariants(env) {
     return env.dropVariants;
 }
 
-/** Adds the variants an ordinary drop can carry, at gear.variants' chances, through the game's own functions (uniques keep their own). */
-export function auctionApplyVariants(env, item, rarity) {
+/** The variant keys in gear.variants order; a head's flags hold bit k for key k. */
+export const AUCTION_VARIANT_KEYS = Object.freeze(Object.keys(GEAR.variants));
+
+/** Adds the variants the head's flags drew that an ordinary drop can carry, through the game's own functions (uniques keep their own). */
+export function auctionApplyVariants(env, item, rarity, flags) {
     if (rarity === 'unique') return item;
-    const rules = GEAR.variants, hits = Object.keys(rules).filter(key => Math.random() < rules[key].chance);
-    for (const key of hits) VARIANT_APPLY[key](env, item, rarity);
+    AUCTION_VARIANT_KEYS.forEach((key, bit) => { if (flags & (1 << bit)) VARIANT_APPLY[key](env, item, rarity); });
     return item;
 }
 
@@ -146,38 +143,4 @@ const VARIANT_APPLY = Object.freeze({
 /** The variant keys item carries (the screen tags them with the game's own labels). */
 export function auctionItemVariants(env, item) {
     return [item.exceptionalBase ? 'exceptional' : '', env.deps.equipmentSockets.hasVoidSocket(item) ? 'socket' : '', item.corrupted ? 'corrupted' : ''].filter(Boolean);
-}
-
-/** Lot index's item: { item, rarity, offer? } or null when this try made nothing appraisable. */
-function auctionRollEntry(env, plan, index) {
-    const rarity = plan.rarities[index], zone = plan.zones[index], slot = plan.slots[index];
-    const made = rarity === 'unique' ? auctionRollUnique(env, zone, plan.uniques) : { item: auctionRollPlain(env, zone, rarity, slot, plan.used.get(slot)) };
-    if (!made || !made.item || !env.deps.itemAppraisal.quote(made.item)) return null;
-    if (rarity !== 'unique') plan.used.get(slot).add(made.item.baseId);
-    return { ...made, item: auctionApplyVariants(env, made.item, rarity), rarity };
-}
-
-/** Up to GEAR.batch entries of batch (bounded tries): lot i of rarity plan[i], slot plan[i] and zone plan[i]. A unique that cannot be made
- * gives its place to a rare. */
-export function auctionRollItems(env, batch) {
-    const slots = env.deps.EQUIPMENT_DROP_SLOTS;
-    const plan = { rarities: auctionRarityPlan(batch), zones: auctionLotZones(env, batch.zone, GEAR.batch), slots: auctionSlotPlan(slots, GEAR.batch),
-        used: new Map(slots.map(slot => [slot, new Set()])), uniques: new Set() };
-    const entries = [];
-    for (let tries = 0; entries.length < GEAR.batch && tries < GEAR.batch * 3; tries++) {
-        const index = entries.length, entry = auctionRollEntry(env, plan, index);
-        if (entry) entries.push(entry);
-        else if (plan.rarities[index] === 'unique') plan.rarities[index] = 'rare';
-    }
-    return entries;
-}
-
-/** The batch's entries ({ item, rarity, offer? }), regenerated from batch { seed, bucket, zone }; the item id counter is put back afterwards. */
-export function auctionGenerateItems(env, batch) {
-    const counter = env.deps.readItemIdCounter();
-    try {
-        return auctionWithSeededRandom(`${batch.seed}:${batch.bucket}`, () => auctionRollItems(env, batch));
-    } finally {
-        env.deps.writeItemIdCounter(counter);
-    }
 }

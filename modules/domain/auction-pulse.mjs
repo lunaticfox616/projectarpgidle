@@ -90,7 +90,7 @@ export function auctionPulse(owner) {
 /** How many buckets back a merchant lot can still be listed: its longest stay (life, or the sold point plus the sold display) in buckets,
  * rounded up. The list at a clock in bucket b reads the batches b - lookback .. b. */
 export const AUCTION_LOT_LOOKBACK = (() => {
-    const gear = AUCTION_HOUSE.gear, longest = Math.max(gear.lifeMs[1], gear.lifeMs[1] * gear.soldAt[1] + gear.soldShowMs);
+    const gear = AUCTION_HOUSE.gear, longest = Math.max(gear.lifeMs[1], gear.lifeMs[1] * gear.sold.late[1] + gear.soldShowMs);
     return Math.ceil(longest / AUCTION_HOUSE.bucketMs);
 })();
 

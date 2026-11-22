@@ -151,8 +151,7 @@ export function stopGearRefresh(runtime) {
 /** When the gear list should next be repainted (UTC ms on the auction clock): its next change (a lot arrives, sells or leaves), within
  * REFRESH_MS. */
 function nextRefreshAt(runtime) {
-    const { auctionHouse, game } = runtime.deps, now = runtime.deps.now(), clock = Math.max(now, game.auction.lastAt);
-    return clock + Math.min(REFRESH_MS.max, Math.max(REFRESH_MS.min, auctionHouse.gearNextChange(game, now) - clock));
+    return Math.max(runtime.deps.now(), runtime.deps.game.auction.lastAt) + REFRESH_MS.max;
 }
 
 /** Keeps one check a second while the gear tab can be seen (it repaints the list when refreshAt comes); stops it otherwise. painted: the

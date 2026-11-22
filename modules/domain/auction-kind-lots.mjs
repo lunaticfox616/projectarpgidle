@@ -1,21 +1,20 @@
 /**
- * 경매장의 장비 아닌 상인 매물(주얼, 액막이, 부적): 묶음마다 장비 매물 뒤의 정해진 번호(gear.batch부터 kinds.lots의 차례)에 생긴다. 종류마다
- * 제 주사위(seed:bucket:종류)로 게임의 생성기를 부르고(주얼 generateJewelDrop, 액막이 colonyWards.create, 부적 talismans.rollNormal), 아이템
- * 번호는 되돌린다: 장비 매물의 생성은 그대로다. 고유는 없다(주얼은 고유 확률 0, 액막이는 보통 생성, 부적은 고유가 없는 보통 굴림).
+ * 경매장의 장비 아닌 상인 매물(주얼, 액막이, 부적): 묶음마다 장비 매물 뒤의 정해진 번호(gear.batch부터 kinds.lots의 차례)에 생긴다. 매물의 몸은
+ * 매물 제 주사위(modules/domain/auction-gear-lots.mjs)로 게임의 생성기를 부른다(주얼 generateJewelDrop, 액막이 colonyWards.create, 부적
+ * talismans.rollNormal). 고유는 없다(주얼은 고유 확률 0, 액막이는 보통 생성, 부적은 고유가 없는 보통 굴림).
  * 주얼과 액막이는 묶음 지역 사다리(auctionLotZoneLadder)를 번갈아 그 지역에서 드랍처럼 굴린다(주얼은 지역, 액막이는 지역의 티어).
  * 값은 kinds의 표로 이슬에 매기고, 계열은 줄에서 읽힐 때만 있다(없으면 시세 1). 목록과 구매는 해금이 열린 종류만 다룬다.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { clampNumber } from '../common/numbers.mjs';
-import { auctionWithSeededRandom, auctionLotZoneLadder } from './auction-gear-rolls.mjs';
 import { auctionFamilyTotals, auctionItemFamily } from './auction-pulse.mjs';
 
 const KINDS = AUCTION_HOUSE.kinds;
 const NO_QUALITY = Object.freeze({ synergy: 0, roll: 0, multiplier: 1 });
 
-/** The non-gear lots of every batch in index order: [{ kind, index }], indexes from gear.batch on (fixed whatever the gear generation made). */
-export const AUCTION_KIND_PLAN = Object.freeze(KINDS.lots.flatMap(row => Array.from({ length: row.count }, () => row.kind))
-    .map((kind, at) => Object.freeze({ kind, index: AUCTION_HOUSE.gear.batch + at })));
+/** The non-gear lots of every batch in index order: [{ kind, at, index }] (at: the lot's place among its kind), indexes from gear.batch on. */
+export const AUCTION_KIND_PLAN = Object.freeze(KINDS.lots.flatMap(row => Array.from({ length: row.count }, (_, at) => ({ kind: row.kind, at })))
+    .map((row, place) => Object.freeze({ ...row, index: AUCTION_HOUSE.gear.batch + place })));
 
 /** Lot indexes a batch can hold: the gear lots and the other kinds. */
 export const AUCTION_BATCH_LOTS = AUCTION_HOUSE.gear.batch + AUCTION_KIND_PLAN.length;
@@ -43,20 +42,9 @@ const ROLLERS = Object.freeze({
     }
 });
 
-/** The count lots of row's kind, from its own stream (seed:bucket:kind); lot j of the kind rolls at ladder[j % ladder length]. */
-function rollKind(env, batch, row, ladder) {
-    return auctionWithSeededRandom(`${batch.seed}:${batch.bucket}:${row.kind}`,
-        () => Array.from({ length: row.count }, (_, at) => ({ kind: row.kind, ...ROLLERS[row.kind](env, ladder[at % ladder.length]) })));
-}
-
-/** The batch's non-gear entries ({ kind, item, grade? }) in AUCTION_KIND_PLAN order; the item id counter is put back afterwards. */
-export function auctionGenerateKindItems(env, batch) {
-    const counter = env.deps.readItemIdCounter(), ladder = auctionLotZoneLadder(env, batch.zone);
-    try {
-        return KINDS.lots.flatMap(row => rollKind(env, batch, row, ladder));
-    } finally {
-        env.deps.writeItemIdCounter(counter);
-    }
+/** One lot of kind rolled at zone with Math.random (the caller's seeded stream, the lot's body): { kind, item, grade? }. */
+export function auctionRollKind(env, kind, zone) {
+    return { kind, ...ROLLERS[kind](env, zone) };
 }
 
 /** The lines of an entry's item: jewel stats, the ward's base line, the talisman's lines. */

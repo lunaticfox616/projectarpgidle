@@ -103,11 +103,13 @@ const AUCTION_HOUSE = Object.freeze({
             weight: Object.freeze([0.6, 1.4])
         })
     }),
-    // 상인 매물: 구간 b마다 batch개의 묶음이 생기고, 저장하지 않고 (seed, b, b의 지역)에서 다시 만든다. 등급은 rarities의 수를 씨앗으로 섞어 매물 번호마다 정한다.
-    // 매물마다 제 주사위로 놓이는 때(구간 안 아무 때), 머무는 시간(lifeMs), 다른 손님에게 팔리는지와 그때를 정한다: 목록은 그 시각에 놓여 있는 매물이다.
+    // 상인 매물: 구간 b마다 batch개의 장비 매물(과 kinds의 매물, 합 600개)이 생기고, 저장하지 않고 (seed, b, b의 지역)에서 다시 만든다. 등급은 rarities의 수를
+    // 씨앗으로 섞어 매물 번호마다 정한다. 매물은 머리(등급, 부위, 지역, 고유 이름, 변형 추첨, 판매자, 흥정, 놓이는 때, 머무는 시간, 팔리는 때: 값싼 추첨만)와
+    // 몸(아이템, 계열, 품질, 값: 게임의 생성 함수)으로 나뉘고, 둘 다 매물 제 주사위로 정해 차례와 상관없이 같다. 몸은 필요할 때만 굴린다.
+    // 목록은 그 시각에 놓여 있는 매물이다. 같은 베이스나 같은 고유가 겹쳐도 된다(옵션이 다르다).
     // 일반은 옵션 없는 베이스, 마법과 희귀는 게임의 굴림, 고유는 그 지역에서 암거래상이 내놓을 수 있는 고유(체이스 고유 제외)다.
     // 지역은 다섯 개마다 셋을 묶음의 지역과 그 앞 보통 지역 둘(번호 순서)에서 번갈아, 둘을 그보다 앞의 보통 지역(0 ~ 지역 - 3)에 고르게 나눈다.
-    // 부위는 드랍 부위를 고르게 돌며(무기는 한 바퀴에 두 번) 같은 부위의 베이스가 겹치지 않게 고른다. 싸게 내놓은 매물(bargain)은 0.82 ~ 0.88배,
+    // 부위는 드랍 부위를 고르게 돌며(무기는 한 바퀴에 두 번) 고른다. 싸게 내놓은 매물(bargain)은 0.82 ~ 0.88배,
     // 보통은 0.96 ~ 1.10배(화면은 둘을 나누지 않는다). 값은 놓일 때(태어난 구간의 시세) 정해져 내려갈 때까지 그대로다.
     // 값: 일반, 마법, 희귀는 새싹(이슬 3, 4개 값에서는 시세와 흔들림이 반올림에 묻힌다), 고유는 암거래상처럼 황금률. 일반, 마법, 희귀의 기준은
     // 감정가와 NPC 상점이 그 등급에 매기는 값 x premium[등급] 가운데 큰 쪽에 옵션 궁합(synergy, 마법과 희귀만)과 변형 배율(variants)을 곱한 값,
@@ -122,15 +124,19 @@ const AUCTION_HOUSE = Object.freeze({
         //   이슬 -> 황금률은 암거래상의 가장 좋은 굴림(이슬 9.82개에 봉우리 1개, 봉우리 3개에 황금률 1개 = 이슬 29.45개), 봉우리 -> 황금률 1/3:
         //   황금률 1.40개 -> 2(고유만 올림으로 끝낸다: 1 더하면 암거래상이 1 ~ 2에 파는 낮은 고유가 모두 3이 된다). 고유는 암거래상의 가장 싼 값 아래로도 내려가지 않는다. 분해 보상, 환율, 베일라와 암거래상의 폭이 바뀌면 다시 셈한다.
         floor: Object.freeze({ normal: 2, magic: 2, rare: 10, unique: 2 }),
-        // 한 구간에 생기는 매물 수. 매물마다 평균 45분 머물러 어느 때나 팔리지 않은 매물이 50개 남짓 보인다.
-        batch: 20,
+        // 한 구간에 생기는 장비 매물 수. 매물마다 평균 45분 머물러(팔린 매물은 일찍 내려간다) 어느 때나 팔리지 않은 매물이 1,500개 남짓 보인다.
+        batch: 540,
         // 묶음의 등급별 매물 수(합이 batch). 매물 i의 등급은 seed:bucket:rarity 주사위로 섞은 이 목록의 i번째다(생성이 바뀌어도 그대로).
-        rarities: Object.freeze([['unique', 1], ['rare', 10], ['magic', 5], ['normal', 4]]),
+        rarities: Object.freeze([['unique', 24], ['rare', 270], ['magic', 140], ['normal', 106]]),
         // 매물이 머무는 시간(ms, 20 ~ 70분에서 고르게). 놓이는 때는 태어난 구간 안에서 고르게. 목록은 머무는 시간의 최대에서 셈한 지난 구간까지 본다.
         lifeMs: Object.freeze([1200000, 4200000]),
-        // 다른 손님에게 팔릴 확률(보통, 싸게 내놓은 매물)과 팔리는 때(머무는 시간의 0.15 ~ 0.9 지점). 팔린 매물은 soldShowMs(3분) 동안 팔림으로 남는다.
-        soldChance: Object.freeze({ npc: 0.35, bargain: 0.6 }),
-        soldAt: Object.freeze([0.15, 0.9]),
+        // 다른 손님에게 팔릴 확률: 싸게 내놓은 매물 bargain, 흔들림이 highVariance 이하인 보통 매물 normal, 그보다 비싼 매물 high. 둘 중 나은 매물(bestOfTwo),
+        // 변형 추첨이 하나라도 맞은 매물, 고유는 bonus를 더한다(최대 cap). 팔리는 때는 놓인 때 + 머무는 시간 x quick(싸게 내놓았거나 둘 중 나은 매물) 또는 late의
+        // 한 점. 팔린 매물은 soldShowMs(3분) 동안 팔림으로 남는다.
+        sold: Object.freeze({ bargain: 0.6, normal: 0.3, high: 0.12, highVariance: 1.05, bonus: 0.2, cap: 0.85,
+            quick: Object.freeze([0.05, 0.35]), late: Object.freeze([0.2, 0.9]) }),
+        // 마법과 희귀 매물 가운데 이 몫은 아이템을 두 번 굴려 품질 배율(옵션 궁합)이 높은 쪽을 내놓는다.
+        bestOfTwo: 0.15,
         soldShowMs: 180000,
         // 최근 거래에 보이는 팔린 매물 수(새것부터).
         recentTrades: 30,
@@ -145,9 +151,8 @@ const AUCTION_HOUSE = Object.freeze({
         }),
         // 지역 사다리: 묶음의 지역(맨 위)과 그 앞의 보통 지역(번호 하나씩 앞) 몇 개까지. 매물 i는 사다리[i % 길이]에서 굴린다.
         ladder: 3,
-        // 부위 계획에서 무기가 한 바퀴에 나오는 횟수, 같은 부위에서 이미 나온 베이스를 피해 다시 고르는 횟수.
+        // 부위 계획에서 무기가 한 바퀴에 나오는 횟수.
         weaponTurns: 2,
-        baseRetries: 12,
         // 옵션 궁합: 매물의 계열 F(auctionItemFamily)에 맞춰 추가 옵션 줄마다 점수를 매긴다. F를 가진 줄 1, F는 없고 affinity[F]의 계열을 가진
         // 줄 near(0.5), 나머지 0. 점수 합 s로 1 + perCube x s x s x s(최대 cap, 점수가 높을수록 가파르게)를 곱하고, 줄의 단계가 굴릴 수 있던 폭(1 ~ affixTierCap, 높을수록
         // 좋다)의 어디쯤인지의 평균 q로 rollMin + rollSpan x q를 곱한다. 상인 매물만 쓴다(내 출품의 감정가와 전당 전시는 그대로다).
@@ -172,7 +177,7 @@ const AUCTION_HOUSE = Object.freeze({
         bargain: Object.freeze([0.82, 0.88]),
         normal: Object.freeze([0.96, 1.10]),
         // 판매자 이름 = 앞말 x 뒷말(화면은 두 말을 옮겨 '{prefix} {suffix}'로 잇는다). 묶음마다 sellersPerBatch명을 seed:bucket:seller 주사위로 뽑아
-        // 묶음의 매물에 하나씩 나눠 준다(한 판매자에 두세 개). 앞말의 넷 뒤는 게임의 장소 이름 그대로다(modules/data/maps.mjs의 액트 이름,
+        // 묶음의 매물에 하나씩 나눠 준다(한 판매자에 네다섯 개). 앞말의 넷 뒤는 게임의 장소 이름 그대로다(modules/data/maps.mjs의 액트 이름,
         // modules/data/stage-regions.mjs의 지역 이름). 저장(내 출품의 구매자)은 두 목록의 번호다: 목록은 끝에만 더한다.
         sellers: Object.freeze({
             prefixes: Object.freeze(['시든 도시', '모루터', '허공뿌리', '수관', '뿌리끝 성소', '가지치기의 중정', '갈림뿌리 미궁', '말라가는 큰 줄기',
@@ -180,11 +185,10 @@ const AUCTION_HOUSE = Object.freeze({
             suffixes: Object.freeze(['전사', '비술사', '궁수', '성직자', '연금술사', '방랑자', '중개인', '감정사', '행상인', '수집가', '대장장이', '세공사',
                 '약초꾼', '사냥꾼', '광부', '순례자', '용병', '학자', '뱃사람', '수도사'])
         }),
-        sellersPerBatch: 8
+        sellersPerBatch: 120
     }),
-    // 장비 아닌 상인 매물: 묶음마다 장비 매물(번호 0 ~ gear.batch - 1) 뒤에 lots의 차례로 번호를 받는다(주얼 3, 액막이 1, 부적 2 = 번호 20 ~ 25).
-    // 종류마다 제 주사위(seed:bucket:종류)로 만들어 장비 매물을 바꾸지 않는다. 놓이는 때, 머무는 시간, 팔림, 흔들림은 장비 매물과 같은 매물 주사위
-    // (seed:bucket:deal:번호), 판매자는 그 묶음의 판매자 8명이다. 생성은 해금과 상관없고, 목록과 구매가 unlock(해금 열쇠)이 열린 종류만 보인다
+    // 장비 아닌 상인 매물: 묶음마다 장비 매물(번호 0 ~ gear.batch - 1) 뒤에 lots의 차례로 번호를 받는다(주얼 30, 액막이 10, 부적 20 = 번호 540 ~ 599).
+    // 머리와 몸은 장비 매물과 같은 매물 주사위로 정하고, 판매자는 그 묶음의 판매자 가운데 하나다. 생성은 해금과 상관없고, 목록과 구매가 unlock(해금 열쇠)이 열린 종류만 보인다
     // (부적은 그루터기 함도 얻어야 한다). 고유는 없다. 값은 모두 형체 없는 이슬, 놓일 때 정해져 내려갈 때까지 그대로다:
     // 기준 x 흔들림(gear.bargain, gear.normal) x 줄에서 읽은 계열의 태어난 구간 시세(계열을 읽지 못하면 1), 바닥(floor) 아래로는 팔지 않는다.
     // 산 주얼과 액막이는 새 번호, tradeLocked, auctionBound를 받아 가방에 들어간다. 산 부적은 그루터기 함 보관함에 들어간다.
@@ -194,9 +198,9 @@ const AUCTION_HOUSE = Object.freeze({
     //   액막이: 분해 군락지 편린 많아야 6 x 0.5 x 0.899 = 2.7 -> 4. 부적: 재화로 돌아갈 길이 없다(분해 없음, 부적 리롤은 부적을 낸다) -> 2.
     kinds: Object.freeze({
         lots: Object.freeze([
-            Object.freeze({ kind: 'jewel', count: 3, unlock: 'jewel', label: '주얼' }),
-            Object.freeze({ kind: 'ward', count: 1, unlock: 'colony', label: '액막이' }),
-            Object.freeze({ kind: 'talisman', count: 2, unlock: 'talisman', label: '부적' })
+            Object.freeze({ kind: 'jewel', count: 30, unlock: 'jewel', label: '주얼' }),
+            Object.freeze({ kind: 'ward', count: 10, unlock: 'colony', label: '액막이' }),
+            Object.freeze({ kind: 'talisman', count: 20, unlock: 'talisman', label: '부적' })
         ]),
         currency: 'formlessDew',
         // 주얼: 게임의 드랍(generateJewelDrop, 그 지역의 티어)을 고유 없이, 희귀 35%로. 값 = price[등급] x lines[등급][줄 수].

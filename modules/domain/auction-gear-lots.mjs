@@ -1,9 +1,7 @@
 /**
- * 경매장 상인 매물의 값, 놓이는 때, 구매. 매물은 modules/domain/auction-gear-rolls.mjs가 구간 b의 묶음(gear.batch개)으로 (seed, b, b의 지역)에서
- * 만든다(일반, 마법, 희귀, 고유). 매물 b:i의 주사위(seed:b:deal:i)가 차례로 싸게 내놓았는지, 값의 흔들림, 다른 손님에게 팔리는지, 놓이는 때
- * (b의 시작부터 구간 안 아무 때), 머무는 시간(gear.lifeMs), 팔리는 때(머무는 시간의 gear.soldAt 지점)를 정한다. 생성이 바뀌어도 그대로다.
- * 목록은 시계 t = max(now, lastAt)에서 b - lookback .. b 묶음(AUCTION_LOT_LOOKBACK)의 매물 가운데 놓였고 아직 머무는 것이다. 다른 손님에게 팔린
- * 매물은 팔린 때부터 gear.soldShowMs 동안 팔림으로 남고, 내가 산 매물은 내려갈 때까지 구매함으로 남는다(state.bought, 'b:i').
+ * 경매장 상인 매물의 몸(아이템, 계열, 품질, 값), 값 매기기와 구매. 매물의 머리(등급, 부위, 지역, 흥정, 놓이는 때, 팔림)는
+ * modules/domain/auction-lot-heads.mjs가 정한다. 몸은 필요할 때만 매물 제 주사위(seed:b:i:body)로 굴려 묶음 기록에 남긴다: 어느 차례로
+ * 굴려도, 다시 불러와도 같다. 둘 중 나은 매물은 아이템을 두 번 굴려 품질 배율이 높은 쪽을 쓴다. 생성이 올린 아이템 번호는 되돌린다(미리보기 규칙).
  * 값: 일반, 마법, 희귀는 마법의 새싹이다. 기준 = max(감정 marketValue, NPC 장비 상점이 그 등급에 매기는 값 x gear.premium[등급])을 새싹 단위
  * (감정의 단위표)로 나누고 옵션 궁합(gear.synergy, auctionLotQuality, 마법과 희귀만)과 변형 배율(gear.variants)을 곱한 값이다. 고유는 황금률이고
  * 기준은 암거래상이 그 고유에 부른 값이다. price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 계열 시세는 매물이 태어난
@@ -11,21 +9,22 @@
  * (gear.floor, 고유는 암거래상의 가장 싼 값도) 이상이고 price는 기준 x 0.82(가장 싼 흔들림) 아래로 내려가지 않는다.
  * 바닥에 걸려 시세보다 싸지 않은 bargain은 'npc'로 낸다(화면은 둘을 나누지 않는다). 산 장비를 분해해도 남는 것이 없다.
  * 산 장비는 새 번호, tradeLocked, auctionBound를 받는다: 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
- * 묶음은 장비 매물 뒤에 주얼, 액막이, 부적 매물(modules/domain/auction-kind-lots.mjs, 번호 gear.batch부터)을 더 갖는다: 같은 매물 주사위, 같은 판매자
- * 8명, 값은 이슬. 목록, 최근 거래, 다음 바뀔 때는 해금이 열린 종류만 보고, 구매는 닫힌 종류를 그 까닭으로 거절한다.
+ * 묶음은 장비 매물 뒤에 주얼, 액막이, 부적 매물(modules/domain/auction-kind-lots.mjs, 번호 gear.batch부터)을 더 갖는다: 같은 매물 주사위, 같은
+ * 판매자, 값은 이슬. 구매는 닫힌 종류를 그 까닭으로 거절한다. 목록과 미리 굴리기는 modules/domain/auction-lot-list.mjs.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
-import { createSeededRng, clampNumber } from '../common/numbers.mjs';
-import { auctionGenerateItems, auctionItemVariants, auctionShuffle } from './auction-gear-rolls.mjs';
+import { clampNumber } from '../common/numbers.mjs';
+import { auctionWithSeededRandom, auctionRollPlain, auctionRollUnique, auctionApplyVariants, auctionItemVariants } from './auction-gear-rolls.mjs';
 import { NPC_SHOP_PRICE, npcTradeGearWarePrice } from './npc-shop-rolls.mjs';
 import { auctionFactor, auctionPay, auctionItemFamily, auctionLineFamilies, AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
-import { auctionUseBlock, auctionClockFor, auctionAddTrend, auctionBucketOf, auctionZoneOfBucket, auctionLotZoneId } from './auction-clock.mjs';
-import { AUCTION_KIND_PLAN, AUCTION_BATCH_LOTS, auctionGenerateKindItems, auctionKindValue, auctionKindFamily, auctionKindLevel, auctionKindLines,
-    auctionOpenKinds, auctionKindLock, auctionKindRoomReason, auctionStoreLot } from './auction-kind-lots.mjs';
+import { auctionUseBlock, auctionClockFor, auctionAddTrend, auctionBucketOf } from './auction-clock.mjs';
+import { AUCTION_BATCH_LOTS, auctionRollKind, auctionKindValue, auctionKindFamily, auctionKindLevel, auctionKindLines, auctionKindLock, auctionKindRoomReason,
+    auctionStoreLot } from './auction-kind-lots.mjs';
+import { auctionBatchRecord, auctionFillHeads } from './auction-lot-heads.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
-// Batches kept generated for the session: the lookback's and a few more (a turned bucket, a moved zone).
-const CACHED_BATCHES = AUCTION_LOT_LOOKBACK + 4;
+// Tries of a gear body before it gives up (a try that makes nothing the appraisal can price draws again from the same stream).
+const BODY_TRIES = 3;
 
 /** What the NPC gear shop asks for this normal, magic or rare item, in dew (its own price function and constants, modules/domain/npc-shop-rolls.mjs:
  * normal and magic in buds, rare in dew), through the appraisal's unit table. */
@@ -78,42 +77,6 @@ export function auctionLotQuality(env, item, family) {
     return { synergy, roll, multiplier: Math.min(rule.cap, 1 + rule.perCube * synergy ** 3) * (rule.rollMin + rule.rollSpan * roll) };
 }
 
-/** The lot's times from the rest of its deal stream (UTC ms): arriveAt in its birth bucket, expireAt = arriveAt + life (gear.lifeMs) and
- * soldAt (null when nobody else buys it) at a point of its life (gear.soldAt). The three draws are made either way. */
-export function auctionLotTimes(deal, bucket, sold) {
-    const [lifeLow, lifeHigh] = GEAR.lifeMs, [pointLow, pointHigh] = GEAR.soldAt, span = AUCTION_HOUSE.bucketMs;
-    const arriveAt = bucket * span + Math.floor(deal() * span), life = Math.round(lifeLow + (lifeHigh - lifeLow) * deal());
-    const point = pointLow + (pointHigh - pointLow) * deal();
-    return { arriveAt, expireAt: arriveAt + life, soldAt: sold ? arriveAt + Math.round(life * point) : null };
-}
-
-/** gear.sellersPerBatch distinct [prefix index, suffix index] pairs of gear.sellers drawn from random (the batch's seller stream). */
-function auctionSellerNames(random) {
-    const { prefixes, suffixes } = GEAR.sellers, names = [], seen = new Set();
-    const want = Math.min(GEAR.sellersPerBatch, prefixes.length * suffixes.length);
-    while (names.length < want) {
-        const pair = Object.freeze([Math.floor(random() * prefixes.length), Math.floor(random() * suffixes.length)]);
-        if (!seen.has(pair.join(':'))) { seen.add(pair.join(':')); names.push(pair); }
-    }
-    return names;
-}
-
-/** The seller of each gear lot of batch: gear.sellersPerBatch distinct pairs drawn from the batch's own stream (seed:bucket:seller); each
- * of them sells one lot and the other lots go to one of them at random, the order shuffled with the same stream (so every drawn seller is
- * on the batch, most with two or three lots). */
-export function auctionBatchSellers(batch) {
-    const random = createSeededRng(`${batch.seed}:${batch.bucket}:seller`), names = auctionSellerNames(random);
-    const more = Array.from({ length: Math.max(0, GEAR.batch - names.length) }, () => names[Math.floor(random() * names.length)]);
-    return auctionShuffle([...names, ...more], random).slice(0, GEAR.batch);
-}
-
-/** The seller of each non-gear lot of batch (AUCTION_KIND_PLAN order): one of the batch's own sellers, picked with the stream
- * seed:bucket:seller:kinds (the gear lots' sellers stay as they were). */
-export function auctionKindSellers(batch) {
-    const names = auctionSellerNames(createSeededRng(`${batch.seed}:${batch.bucket}:seller`)), random = createSeededRng(`${batch.seed}:${batch.bucket}:seller:kinds`);
-    return AUCTION_KIND_PLAN.map(() => names[Math.floor(random() * names.length)]);
-}
-
 /** A gear entry's family and value, or a non-gear entry's (auction-kind-lots.mjs: family '' when its lines carry none, level and line count). */
 function auctionEntryPricing(env, entry) {
     if (entry.kind) {
@@ -130,35 +93,77 @@ function auctionPreviewId(bucket, index) {
     return index < GEAR.batch ? -(bucket * GEAR.batch + index + 1) : -(Number.MAX_SAFE_INTEGER - (bucket * AUCTION_BATCH_LOTS + index));
 }
 
-/** The fixed part of lot index of batch ({ seed, bucket, zone }): its item, kind, rarity, variants, family, quality, base value, deal and times
- * (from its own seeded stream: bargain, variance and sold first, the times after them); seller: its [prefix, suffix] pair. */
-export function auctionLotBase(env, batch, entry, index, seller) {
-    const deal = createSeededRng(`${batch.seed}:${batch.bucket}:deal:${index}`), bargain = deal() < GEAR.bargainChance;
-    const [low, high] = bargain ? GEAR.bargain : GEAR.normal, variance = low + (high - low) * deal();
-    const times = auctionLotTimes(deal, batch.bucket, deal() < GEAR.soldChance[bargain ? 'bargain' : 'npc']);
-    const item = entry.item, { kind, family, value, extra } = auctionEntryPricing(env, entry);
+/** A gear item for head at zone with Math.random (the body's stream): { item, rarity, offer? } with the head's drawn variants, or null when
+ * BODY_TRIES tries made nothing the appraisal can price. A unique the game refuses to make gives its place to a rare. */
+function auctionGearEntry(env, head, zone) {
+    for (let tries = 0; tries < BODY_TRIES; tries++) {
+        const unique = head.rarity === 'unique' ? auctionRollUnique(env, zone, head.unique) : null;
+        const rarity = unique ? 'unique' : head.rarity === 'unique' ? 'rare' : head.rarity;
+        const made = unique || { item: auctionRollPlain(env, zone, rarity, head.slot) };
+        if (made.item && env.deps.itemAppraisal.quote(made.item)) return { ...made, item: auctionApplyVariants(env, made.item, rarity, head.flags), rarity };
+    }
+    return null;
+}
+
+/** The body fields of head from its entry and pricing: item (its preview id set), rarity, variants, family, quality, value and floors. */
+function auctionBodyFields(env, head, entry, pricing) {
+    const { kind, family, value, extra } = pricing, item = entry.item;
     // The generator's id was handed back with the counter: a negative id can never meet a bag item's.
-    item.id = auctionPreviewId(batch.bucket, index);
-    return { id: `${batch.bucket}:${index}`, birthBucket: batch.bucket, index, kind, item, rarity: entry.rarity || item.rarity,
-        variants: kind === 'gear' ? auctionItemVariants(env, item) : [], family, synergy: value.quality.synergy, rollQuality: value.quality.roll,
-        source: bargain ? 'bargain' : 'npc', seller, currency: value.currency, baseValue: value.base, variance, least: value.least, ...times, ...extra,
+    item.id = auctionPreviewId(head.birthBucket, head.index);
+    return { kind, item, rarity: entry.rarity || item.rarity, variants: kind === 'gear' ? auctionItemVariants(env, item) : [], family,
+        synergy: value.quality.synergy, rollQuality: value.quality.roll, currency: value.currency, baseValue: value.base, least: value.least, ...extra,
         // A low pulse times the deepest bargain would go under the base x 0.82: that is where the lot stops.
         floor: Math.max(value.least, auctionPay(value.base * GEAR.bargain[0])) };
 }
 
-/** The lot bases of bucket's batch for owner (its recorded zone, or the zone an advance would record now), cached for the session by
- * (seed, bucket, zone). */
-export function auctionBatchLots(env, owner, bucket) {
-    const state = owner.auction, zone = auctionZoneOfBucket(state, bucket, auctionLotZoneId(env, owner));
-    const key = `${state.seed}:${bucket}:${String(zone)}`;
-    if (!env.lotCache.has(key)) {
-        const batch = { seed: state.seed, bucket, zone }, sellers = auctionBatchSellers(batch), kindSellers = auctionKindSellers(batch);
-        const gear = auctionGenerateItems(env, batch).map((entry, index) => auctionLotBase(env, batch, entry, index, sellers[index]));
-        const kinds = auctionGenerateKindItems(env, batch).map((entry, at) => auctionLotBase(env, batch, entry, AUCTION_KIND_PLAN[at].index, kindSellers[at]));
-        env.lotCache.set(key, [...gear, ...kinds]);
-        if (env.lotCache.size > CACHED_BATCHES) env.lotCache.delete(env.lotCache.keys().next().value);
+/** Head's body rolled with Math.random (the body's stream): a non-gear lot's kind roll; a gear item (twice for a best-of-two lot, keeping the
+ * higher quality multiplier). null when no gear item could be priced. */
+function auctionRollBody(env, record, head) {
+    const zone = record.plan.zones[head.index];
+    if (head.kind !== 'gear') {
+        const entry = auctionRollKind(env, head.kind, zone);
+        return auctionBodyFields(env, head, entry, auctionEntryPricing(env, entry));
     }
-    return env.lotCache.get(key);
+    const made = [];
+    for (let at = 0; at < (head.best ? 2 : 1); at++) {
+        const entry = auctionGearEntry(env, head, zone);
+        if (entry) made.push({ entry, pricing: auctionEntryPricing(env, entry) });
+    }
+    if (!made.length) return null;
+    const pick = made.reduce((kept, next) => (next.pricing.value.quality.multiplier > kept.pricing.value.quality.multiplier ? next : kept));
+    return auctionBodyFields(env, head, pick.entry, pick.pricing);
+}
+
+/** Head's body, rolled once from its own stream (seed:bucket:index:body) and kept in its batch record (null kept too: a lot without a body
+ * is never listed). The item id counter is put back afterwards. */
+export function auctionLotBody(env, record, head) {
+    if (record.bodies.has(head.index)) return record.bodies.get(head.index);
+    const counter = env.deps.readItemIdCounter(), { seed, bucket } = record.batch;
+    try {
+        record.bodies.set(head.index, auctionWithSeededRandom(`${seed}:${bucket}:${head.index}:body`, () => auctionRollBody(env, record, head)));
+    } finally {
+        env.deps.writeItemIdCounter(counter);
+    }
+    return record.bodies.get(head.index);
+}
+
+/** The record and head of lot id ('birthBucket:index') inside the lookback of clock's bucket (heads of its batch built), or null. */
+function auctionLotHeadOf(env, owner, lotId, clock) {
+    const match = /^(\d{1,15}):(\d{1,3})$/.exec(String(lotId)), top = auctionBucketOf(clock);
+    if (!owner.auction.seed || !match) return null;
+    const bucket = Number(match[1]), index = Number(match[2]);
+    if (bucket < top - AUCTION_LOT_LOOKBACK || bucket > top || index >= AUCTION_BATCH_LOTS) return null;
+    const record = auctionBatchRecord(env, owner, bucket);
+    auctionFillHeads(env, record);
+    return { record, head: record.heads[index] };
+}
+
+/** Lot lotId of the lookback batches at now (read at max(now, lastAt)), priced, with its phase (also 'coming' or 'gone'); its body is
+ * rolled when missing. null for an id outside the lookback or a lot without a body. */
+export function auctionLotAt(env, owner, lotId, now) {
+    const state = owner.auction, clock = auctionListClock(state, now), found = auctionLotHeadOf(env, owner, lotId, clock);
+    const body = found && auctionLotBody(env, found.record, found.head);
+    return body ? auctionPricedLot(state, { lot: { ...found.head, ...body }, bought: state.bought.includes(found.head.id) }, clock) : null;
 }
 
 /** The clock the list is read at: max(now, lastAt), so a device clock turned back brings nothing back (lastAt alone for an invalid now). */
@@ -175,24 +180,22 @@ export function auctionLotPhase(lot, clock, bought) {
     return clock < lot.expireAt ? 'open' : 'gone';
 }
 
-/** Every merchant lot of the batches clock's bucket - lookback .. clock's bucket: [{ lot (base), bought }]. [] before the first advance. */
-export function auctionLotBasesAt(env, owner, clock) {
-    const state = owner.auction;
-    if (!state.seed || !state.bucket) return [];
-    const top = auctionBucketOf(clock), bought = new Set(state.bought), rows = [];
-    for (let bucket = top - AUCTION_LOT_LOOKBACK; bucket <= top; bucket++) {
-        for (const lot of auctionBatchLots(env, owner, bucket)) rows.push({ lot, bought: bought.has(lot.id) });
-    }
-    return rows;
-}
-
-/** The lot bases owner may see at clock: auctionLotBasesAt without the kinds owner has not unlocked (auctionOpenKinds). */
-export function auctionListedBasesAt(env, owner, clock) {
-    const open = auctionOpenKinds(env, owner);
-    return auctionLotBasesAt(env, owner, clock).filter(row => open.has(row.lot.kind));
-}
-
-/** A lot base priced at its birth bucket's factors, with where it stands at clock. */
+/**
+ * Lot row ({ lot: head and body, bought }) priced at its birth bucket's factors (magicBud, uniques goldenRule, the other kinds formlessDew), never
+ * below the rarity's floor (gear.floor, a unique also the black market's cheapest price; kinds.*.floor) nor the lot's base x gear.bargain[0],
+ * with where it stands at clock.
+ * @returns {{id: string, birthBucket: number, index: number, kind: 'gear'|'jewel'|'ward'|'talisman', item: object, rarity: string,
+ *   variants: string[], family: string,
+ *   synergy: number, rollQuality: number, source: 'npc'|'bargain', seller: [number, number], currency: string, price: number, fairPrice: number,
+ *   ratioPct: number, arriveAt: number, expireAt: number, soldAt: number|null, phase: 'coming'|'open'|'sold'|'bought'|'gone', soldOut: boolean,
+ *   boughtByMe: boolean, leftMs: number}>} variants: 'exceptional' | 'socket' | 'corrupted'. Times are UTC ms, leftMs = expireAt - clock.
+ *   seller: indexes into gear.sellers.prefixes and .suffixes (the screen composes the name).
+ *   synergy and rollQuality: auctionLotQuality's s and q. id is 'birthBucket:index'; item is a shared read-only preview whose id is
+ *   -(birthBucket x batch + index + 1) for gear (the other kinds: auctionPreviewId), never a bag id (buying gives a copy with a fresh id).
+ *   The other kinds also carry level (a ward's 아이템 Lv., else null), lines (line count) and grade (a talisman's shard key, else null);
+ *   their family is '' when their lines carry none. A talisman's item is shaped as the stump box stores it. The head's own fields (slot, flags,
+ *   best, unique, zone) ride along.
+ */
 export function auctionPricedLot(state, row, clock) {
     const { baseValue, variance, floor, least, ...lot } = row.lot;
     // A lot whose lines carry no family (some jewels, wards and talismans) keeps factor 1.
@@ -205,46 +208,9 @@ export function auctionPricedLot(state, row, clock) {
     return { ...lot, source, price, fairPrice, ratioPct, phase, soldOut, boughtByMe: row.bought, leftMs: lot.expireAt - clock };
 }
 
-/**
- * The merchant lots listed at now (UTC ms, read at max(now, lastAt); call advance first so new buckets have their zone): every lot that has
- * arrived and not left, sold ones (soldOut) for gear.soldShowMs after their sale, mine (boughtByMe) until they would expire. Priced at their
- * birth bucket's factors (magicBud, uniques goldenRule, the other kinds formlessDew), never below the rarity's floor (gear.floor, a unique
- * also the black market's cheapest price; kinds.*.floor) nor the lot's base x gear.bargain[0]. Kinds owner has not unlocked are left out.
- * @returns {Array<{id: string, birthBucket: number, index: number, kind: 'gear'|'jewel'|'ward'|'talisman', item: object, rarity: string,
- *   variants: string[], family: string,
- *   synergy: number, rollQuality: number, source: 'npc'|'bargain', seller: [number, number], currency: string, price: number, fairPrice: number,
- *   ratioPct: number, arriveAt: number, expireAt: number, soldAt: number|null, phase: 'open'|'sold'|'bought', soldOut: boolean,
- *   boughtByMe: boolean, leftMs: number}>} variants: 'exceptional' | 'socket' | 'corrupted'. Times are UTC ms, leftMs = expireAt - clock.
- *   seller: indexes into gear.sellers.prefixes and .suffixes (the screen composes the name).
- *   synergy and rollQuality: auctionLotQuality's s and q. id is 'birthBucket:index'; item is a shared read-only preview whose id is
- *   -(birthBucket x batch + index + 1) for gear (the other kinds: auctionPreviewId), never a bag id (buying gives a copy with a fresh id).
- *   The other kinds also carry level (a ward's 아이템 Lv., else null), lines (line count) and grade (a talisman's shard key, else null);
- *   their family is '' when their lines carry none. A talisman's item is shaped as the stump box stores it.
- */
-export function auctionGearLots(env, owner, now) {
-    const state = owner.auction, clock = auctionListClock(state, now);
-    return auctionListedBasesAt(env, owner, clock).map(row => auctionPricedLot(state, row, clock)).filter(lot => ['open', 'sold', 'bought'].includes(lot.phase));
-}
-
-/** The lots of the lookback batches sold to someone else by now, newest first, at most gear.recentTrades; each with agoMs (clock - soldAt). */
-export function auctionRecentTrades(env, owner, now) {
-    const state = owner.auction, clock = auctionListClock(state, now);
-    return auctionListedBasesAt(env, owner, clock).filter(row => !row.bought && row.lot.soldAt !== null && row.lot.soldAt <= clock)
-        .sort((a, b) => b.lot.soldAt - a.lot.soldAt).slice(0, GEAR.recentTrades)
-        .map(row => ({ ...auctionPricedLot(state, row, clock), agoMs: clock - row.lot.soldAt }));
-}
-
-/** The next time (UTC ms) after now at which the list changes: a lot arrives, sells, stops showing as sold or leaves, or the next batch starts. */
-export function auctionGearNextChange(env, owner, now) {
-    const state = owner.auction, clock = auctionListClock(state, now);
-    const times = auctionListedBasesAt(env, owner, clock).flatMap(({ lot }) => [lot.arriveAt, lot.expireAt, ...(lot.soldAt === null ? [] : [lot.soldAt, lot.soldAt + GEAR.soldShowMs])]);
-    return Math.min((auctionBucketOf(clock) + 1) * AUCTION_HOUSE.bucketMs, ...times.filter(at => at > clock));
-}
-
 /** Lot lotId of the lookback batches at the saved clock (after advance), priced, with its phase (also 'coming' or 'gone'), or null. */
 export function auctionFindGearLot(env, owner, lotId) {
-    const state = owner.auction, clock = state.lastAt, row = auctionLotBasesAt(env, owner, clock).find(entry => entry.lot.id === lotId);
-    return row ? auctionPricedLot(state, row, clock) : null;
+    return auctionLotAt(env, owner, lotId, owner.auction.lastAt);
 }
 
 /** Why lot cannot be bought by owner now, or ''. */

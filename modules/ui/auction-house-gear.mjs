@@ -28,7 +28,8 @@ const GONE = Object.freeze({ gone: true });
 
 /** Every lot listed now: the merchants' lots, then up to 5 hall shows. */
 export function allLots(runtime) {
-    return [...runtime.deps.auctionHouse.gearLots(runtime.deps.game, runtime.deps.now()), ...userLots(runtime)];
+    const { auctionHouse, game } = runtime.deps, now = runtime.deps.now();
+    return [...auctionHouse.lotHeads(game, now).map(head => auctionHouse.lot(game, head.id, now)).filter(Boolean), ...userLots(runtime)];
 }
 
 /** The rows of the chosen mode: the listed lots, or the recent trades. */

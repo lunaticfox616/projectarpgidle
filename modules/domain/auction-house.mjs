@@ -3,13 +3,14 @@
  * modules/data/auction-house.mjs. 입찰은 없고 모두 즉시 체결된다: 상인 매물(장비, 주얼, 액막이, 부적) 구매, 재료 매매, 내 장비 출품(상인 수요가 구간마다 산다).
  * 타이머를 두지 않는다: 부르는 쪽이 벽시계(UTC ms)를 넘기고, 명령은 먼저 시계를 그 시각으로 옮긴다(advance). 화면과 서버 시세 서비스는
  * 이 API만 쓴다. 생성기(function*) 명령은 효과를 { kind, args }로 내고 classic 어댑터(modules/auction-house-classic.mjs)가 처리한다.
- * 세션 상태(env.session: 운영 모드; env.lotCache: 만든 매물 묶음)는 저장하지 않는다. 서버 시세 보정은 다음 구간 것으로 저장에 남는다(owner.auction.deltas).
+ * 세션 상태(env.session: 운영 모드; env.lotCache: 매물 묶음의 머리와 굴린 몸; env.uniquePools: 티어마다의 암거래상 고유)는 저장하지 않는다. 서버 시세 보정은 다음 구간 것으로 저장에 남는다(owner.auction.deltas).
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auctionSetPulseDelta, auctionSetMode, auctionPulseKeys, auctionFamilyLabel } from './auction-pulse.mjs';
 import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLotName, auctionLoopBlockReason } from './auction-clock.mjs';
 import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade, auctionMaterialBook, auctionMaterialPriceHistory } from './auction-materials.mjs';
-import { auctionGearLots, auctionRecentTrades, auctionGearNextChange, auctionBuyGearLot, auctionGearLotReason } from './auction-gear-lots.mjs';
+import { auctionBuyGearLot, auctionGearLotReason, auctionLotAt } from './auction-gear-lots.mjs';
+import { auctionLotHeads, auctionRecentTrades, auctionWarmLots, auctionDropLots } from './auction-lot-list.mjs';
 import { auctionOpenKinds } from './auction-kind-lots.mjs';
 import { auctionListIssue, auctionListQuote, auctionList, auctionWithdraw, auctionClaim, auctionClaimAll } from './auction-my-lots.mjs';
 import { auctionRestore } from './auction-restore.mjs';
@@ -24,7 +25,7 @@ import { auctionRestore } from './auction-restore.mjs';
  * the other kinds of merchant lots (generateJewelDrop, bagItems, colonyWards, talismans, stumpBox, CONTENT_UNLOCK_CATALOG).
  */
 export function createAuctionHouse(deps) {
-    const env = { deps, session: { mode: AUCTION_HOUSE.defaultMode }, lotCache: new Map() };
+    const env = { deps, session: { mode: AUCTION_HOUSE.defaultMode }, lotCache: new Map(), uniquePools: new Map() };
     return Object.freeze({
         rules: AUCTION_HOUSE,
         isUnlocked: owner => deps.contentProgression.isUnlocked('auction', owner),
@@ -56,16 +57,18 @@ export function createAuctionHouse(deps) {
         materialBook: (owner, key) => auctionMaterialBook(owner, key),
         /** One bundle's first-step buy cost of key over the last pulse.history buckets, oldest first. */
         materialPrices: (owner, key) => auctionMaterialPriceHistory(owner, key),        materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),
-        /** The merchant lots listed at now (UTC ms; read at max(now, lastAt)). */
-        gearLots: (owner, now) => auctionGearLots(env, owner, now),
+        /** The merchant lots listed at now (UTC ms; read at max(now, lastAt)) as heads only: id, kind, rarity, slot, times, phase, boughtByMe, warm. */
+        lotHeads: (owner, now) => auctionLotHeads(env, owner, now),
+        /** Merchant lot lotId priced at now (its body rolled when missing), with its phase; null outside the list's batches. */
+        lot: (owner, lotId, now) => auctionLotAt(env, owner, lotId, now),
+        /** Rolls missing bodies of the listed lots and recent trades (prefer first) until stop() says stop: { done, total, heads }. dropLots forgets them. */
+        warmLots: (owner, now, options) => auctionWarmLots(env, owner, now, options), dropLots: () => auctionDropLots(env),
         /** The lot kinds owner can see and buy: 'gear', then each unlocked kind of rules.kinds.lots in its order. */
         lotKinds: owner => [...auctionOpenKinds(env, owner)],
         /** The merchant lots sold to someone else by now, newest first. */
         recentTrades: (owner, now) => auctionRecentTrades(env, owner, now),
-        /** When (UTC ms) the merchant list next changes after now. */
-        gearNextChange: (owner, now) => auctionGearNextChange(env, owner, now),
         buyGearLot: (owner, lotId, now) => auctionBuyGearLot(env, owner, lotId, now),
-        /** Why lot (a row of gearLots) cannot be bought now, or '': the reason buyGearLot would give, for the screen's buy button. */
+        /** Why lot (a priced lot) cannot be bought now, or '': the reason buyGearLot would give, for the screen's buy button. */
         gearLotIssue: (owner, lot) => auctionUseBlock(env, owner) || auctionGearLotReason(env, owner, lot),
         listIssue: (owner, item) => auctionListIssue(env, owner, item),
         listQuote: (owner, item) => auctionListQuote(env, owner, item),
