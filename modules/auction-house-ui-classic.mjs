@@ -31,6 +31,7 @@ const view = createAuctionHouseView({
     get getItemDisplayName() { return getItemDisplayName; },
     get getItemSlotDisplayLabel() { return getItemSlotDisplayLabel; },
     get getRarityColor() { return getRarityColor; },
+    get ITEM_RARITY_LABELS() { return ITEM_RARITY_LABELS; },
     get getPersistentBuildSignature() { return getPersistentBuildSignature; },
     get showGameToast() { return showGameToast; },
     get saveGame() { return saveGame; },

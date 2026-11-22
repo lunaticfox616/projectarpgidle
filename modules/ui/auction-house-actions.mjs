@@ -4,7 +4,7 @@
  */
 import { itemName } from './auction-house-format.mjs';
 import { syncClock, announce } from './auction-house-render.mjs';
-import { findLot } from './auction-house-gear.mjs';
+import { findLot, repaintGearBoard } from './auction-house-gear.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
 import { tradeToast, maxCount, receiptHtml } from './auction-house-materials.mjs';
 import { startingAsk, askTermsHtml, draftItem, claimToast } from './auction-house-stands.mjs';
@@ -57,6 +57,22 @@ export function typeCount(runtime, input) {
     runtime.state.materials.count = input.value === '' ? '' : Math.max(0, Math.floor(Number(input.value) || 0));
     const box = input.closest('.ah-ticket')?.querySelector('[data-ah-receipt]');
     if (box) box.innerHTML = receiptHtml(runtime);
+}
+
+/** A sortable column header: that column ascending, a second click on it descending. */
+export function sortGear(runtime, column) {
+    if (!['name', 'level', 'options', 'price'].includes(column)) return;
+    const view = runtime.state.gear;
+    view.dir = view.sort === column ? -view.dir : 1;
+    view.sort = column;
+    runtime.api.render(true);
+}
+
+/** The name search typed: the list and the count alone are repainted (the box keeps its focus and caret). */
+export function typeSearch(runtime, input) {
+    runtime.state.gear.query = input.value.slice(0, 40);
+    const root = input.closest('.ah-gear');
+    if (root) repaintGearBoard(runtime, root);
 }
 
 export function preset(runtime, value) {

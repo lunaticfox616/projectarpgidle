@@ -5,10 +5,10 @@
  */
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { renderAuction } from './auction-house-render.mjs';
-import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial } from './auction-house-actions.mjs';
+import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch } from './auction-house-actions.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
-const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'user'], sort: ['cheap', 'dear', 'deal'] });
+const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'user'], rarity: ['all', 'normal', 'magic', 'rare', 'unique'] });
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
 export function createAuctionHouseView(deps) {
@@ -26,7 +26,7 @@ export function createAuctionHouseView(deps) {
 function initialState() {
     return {
         tab: 'gear', print: '', card: { key: '', html: '' },
-        gear: { slot: 'all', source: 'all', sort: 'cheap', family: '', selected: '' },
+        gear: { slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'price', dir: 1, family: '', selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
         hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 }
@@ -39,6 +39,7 @@ const CLICKS = Object.freeze([
     ['data-ah-tab', (runtime, value) => { if (TABS.includes(value)) { runtime.state.tab = value; runtime.api.render(true); } }],
     ['data-ah-lot', (runtime, value, el) => selectLot(runtime, value, el)],
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],
+    ['data-ah-sort', (runtime, value) => sortGear(runtime, value)],
     ['data-ah-family', (runtime, value) => jumpFamily(runtime, value)],
     ['data-ah-clear-family', runtime => jumpFamily(runtime, '')],
     ['data-ah-jump', (runtime, value) => jumpMaterial(runtime, value)],
@@ -95,6 +96,7 @@ function onInput(runtime, event) {
     const el = event.target.closest?.('#market-panel-auction input');
     if (!el || !runtime.active) return;
     if (el.matches('[data-ah-count]')) typeCount(runtime, el);
+    else if (el.matches('[data-ah-search]')) typeSearch(runtime, el);
     else if (el.matches('[data-ah-ask]')) typeAsk(runtime, el);
 }
 
