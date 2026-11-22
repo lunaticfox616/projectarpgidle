@@ -11,7 +11,7 @@ import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-m
 import { standsViewHtml, claimable } from './auction-house-stands.mjs';
 import { watchHall } from './auction-house-hall.mjs';
 
-const TABS = Object.freeze([['gear', '장비'], ['materials', '재료'], ['mine', '내 출품']]);
+const TABS = Object.freeze([['gear', '아이템'], ['materials', '재료'], ['mine', '내 출품']]);
 const MOVERS = 3;
 const WALLET = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
 // The gear list's refresh: at the next change of the list, at least this soon and at most this late (the 남은 시간 column counts minutes).

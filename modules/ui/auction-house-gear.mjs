@@ -1,14 +1,17 @@
 /**
- * 경매장 장비 칸: 거래소 목록. 위에 판매 중 | 최근 거래 단추, 고르기 줄(이름 찾기, 부위, 등급, 출처, 시세 띠에서 누른 계열, 팔리지 않은 매물 수),
- * 아래에 목록과 고른 매물의 자세히 칸. 넓은 칸의 판매 중 목록은 머리줄이 있는 한 줄짜리 행(그림, 이름과 변형 표시, 부위, 아이템 레벨, 옵션 수와
- * 계열, 판매자, 남은 시간, 가격)이고 이름, 아이템 레벨, 옵션, 남은 시간, 가격 머리를 누르면 그 순서로, 다시 누르면 거꾸로 늘어선다. 좁은 칸은 두 줄 행이다.
+ * 경매장 아이템 칸: 거래소 목록. 위에 판매 중 | 최근 거래 단추, 종류 단추 줄(전체, 장비와 이 저장이 연 주얼, 액막이, 부적, 단추마다 그 수),
+ * 고르기 줄(이름 찾기, 부위(전체와 장비에서만), 등급, 출처, 시세 띠에서 누른 계열, 팔리지 않은 매물 수), 아래에 목록과 고른 매물의 자세히 칸.
+ * 넓은 칸의 판매 중 목록은 머리줄이 있는 한 줄짜리 행(그림, 이름과 변형 표시, 부위, 아이템 레벨, 옵션 수와 계열, 판매자, 남은 시간, 가격)이고
+ * 이름, 아이템 레벨, 옵션, 남은 시간, 가격 머리를 누르면 그 순서로, 다시 누르면 거꾸로 늘어선다(가격은 이슬 값으로 비교한다). 좁은 칸은 두 줄 행이다.
+ * 장비 아닌 종류의 부위 칸은 종류 이름, 그림, 이름, 카드는 그 종류의 것이다(modules/ui/auction-house-kinds.mjs).
  * 최근 거래는 다른 손님에게 팔린 매물(새것부터)과 팔린 지 몇 분인지를 보이고, 자세히 칸에 구매 단추가 없다. 목록은 제 칸 안에서 민다.
  * 상인 매물은 auctionHouse.gearLots(지금 놓여 있는 매물), 다른 플레이어의 장비는 장비 전당의 전시품(modules/ui/auction-house-hall.mjs)을 같은
  * 목록에 놓는다. 규칙이 싸게 내놓은 매물(source 'bargain')도 화면은 다른 상인 매물과 같게 보인다. 이름 찾기와 시계의 새로 고침
- * (modules/ui/auction-house-render.mjs)은 목록, 매물 수, 자세히 칸만 다시 그린다(repaintGearBoard): 고르기 줄과 찾기 칸의 입력, 목록의 밀린 자리가 남는다.
+ * (modules/ui/auction-house-render.mjs)은 종류 단추, 목록, 매물 수, 자세히 칸만 다시 그린다(repaintGearBoard): 고르기 줄과 찾기 칸의 입력, 목록의 밀린 자리가 남는다.
  */
-import { tr, esc, num, priceTag, familyLabel, itemName, slotLabel, itemArtHtml, paint, sellerName } from './auction-house-format.mjs';
+import { tr, esc, num, priceTag, familyLabel, paint, sellerName } from './auction-house-format.mjs';
 import { userLots, userLotIssue, hallActive } from './auction-house-hall.mjs';
+import { lotKind, lotName, lotSlot, lotLevel, optionCount, lotArtHtml, lotLines, lotCardHtml, openKinds, kindChipsHtml, kindChipsInner } from './auction-house-kinds.mjs';
 
 const SOURCES = Object.freeze([['all', '전체'], ['merchant', '상인'], ['user', '다른 플레이어']]);
 const RARITIES = Object.freeze(['normal', 'magic', 'rare', 'unique']);
@@ -36,15 +39,13 @@ function modeLots(runtime) {
 /** What a lot is worth in dew, to sort lots priced in different currencies together. */
 function dewValue(runtime, lot) { return lot.price * runtime.deps.itemAppraisal.unitValue(lot.currency); }
 
-function optionCount(lot) { return Array.isArray(lot.item.stats) ? lot.item.stats.length : 0; }
-
 /** Time left of a lot (hall shows stay: last). */
 function leftMs(lot) { return Number.isFinite(lot.leftMs) ? lot.leftMs : Infinity; }
 
 /** Each sortable column's ascending order. */
 const SORTERS = Object.freeze({
-    name: runtime => (a, b) => itemName(runtime, a.item).localeCompare(itemName(runtime, b.item), runtime.deps.i18n.locale),
-    level: () => (a, b) => (Number(a.item.itemLevel) || 0) - (Number(b.item.itemLevel) || 0),
+    name: runtime => (a, b) => lotName(runtime, a).localeCompare(lotName(runtime, b), runtime.deps.i18n.locale),
+    level: () => (a, b) => (lotLevel(a) || 0) - (lotLevel(b) || 0),
     options: () => (a, b) => optionCount(a) - optionCount(b),
     left: () => (a, b) => (leftMs(a) === leftMs(b) ? 0 : leftMs(a) < leftMs(b) ? -1 : 1),
     price: runtime => (a, b) => dewValue(runtime, a) - dewValue(runtime, b)
@@ -58,33 +59,28 @@ function sourceMatches(view, lot) {
     return view.source === 'all' || lot.source === 'user';
 }
 
+/** Whether the 부위 select applies: on 전체 and 장비 (the other kinds have no slot). */
+function slotApplies(view) { return view.kind === 'all' || view.kind === 'gear'; }
+
+/** The kind chip and the slot select (a chosen slot keeps only gear of that slot). */
+function kindMatches(view, lot) {
+    const slot = view.slot === 'all' || !slotApplies(view) || (lotKind(lot) === 'gear' && lot.item.slot === view.slot);
+    return slot && (view.kind === 'all' || lotKind(lot) === view.kind);
+}
+
+/** The kind and slot, then the rarity, source and family filters. */
 function filterMatches(view, lot) {
-    return (view.slot === 'all' || lot.item.slot === view.slot) && (view.rarity === 'all' || lot.item.rarity === view.rarity) && sourceMatches(view, lot)
-        && (!view.family || lot.family === view.family);
+    return kindMatches(view, lot) && (view.rarity === 'all' || lot.item.rarity === view.rarity) && sourceMatches(view, lot) && (!view.family || lot.family === view.family);
 }
 
-// The defence lines the tooltip writes as 'name: value' (modules/ui/tooltip-items.mjs appendItemBaseStats).
-const DEFENCE_LINES = Object.freeze(['armor', 'evasion', 'energyShield']);
-
-/** The shown text of item's option lines as the item tooltip writes them: base lines, explicit lines (a compound line's parts joined by ' / ')
- * and the unique effect. */
-function optionLines(runtime, item) {
-    const { getStatName, formatValue, formatSignedValue } = runtime.deps, label = stat => tr(runtime, stat.statName || getStatName(stat.id));
-    const base = (Array.isArray(item.baseStats) ? item.baseStats : []).filter(Boolean)
-        .map(stat => (DEFENCE_LINES.includes(stat.id) ? `${getStatName(stat.id)}: ${Math.floor(Number(stat.val) || 0)}` : `${label(stat)} ${formatSignedValue(stat.id, stat.val)}`));
-    const explicit = (Array.isArray(item.stats) ? item.stats : []).filter(Boolean)
-        .map(stat => [stat, ...(Array.isArray(stat.extraStats) ? stat.extraStats : [])].map(line => `${label(line)} +${formatValue(line.id, line.val)}`).join(' / '));
-    return [...base, ...explicit, ...(item.uniqueEffect ? [tr(runtime, item.uniqueEffect)] : [])];
-}
-
-/** What the search reads of item in the player's language, made once per item and language (kept by item, so typing does not rebuild it):
- * name (shown name, base name and slot name, lower case) and lines ({ text, low } of every option line). */
-function searchText(runtime, item) {
-    const locale = runtime.deps.i18n.locale, kept = runtime.state.search.get(item);
+/** What the search reads of a lot's item in the player's language, made once per item and language (kept by item, so typing does not rebuild
+ * it): name (shown name, base name and the 부위 cell, lower case) and lines ({ text, low } of every line its card shows). */
+function searchText(runtime, lot) {
+    const item = lot.item, locale = runtime.deps.i18n.locale, kept = runtime.state.search.get(item);
     if (kept && kept.locale === locale) return kept;
     const low = text => String(text).toLocaleLowerCase(locale);
-    const made = { locale, name: low([itemName(runtime, item), item.baseName ? tr(runtime, item.baseName) : '', slotLabel(runtime, item)].join('\n')),
-        lines: optionLines(runtime, item).map(text => ({ text, low: low(text) })) };
+    const made = { locale, name: low([lotName(runtime, lot), item.baseName ? tr(runtime, item.baseName) : '', lotSlot(runtime, lot)].join('\n')),
+        lines: lotLines(runtime, lot).map(text => ({ text, low: low(text) })) };
     runtime.state.search.set(item, made);
     return made;
 }
@@ -94,11 +90,11 @@ function searchWords(runtime) {
     return String(runtime.state.gear.query || '').toLocaleLowerCase(runtime.deps.i18n.locale).split(/\s+/).filter(Boolean);
 }
 
-/** Whether item has every word in its names or its option lines: { ok, line } where line is the first option line a word matched that the
- * names did not ('' when the names held every word). */
-function searchMatch(runtime, words, item) {
+/** Whether lot's item has every word in its names or its lines: { ok, line } where line is the first line a word matched that the names did
+ * not ('' when the names held every word). */
+function searchMatch(runtime, words, lot) {
     if (!words.length) return { ok: true, line: '' };
-    const text = searchText(runtime, item);
+    const text = searchText(runtime, lot);
     let line = '';
     for (const word of words) {
         if (text.name.includes(word)) continue;
@@ -117,7 +113,7 @@ export function shownLots(runtime, lots) {
     const view = runtime.state.gear, words = searchWords(runtime);
     const kept = lots.filter(lot => {
         if (!filterMatches(view, lot)) return false;
-        const hit = searchMatch(runtime, words, lot.item);
+        const hit = searchMatch(runtime, words, lot);
         lot.matchLine = hit.line;
         return hit.ok;
     });
@@ -131,16 +127,19 @@ function optionsHtml(runtime, rows, chosen) {
     return rows.map(([value, label]) => `<option value="${esc(runtime, value)}"${value === chosen ? ' selected' : ''}>${esc(runtime, label)}</option>`).join('');
 }
 
-/** The slots actually present among the lots, in their first-seen order. */
+/** The slots actually present among the gear lots, in their first-seen order. */
 function slotRows(runtime, lots) {
     const seen = new Map();
-    for (const lot of lots) if (!seen.has(lot.item.slot)) seen.set(lot.item.slot, slotLabel(runtime, lot.item));
+    for (const lot of lots) if (lotKind(lot) === 'gear' && !seen.has(lot.item.slot)) seen.set(lot.item.slot, lotSlot(runtime, lot));
     return [['all', runtime.deps._t('모든 부위')], ...seen.entries()];
 }
 
 function rarityRows(runtime) {
     return [['all', tr(runtime, '전체')], ...RARITIES.map(id => [id, tr(runtime, runtime.deps.ITEM_RARITY_LABELS[id])])];
 }
+
+/** The lots the kind chips count: every lot of the mode, without the ones that can no longer be bought in the 판매 중 list. */
+function kindCounted(runtime, lots) { return runtime.state.gear.mode === 'recent' ? lots : lots.filter(lot => !closedLot(lot)); }
 
 /** The count line: the listed lots that can still be bought after the filters ('' for the recent trades). */
 function countHtml(runtime, shown) {
@@ -159,7 +158,7 @@ function toolbarHtml(runtime, lots, shown) {
     const source = view.mode === 'recent' ? '' : `<select data-ah-filter="source" aria-label="${runtime.deps._t('출처')}">${optionsHtml(runtime, sources.map(([id, label]) => [id, tr(runtime, label)]), view.source)}</select>`;
     return `<div class="ah-tools">
         <input type="search" class="ah-search" data-ah-search value="${esc(runtime, view.query)}" placeholder="${esc(runtime, search)}" aria-label="${esc(runtime, search)}" autocomplete="off" spellcheck="false">
-        <select data-ah-filter="slot" aria-label="${runtime.deps._t('부위')}">${optionsHtml(runtime, slotRows(runtime, lots), view.slot)}</select>
+        ${slotApplies(view) ? `<select data-ah-filter="slot" aria-label="${runtime.deps._t('부위')}">${optionsHtml(runtime, slotRows(runtime, lots), view.slot)}</select>` : ''}
         <select data-ah-filter="rarity" aria-label="${runtime.deps._t('등급')}">${optionsHtml(runtime, rarityRows(runtime), view.rarity)}</select>${source}${family}
         <span class="ah-lot-count" role="status" data-ah-lot-count>${countHtml(runtime, shown)}</span></div>`;
 }
@@ -190,10 +189,11 @@ function agoText(runtime, lot) { return runtime.deps._t('{minutes}분 전', { mi
 /** The cells every row has: picture, name with tags, slot, item level, options. */
 function lotCellsHtml(runtime, lot) {
     const family = optionCount(lot) ? familyLabel(runtime, lot.family) : '';
-    return `${itemArtHtml(runtime, lot.item)}
-        <span class="ah-cell-name"><strong class="ah-lot-name">${esc(runtime, itemName(runtime, lot.item))}</strong>${tagsHtml(runtime, lot)}</span>
-        <span class="ah-cell-slot">${esc(runtime, slotLabel(runtime, lot.item))}</span>
-        <span class="ah-cell-level"><small class="ah-cell-key">${runtime.deps._t('아이템 Lv.')}</small>${num(runtime, lot.item.itemLevel || 1)}</span>
+    const level = lotLevel(lot);
+    return `${lotArtHtml(runtime, lot)}
+        <span class="ah-cell-name"><strong class="ah-lot-name">${esc(runtime, lotName(runtime, lot))}</strong>${tagsHtml(runtime, lot)}</span>
+        <span class="ah-cell-slot">${esc(runtime, lotSlot(runtime, lot))}</span>
+        <span class="ah-cell-level">${level === null ? '' : `<small class="ah-cell-key">${runtime.deps._t('아이템 Lv.')}</small>${num(runtime, level)}`}</span>
         <span class="ah-cell-options"><small class="ah-cell-key">${runtime.deps._t('옵션')}</small>${num(runtime, optionCount(lot))}${lot.matchLine ? `<em class="ah-match" data-tip="${esc(runtime, lot.matchLine)}">${esc(runtime, lot.matchLine)}</em>` : family ? `<em class="ah-tag">${esc(runtime, family)}</em>` : ''}</span>`;
 }
 
@@ -232,7 +232,7 @@ function lotIssue(runtime, lot) {
 /** The chosen lot's card with the comparison against worn gear, kept while the lot and the build stay (as the hall keeps one). */
 function lotCardDetail(runtime, lot) {
     const key = `${lot.id}|${lot.item.baseId}|${lot.item.name}|${runtime.deps.getPersistentBuildSignature(runtime.deps.game, false)}|${runtime.deps.i18n.locale}`;
-    if (runtime.state.card.key !== key) runtime.state.card = { key, html: runtime.deps.shopView.itemCardHtml(lot.item) };
+    if (runtime.state.card.key !== key) runtime.state.card = { key, html: lotCardHtml(runtime, lot) };
     return runtime.state.card.html;
 }
 
@@ -280,19 +280,21 @@ export function repaintGearBoard(runtime, root) {
         if (list) list.scrollTop = top;
     }
     if (count) count.textContent = countHtml(runtime, model.shown);
+    paint(root.querySelector('[data-ah-kinds]'), kindChipsInner(runtime, kindCounted(runtime, lots)));
     paint(root.querySelector('[data-ah-detail]'), detailHtml(runtime, model.chosen));
 }
 
-/** The whole 장비 view. */
+/** The whole 아이템 view. */
 export function gearViewHtml(runtime) {
     const view = runtime.state.gear, lots = modeLots(runtime);
     if (view.mode !== 'recent' && !lots.length) return `<div class="ah-gear">${modesHtml(runtime)}<p class="ah-empty">${runtime.deps._t('아직 매물이 없습니다.')}</p></div>`;
-    // 고른 부위가 지금 목록에 없으면 모든 부위로 돌아간다(고르기 상자와 목록이 어긋나지 않게).
-    if (!lots.some(lot => lot.item.slot === view.slot)) view.slot = 'all';
+    // 고른 종류가 더는 열려 있지 않으면 전체로, 고른 부위가 지금 목록에 없으면 모든 부위로 돌아간다(단추, 고르기 상자와 목록이 어긋나지 않게).
+    if (view.kind !== 'all' && !openKinds(runtime).includes(view.kind)) view.kind = 'all';
+    if (!lots.some(lot => lotKind(lot) === 'gear' && lot.item.slot === view.slot)) view.slot = 'all';
     // 운영 모드가 나중에 'pulse_only'로 오면 다른 플레이어 고르기도 사라진다: 전체로 돌아간다.
     if (view.source === 'user' && !hallActive(runtime)) view.source = 'all';
     const shown = shownLots(runtime, lots), chosen = chosenLot(runtime, shown, lots);
-    return `<div class="ah-gear">${modesHtml(runtime)}${toolbarHtml(runtime, lots, shown)}<div class="ah-gear-body"><div class="ah-detail-slot" data-ah-detail>${detailHtml(runtime, chosen)}</div><div class="ah-board${view.mode === 'recent' ? ' is-recent' : ''}" data-ah-board>${gearBoardHtml(runtime, shown)}</div></div></div>`;
+    return `<div class="ah-gear">${modesHtml(runtime)}${kindChipsHtml(runtime, kindCounted(runtime, lots))}${toolbarHtml(runtime, lots, shown)}<div class="ah-gear-body"><div class="ah-detail-slot" data-ah-detail>${detailHtml(runtime, chosen)}</div><div class="ah-board${view.mode === 'recent' ? ' is-recent' : ''}" data-ah-board>${gearBoardHtml(runtime, shown)}</div></div></div>`;
 }
 
 /** Finds a listed lot by id (for the buy command). */

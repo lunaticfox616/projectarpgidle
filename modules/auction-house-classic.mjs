@@ -1,7 +1,7 @@
 import { createAuctionHouse } from './domain/auction-house.mjs';
 import { consumeDomainCommands } from './common/consume-commands.mjs';
 
-// 경매장 규칙(modules/domain/auction-house.mjs)을 전역 auctionHouse 하나로 잇는다. 생성기 명령의 효과(재화 지급, 아이템 번호, 가방에 넣기)는
+// 경매장 규칙(modules/domain/auction-house.mjs)을 전역 auctionHouse 하나로 잇는다. 생성기 명령의 효과(재화 지급, 아이템 번호, 가방과 그루터기 함에 넣기)는
 // 지금 게임(game)에 적용되므로 그 명령은 지금 게임만 받는다. tick은 전투 틱과 시작할 때 부른다(modules/application/foreground-loop.mjs, startup.mjs).
 const auctionHouse = (() => {
     const rules = createAuctionHouse({
@@ -43,12 +43,20 @@ const auctionHouse = (() => {
         get AFFIX_TAG_LABELS() { return AFFIX_TAG_LABELS; },
         get getEquipmentLoadoutOwnedItems() { return getEquipmentLoadoutOwnedItems; },
         get actExplorationLoot() { return actExplorationLoot; },
-        get actExplorationState() { return actExplorationState; }
+        get actExplorationState() { return actExplorationState; },
+        get generateJewelDrop() { return generateJewelDrop; },
+        get bagItems() { return bagItems; },
+        get colonyWards() { return colonyWards; },
+        get talismans() { return talismans; },
+        get stumpBox() { return stumpBox; },
+        get CONTENT_UNLOCK_CATALOG() { return CONTENT_UNLOCK_CATALOG; }
     });
     const effects = {
         auctionGrantCurrency: (key, amount) => awardCurrency(key, amount),
         auctionAllocateItemId: () => ++window.GameModules.state.session.itemIdCounter,
-        auctionStowItem: item => stowBoughtItem(item)
+        auctionStowItem: item => stowBoughtItem(item),
+        auctionStowBagItem: item => bagItems.put(item, game),
+        auctionStowTalisman: talisman => stumpBox.addTalisman(game, talisman)
     };
     const live = owner => {
         if (owner !== game) throw new Error('auctionHouse: commands with effects take the current game');
@@ -64,7 +72,7 @@ const auctionHouse = (() => {
         itemFamily: rules.itemFamily, familyLabel: rules.familyLabel, materials: rules.materials, materialQuote: rules.materialQuote,
         materialBook: rules.materialBook, materialPrices: rules.materialPrices,
         materialTrade: (owner, order, now) => run(rules.materialTrade(live(owner), order, now)),
-        gearLots: rules.gearLots, recentTrades: rules.recentTrades, gearNextChange: rules.gearNextChange, gearLotIssue: rules.gearLotIssue,
+        gearLots: rules.gearLots, lotKinds: rules.lotKinds, recentTrades: rules.recentTrades, gearNextChange: rules.gearNextChange, gearLotIssue: rules.gearLotIssue,
         buyGearLot: (owner, lotId, now) => run(rules.buyGearLot(live(owner), lotId, now)),
         listIssue: rules.listIssue, listQuote: rules.listQuote,
         list: rules.list, withdraw: rules.withdraw,

@@ -11,6 +11,8 @@
  * (gear.floor, 고유는 암거래상의 가장 싼 값도) 이상이고 price는 기준 x 0.82(가장 싼 흔들림) 아래로 내려가지 않는다.
  * 바닥에 걸려 시세보다 싸지 않은 bargain은 'npc'로 낸다(화면은 둘을 나누지 않는다). 산 장비를 분해해도 남는 것이 없다.
  * 산 장비는 새 번호, tradeLocked, auctionBound를 받는다: 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
+ * 묶음은 장비 매물 뒤에 주얼, 액막이, 부적 매물(modules/domain/auction-kind-lots.mjs, 번호 gear.batch부터)을 더 갖는다: 같은 매물 주사위, 같은 판매자
+ * 8명, 값은 이슬. 목록, 최근 거래, 다음 바뀔 때는 해금이 열린 종류만 보고, 구매는 닫힌 종류를 그 까닭으로 거절한다.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { createSeededRng, clampNumber } from '../common/numbers.mjs';
@@ -18,6 +20,8 @@ import { auctionGenerateItems, auctionItemVariants, auctionShuffle } from './auc
 import { NPC_SHOP_PRICE, npcTradeGearWarePrice } from './npc-shop-rolls.mjs';
 import { auctionFactor, auctionPay, auctionItemFamily, auctionLineFamilies, AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
 import { auctionUseBlock, auctionClockFor, auctionAddTrend, auctionBucketOf, auctionZoneOfBucket, auctionLotZoneId } from './auction-clock.mjs';
+import { AUCTION_KIND_PLAN, AUCTION_BATCH_LOTS, auctionGenerateKindItems, auctionKindValue, auctionKindFamily, auctionKindLevel, auctionKindLines,
+    auctionOpenKinds, auctionKindLock, auctionKindRoomReason, auctionStoreLot } from './auction-kind-lots.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
 // Batches kept generated for the session: the lookback's and a few more (a turned bucket, a moved zone).
@@ -83,32 +87,61 @@ export function auctionLotTimes(deal, bucket, sold) {
     return { arriveAt, expireAt: arriveAt + life, soldAt: sold ? arriveAt + Math.round(life * point) : null };
 }
 
-/** The seller of each lot of batch: gear.sellersPerBatch distinct [prefix index, suffix index] pairs of gear.sellers drawn from the batch's
- * own stream (seed:bucket:seller); each of them sells one lot and the other lots go to one of them at random, the order shuffled with the
- * same stream (so every drawn seller is on the batch, most with two or three lots). */
-export function auctionBatchSellers(batch) {
-    const { prefixes, suffixes } = GEAR.sellers, random = createSeededRng(`${batch.seed}:${batch.bucket}:seller`), names = [], seen = new Set();
+/** gear.sellersPerBatch distinct [prefix index, suffix index] pairs of gear.sellers drawn from random (the batch's seller stream). */
+function auctionSellerNames(random) {
+    const { prefixes, suffixes } = GEAR.sellers, names = [], seen = new Set();
     const want = Math.min(GEAR.sellersPerBatch, prefixes.length * suffixes.length);
     while (names.length < want) {
         const pair = Object.freeze([Math.floor(random() * prefixes.length), Math.floor(random() * suffixes.length)]);
         if (!seen.has(pair.join(':'))) { seen.add(pair.join(':')); names.push(pair); }
     }
+    return names;
+}
+
+/** The seller of each gear lot of batch: gear.sellersPerBatch distinct pairs drawn from the batch's own stream (seed:bucket:seller); each
+ * of them sells one lot and the other lots go to one of them at random, the order shuffled with the same stream (so every drawn seller is
+ * on the batch, most with two or three lots). */
+export function auctionBatchSellers(batch) {
+    const random = createSeededRng(`${batch.seed}:${batch.bucket}:seller`), names = auctionSellerNames(random);
     const more = Array.from({ length: Math.max(0, GEAR.batch - names.length) }, () => names[Math.floor(random() * names.length)]);
     return auctionShuffle([...names, ...more], random).slice(0, GEAR.batch);
 }
 
-/** The fixed part of lot index of batch ({ seed, bucket, zone }): its item, rarity, variants, family, quality, base value, deal and times
+/** The seller of each non-gear lot of batch (AUCTION_KIND_PLAN order): one of the batch's own sellers, picked with the stream
+ * seed:bucket:seller:kinds (the gear lots' sellers stay as they were). */
+export function auctionKindSellers(batch) {
+    const names = auctionSellerNames(createSeededRng(`${batch.seed}:${batch.bucket}:seller`)), random = createSeededRng(`${batch.seed}:${batch.bucket}:seller:kinds`);
+    return AUCTION_KIND_PLAN.map(() => names[Math.floor(random() * names.length)]);
+}
+
+/** A gear entry's family and value, or a non-gear entry's (auction-kind-lots.mjs: family '' when its lines carry none, level and line count). */
+function auctionEntryPricing(env, entry) {
+    if (entry.kind) {
+        return { kind: entry.kind, family: auctionKindFamily(env, entry), value: auctionKindValue(entry),
+            extra: { grade: entry.grade || null, level: auctionKindLevel(env, entry), lines: auctionKindLines(entry).length } };
+    }
+    const family = auctionItemFamily(env, entry.item);
+    return { kind: 'gear', family, value: auctionLotValue(env, entry, family), extra: {} };
+}
+
+/** The preview id of lot index of bucket: -(bucket x batch + index + 1) for gear; the other kinds count down from -MAX_SAFE_INTEGER, so no
+ * two lots share an id and none is ever a bag id (buying gives a copy with a fresh id). */
+function auctionPreviewId(bucket, index) {
+    return index < GEAR.batch ? -(bucket * GEAR.batch + index + 1) : -(Number.MAX_SAFE_INTEGER - (bucket * AUCTION_BATCH_LOTS + index));
+}
+
+/** The fixed part of lot index of batch ({ seed, bucket, zone }): its item, kind, rarity, variants, family, quality, base value, deal and times
  * (from its own seeded stream: bargain, variance and sold first, the times after them); seller: its [prefix, suffix] pair. */
 export function auctionLotBase(env, batch, entry, index, seller) {
     const deal = createSeededRng(`${batch.seed}:${batch.bucket}:deal:${index}`), bargain = deal() < GEAR.bargainChance;
     const [low, high] = bargain ? GEAR.bargain : GEAR.normal, variance = low + (high - low) * deal();
     const times = auctionLotTimes(deal, batch.bucket, deal() < GEAR.soldChance[bargain ? 'bargain' : 'npc']);
-    const item = entry.item, family = auctionItemFamily(env, item), value = auctionLotValue(env, entry, family);
-    // The generator's id was handed back with the counter: a negative id, unique over batches, can never meet a bag item's.
-    item.id = -(batch.bucket * GEAR.batch + index + 1);
-    return { id: `${batch.bucket}:${index}`, birthBucket: batch.bucket, index, item, rarity: entry.rarity, variants: auctionItemVariants(env, item), family,
-        synergy: value.quality.synergy, rollQuality: value.quality.roll, source: bargain ? 'bargain' : 'npc', seller,
-        currency: value.currency, baseValue: value.base, variance, least: value.least, ...times,
+    const item = entry.item, { kind, family, value, extra } = auctionEntryPricing(env, entry);
+    // The generator's id was handed back with the counter: a negative id can never meet a bag item's.
+    item.id = auctionPreviewId(batch.bucket, index);
+    return { id: `${batch.bucket}:${index}`, birthBucket: batch.bucket, index, kind, item, rarity: entry.rarity || item.rarity,
+        variants: kind === 'gear' ? auctionItemVariants(env, item) : [], family, synergy: value.quality.synergy, rollQuality: value.quality.roll,
+        source: bargain ? 'bargain' : 'npc', seller, currency: value.currency, baseValue: value.base, variance, least: value.least, ...times, ...extra,
         // A low pulse times the deepest bargain would go under the base x 0.82: that is where the lot stops.
         floor: Math.max(value.least, auctionPay(value.base * GEAR.bargain[0])) };
 }
@@ -119,8 +152,10 @@ export function auctionBatchLots(env, owner, bucket) {
     const state = owner.auction, zone = auctionZoneOfBucket(state, bucket, auctionLotZoneId(env, owner));
     const key = `${state.seed}:${bucket}:${String(zone)}`;
     if (!env.lotCache.has(key)) {
-        const batch = { seed: state.seed, bucket, zone }, sellers = auctionBatchSellers(batch);
-        env.lotCache.set(key, auctionGenerateItems(env, batch).map((entry, index) => auctionLotBase(env, batch, entry, index, sellers[index])));
+        const batch = { seed: state.seed, bucket, zone }, sellers = auctionBatchSellers(batch), kindSellers = auctionKindSellers(batch);
+        const gear = auctionGenerateItems(env, batch).map((entry, index) => auctionLotBase(env, batch, entry, index, sellers[index]));
+        const kinds = auctionGenerateKindItems(env, batch).map((entry, at) => auctionLotBase(env, batch, entry, AUCTION_KIND_PLAN[at].index, kindSellers[at]));
+        env.lotCache.set(key, [...gear, ...kinds]);
         if (env.lotCache.size > CACHED_BATCHES) env.lotCache.delete(env.lotCache.keys().next().value);
     }
     return env.lotCache.get(key);
@@ -151,10 +186,17 @@ export function auctionLotBasesAt(env, owner, clock) {
     return rows;
 }
 
+/** The lot bases owner may see at clock: auctionLotBasesAt without the kinds owner has not unlocked (auctionOpenKinds). */
+export function auctionListedBasesAt(env, owner, clock) {
+    const open = auctionOpenKinds(env, owner);
+    return auctionLotBasesAt(env, owner, clock).filter(row => open.has(row.lot.kind));
+}
+
 /** A lot base priced at its birth bucket's factors, with where it stands at clock. */
 export function auctionPricedLot(state, row, clock) {
     const { baseValue, variance, floor, least, ...lot } = row.lot;
-    const value = baseValue * auctionFactor(state, lot.family, lot.birthBucket);
+    // A lot whose lines carry no family (some jewels, wards and talismans) keeps factor 1.
+    const value = baseValue * (lot.family ? auctionFactor(state, lot.family, lot.birthBucket) : 1);
     const price = Math.max(floor, auctionPay(value * variance)), fairPrice = Math.max(least, auctionPay(value));
     const ratioPct = Math.round(price / fairPrice * 100);
     // A bargain held up by a floor is no cheaper than the market: no 급매 without a shown discount.
@@ -166,25 +208,28 @@ export function auctionPricedLot(state, row, clock) {
 /**
  * The merchant lots listed at now (UTC ms, read at max(now, lastAt); call advance first so new buckets have their zone): every lot that has
  * arrived and not left, sold ones (soldOut) for gear.soldShowMs after their sale, mine (boughtByMe) until they would expire. Priced at their
- * birth bucket's factors (magicBud, uniques goldenRule), never below the rarity's floor (gear.floor, a unique also the black market's
- * cheapest price) nor the lot's base x gear.bargain[0].
- * @returns {Array<{id: string, birthBucket: number, index: number, item: object, rarity: string, variants: string[], family: string,
+ * birth bucket's factors (magicBud, uniques goldenRule, the other kinds formlessDew), never below the rarity's floor (gear.floor, a unique
+ * also the black market's cheapest price; kinds.*.floor) nor the lot's base x gear.bargain[0]. Kinds owner has not unlocked are left out.
+ * @returns {Array<{id: string, birthBucket: number, index: number, kind: 'gear'|'jewel'|'ward'|'talisman', item: object, rarity: string,
+ *   variants: string[], family: string,
  *   synergy: number, rollQuality: number, source: 'npc'|'bargain', seller: [number, number], currency: string, price: number, fairPrice: number,
  *   ratioPct: number, arriveAt: number, expireAt: number, soldAt: number|null, phase: 'open'|'sold'|'bought', soldOut: boolean,
  *   boughtByMe: boolean, leftMs: number}>} variants: 'exceptional' | 'socket' | 'corrupted'. Times are UTC ms, leftMs = expireAt - clock.
  *   seller: indexes into gear.sellers.prefixes and .suffixes (the screen composes the name).
  *   synergy and rollQuality: auctionLotQuality's s and q. id is 'birthBucket:index'; item is a shared read-only preview whose id is
- *   -(birthBucket x batch + index + 1), never a bag id (buying gives a copy with a fresh id).
+ *   -(birthBucket x batch + index + 1) for gear (the other kinds: auctionPreviewId), never a bag id (buying gives a copy with a fresh id).
+ *   The other kinds also carry level (a ward's 아이템 Lv., else null), lines (line count) and grade (a talisman's shard key, else null);
+ *   their family is '' when their lines carry none. A talisman's item is shaped as the stump box stores it.
  */
 export function auctionGearLots(env, owner, now) {
     const state = owner.auction, clock = auctionListClock(state, now);
-    return auctionLotBasesAt(env, owner, clock).map(row => auctionPricedLot(state, row, clock)).filter(lot => ['open', 'sold', 'bought'].includes(lot.phase));
+    return auctionListedBasesAt(env, owner, clock).map(row => auctionPricedLot(state, row, clock)).filter(lot => ['open', 'sold', 'bought'].includes(lot.phase));
 }
 
 /** The lots of the lookback batches sold to someone else by now, newest first, at most gear.recentTrades; each with agoMs (clock - soldAt). */
 export function auctionRecentTrades(env, owner, now) {
     const state = owner.auction, clock = auctionListClock(state, now);
-    return auctionLotBasesAt(env, owner, clock).filter(row => !row.bought && row.lot.soldAt !== null && row.lot.soldAt <= clock)
+    return auctionListedBasesAt(env, owner, clock).filter(row => !row.bought && row.lot.soldAt !== null && row.lot.soldAt <= clock)
         .sort((a, b) => b.lot.soldAt - a.lot.soldAt).slice(0, GEAR.recentTrades)
         .map(row => ({ ...auctionPricedLot(state, row, clock), agoMs: clock - row.lot.soldAt }));
 }
@@ -192,7 +237,7 @@ export function auctionRecentTrades(env, owner, now) {
 /** The next time (UTC ms) after now at which the list changes: a lot arrives, sells, stops showing as sold or leaves, or the next batch starts. */
 export function auctionGearNextChange(env, owner, now) {
     const state = owner.auction, clock = auctionListClock(state, now);
-    const times = auctionLotBasesAt(env, owner, clock).flatMap(({ lot }) => [lot.arriveAt, lot.expireAt, ...(lot.soldAt === null ? [] : [lot.soldAt, lot.soldAt + GEAR.soldShowMs])]);
+    const times = auctionListedBasesAt(env, owner, clock).flatMap(({ lot }) => [lot.arriveAt, lot.expireAt, ...(lot.soldAt === null ? [] : [lot.soldAt, lot.soldAt + GEAR.soldShowMs])]);
     return Math.min((auctionBucketOf(clock) + 1) * AUCTION_HOUSE.bucketMs, ...times.filter(at => at > clock));
 }
 
@@ -208,14 +253,18 @@ export function auctionGearLotReason(env, owner, lot) {
     if (lot.boughtByMe) return env.deps._t('이미 구매한 매물입니다.');
     if (lot.phase === 'gone') return env.deps._t('이미 내려간 매물입니다.');
     if (lot.soldOut) return env.deps._t('이미 팔린 매물입니다.');
+    const lock = auctionKindLock(env, owner, lot.kind);
+    if (lock) return lock;
     const have = Math.floor(Number(owner.currencies[lot.currency]) || 0);
     if (have < lot.price) return env.deps._t('{name} 부족, {have}/{amount}', { name: env.deps._t(env.deps.ORB_DB[lot.currency].name), have, amount: lot.price });
-    return env.deps.canStoreEquipmentItems([lot.item], owner) ? '' : env.deps._t('가방에 빈칸이 없습니다.');
+    return auctionKindRoomReason(env, owner, lot);
 }
 
 /**
  * Buys merchant lot lotId at now (UTC ms; advances the clock first, so a lot that has not arrived, has left or was sold is refused).
- * Generator: yields { kind: 'auctionAllocateItemId' } and { kind: 'auctionStowItem', args: [item] }. Pays only after the item is in the bag.
+ * Generator: gear and wards yield { kind: 'auctionAllocateItemId' } and { kind: 'auctionStowItem', args: [item] }, jewels the id and
+ * { kind: 'auctionStowBagItem', args: [item] }, talismans { kind: 'auctionStowTalisman', args: [talisman] } (answered with the stored stump
+ * item or null). Pays only after the item is stored. item: the stored item (a talisman: its stump box item).
  * @returns {Generator<object, {ok: boolean, reason?: string, item?: object, price?: number, currency?: string, settled: Array}, any>}
  */
 export function* auctionBuyGearLot(env, owner, lotId, now) {
@@ -224,14 +273,14 @@ export function* auctionBuyGearLot(env, owner, lotId, now) {
     const lot = auctionFindGearLot(env, owner, lotId);
     const reason = auctionUseBlock(env, owner) || auctionGearLotReason(env, owner, lot);
     if (reason) return { ok: false, reason, settled: clock.settled };
-    const item = JSON.parse(JSON.stringify(lot.item));
-    item.id = (yield { kind: 'auctionAllocateItemId', args: [] });
-    item.tradeLocked = true;
-    item.auctionBound = true;
-    if (!(yield { kind: 'auctionStowItem', args: [item] })) return { ok: false, reason: env.deps._t('가방에 넣지 못했습니다.'), settled: clock.settled };
+    const item = yield* auctionStoreLot(lot);
+    if (!item) {
+        const reason = lot.kind === 'talisman' ? env.deps._t('그루터기 함 보관함이 가득 찼습니다.') : env.deps._t('가방에 넣지 못했습니다.');
+        return { ok: false, reason, settled: clock.settled };
+    }
     owner.currencies[lot.currency] -= lot.price;
     owner.auction.bought.push(lot.id);
-    auctionAddTrend(owner.auction, lot.family, 1);
+    if (lot.family) auctionAddTrend(owner.auction, lot.family, 1);
     owner.noti.items = true;
     return { ok: true, item, price: lot.price, currency: lot.currency, settled: clock.settled };
 }

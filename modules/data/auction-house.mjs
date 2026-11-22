@@ -182,6 +182,40 @@ const AUCTION_HOUSE = Object.freeze({
         }),
         sellersPerBatch: 8
     }),
+    // 장비 아닌 상인 매물: 묶음마다 장비 매물(번호 0 ~ gear.batch - 1) 뒤에 lots의 차례로 번호를 받는다(주얼 3, 액막이 1, 부적 2 = 번호 20 ~ 25).
+    // 종류마다 제 주사위(seed:bucket:종류)로 만들어 장비 매물을 바꾸지 않는다. 놓이는 때, 머무는 시간, 팔림, 흔들림은 장비 매물과 같은 매물 주사위
+    // (seed:bucket:deal:번호), 판매자는 그 묶음의 판매자 8명이다. 생성은 해금과 상관없고, 목록과 구매가 unlock(해금 열쇠)이 열린 종류만 보인다
+    // (부적은 그루터기 함도 얻어야 한다). 고유는 없다. 값은 모두 형체 없는 이슬, 놓일 때 정해져 내려갈 때까지 그대로다:
+    // 기준 x 흔들림(gear.bargain, gear.normal) x 줄에서 읽은 계열의 태어난 구간 시세(계열을 읽지 못하면 1), 바닥(floor) 아래로는 팔지 않는다.
+    // 산 주얼과 액막이는 새 번호, tradeLocked, auctionBound를 받아 가방에 들어간다. 산 부적은 그루터기 함 보관함에 들어간다.
+    // 바닥값 = 분해에서 받을 수 있는 가장 많은 편린 x 그 편린의 재료 기준가(베일라의 표) x 0.899(경매장 재료 판매의 가장 좋은 실수령), 올림 + 1
+    // (2026-11-22 셈, modules/domain/equipment-salvage-rewards.mjs와 colony-ward-items.mjs):
+    //   주얼: 마법 분해 주얼 결정 5 x 1 x 0.899 = 4.5 -> 6, 희귀 9 x 0.899 = 8.1 -> 10. 주얼 융합(주얼 3 + 결정 10 -> 희귀 주얼 1)은 결정을 더 쓴다.
+    //   액막이: 분해 군락지 편린 많아야 6 x 0.5 x 0.899 = 2.7 -> 4. 부적: 재화로 돌아갈 길이 없다(분해 없음, 부적 리롤은 부적을 낸다) -> 2.
+    kinds: Object.freeze({
+        lots: Object.freeze([
+            Object.freeze({ kind: 'jewel', count: 3, unlock: 'jewel', label: '주얼' }),
+            Object.freeze({ kind: 'ward', count: 1, unlock: 'colony', label: '액막이' }),
+            Object.freeze({ kind: 'talisman', count: 2, unlock: 'talisman', label: '부적' })
+        ]),
+        currency: 'formlessDew',
+        // 주얼: 게임의 드랍(generateJewelDrop, 그 지역의 티어)을 고유 없이, 희귀 35%로. 값 = price[등급] x lines[등급][줄 수].
+        jewel: Object.freeze({
+            odds: Object.freeze({ rare: 0.35, unique: 0 }),
+            price: Object.freeze({ magic: 14, rare: 90 }),
+            lines: Object.freeze({ magic: Object.freeze({ 1: 0.75, 2: 1.15 }), rare: Object.freeze({ 2: 0.7, 3: 1.0, 4: 1.5 }) }),
+            floor: Object.freeze({ magic: 6, rare: 10 })
+        }),
+        // 액막이: 게임의 보통 액막이(colonyWards.create, 그 지역의 티어). 값 = price x (rollMin + rollSpan x q) x min(tierCap, 1 + tierStep x (티어 - 1)),
+        // q는 굴린 값이 그 줄의 폭 어디쯤인지(0 ~ 1, 폭이 한 점이면 0.5).
+        ward: Object.freeze({ price: 18, rollMin: 0.75, rollSpan: 0.5, tierStep: 0.25, tierCap: 3, floor: 4 }),
+        // 부적: 봉인 풀기의 보통 부적(talismans.rollNormal)을 편린 등급 grades의 확률로. 값 = price[등급] x min(cap, lineBase + perLine x 줄 수).
+        talisman: Object.freeze({
+            grades: Object.freeze([['sealShard', 0.6], ['strongSealShard', 0.3], ['radiantSealShard', 0.1]]),
+            price: Object.freeze({ sealShard: 5, strongSealShard: 16, radiantSealShard: 45 }),
+            lineBase: 0.85, perLine: 0.1, cap: 1.4, floor: 2
+        })
+    }),
     // 내 출품: 3칸. 구간이 바뀔 때마다 한 번 상인 수요가 붙고(최대 buckets번), 못 팔리면 기간이 끝난다. 값은 감정가(그 구간 시세)의 1.2배까지,
     // 최소 2(수수료 1을 떼고 1이 남는다). chances: [호가 / 감정가 상한, 판매 확률], 상한을 넘으면(시세가 떨어져서) overChance.
     // 1.2배 상한이 없으면 아무 값이나 구간마다 8%로 팔려 재화를 찍어 낸다(시안의 문제를 고쳤다).

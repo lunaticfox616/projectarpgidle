@@ -5,7 +5,7 @@
  */
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { renderAuction, stopGearRefresh } from './auction-house-render.mjs';
-import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode } from './auction-house-actions.mjs';
+import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearKind } from './auction-house-actions.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
 const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'user'], rarity: ['all', 'normal', 'magic', 'rare', 'unique'] });
@@ -26,7 +26,7 @@ export function createAuctionHouseView(deps) {
 function initialState() {
     return {
         tab: 'gear', print: '', card: { key: '', html: '' },
-        gear: { mode: 'open', slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'price', dir: 1, family: '', selected: '' },
+        gear: { mode: 'open', kind: 'all', slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'price', dir: 1, family: '', selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
         hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 },
@@ -43,6 +43,7 @@ const CLICKS = Object.freeze([
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],
     ['data-ah-sort', (runtime, value) => sortGear(runtime, value)],
     ['data-ah-mode', (runtime, value) => gearMode(runtime, value)],
+    ['data-ah-kind', (runtime, value) => gearKind(runtime, value)],
     ['data-ah-family', (runtime, value) => jumpFamily(runtime, value)],
     ['data-ah-clear-family', runtime => jumpFamily(runtime, '')],
     ['data-ah-jump', (runtime, value) => jumpMaterial(runtime, value)],

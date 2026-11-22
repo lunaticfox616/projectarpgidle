@@ -1,6 +1,6 @@
 /**
  * 경매장(거래 창의 넷째 칸, 루프 20 해금 'auction') 규칙의 단일 소유자. 저장은 owner.auction(modules/state/default-game.mjs), 수치는
- * modules/data/auction-house.mjs. 입찰은 없고 모두 즉시 체결된다: 상인 장비 매물 구매, 재료 매매, 내 장비 출품(상인 수요가 구간마다 산다).
+ * modules/data/auction-house.mjs. 입찰은 없고 모두 즉시 체결된다: 상인 매물(장비, 주얼, 액막이, 부적) 구매, 재료 매매, 내 장비 출품(상인 수요가 구간마다 산다).
  * 타이머를 두지 않는다: 부르는 쪽이 벽시계(UTC ms)를 넘기고, 명령은 먼저 시계를 그 시각으로 옮긴다(advance). 화면과 서버 시세 서비스는
  * 이 API만 쓴다. 생성기(function*) 명령은 효과를 { kind, args }로 내고 classic 어댑터(modules/auction-house-classic.mjs)가 처리한다.
  * 세션 상태(env.session: 운영 모드; env.lotCache: 만든 매물 묶음)는 저장하지 않는다. 서버 시세 보정은 다음 구간 것으로 저장에 남는다(owner.auction.deltas).
@@ -10,6 +10,7 @@ import { auctionFactor, auctionPulse, auctionEventAt, auctionItemFamily, auction
 import { auctionBucketOf, auctionNeedsAdvance, auctionAdvance, auctionUseBlock, auctionNoticeText, auctionLotName, auctionLoopBlockReason } from './auction-clock.mjs';
 import { auctionMaterialRows, auctionMaterialQuote, auctionMaterialTrade, auctionMaterialBook, auctionMaterialPriceHistory } from './auction-materials.mjs';
 import { auctionGearLots, auctionRecentTrades, auctionGearNextChange, auctionBuyGearLot, auctionGearLotReason } from './auction-gear-lots.mjs';
+import { auctionOpenKinds } from './auction-kind-lots.mjs';
 import { auctionListIssue, auctionListQuote, auctionList, auctionWithdraw, auctionClaim, auctionClaimAll } from './auction-my-lots.mjs';
 import { auctionRestore } from './auction-restore.mjs';
 
@@ -19,7 +20,8 @@ import { auctionRestore } from './auction-restore.mjs';
  * UNIQUE_DB, BASE_ITEM_DB, UNIQUE_EQUIPMENT_RULES, generateUniqueItem (the black market's uniques), boostExceptionalBaseLine, equipmentSockets, MOD_DB,
  * EQUIPMENT_DROP_VARIANTS, getAffixTierRange (variants),
  * createItemFromBase, maybeApplyExceptionalBase, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF), getItemCraftTier, getItemDisplayName, readItemIdCounter, writeItemIdCounter, canStoreEquipmentItems(items, owner), normalizeItem, escapeHTML, console, ORB_DB, _t,
- * defaultGame, PLAYER_STALL_RULES, STAT_AFFIX_TAGS, AFFIX_TAG_LABELS, getEquipmentLoadoutOwnedItems, actExplorationLoot, actExplorationState.
+ * defaultGame, PLAYER_STALL_RULES, STAT_AFFIX_TAGS, AFFIX_TAG_LABELS, getEquipmentLoadoutOwnedItems, actExplorationLoot, actExplorationState,
+ * the other kinds of merchant lots (generateJewelDrop, bagItems, colonyWards, talismans, stumpBox, CONTENT_UNLOCK_CATALOG).
  */
 export function createAuctionHouse(deps) {
     const env = { deps, session: { mode: AUCTION_HOUSE.defaultMode }, lotCache: new Map() };
@@ -56,6 +58,8 @@ export function createAuctionHouse(deps) {
         materialPrices: (owner, key) => auctionMaterialPriceHistory(owner, key),        materialTrade: (owner, order, now) => auctionMaterialTrade(env, owner, order, now),
         /** The merchant lots listed at now (UTC ms; read at max(now, lastAt)). */
         gearLots: (owner, now) => auctionGearLots(env, owner, now),
+        /** The lot kinds owner can see and buy: 'gear', then each unlocked kind of rules.kinds.lots in its order. */
+        lotKinds: owner => [...auctionOpenKinds(env, owner)],
         /** The merchant lots sold to someone else by now, newest first. */
         recentTrades: (owner, now) => auctionRecentTrades(env, owner, now),
         /** When (UTC ms) the merchant list next changes after now. */

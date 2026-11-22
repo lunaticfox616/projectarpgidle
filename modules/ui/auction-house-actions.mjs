@@ -3,6 +3,7 @@
  * settled도 알린다. 거절은 그 까닭을 알림으로 보인다. 된 명령 뒤에는 가판대처럼 저장하고 화면을 새로 그린다.
  */
 import { itemName } from './auction-house-format.mjs';
+import { lotName, openKinds } from './auction-house-kinds.mjs';
 import { syncClock, announce } from './auction-house-render.mjs';
 import { findLot, repaintGearBoard, SORTABLE } from './auction-house-gear.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
@@ -39,7 +40,7 @@ export function buyLot(runtime, id) {
     if (lot.source === 'user') { buyUserLot(runtime, lot).catch(error => runtime.deps.console.error('auction hall buy failed:', error)); return; }
     const result = command(runtime, now => runtime.deps.auctionHouse.buyGearLot(runtime.deps.game, id, now));
     if (!result) return;
-    runtime.deps.showGameToast(runtime.deps._t('[{name}] 구매', { name: itemName(runtime, result.item) }), { tone: 'success' });
+    runtime.deps.showGameToast(runtime.deps._t('[{name}] 구매', { name: lotName(runtime, lot) }), { tone: 'success' });
     settle(runtime);
 }
 
@@ -74,6 +75,15 @@ export function gearMode(runtime, mode) {
     const view = runtime.state.gear;
     if (!['open', 'recent'].includes(mode) || view.mode === mode) return;
     view.mode = mode;
+    view.selected = '';
+    runtime.api.render(true);
+}
+
+/** A kind chip (전체 or an open kind): that kind's lots, nothing chosen yet (its first row is chosen). */
+export function gearKind(runtime, kind) {
+    const view = runtime.state.gear;
+    if (!['all', ...openKinds(runtime)].includes(kind) || view.kind === kind) return;
+    view.kind = kind;
     view.selected = '';
     runtime.api.render(true);
 }

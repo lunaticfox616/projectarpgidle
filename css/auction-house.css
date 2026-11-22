@@ -1,6 +1,6 @@
 @layer features {
 /* 경매장 칸(거래 창의 넷째 칸, js/auction-house-ui.js, 2026-11-22). 위에서부터 시세 띠(이번 구간의 사건, 오른 것과 내린 것, 다음 시세 시각,
-   지갑), 칸 단추 셋(장비, 재료, 내 출품), 본문. 넓고 좁음은 화면이 아니라 이 칸의 폭으로 정한다(가판대와 같다). 빛깔은 뜻이 있을 때만:
+   지갑), 칸 단추 셋(아이템, 재료, 내 출품), 본문. 넓고 좁음은 화면이 아니라 이 칸의 폭으로 정한다(가판대와 같다). 빛깔은 뜻이 있을 때만:
    금빛은 값과 고른 것, 오른 시세는 초록(--color-positive-muted), 내린 시세는 붉게(--color-danger), 장비 이름은 희귀도 색. */
 #market-panel-auction { --ah-line: var(--color-line); --ah-up: var(--color-positive-muted); --ah-down: var(--color-danger); --ah-gold: var(--color-accent-gold);
     --ah-panel: #12110f; --ah-tap: 36px; padding: 14px; container-type: inline-size; }
@@ -46,11 +46,12 @@
 .ah-price b { color: var(--ah-gold); font-weight: 400; }
 .ah-price.is-big .shop-coin { width: 20px; height: 20px; }
 
-/* 장비: 판매 중 | 최근 거래 단추, 고르기 줄, 거래소 목록(넓으면 머리줄과 한 줄 행, 좁으면 두 줄 행)과 자세히 칸. 목록은 제 칸 안에서 민다. */
+/* 아이템: 판매 중 | 최근 거래 단추, 종류 단추 줄(재료의 묶음 단추와 같은 모양), 고르기 줄, 거래소 목록(넓으면 머리줄과 한 줄 행, 좁으면 두 줄 행)과 자세히 칸. 목록은 제 칸 안에서 민다. */
 .ah-gear { display: grid; gap: 8px; min-width: 0; }
 .ah-modes { display: flex; gap: 4px; }
 #market-panel-auction .ah-mode { padding: 2px 14px; border: 1px solid var(--ah-line); background: #100f0d; color: var(--color-text-secondary); }
 #market-panel-auction .ah-mode.is-on { border-color: var(--ah-gold); color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 8%, #100f0d); }
+.ah-kinds { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .ah-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 #market-panel-auction .ah-tools select { flex: 1 1 96px; width: auto; min-height: var(--ah-tap); padding: 4px 8px; border-radius: 0; font-size: 12px; }
 #market-panel-auction .ah-search { flex: 2 1 150px; min-width: 0; min-height: var(--ah-tap); padding: 4px 8px; border: 1px solid #594931; border-radius: 0; background: #090908;
@@ -244,8 +245,8 @@
     .ah-root { --ah-tap: 44px; }
     #market-panel-auction :is(.ah-chip, .ah-tabs button, .ah-primary, .ah-lot, .ah-mat, .ah-group, .ah-mode) { min-height: 44px; }
     /* 묶음 단추는 한 줄에서 옆으로 밀고, 목록은 거래표 아래에서 화면의 절반 남짓만 차지한다 */
-    .ah-groups { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
-    .ah-groups .ah-group { flex: none; }
+    :is(.ah-groups, .ah-kinds) { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+    :is(.ah-groups, .ah-kinds) .ah-group { flex: none; }
     .ah-mats { max-height: 52vh; }
     .ah-lots { max-height: 60vh; }
     /* 자세히 칸이 목록 위에 서므로 카드는 화면의 40%까지만, 나머지는 카드 안에서 민다 */
