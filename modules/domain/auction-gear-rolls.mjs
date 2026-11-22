@@ -137,10 +137,16 @@ const VARIANT_APPLY = Object.freeze({
     corrupted(env, item, rarity) {
         const variants = dropVariants(env);
         if (rarity !== 'normal' && variants.corruptionPlan(item).length) variants.corrupt(item);
+    },
+    // Quality as its material would raise it (gear.quality: a percent of the range; every drop slot has a quality material).
+    quality(env, item) {
+        const [least, most] = GEAR.quality.range;
+        if (!(Number(item.quality) > 0)) item.quality = least + Math.floor(Math.random() * (most - least + 1));
     }
 });
 
 /** The variant keys item carries (the screen tags them with the game's own labels). */
 export function auctionItemVariants(env, item) {
-    return [item.exceptionalBase ? 'exceptional' : '', env.deps.equipmentSockets.hasVoidSocket(item) ? 'socket' : '', item.corrupted ? 'corrupted' : ''].filter(Boolean);
+    return [item.exceptionalBase ? 'exceptional' : '', env.deps.equipmentSockets.hasVoidSocket(item) ? 'socket' : '', item.corrupted ? 'corrupted' : '',
+        Number(item.quality) > 0 ? 'quality' : ''].filter(Boolean);
 }

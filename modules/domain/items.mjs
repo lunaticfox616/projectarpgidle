@@ -10,7 +10,7 @@ import { itemFlowResolveTimeRiftFusion } from './item-rift-fusion.mjs';
 import { itemFlowPrepareMeteorEncounterEntry, itemFlowGetZoneTravelBlockReason, itemFlowChangeZone } from './item-zone-travel.mjs';
 import { itemFlowBuildGoldenRuleSpendPrompt, itemFlowUpgradeSelectedItemBase, itemFlowCloseBaseUpgradeOverlay, itemFlowGetBaseUpgradeRefusal, itemFlowConfirmSelectedItemBaseUpgrade } from './item-base-upgrade.mjs';
 import { itemFlowGetBaseUpgradeCandidates } from './item-base-candidates.mjs';
-import { itemFlowGetBaseChainInfo, itemFlowGetBaseChainRank, itemFlowGetItemBaseChainInfo } from './item-base-chain.mjs';
+import { itemFlowGetBaseChainInfo, itemFlowGetBaseChainRank, itemFlowGetItemBaseChainInfo, itemFlowGetBaseUpgradeCost } from './item-base-chain.mjs';
 import { itemFlowGetItemDisplayName } from './item-display-name.mjs';
 
 /** One rule/cache owner; callers supply state explicitly. No DOM, storage or current-game lookup. */
@@ -75,6 +75,7 @@ function bindItemRules(env) {
         getBaseChainInfo: (...args) => itemFlowGetBaseChainInfo(env, ...args),
         getBaseChainRank: itemFlowGetBaseChainRank,
         getItemBaseChainInfo: (...args) => itemFlowGetItemBaseChainInfo(env, ...args),
+        getBaseUpgradeCost: nextBase => itemFlowGetBaseUpgradeCost(env, nextBase),
         upgradeSelectedItemBase: (...args) => itemFlowUpgradeSelectedItemBase(env, ...args),
         closeBaseUpgradeOverlay: itemFlowCloseBaseUpgradeOverlay,
         getBaseUpgradeRefusal: itemFlowGetBaseUpgradeRefusal,

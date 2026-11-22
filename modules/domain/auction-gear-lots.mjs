@@ -3,7 +3,7 @@
  * modules/domain/auction-lot-heads.mjs가 정한다. 몸은 필요할 때만 매물 제 주사위(seed:b:i:body)로 굴려 묶음 기록에 남긴다: 어느 차례로
  * 굴려도, 다시 불러와도 같다. 둘 중 나은 매물은 아이템을 두 번 굴려 품질 배율이 높은 쪽을 쓴다. 생성이 올린 아이템 번호는 되돌린다(미리보기 규칙).
  * 값: 일반, 마법, 희귀의 기준 = max(감정 marketValue, NPC 장비 상점이 그 등급에 매기는 값 x gear.premium[등급])에 옵션 궁합과 줄 값
- * (gear.synergy, auctionLotQuality, 마법과 희귀만), 변형 배율(gear.variants)을 곱한 값(이슬)이고, 그 크기에 따라 새싹, 이슬, 황금률 가운데
+ * (gear.synergy, auctionLotQuality, 마법과 희귀만), 변형 배율(gear.variants)을 곱하고 베이스와 퀄리티의 값(auctionBaseWorth)을 더한 값(이슬)이고, 그 크기에 따라 새싹, 이슬, 황금률 가운데
  * 하나로 판다(gear.priceIn, 감정의 단위표로 나눈다). 고유는 황금률이고
  * 기준은 암거래상이 그 고유에 부른 값(콘텐츠 고유는 그 매물의 값) x 굴림 배율(gear.uniqueRoll, auctionUniqueRollQuality)이다. price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 계열 시세는 매물이 태어난
  * 구간의 것이라(그 구간의 서버 보정은 목록이 보는 동안 저장에 남는다) 값은 매물이 머무는 동안 바뀌지 않는다. 둘 다 그 등급의 바닥
@@ -25,6 +25,7 @@ import { AUCTION_BATCH_LOTS, auctionRollKind, auctionKindValue, auctionKindFamil
     auctionStoreLot } from './auction-kind-lots.mjs';
 import { auctionBatchRecord, auctionFillHeads } from './auction-lot-heads.mjs';
 import { auctionContentHeadOf, auctionContentVisible, auctionRollContentUnique } from './auction-content-lots.mjs';
+import { auctionMaterialBase } from './auction-materials.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
 // Tries of a gear body before it gives up (a try that makes nothing the appraisal can price draws again from the same stream).
@@ -51,10 +52,28 @@ export function auctionLotValue(env, entry, family) {
         return { currency: 'goldenRule', base: offer.price * (1 + rule.span * roll ** rule.power), least, quality: { synergy: 0, roll, multiplier: 1 } };
     }
     const unitOf = env.deps.itemAppraisal.unitValue, quality = rarity === 'normal' ? { synergy: 0, roll: 0, multiplier: 1 } : auctionLotQuality(env, item, family);
-    const dew = Math.max(env.deps.itemAppraisal.quote(item).marketValue, auctionShopPrice(env, item) * GEAR.premium[rarity]) * quality.multiplier * auctionVariantMultiplier(env, item);
+    const dew = Math.max(env.deps.itemAppraisal.quote(item).marketValue, auctionShopPrice(env, item) * GEAR.premium[rarity]) * quality.multiplier * auctionVariantMultiplier(env, item)
+        + auctionBaseWorth(env, item);
     // The dearer the lot, the larger its coin (gear.priceIn); the rarity's floor (buds) is carried into that coin, rounded up.
     const currency = GEAR.priceIn.find(row => dew >= row.from).coin, unit = unitOf(currency);
     return { currency, base: dew / unit, least: auctionPay(GEAR.floor[rarity] * unitOf('magicBud') / unit), quality };
+}
+
+/** What upgrading into base baseId costs in dew (the game's getBaseUpgradeCost, its golden rule counted as dew) and the base's chain
+ * rank: { dew, rank } (0 and 0 for an unknown base; rank 0 for a base outside the chains). Kept per base for the session (env.baseCost). */
+function auctionBaseCost(env, baseId) {
+    if (env.baseCost.has(baseId)) return env.baseCost.get(baseId);
+    const deps = env.deps, base = deps.BASE_ITEM_DB.find(row => row.id === baseId);
+    env.baseCost.set(baseId, base ? { dew: deps.getBaseUpgradeCost(base).totalDewValue, rank: deps.getBaseChainRank(deps.getBaseChainInfo(base)) } : { dew: 0, rank: 0 });
+    return env.baseCost.get(baseId);
+}
+
+/** What item's base and quality add to its value in dew, whatever its rarity (gear.base, gear.quality): a share of the upgrade cost into a
+ * base of chain rank goodRank or above, a share of that cost for an exceptional base, and its quality percent x the dearest quality material. */
+export function auctionBaseWorth(env, item) {
+    const rule = GEAR.base, cost = auctionBaseCost(env, item.baseId);
+    const quality = Math.max(0, Math.floor(Number(item.quality) || 0)) * Math.max(...GEAR.quality.materials.map(auctionMaterialBase));
+    return (cost.rank >= rule.goodRank ? cost.dew * rule.good : 0) + (item.exceptionalBase ? cost.dew * rule.exceptional : 0) + quality;
 }
 
 /** The average place of a unique's variable lines in their roll ranges (valMin..valMax as the generator stamped them): 0 at the bottom, 1 at
@@ -248,7 +267,7 @@ export function auctionLotPhase(lot, clock, bought) {
  *   variants: string[], family: string,
  *   synergy: number, rollQuality: number, source: 'npc'|'bargain', seller: [number, number], currency: string, price: number, fairPrice: number,
  *   ratioPct: number, arriveAt: number, expireAt: number, soldAt: number|null, phase: 'coming'|'open'|'sold'|'bought'|'gone', soldOut: boolean,
- *   boughtByMe: boolean, leftMs: number}} variants: 'exceptional' | 'socket' | 'corrupted'. Times are UTC ms, leftMs = expireAt - clock.
+ *   boughtByMe: boolean, leftMs: number}} variants: 'exceptional' | 'socket' | 'corrupted' | 'quality'. Times are UTC ms, leftMs = expireAt - clock.
  *   seller: indexes into gear.sellers.prefixes and .suffixes (the screen composes the name).
  *   synergy and rollQuality: auctionLotQuality's s and q (a unique: auctionUniqueRollQuality's q). id is 'birthBucket:index'; item is a shared read-only preview whose id is
  *   -(birthBucket x batch + index + 1) for gear (the other kinds: auctionPreviewId), never a bag id (buying gives a copy with a fresh id).

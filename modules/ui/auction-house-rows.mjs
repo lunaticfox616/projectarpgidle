@@ -25,7 +25,8 @@ export function badgeHtml(runtime, lot) {
 }
 
 function tagsHtml(runtime, lot) {
-    const tags = (lot.variants || []).map(key => `<em class="ah-tag is-${key}">${esc(runtime, tr(runtime, VARIANT_LABELS[key]))}</em>`);
+    // The quality tag carries the item's percent after the game's own word.
+    const tags = (lot.variants || []).map(key => `<em class="ah-tag is-${key}">${esc(runtime, tr(runtime, VARIANT_LABELS[key]))}${key === 'quality' ? ` ${Math.floor(Number(lot.item.quality) || 0)}%` : ''}</em>`);
     if (lot.source === 'user') tags.push(`<em class="ah-tag is-copy">${runtime.deps._t('복제품')}</em>`);
     return tags.length ? `<span class="ah-tags">${tags.join('')}</span>` : '';
 }

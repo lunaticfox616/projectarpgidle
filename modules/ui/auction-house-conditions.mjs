@@ -6,7 +6,7 @@
 import { tr, num, familyLabel, sellerName } from './auction-house-format.mjs';
 
 // 변형 이름: 게임이 이미 쓰는 이름(전리품 고르기 칩, modules/ui/equipment-loot-view.mjs).
-export const VARIANT_LABELS = Object.freeze({ exceptional: '특출난 베이스', socket: '소켓', corrupted: '타락' });
+export const VARIANT_LABELS = Object.freeze({ exceptional: '특출난 베이스', socket: '소켓', corrupted: '타락', quality: '퀄리티' });
 const VARIANT_CYCLE = Object.freeze({ any: 'yes', yes: 'no', no: 'any' });
 const SOURCE_LABELS = Object.freeze({ merchant: '상인', user: '다른 플레이어' });
 const KIND_LABELS = Object.freeze({ gear: '장비' });

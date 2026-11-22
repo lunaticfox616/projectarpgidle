@@ -161,6 +161,7 @@
 .ah-tag.is-exceptional { border-color: color-mix(in srgb, #9fe0c0 45%, transparent); color: #9fe0c0; }
 .ah-tag.is-socket { border-color: color-mix(in srgb, #d7a6ff 45%, transparent); color: #d7a6ff; }
 .ah-tag.is-corrupted { border-color: color-mix(in srgb, #e7685c 45%, transparent); color: #e7685c; }
+.ah-tag.is-quality { border-color: color-mix(in srgb, #9fc4e0 45%, transparent); color: #9fc4e0; }
 .ah-tag.is-copy { border-color: #4f5a66; color: #b6c4d2; }
 .ah-art { --item-rarity: #7d8996; display: grid; place-items: center; width: 44px; height: 44px; box-sizing: border-box; border: 1px solid color-mix(in srgb, var(--item-rarity) 60%, #182637);
     background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--item-rarity) 14%, transparent), rgba(12, 20, 30, .94) 72%); }

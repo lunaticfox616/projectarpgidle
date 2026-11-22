@@ -125,10 +125,10 @@ const AUCTION_HOUSE = Object.freeze({
         //   이슬 -> 황금률은 암거래상의 가장 좋은 굴림(이슬 9.82개에 봉우리 1개, 봉우리 3개에 황금률 1개 = 이슬 29.45개), 봉우리 -> 황금률 1/3:
         //   황금률 1.40개 -> 2(고유만 올림으로 끝낸다: 1 더하면 암거래상이 1 ~ 2에 파는 낮은 고유가 모두 3이 된다). 고유는 암거래상의 가장 싼 값 아래로도 내려가지 않는다. 분해 보상, 환율, 베일라와 암거래상의 폭이 바뀌면 다시 셈한다.
         floor: Object.freeze({ normal: 2, magic: 2, rare: 10, unique: 2 }),
-        // 일반, 마법, 희귀를 파는 재화: 기준값(이슬)이 처음으로 그 값 이상인 줄의 재화(위에서부터). 이슬 10개 값부터 이슬, 황금률 3개 값부터 황금률
-        // (고유가 황금률 2개부터 팔린다; 황금률 값은 정수 한 칸이 커서 시세와 흔들림이 거칠게만 보인다). 바닥값은 그 재화로 옮겨 올림한다.
-        // 측정(2026-11-23, 지역 40 희귀 2,022개): 새싹 1,157개(10 ~ 89), 이슬 863개(9 ~ 282), 황금률 2개(4 ~ 5).
-        priceIn: Object.freeze([Object.freeze({ coin: 'goldenRule', from: 300 }), Object.freeze({ coin: 'formlessDew', from: 10 }), Object.freeze({ coin: 'magicBud', from: 0 })]),
+        // 일반, 마법, 희귀를 파는 재화: 기준값(이슬)이 처음으로 그 값 이상인 줄의 재화(위에서부터). 위 재화로는 그 재화 10개 값부터 넘어간다
+        // (사용자 결정 2026-11-23: 그 아래에서는 정수 한 칸이 커서 시세와 흔들림이 묻힌다): 이슬 10개 값부터 이슬, 황금률 10개 값부터 황금률.
+        // 바닥값은 그 재화로 옮겨 올림한다. 고유는 암거래상처럼 언제나 황금률이다.
+        priceIn: Object.freeze([Object.freeze({ coin: 'goldenRule', from: 1000 }),Object.freeze({ coin: 'formlessDew', from: 10 }), Object.freeze({ coin: 'magicBud', from: 0 })]),
         // 한 구간에 생기는 장비 매물 수. 매물마다 평균 45분 머물러(팔린 매물은 일찍 내려간다) 어느 때나 팔리지 않은 매물이 1,500개 남짓 보인다.
         batch: 540,
         // 묶음의 등급별 매물 수(합이 batch). 매물 i의 등급은 seed:bucket:rarity 주사위로 섞은 이 목록의 i번째다(생성이 바뀌어도 그대로).
@@ -149,11 +149,22 @@ const AUCTION_HOUSE = Object.freeze({
         spread: Object.freeze({ every: 5, top: 3 }),
         // 드랍이 가질 수 있는 변형(게임의 함수로 붙인다)과 매물에 붙는 확률, 감정가와 상점 값이 반영하지 않아 곱하는 배율.
         // exceptional: 특출난 베이스(드랍은 베이스 줄마다 1%), socket: 공허 소켓 장신구(드랍은 5%), corrupted: 타락(드랍은 루프 2부터 3%, 마법과 희귀).
+        // quality: 퀄리티(드랍에는 없고 퀄리티 재료로만 올린다). 배율은 없고 값에 재료값을 더한다(아래 quality).
         variants: Object.freeze({
             exceptional: Object.freeze({ chance: 0.1, price: 1.6 }),
             socket: Object.freeze({ chance: 0.2, price: 1.5 }),
-            corrupted: Object.freeze({ chance: 0.08, price: 1.25 })
+            corrupted: Object.freeze({ chance: 0.08, price: 1.25 }),
+            quality: Object.freeze({ chance: 0.12, price: 1 })
         }),
+        // 베이스 값(이슬, 일반, 마법, 희귀에 똑같이 더한다: 감정가와 상점 값은 베이스를 거의 보지 않는데 베이스 업그레이드에는 재화가 많이 든다,
+        // 사용자 결정 2026-11-23). 그 베이스로 올리는 업그레이드 비용(게임의 getBaseUpgradeCost, 이슬과 황금률을 이슬로)에 몫을 곱한다.
+        // good: 체인 순위 goodRank 이상인 베이스(게임이 비용을 따로 올려 받는 순위 5의 225, 맨 위의 625)의 몫. 그 아래 베이스는 그 지역에서
+        // 흔히 떨어지고 NPC 상점도 팔아 더하지 않는다. exceptional: 특출난 베이스의 몫(순위와 상관없이; 배율 1.6도 그대로 곱한다).
+        // 비용: 요구 단계 1은 10, 8은 45, 12는 90, 15는 135. 측정(지역 40 매물 1,933개): 순위 5는 8개, 맨 위 베이스는 없다.
+        base: Object.freeze({ goodRank: 5, good: 0.5, exceptional: 0.5 }),
+        // 퀄리티 변형: 퍼센트는 range에서 고르게, 값 = 퍼센트 x 퀄리티 재료의 베일라 값(1%에 재료 하나: 새싹 4개 = 이슬 0.5개). 재료는 부위마다
+        // 다르고(무기 숫돌, 방어구와 허리띠 뿌리철, 목걸이와 반지 연마제: 드랍 부위는 모두 셋 가운데 하나가 맞는다) 값은 materials 가운데 비싼 것을 쓴다(지금은 셋이 같다).
+        quality: Object.freeze({ range: Object.freeze([5, 20]), materials: Object.freeze(['deepWhetstone', 'rootIron', 'jewelPolish']) }),
         // 지역 사다리: 묶음의 지역(맨 위)과 그 앞의 보통 지역(번호 하나씩 앞) 몇 개까지. 매물 i는 사다리[i % 길이]에서 굴린다.
         ladder: 3,
         // 부위 계획에서 무기가 한 바퀴에 나오는 횟수.
