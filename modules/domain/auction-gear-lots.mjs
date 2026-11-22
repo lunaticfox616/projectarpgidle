@@ -117,12 +117,12 @@ export function auctionLotSynergy(env, item, family) {
 }
 
 /** The average place of item's explicit lines in the tier range the lot could roll (getDroppedAffixTierRange(affixTierCap).min up to the cap;
- * higher tiers are better): 0 at the lowest tier, 1 at the cap. 0 without lines. */
+ * higher tiers are better): 0 at the lowest tier, 1 at the cap. 0 without lines. A range of one tier (act 1) says nothing: 0.5. */
 export function auctionLotRollQuality(env, item) {
     const stats = Array.isArray(item.stats) ? item.stats : [], cap = Number(item.affixTierCap) || 1;
     const floor = env.deps.getDroppedAffixTierRange(cap).min, span = cap - floor;
     if (!stats.length) return 0;
-    return stats.reduce((sum, stat) => sum + (span > 0 ? clampNumber(((Number(stat.tier) || floor) - floor) / span, 0, 1) : 1), 0) / stats.length;
+    return stats.reduce((sum, stat) => sum + (span > 0 ? clampNumber(((Number(stat.tier) || floor) - floor) / span, 0, 1) : 0.5), 0) / stats.length;
 }
 
 /** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perSquare x s x s) x (rollMin + rollSpan x q) }. */
