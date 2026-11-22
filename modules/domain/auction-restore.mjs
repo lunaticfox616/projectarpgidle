@@ -8,6 +8,7 @@ import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { stallRulesOwnedOutsideEscrow } from './stall-restoration.mjs';
 import { auctionBucketOf } from './auction-clock.mjs';
 import { auctionPulseKeys, auctionDeltaValues, AUCTION_DELTA_SLOTS } from './auction-pulse.mjs';
+import { auctionMaterialQuota } from './auction-materials.mjs';
 
 const MINE = AUCTION_HOUSE.myLots;
 const count = value => (Number.isSafeInteger(value) && value >= 0 ? value : 0);
@@ -32,8 +33,9 @@ export function auctionRestoreFields(env, source) {
     const zone = source.lotZone;
     state.lotZone = count(zone) === zone || (typeof zone === 'string' && zone.length > 0 && zone.length <= 64) ? zone : null;
     state.bought = [...new Set((Array.isArray(source.bought) ? source.bought : []).filter(index => Number.isSafeInteger(index) && index >= 0 && index < AUCTION_HOUSE.gear.lots))];
-    const sides = new Set(AUCTION_HOUSE.materials.keys.flatMap(key => [`buy:${key}`, `sell:${key}`]));
-    state.quota = auctionRestoreKeyed(source.quota, (key, value) => sides.has(key) && count(value) ? Math.min(value, AUCTION_HOUSE.materials.quota) : 0);
+    // A side key 'buy:key' or 'sell:key' of a listed material keeps its count up to that material's quota; keys no longer listed are dropped.
+    const sides = new Map(AUCTION_HOUSE.materials.keys.flatMap(key => [[`buy:${key}`, key], [`sell:${key}`, key]]));
+    state.quota = auctionRestoreKeyed(source.quota, (key, value) => sides.has(key) && count(value) ? Math.min(value, auctionMaterialQuota(sides.get(key))) : 0);
     const trendKeys = new Set(auctionPulseKeys());
     state.trend = auctionRestoreKeyed(source.trend, (key, value) => trendKeys.has(key) && Number.isSafeInteger(value) ? Math.max(-99, Math.min(99, value)) : 0);
     state.deltas = auctionRestoreDeltas(source.deltas);

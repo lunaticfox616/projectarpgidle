@@ -1,7 +1,9 @@
 /**
- * 경매장 재료 거래: 정해진 재료(AUCTION_HOUSE.materials.keys)를 형체 없는 이슬로 사고판다. 기준가는 베일라의 표(NPC_CURRENCY_EXCHANGE.prices)다.
+ * 경매장 재료 거래: 정해진 재료(AUCTION_HOUSE.materials.keys, 묶음은 groups)를 형체 없는 이슬로 사고판다. 기준가는 베일라의 표(NPC_CURRENCY_EXCHANGE.prices)다:
+ * 새싹으로 매긴 재화는 같은 표의 새싹 값(이슬)으로 바꾼다.
  * 사는 값 pay(기준가 x 묶음 x 수 x 시세 x 1.15), 파는 값 gross = receive(기준가 x 묶음 x 수 x 시세 x 0.85), 수수료 8%를 뗀 net을 받는다.
- * 시세가 0.85 ~ 1.15 안이라 어느 두 구간 사이에도 되팔아 늘릴 수 없다(최고 매도 실수령 < 최저 매수). 품목마다 사기와 팔기 각각 한 구간에 20묶음까지.
+ * 시세가 0.85 ~ 1.15 안이라 어느 두 구간 사이에도 되팔아 늘릴 수 없다(최고 매도 실수령 < 최저 매수). 품목마다 사기와 팔기 각각 한 구간에
+ * 20묶음까지(materials.quotas에 적은 품목은 그 수).
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { NPC_CURRENCY_EXCHANGE } from '../data/currency-exchange.mjs';
@@ -11,11 +13,14 @@ import { auctionUseBlock, auctionClockFor, auctionAddTrend } from './auction-clo
 
 const MATERIALS = AUCTION_HOUSE.materials;
 
-/** One unit's price of a material in dew (Veila's table). Throws for a key the table does not price in formlessDew. */
+/** One unit's price of a material in dew (Veila's table): a row in magicBud goes through the table's own magicBud price. Throws for a key the
+ * table does not price in formlessDew or magicBud (goldenRule rows are refused). */
 export function auctionMaterialBase(key) {
     const row = NPC_CURRENCY_EXCHANGE.prices[key];
-    if (!row || row[0] !== 'formlessDew') throw new Error(`Auction material is not priced in formlessDew: ${key}`);
-    return row[1];
+    if (row && row[0] === 'formlessDew') return row[1];
+    const bud = NPC_CURRENCY_EXCHANGE.prices.magicBud;
+    if (row && row[0] === 'magicBud' && bud[0] === 'formlessDew') return Number(row[1]) * Number(bud[1]);
+    throw new Error(`Auction material is not priced in formlessDew or magicBud: ${key}`);
 }
 
 export function auctionMaterialBundle(key) { return MATERIALS.bundles[key] || 1; }
@@ -32,13 +37,21 @@ export function auctionSellAmounts(key, count, factor) {
     return { gross, fee, net: gross - fee };
 }
 
-/** Bundles of key still tradable on side ('buy' | 'sell') in this bucket. */
-export function auctionQuotaLeft(state, side, key) { return Math.max(0, MATERIALS.quota - (state.quota[`${side}:${key}`] || 0)); }
+/** Bundles of key each side may trade in one bucket: materials.quotas[key], else materials.quota. */
+export function auctionMaterialQuota(key) { return MATERIALS.quotas[key] || MATERIALS.quota; }
 
-/** The material rows for the screen: [{ key, bundle, base (dew per unit), factor, seen (may be bought), held, quotaLeft: { buy, sell } }]. */
+/** The group id of key (materials.groups). */
+export function auctionMaterialGroup(key) { return MATERIALS.groups.find(group => group.keys.includes(key)).id; }
+
+/** Bundles of key still tradable on side ('buy' | 'sell') in this bucket. */
+export function auctionQuotaLeft(state, side, key) { return Math.max(0, auctionMaterialQuota(key) - (state.quota[`${side}:${key}`] || 0)); }
+
+/** The material rows for the screen, in list order: [{ key, group, bundle, base (dew per unit), factor, seen (may be bought), held, quota (per side
+ * per bucket), quotaLeft: { buy, sell } }]. */
 export function auctionMaterialRows(env, owner) {
     const state = owner.auction;
-    return MATERIALS.keys.map(key => ({ key, bundle: auctionMaterialBundle(key), base: auctionMaterialBase(key), factor: auctionFactor(state, key, state.bucket),
+    return MATERIALS.keys.map(key => ({ key, group: auctionMaterialGroup(key), bundle: auctionMaterialBundle(key), base: auctionMaterialBase(key),
+        factor: auctionFactor(state, key, state.bucket), quota: auctionMaterialQuota(key),
         seen: currencyExchangeHasSeen(owner, key), held: Math.max(0, Math.floor(Number(owner.currencies[key]) || 0)),
         quotaLeft: { buy: auctionQuotaLeft(state, 'buy', key), sell: auctionQuotaLeft(state, 'sell', key) } }));
 }

@@ -10,7 +10,7 @@
 --   다시 셀 때는 최근 24시간 안에 저장한 계정 가운데 가장 최근에 저장한 400명만 본다(그 밖의 저장은 JSON을 읽지 않는다). 그래서 표는
 --   가장 최근에 저장한 400개 계정 사이의 투표다. 그중 루프 20 이상(season과 loopCount + 1 가운데 큰 값, 다른 db 파일과 같은 식)이고,
 --   가입한 지 7일이 지났고, 운영 보류(cheat_holds)가 없고, 14일 안에 치트 기록(cheat_flags)이 없는 계정의 거래 흐름(save_data의
---   auction.trend: 산 계열과 재료는 +, 출품한 계열과 판 재료는 -, 시세 구간마다 반으로 준다)을 열쇠 25개마다 한 계정 한 표로 센다:
+--   auction.trend: 산 계열과 재료는 +, 출품한 계열과 판 재료는 -, 시세 구간마다 반으로 준다)을 열쇠 62개마다 한 계정 한 표로 센다:
 --   0보다 크면 +1, 작으면 -1, 숫자가 아니면 세지 않는다.
 --   한 표라도 낸 계정(voters)이 20명보다 적으면 보정이 없다. 20명 이상이면 열쇠마다 round(0.06 x (오름 - 내림) / voters, 2)이고 0이면 뺀다.
 --   게임은 받은 보정을 그다음 시세 구간(15분) 것으로 저장해 그 구간에만 더하고, 그래도 시세는 0.85~1.15 밖으로 나가지 않는다.
@@ -61,11 +61,15 @@ set search_path = public
 as $$
 declare
     -- 열쇠 목록은 게임의 auctionHouse.pulseKeys()와 같다(modules/domain/auction-pulse.mjs auctionPulseKeys: modules/data/auction-house.mjs의
-    -- families 12개 다음 materials.keys 13개). 게임의 목록이 바뀌면 여기도 고친다.
+    -- families 12개 다음 materials.keys 50개, 묶음 차례). 게임의 목록이 바뀌면 여기도 고친다.
     pulse_keys constant text[] := array[
-        'fire', 'cold', 'light', 'chaos', 'physical', 'critical', 'spell', 'summon', 'projectile', 'attack', 'armor', 'resistance',
-        'fossilAbyssal', 'fossilRift', 'fossilJagged', 'fossilPrismatic', 'oilFire', 'oilCold', 'oilLight',
-        'oilChaos', 'catalystCrit', 'catalystSummon', 'emberBranch', 'voidChisel', 'magicBud'];
+        'fire', 'cold', 'light', 'chaos', 'physical', 'critical', 'spell', 'summon', 'projectile', 'attack', 'armor', 'resistance', 'emberBranch',
+        'burningEmberBranch', 'voidChisel', 'venomStinger', 'enchantedHoney', 'oceanRerollShard', 'altarEmber', 'altarIchor', 'deepWhetstone',
+        'rootIron', 'jewelPolish', 'abyssCatalyst', 'catalystPhys', 'catalystFire', 'catalystCold', 'catalystLight', 'catalystChaos', 'catalystCrit',
+        'catalystSummon', 'oilFire', 'oilCold', 'oilLight', 'oilChaos', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'bossKeyFlame',
+        'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'trialKey3', 'chaosKey', 'coreKey', 'hiveKey', 'colonyTrace', 'bossCore', 'underCopper',
+        'underSilver', 'underGold', 'skyEssence', 'jewelShard', 'runeShard', 'pollen', 'beeswax', 'sealShard', 'strongSealShard', 'radiantSealShard',
+        'reefFragment', 'colonyShard'];
     now_at constant timestamptz := now();
     bucket_now constant bigint := floor(extract(epoch from now()) / 900)::bigint;
     pulse public.auction_market_pulse%rowtype;

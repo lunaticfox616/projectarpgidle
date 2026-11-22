@@ -1,9 +1,24 @@
 /**
  * 경매장(거래 창의 넷째 칸, 루프 20 해금). 입찰은 없고 모두 즉시 체결된다. 규칙은 modules/domain/auction-*.mjs, 저장은 game.auction.
  * 시세 구간(bucketMs)마다 시세 배율이 바뀌고, 상인 매물이 새로 놓이고, 내 출품에 상인 수요가 한 번 붙는다.
- * 모든 수치가 이 표에 있다. 재료 기준가는 베일라의 표(NPC_CURRENCY_EXCHANGE.prices, 형체 없는 이슬 값)만 쓴다: 두 번째 가격표는 없다.
+ * 모든 수치가 이 표에 있다. 재료 기준가는 베일라의 표(NPC_CURRENCY_EXCHANGE.prices, 이슬 값이나 새싹 값을 표의 새싹 값으로 바꾼 값)만 쓴다: 두 번째 가격표는 없다.
  * 설계: docs/auction-house-plan-20261121.md(브랜치 auction-house-spec-20261121), 2026-11-22 검토로 고친 값이 여기 있다.
  */
+// 경매장 재료의 묶음(차례가 화면과 시세 열쇠의 차례다). 아래 AUCTION_HOUSE.materials의 설명을 본다.
+const MATERIAL_GROUPS = Object.freeze([
+    Object.freeze({ id: 'craft', label: '특수 제작', keys: Object.freeze(['emberBranch', 'burningEmberBranch', 'voidChisel', 'venomStinger', 'enchantedHoney',
+        'oceanRerollShard', 'altarEmber', 'altarIchor']) }),
+    Object.freeze({ id: 'quality', label: '퀄리티', keys: Object.freeze(['deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst']) }),
+    Object.freeze({ id: 'catalyst', label: '기폭제', keys: Object.freeze(['catalystPhys', 'catalystFire', 'catalystCold', 'catalystLight', 'catalystChaos',
+        'catalystCrit', 'catalystSummon']) }),
+    Object.freeze({ id: 'oil', label: '기름', keys: Object.freeze(['oilFire', 'oilCold', 'oilLight', 'oilChaos']) }),
+    Object.freeze({ id: 'fossil', label: '화석', keys: Object.freeze(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']) }),
+    Object.freeze({ id: 'ticket', label: '입장권', keys: Object.freeze(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'trialKey3',
+        'chaosKey', 'coreKey', 'hiveKey', 'colonyTrace']) }),
+    Object.freeze({ id: 'stuff', label: '재료', keys: Object.freeze(['bossCore', 'underCopper', 'underSilver', 'underGold', 'skyEssence', 'jewelShard',
+        'runeShard', 'pollen', 'beeswax', 'sealShard', 'strongSealShard', 'radiantSealShard', 'reefFragment', 'colonyShard']) })
+]);
+
 const AUCTION_HOUSE = Object.freeze({
     // 15분: 시세가 자주 바뀌어 다시 볼 까닭이 되면서도 매 틱 계산할 일은 없다(구간이 바뀔 때만 계산한다).
     bucketMs: 900000,
@@ -48,33 +63,76 @@ const AUCTION_HOUSE = Object.freeze({
     // 계열 이름은 따로 두지 않고 그 태그의 이름(AFFIX_TAG_LABELS, auctionHouse.familyLabel)을 쓴다: 12계열 모두 태그가 있다.
     familyTags: Object.freeze({ fire: 'fire', cold: 'cold', light: 'light', chaos: 'chaos', physical: 'physical', crit: 'critical', spell: 'spell',
         summon: 'summon', projectile: 'projectile', attack: 'attack', defense: 'armor', resistance: 'resistance' }),
-    // 재료 거래: 열쇠는 재화 키. 모두 NPC_CURRENCY_EXCHANGE.prices에서 형체 없는 이슬로 값이 매겨진 재화여야 한다(규칙이 확인한다).
-    // bundle: 한 묶음의 개수. 1개 값이 1 이슬보다 작은 재화는 묶음으로만 거래해 반올림으로 값을 만들 수 없게 한다.
-    // 목록 안의 다른 재화로 만들 수 있거나 그것으로 바꿀 수 있는 재화는 넣지 않는다: 싸게 사서 바꿔 비싸게 팔면 고리가 된다(2026-11-22 검토:
-    // 원시 화석을 사서 복원하면 여기서 파는 화석이 나와 극단 시세에서 7% 남았다, modules/domain/rune-fossil-refining.mjs). 원시 화석을 뺐다.
+    // 재료 거래: 열쇠는 재화 키. 모두 NPC_CURRENCY_EXCHANGE.prices에서 형체 없는 이슬이나 마법의 새싹(표의 새싹 값으로 이슬로 바꾼다)으로
+    // 값이 매겨진 재화여야 한다(규칙이 확인한다). 화면은 groups의 차례로 묶어 보여 주고, keys는 그 차례의 한 줄 목록이다(시세 열쇠, 저장 복원,
+    // db/auction-hybrid-20261121.sql의 pulse_keys가 이 차례를 쓴다). label은 지갑, 제작 보관함, 베일라 창이 이미 쓰는 이름이다.
+    // bundle: 한 묶음의 개수. 한 묶음 값이 이슬 몇 개가 되게 해 반올림으로 값을 만들 수 없게 한다.
+    // 고리 검사(2026-11-22, 사는 값 최저 0.9775 x 기준가, 파는 실수령 최고 0.899 x 기준가): 게임 안에서 기준가의 0.90배보다 싸게 얻거나
+    // 0.9775배보다 비싸게 팔 길, 또는 바꿔서 늘릴 길이 있는 재화는 넣지 않는다. 뺀 것:
+    //   형체 없는 이슬: 값을 치르는 재화다.
+    //   수액 봉우리, 황금률: 암거래상에서 서로, 또 이슬과 바뀐다. 봉우리를 싸게 팔면 황금률 값이 반으로 준다.
+    //   황금률로 값이 매겨진 재화(pruningShears, fairyRing, memoryImprint, omen 다섯, rivalKey, cosmosSovereignKey, uberRootTicket 넷, awakenedEcho)와
+    //   ouroboros: 최상위 재화는 드랍과 베일라에만 둔다.
+    //   미궁 화석, 원시 화석, 고대 원시 화석: 정제와 복원(modules/domain/rune-fossil-refining.mjs)이 공짜로 다른 화석과 재화를 낸다.
+    //   톱니, 속박, 돌풍, 프리즘, 심연 화석: 베일라가 미궁 화석을 이슬 2개 안팎에 팔고 정제가 그것을 이 다섯 가운데 하나로 바꾼다(기준가 5 ~ 10).
+    //   태고 화석: 베일라의 고대 원시 화석(이슬 54개부터)을 복원하면 태고 화석과 다른 화석, 황금률이 나와 여기서 팔면 값의 1.04배까지 돌아온다
+    //   (황금률을 암거래상의 가장 좋은 교환 66 이슬로 셌을 때).
+    //   마법의 새싹: 암거래상 교환이 새싹 5 ~ 7개에 이슬 1개를 준다(베일라 표의 값은 새싹 8개에 이슬 1개).
+    //   축복의 꽃잎, 마름병 포자: 암거래상 교환이 기준가 4보다 싼 이슬 2 ~ 4개에 판다.
     materials: Object.freeze({
-        keys: Object.freeze(['fossilAbyssal', 'fossilRift', 'fossilJagged', 'fossilPrismatic', 'oilFire', 'oilCold', 'oilLight',
-            'oilChaos', 'catalystCrit', 'catalystSummon', 'emberBranch', 'voidChisel', 'magicBud']),
-        bundles: Object.freeze({ catalystCrit: 5, catalystSummon: 5, magicBud: 40 }),
+        groups: MATERIAL_GROUPS,
+        keys: Object.freeze(MATERIAL_GROUPS.flatMap(group => group.keys)),
+        bundles: Object.freeze({ deepWhetstone: 10, rootIron: 10, jewelPolish: 10, abyssCatalyst: 5, catalystPhys: 5, catalystFire: 5, catalystCold: 5,
+            catalystLight: 5, catalystChaos: 5, catalystCrit: 5, catalystSummon: 5, colonyTrace: 3, underCopper: 5, skyEssence: 5, jewelShard: 5,
+            runeShard: 20, pollen: 20, beeswax: 10, sealShard: 5, reefFragment: 10, colonyShard: 10 }),
         buy: 1.15,      // 사는 값 = 기준가 x 1.15 x 시세(0.98 ~ 1.32배): 베일라(1.8 ~ 2.2배)보다 싸다
         sell: 0.85,     // 파는 값 = 기준가 x 0.85 x 시세, 수수료 8%를 뗀 실수령(0.66 ~ 0.90배): 베일라(0.45 ~ 0.55배)보다 비싸다
         feeRate: 0.08,
-        quota: 20       // 품목마다, 사기와 팔기 각각, 한 시세 구간에 20묶음까지
+        quota: 20,      // 품목마다, 사기와 팔기 각각, 한 시세 구간에 20묶음까지(quotas에 적은 품목은 그 수)
+        // 입장권은 3, 귀하고 비싼 재료는 5: 한 구간에 쌓아 두고 쓰는 물건이 아니다.
+        quotas: Object.freeze({ bossKeyFlame: 3, bossKeyFrost: 3, bossKeyStorm: 3, beastKeyCerberus: 3, trialKey3: 3, chaosKey: 3, coreKey: 3, hiveKey: 3,
+            colonyTrace: 3, altarEmber: 5, altarIchor: 5, bossCore: 5, enchantedHoney: 5, burningEmberBranch: 5, radiantSealShard: 5 })
     }),
-    // 상인 매물: 구간마다 16개, 저장하지 않고 (seed, bucket, lotZone)에서 다시 만든다. 희귀 장비만(고유는 암거래상이 감정가의 100 ~ 1600배에
-    // 팔아서, 감정가로 팔면 그 값을 무너뜨린다). 급매는 0.82 ~ 0.88배, 보통은 0.96 ~ 1.10배. 구간이 열릴 때 이미 팔린 매물이 있다.
-    // 값은 새싹으로만 매긴다(이슬 3, 4개 값에서는 시세와 급매가 반올림에 묻힌다). 기준은 감정가와 NPC 상점의 희귀 값 x premium 가운데 큰 쪽이다
-    // (희귀 감정가는 대개 1 이슬 아래라 상점보다 싸게 팔렸다).
+    // 상인 매물: 구간마다 40개, 저장하지 않고 (seed, bucket, lotZone)에서 다시 만든다. 희귀 장비만(고유는 암거래상이 감정가의 100 ~ 1600배에
+    // 팔아서, 감정가로 팔면 그 값을 무너뜨린다). 지역은 lotZone과 그 앞의 보통 지역 둘(번호 순서)을 번갈아 쓰고, 부위는 드랍 부위를 고르게
+    // 돌며(무기는 한 바퀴에 두 번) 같은 부위의 베이스가 겹치지 않게 고른다. 싸게 내놓은 매물(bargain)은 0.82 ~ 0.88배, 보통은 0.96 ~ 1.10배
+    // (화면은 둘을 나누지 않는다). 구간이 열릴 때 이미 팔린 매물이 있다.
+    // 값은 새싹으로만 매긴다(이슬 3, 4개 값에서는 시세와 흔들림이 반올림에 묻힌다). 기준은 감정가와 NPC 상점의 희귀 값 x premium 가운데 큰 쪽에
+    // 옵션 궁합(synergy)을 곱한 값이다(희귀 감정가는 대개 1 이슬 아래라 상점보다 싸게 팔렸다). 산 장비는 다시 팔 수 없어 값이 높아도 고리가 없다.
     gear: Object.freeze({
-        // 경매장은 굴린 옵션을 먼저 보여 주고 한 번에 16개를 내놓으므로 상인이 NPC 장비 상점 값의 두 배를 부른다. 첫 어림값이다.
+        // 경매장은 굴린 옵션을 먼저 보여 주고 한 번에 여러 개를 내놓으므로 상인이 NPC 장비 상점 값의 두 배를 부른다. 첫 어림값이다.
         premium: 2,
-        // 희귀를 분해하면 이슬 1개 확정에 많아야 1개를 더 받아 최대 2개다(modules/domain/equipment-salvage-rewards.mjs). 이슬을 새싹으로
-        // 바꾸는 가장 좋은 길은 이 경매장의 새싹 묶음을 가장 싸게 사는 것이다. 새싹 시세는 보정 없이 0.90 아래로 가지 않는다(파도 -0.06,
-        // 잡음 -0.04, 새싹을 누르는 사건이 없다). 서버 보정 -voteSwing까지 더하면 0.84지만 pulse.min에 막혀 0.85가 보장된 바닥이다:
-        // 40개에 기준가 5 x 1.15 x 0.85 = 이슬 4.89개, 이슬 1개에 새싹 8.2개. 그래서 이슬 2개는 많아야 새싹 16.4개이고, 매물은 그보다 비싸야
-        // 분해로 남길 수 없다. 암거래상의 새싹 -> 이슬 거래는 반대 방향이라 이 바닥과 관계없다. 분해 보상, 그 환율, 시세 폭이 바뀌면 다시 셈한다.
+        // 희귀를 분해하면 이슬 1개 확정에 많아야 1개를 더 받아 최대 2개다(modules/domain/equipment-salvage-rewards.mjs). 경매장은 새싹을
+        // 팔지 않으므로(재료 목록의 설명) 이슬을 새싹으로 바꾸는 가장 좋은 길은 베일라다: 새싹 1개에 이슬 0.125 x 2 x 0.9 = 0.225개, 이슬 1개에
+        // 새싹 4.4개. 그래서 이슬 2개는 많아야 새싹 8.9개이고 바닥 17은 분해로 남길 수 없다(2026-11-22 첫 셈은 경매장의 새싹 묶음으로 새싹 16.4개).
+        // 암거래상의 새싹 -> 이슬 거래는 반대 방향이라 이 바닥과 관계없다. 분해 보상, 그 환율, 베일라의 폭이 바뀌면 다시 셈한다.
         floorBud: 17,
-        lots: 16,
+        lots: 40,
+        // 지역 사다리: lotZone(맨 위)과 그 앞의 보통 지역(번호 하나씩 앞) 몇 개까지. 매물 i는 사다리[i % 길이]에서 굴린다.
+        ladder: 3,
+        // 부위 계획에서 무기가 한 바퀴에 나오는 횟수, 같은 부위에서 이미 나온 베이스를 피해 다시 고르는 횟수.
+        weaponTurns: 2,
+        baseRetries: 12,
+        // 옵션 궁합: 매물의 계열 F(auctionItemFamily)에 맞춰 추가 옵션 줄마다 점수를 매긴다. F를 가진 줄 1, F는 없고 affinity[F]의 계열을 가진
+        // 줄 near(0.5), 나머지 0. 점수 합 s로 1 + perSquare x s x s(최대 cap)를 곱하고, 줄의 단계가 굴릴 수 있던 폭(1 ~ affixTierCap, 높을수록
+        // 좋다)의 어디쯤인지의 평균 q로 rollMin + rollSpan x q를 곱한다. 상인 매물만 쓴다(내 출품의 감정가와 전당 전시는 그대로다).
+        synergy: Object.freeze({
+            near: 0.5, perSquare: 0.35, cap: 12, rollMin: 0.8, rollSpan: 0.7,
+            affinity: Object.freeze({
+                fire: Object.freeze(['critical', 'spell', 'attack', 'projectile']),
+                cold: Object.freeze(['critical', 'spell', 'attack', 'projectile']),
+                light: Object.freeze(['critical', 'spell', 'attack', 'projectile']),
+                chaos: Object.freeze(['critical', 'spell', 'attack', 'projectile']),
+                physical: Object.freeze(['critical', 'attack', 'projectile']),
+                critical: Object.freeze(['fire', 'cold', 'light', 'chaos', 'physical', 'spell', 'attack', 'projectile']),
+                spell: Object.freeze(['fire', 'cold', 'light', 'chaos', 'critical']),
+                attack: Object.freeze(['fire', 'cold', 'light', 'chaos', 'physical', 'critical', 'projectile']),
+                projectile: Object.freeze(['fire', 'cold', 'light', 'chaos', 'physical', 'critical', 'attack']),
+                summon: Object.freeze([]),
+                armor: Object.freeze(['resistance']),
+                resistance: Object.freeze(['armor'])
+            })
+        }),
         bargainChance: 0.24,
         bargain: Object.freeze([0.82, 0.88]),
         normal: Object.freeze([0.96, 1.10]),
