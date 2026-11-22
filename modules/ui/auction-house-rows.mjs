@@ -42,7 +42,10 @@ export function sellerHtml(runtime, lot, tag) {
 }
 
 /** Whole minutes rounded up: '{minutes}분'. */
-export function minutesText(runtime, ms) { return runtime.deps._t('{minutes}분', { minutes: num(runtime, Math.max(1, Math.ceil(ms / MINUTE_MS))) }); }
+/** The whole minutes left shown for ms (at least 1). */
+export function leftMinutes(ms) { return Math.max(1, Math.ceil(ms / MINUTE_MS)); }
+
+export function minutesText(runtime, ms) { return runtime.deps._t('{minutes}분', { minutes: num(runtime, leftMinutes(ms)) }); }
 
 /** The time left of a listed lot ('' for a hall show and a closed lot). */
 function leftText(runtime, lot) { return lot.source === 'user' || closedLot(lot) ? '' : minutesText(runtime, lot.leftMs); }

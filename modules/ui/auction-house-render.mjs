@@ -181,8 +181,8 @@ export function wantFrame(runtime) {
 
 /** Warms the lots' bodies under stop (the waiting search's candidates first) and notes whether the heads are ready and every body is warm.
  * When the heads just became ready the 아이템 view must be filled again (its first view needs them): runtime.refill. */
-function warmStep(runtime, stop) {
-    const { auctionHouse, game } = runtime.deps, prefer = searchPrefer(runtime), warm = auctionHouse.warmLots(game, runtime.deps.now(), { stop, prefer });
+function warmStep(runtime, stop, now = runtime.deps.now()) {
+    const { auctionHouse, game } = runtime.deps, prefer = searchPrefer(runtime), warm = auctionHouse.warmLots(game, now, { stop, prefer });
     // A waiting search reads the progress of its own candidates only (warm.prefer is the filter this result was made with).
     runtime.lastWarm = { ...warm, prefer };
     if (warm.heads && !runtime.headsReady) runtime.refill = true;
@@ -271,9 +271,11 @@ export function tickStep(runtime) {
     if (!host) { closeSection(runtime); return; }
     const root = host.querySelector('.ah-root'), gear = gearRoot(runtime, host);
     if (syncClock(runtime)) paint(root.querySelector('.ah-band'), bandHtml(runtime));
-    warmStep(runtime, budgetStop(runtime));
+    // One clock for the warming and the patches: the rules read the list once for both.
+    const now = runtime.deps.now();
+    warmStep(runtime, budgetStop(runtime), now);
     if (!runtime.warmDone || runtime.refill || savedCountsPending(runtime)) wantFrame(runtime);
-    if (gear) fillGear(runtime, gear, false, liveHeads(runtime), true);
+    if (gear) fillGear(runtime, gear, false, liveHeads(runtime, now), true);
 }
 
 /** Draws the section when it is shown (force: a user action or the section was just opened). */

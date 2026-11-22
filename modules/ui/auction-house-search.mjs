@@ -4,7 +4,7 @@
  * 남은 시간 순)은 바로 끝난다. 몸이 필요한 검색(이름, 계열, 아이템 Lv., 가격, 옵션 조건, 변형, 장비 아닌 종류의 등급, 몸의 값으로 늘어세우기)은
  * 후보의 몸이 다 굴러갈 때까지 기다린 뒤(그동안 미리 굴리기가 후보부터 굴린다) 매물의 검색 값(modules/ui/auction-house-index.mjs)으로 거른다.
  * 값이 다 있으면 거르기와 늘어세우기는 누른 그 자리에서 끝난다. 다른 플레이어의 전시품(출처)은 끝에서 같이 거른다.
- * 찍어 둔 결과는 다시 검색할 때까지 그대로다: 그사이 새로 놓인 매물 가운데 검색에 맞는 수만 센다(countNewLots).
+ * 찍어 둔 결과는 다시 검색할 때까지 그대로다: 그사이 새로 놓인 매물 가운데 검색에 맞는 수만 센다(countNewLots, 새 매물마다 한 번 거른다).
  */
 import { userLots } from './auction-house-hall.mjs';
 import { statLineText } from './auction-house-kinds.mjs';
@@ -181,11 +181,30 @@ function passesById(runtime, view, id) {
     return !!fields && fieldsPass(view, fields);
 }
 
-/** How many open lots arrived after the snapshot and match the search. */
+/** How many open lots arrived after the snapshot and match the search. Each arrival is tested once: search.fresh keeps the matching ids and
+ * a cursor (every listed lot that arrived by it was tested; a lot whose body the test needs and is not warm yet holds the cursor back). */
 export function countNewLots(runtime, heads) {
     const search = runtime.search;
     if (!search || search.phase !== 'done') return 0;
-    return countMatches(runtime, search.view, heads.filter(head => head.arriveAt > search.clock));
+    const fresh = search.fresh || (search.fresh = { cursor: search.clock, ids: new Set() }), from = fresh.cursor;
+    let reached = from, held = Infinity, count = 0;
+    for (const head of heads) {
+        if (head.arriveAt > from) {
+            if (!testArrival(runtime, search, head)) held = Math.min(held, head.arriveAt - 1);
+            reached = Math.max(reached, head.arriveAt);
+        }
+        if (head.phase === 'open' && fresh.ids.has(head.id)) count++;
+    }
+    fresh.cursor = Math.min(reached, held);
+    return count;
+}
+
+/** Tests an arrival against the search, keeping it in search.fresh.ids when it matches. false when its body is needed and not warm yet. */
+function testArrival(runtime, search, head) {
+    const bodies = needsBodies(search.view);
+    if (bodies && !head.warm) return false;
+    if (headPasses(search.view, head) && (!bodies || passesById(runtime, search.view, head.id))) search.fresh.ids.add(head.id);
+    return true;
 }
 
 /** The lot of a row id: a hall show of the result, or the merchant lot priced now (its body rolled when missing), with the line of the

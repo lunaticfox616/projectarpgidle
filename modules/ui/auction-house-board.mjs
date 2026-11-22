@@ -7,7 +7,7 @@
  * 내려간 행은 다음 검색까지 남고 구매는 규칙의 말로 거절된다.
  */
 import { esc, num, tr } from './auction-house-format.mjs';
-import { lotRowHtml, headHtml, badgeHtml, minutesText } from './auction-house-rows.mjs';
+import { lotRowHtml, headHtml, badgeHtml, minutesText, leftMinutes } from './auction-house-rows.mjs';
 import { PAGE_ROWS, rowLot, countNewLots } from './auction-house-search.mjs';
 import { liveQuery } from './auction-house-conditions.mjs';
 
@@ -118,17 +118,31 @@ function closeRow(runtime, row, head) {
     if (left) left.textContent = '';
 }
 
-/** Patches the drawn rows from the heads (live lots by id): the chosen mark, a lot just sold or bought, the minutes left of an open lot. */
+/** The heads of the drawn rows' ids, found in one pass over heads (null for an id no longer listed). */
+function drawnHeads(rows, heads) {
+    const byId = new Map(rows.map(row => [row.dataset.ahLot, null]));
+    for (const head of heads) if (byId.has(head.id)) byId.set(head.id, head);
+    return byId;
+}
+
+/** Patches the drawn rows from the heads (live lots): the chosen mark, a lot just sold or bought, and the minutes left of an open lot when the
+ * shown minute changed (row.ahLeft keeps the minute this patch drew). */
 export function patchRows(runtime, root, heads) {
-    const byId = new Map(heads.map(head => [head.id, head])), chosen = runtime.state.gear.selected;
+    const rows = [...root.querySelectorAll('[data-ah-board] .ah-lot')], byId = drawnHeads(rows, heads), chosen = runtime.state.gear.selected;
     const clock = Math.max(runtime.deps.now(), runtime.deps.game.auction.lastAt);
-    for (const row of root.querySelectorAll('[data-ah-board] .ah-lot')) {
+    for (const row of rows) {
         const id = row.dataset.ahLot, head = byId.get(id);
         if (row.classList.contains('is-chosen') !== (id === chosen)) { row.classList.toggle('is-chosen', id === chosen); row.setAttribute('aria-pressed', String(id === chosen)); }
         if (head && row.dataset.ahState !== head.phase) closeRow(runtime, row, head);
-        const left = head && head.phase === 'open' ? row.querySelector('.ah-cell-left') : null;
-        if (left) left.textContent = minutesText(runtime, head.expireAt - clock);
+        if (head && head.phase === 'open') patchLeft(runtime, row, head.expireAt - clock);
     }
+}
+
+/** An open row's minutes left (ms), written only when the shown minute changed. */
+function patchLeft(runtime, row, ms) {
+    const minute = leftMinutes(ms), left = row.ahLeft === minute ? null : row.querySelector('.ah-cell-left');
+    row.ahLeft = minute;
+    if (left) left.textContent = minutesText(runtime, ms);
 }
 
 /** The line above a result: 새 매물 {count}건 as a button that searches again ('' while none arrived). */

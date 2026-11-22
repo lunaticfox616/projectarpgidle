@@ -20,10 +20,13 @@ const WARM_PLAN_MS = 1000;
 
 /** The rows of the lookback batches at clock for the kinds owner has unlocked: { live: listed rows, sold: the latest gear.recentTrades lots
  * sold to someone else (newest first) }, each row { head, record, bought, phase }. null while stop() stopped the heads; empty before the first
- * advance. */
+ * advance. The last answer is kept for the same seed, clock and bought count (env.listMemo: the warming and the screen's check read the same
+ * clock in one tick). */
 export function auctionListRows(env, owner, clock, stop = NEVER) {
     const state = owner.auction;
     if (!state.seed || !state.bucket) return { live: [], sold: [] };
+    const kept = keptRows(env, state, clock);
+    if (kept) return kept;
     const top = auctionBucketOf(clock), records = auctionLookbackRecords(env, owner, top, stop);
     if (!records) return null;
     const open = auctionOpenKinds(env, owner), bought = new Set(state.bought), live = [], sold = [];
@@ -32,7 +35,15 @@ export function auctionListRows(env, owner, clock, stop = NEVER) {
     }
     // Content uniques owner may see only (auction-content-lots.mjs): the others leave no trace in the list, the trades or the counts.
     for (const row of auctionContentRows(env, owner, top)) sortRow({ ...row, bought: bought.has(row.head.id) }, clock, live, sold);
-    return { live, sold: sold.sort((a, b) => b.head.soldAt - a.head.soldAt).slice(0, GEAR.recentTrades) };
+    const rows = { live, sold: sold.sort((a, b) => b.head.soldAt - a.head.soldAt).slice(0, GEAR.recentTrades) };
+    env.listMemo = { seed: state.seed, clock, bought: state.bought.length, rows };
+    return rows;
+}
+
+/** The rows kept by the last read when it was for the same seed, clock and bought count, else null. */
+function keptRows(env, state, clock) {
+    const memo = env.listMemo;
+    return memo && memo.seed === state.seed && memo.clock === clock && memo.bought === state.bought.length ? memo.rows : null;
 }
 
 /** Puts row (its phase at clock added) into live when it is listed and into sold when someone else bought it by clock. */
@@ -106,4 +117,5 @@ export function auctionDropLots(env) {
     env.lotCache.clear();
     env.contentCache.clear();
     env.warmPlan = null;
+    env.listMemo = null;
 }

@@ -88,9 +88,10 @@ export function kindChipsHtml(runtime, counted) {
 
 /** The chips inside the box. */
 export function kindChipsInner(runtime, counted) {
-    const chosen = liveQuery(runtime).kind, labels = { all: '전체', gear: '장비' };
+    const chosen = liveQuery(runtime).kind, labels = { all: '전체', gear: '장비' }, counts = new Map([['all', counted.length]]);
+    for (const lot of counted) counts.set(lotKind(lot), (counts.get(lotKind(lot)) || 0) + 1);
     const chip = kind => {
-        const label = labels[kind] || kindRow(runtime, kind).label, count = counted.filter(lot => kind === 'all' || lotKind(lot) === kind).length;
+        const label = labels[kind] || kindRow(runtime, kind).label, count = counts.get(kind) || 0;
         return `<button type="button" class="ah-group${chosen === kind ? ' is-on' : ''}" data-ah-kind="${esc(runtime, kind)}" aria-pressed="${chosen === kind}">
             <span>${esc(runtime, tr(runtime, label))}</span><small>${num(runtime, count)}</small></button>`;
     };

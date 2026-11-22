@@ -23,9 +23,9 @@ const GONE = Object.freeze({ gone: true });
 // How many latest trades of the same kind the detail shows.
 const SIMILAR_ROWS = 3;
 
-/** The listed merchant lots as heads (auctionHouse.lotHeads), [] until the heads are built under the frame budget. */
-export function liveHeads(runtime) {
-    return runtime.headsReady ? runtime.deps.auctionHouse.lotHeads(runtime.deps.game, runtime.deps.now()) : [];
+/** The listed merchant lots as heads at now (auctionHouse.lotHeads), [] until the heads are built under the frame budget. */
+export function liveHeads(runtime, now = runtime.deps.now()) {
+    return runtime.headsReady ? runtime.deps.auctionHouse.lotHeads(runtime.deps.game, now) : [];
 }
 
 function modesHtml(runtime) {
