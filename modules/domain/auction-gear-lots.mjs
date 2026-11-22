@@ -125,10 +125,10 @@ export function auctionLotRollQuality(env, item) {
     return stats.reduce((sum, stat) => sum + (span > 0 ? clampNumber(((Number(stat.tier) || floor) - floor) / span, 0, 1) : 0.5), 0) / stats.length;
 }
 
-/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perSquare x s x s) x (rollMin + rollSpan x q) }. */
+/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s x s x s) x (rollMin + rollSpan x q) }. */
 export function auctionLotQuality(env, item, family) {
     const rule = GEAR.synergy, synergy = auctionLotSynergy(env, item, family), roll = auctionLotRollQuality(env, item);
-    return { synergy, roll, multiplier: Math.min(rule.cap, 1 + rule.perSquare * synergy * synergy) * (rule.rollMin + rule.rollSpan * roll) };
+    return { synergy, roll, multiplier: Math.min(rule.cap, 1 + rule.perCube * synergy ** 3) * (rule.rollMin + rule.rollSpan * roll) };
 }
 
 /** The fixed part of lot index: its item, family, quality, base value in buds and deal (from its own seeded stream). */
