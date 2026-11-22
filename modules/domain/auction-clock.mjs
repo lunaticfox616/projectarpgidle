@@ -15,12 +15,14 @@ export function auctionNeedsAdvance(owner, now) {
     return Number.isSafeInteger(now) && now >= 0 && auctionBucketOf(Math.max(now, state.lastAt)) > state.bucket;
 }
 
-/** The zone the NPC lots are rolled for: where the hero stands (as the NPC gear shops roll for the zone they are met in), when that is
- * an ordinary numbered zone (story act or chaos depth); else the furthest story zone reached; else zone 0. */
+/** The top of the zone ladder the NPC lots are rolled over (auctionLotZoneLadder): the furthest ordinary numbered zone reached this loop
+ * (maxZoneId: story acts 0 to 9, then chaos depths from 10) when it is usable and ahead of where the hero stands; else where the hero stands,
+ * when that is an ordinary numbered zone; else zone 0. */
 export function auctionLotZoneId(env, owner) {
     const usable = id => Number.isSafeInteger(id) && id >= 0 && !!env.deps.getZone(id);
-    if (usable(owner.currentZoneId)) return owner.currentZoneId;
-    return usable(owner.maxZoneId) ? owner.maxZoneId : 0;
+    const here = usable(owner.currentZoneId) ? owner.currentZoneId : null;
+    if (usable(owner.maxZoneId) && (here === null || owner.maxZoneId > here)) return owner.maxZoneId;
+    return here === null ? 0 : here;
 }
 
 /** A fresh nonzero uint32 for state.seed (picked once, the first time the auction is advanced). */

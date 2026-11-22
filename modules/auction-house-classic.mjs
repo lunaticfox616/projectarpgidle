@@ -13,7 +13,7 @@ const auctionHouse = (() => {
         get rollRealmItemDropTier() { return rollRealmItemDropTier; },
         get getRealmEquipmentAffixTierCap() { return getRealmEquipmentAffixTierCap; },
         get getDroppedAffixTierRange() { return getDroppedAffixTierRange; },
-        get getEquipmentDropSlot() { return getEquipmentDropSlot; },
+        get EQUIPMENT_DROP_SLOTS() { return EQUIPMENT_DROP_SLOTS; },
         get chooseItemBase() { return chooseItemBase; },
         get createItemFromBase() { return createItemFromBase; },
         get maybeApplyExceptionalBase() { return maybeApplyExceptionalBase; },

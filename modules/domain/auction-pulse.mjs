@@ -28,6 +28,12 @@ export function auctionFamilyTotals(env, item) {
     return totals;
 }
 
+/** The families one explicit line carries (its tags and its extraStats' tags mapped through AUCTION_HOUSE.familyTags). */
+export function auctionLineFamilies(env, stat) {
+    const lines = stat ? [stat, ...(Array.isArray(stat.extraStats) ? stat.extraStats : [])] : [];
+    return new Set(lines.flatMap(line => (line && env.deps.STAT_AFFIX_TAGS[line.id]) || []).map(tag => AUCTION_HOUSE.familyTags[tag]).filter(Boolean));
+}
+
 /** The family of a piece of gear from its explicit lines (stats and their extraStats): each tag of each line that maps to a family
  * (AUCTION_HOUSE.familyTags) counts 1; the largest total wins, ties go to the earlier family. None: weapons 'attack', else 'armor'. */
 export function auctionItemFamily(env, item) {
