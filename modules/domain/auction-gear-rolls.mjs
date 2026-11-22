@@ -1,0 +1,182 @@
+/**
+ * 경매장 상인 매물 생성: 시세 구간마다 60개를 (seed, bucket, lotZone)에서 다시 만든다(저장하지 않는다). 한 동기 함수 안에서 Math.random을
+ * createSeededRng(seed:bucket)로 바꿔 끼우고 finally에서 되돌리며, 생성이 올린 아이템 번호도 되돌린다(미리보기 규칙).
+ * 매물 i의 등급은 따로 정해진 주사위(seed:bucket:rarity)로 섞은 gear.rarities 목록의 i번째, 지역은 번호로 정한다: 다섯 개마다 셋은
+ * lotZone과 그 앞 보통 지역 둘의 사다리를 번갈아, 둘은 그보다 앞의 보통 지역(0 ~ lotZone - 3)에 고르게. 부위는 드랍 부위를 한 바퀴씩
+ * (무기는 두 번) 섞어 돌고, 같은 부위에서 이미 나온 베이스는 몇 번 다시 골라 피한다.
+ * 일반, 마법, 희귀는 몬스터 드랍과 같은 지역, 티어 입력으로 chooseItemBase + createItemFromBase(그 등급)를 쓴다. 고유는 암거래상이 그 지역의
+ * 티어에서 내놓을 수 있는 고유(체이스 제외, modules/domain/black-market-uniques.mjs)를 이름으로 정해 generateUniqueItem으로 만든다:
+ * 이름을 정한 고유는 체이스 기록과 로그를 남기지 않는다. 값은 암거래상의 제안(createBlackMarketUniqueOffer)과 같은 범위에서 굴린다.
+ * 변형은 드랍이 가질 수 있는 것만 게임의 함수로 붙인다(gear.variants): 특출난 베이스(boostExceptionalBaseLine), 공허 소켓 장신구
+ * (equipmentSockets.openVoidSocket), 타락(드랍 변형의 corrupt).
+ */
+import { AUCTION_HOUSE } from '../data/auction-house.mjs';
+import { createSeededRng } from '../common/numbers.mjs';
+import { marketTradeGetBlackMarketUniquePool, marketTradeCreateBlackMarketUniqueOffer, marketTradeBlackMarketUniquePriceRange } from './black-market-uniques.mjs';
+import { createEquipmentDropVariants } from './loot-variants.mjs';
+
+const GEAR = AUCTION_HOUSE.gear;
+
+/** Runs run() with Math.random replaced by a seeded stream; the original is back afterwards whatever happens. Synchronous only. */
+export function auctionWithSeededRandom(seedText, run) {
+    const own = Object.prototype.hasOwnProperty.call(Math, 'random'), original = Math.random;
+    Math.random = createSeededRng(seedText);
+    try {
+        return run();
+    } finally {
+        if (own) Math.random = original;
+        else delete Math.random;
+    }
+}
+
+/** The zones the lots are rolled over, top first: lotZone and the ordinary zones just before it (ids lotZone - 1, lotZone - 2: story acts
+ * 0 to 9 and chaos depths from 10 are numbered in one line), up to gear.ladder of them. A lotZone that is not an ordinary numbered zone
+ * gives that zone alone, or zone 0. */
+export function auctionLotZoneLadder(env, lotZone) {
+    const deps = env.deps;
+    if (!Number.isSafeInteger(lotZone) || lotZone < 0 || !deps.getZone(lotZone)) return [deps.getZone(lotZone) || deps.getZone(0)];
+    return Array.from({ length: GEAR.ladder }, (_, step) => lotZone - step).filter(id => id >= 0).map(id => deps.getZone(id)).filter(Boolean);
+}
+
+/** The zone of each of count lots: in every gear.spread.every lots, the first spread.top take the ladder in turn and the rest the ordinary
+ * zones before the ladder (0 up to lotZone - ladder), spread evenly by their order; without earlier zones every lot takes the ladder. */
+export function auctionLotZones(env, lotZone, count) {
+    const ladder = auctionLotZoneLadder(env, lotZone), { every, top } = GEAR.spread;
+    const numbered = Number.isSafeInteger(lotZone) && lotZone >= GEAR.ladder && !!env.deps.getZone(lotZone);
+    const earlier = numbered ? Array.from({ length: lotZone - GEAR.ladder + 1 }, (_, id) => env.deps.getZone(id)).filter(Boolean) : [];
+    const early = index => earlier.length > 0 && index % every >= top;
+    const earlyCount = Array.from({ length: count }, (_, index) => index).filter(early).length;
+    let high = 0, low = 0;
+    return Array.from({ length: count }, (_, index) => (early(index)
+        ? earlier[Math.floor(low++ * earlier.length / earlyCount)]
+        : ladder[high++ % ladder.length]));
+}
+
+/** Shuffles list in place with random (Math.random: the seeded stream inside auctionWithSeededRandom). */
+export function auctionShuffle(list, random = Math.random) {
+    for (let index = list.length - 1; index > 0; index--) {
+        const other = Math.floor(random() * (index + 1));
+        [list[index], list[other]] = [list[other], list[index]];
+    }
+    return list;
+}
+
+/** The rarity of each lot: gear.rarities expanded and shuffled with the bucket's own rarity stream (seed:bucket:rarity). */
+export function auctionRarityPlan(state) {
+    const plan = GEAR.rarities.flatMap(row => Array.from({ length: Number(row[1]) }, () => String(row[0])));
+    return auctionShuffle(plan, createSeededRng(`${state.seed}:${state.bucket}:rarity`));
+}
+
+/** The slot of each of count lots: rounds of every drop slot (slots: EQUIPMENT_DROP_SLOTS) once and the weapon slot gear.weaponTurns times,
+ * each round shuffled. */
+export function auctionSlotPlan(slots, count) {
+    const round = [...slots, ...Array.from({ length: GEAR.weaponTurns - 1 }, () => '무기')], plan = [];
+    while (plan.length < count) plan.push(...auctionShuffle([...round]));
+    return plan.slice(0, count);
+}
+
+/** A base for slot in zone, drawn again (up to gear.baseRetries times) while it is one of the used base ids. */
+export function auctionPickBase(env, zone, slot, dropTier, used) {
+    let base = env.deps.chooseItemBase(slot, dropTier, zone);
+    for (let retry = 0; retry < GEAR.baseRetries && used.has(base.id); retry++) base = env.deps.chooseItemBase(slot, dropTier, zone);
+    return base;
+}
+
+/** One normal, magic or rare item of slot for zone with a monster drop's zone and tier inputs (item level, drop tier, affix tier cap and
+ * floor, base); used: the base ids this slot already had. A normal item has no option lines. */
+export function auctionRollPlain(env, zone, rarity, slot, used) {
+    const deps = env.deps, itemLevel = deps.levelProgression.itemLevel(zone, {});
+    const dropTier = Math.min(deps.rollRealmItemDropTier(zone, {}), deps.levelProgression.maxDropTier(itemLevel));
+    const affixTierCap = Math.min(deps.levelProgression.affixCap(itemLevel), deps.getRealmEquipmentAffixTierCap(zone, dropTier));
+    const base = auctionPickBase(env, zone, slot, dropTier, used);
+    const item = deps.createItemFromBase(base, rarity, dropTier, { dropRealm: zone.type || null, dropRegion: null, affixTierCap,
+        affixTierFloor: deps.getDroppedAffixTierRange(affixTierCap).min, tierWeightFalloff: deps.DROPPED_AFFIX_TIER_WEIGHT_FALLOFF });
+    deps.maybeApplyExceptionalBase(item);
+    return deps.levelProgression.stampItem(item, itemLevel);
+}
+
+/** A unique the black market could offer at zone's tier (no chase uniques, none already among usedNames), made by name: { item, offer:
+ * { price, min } } in goldenRule, or null when there is none or the game refuses to make it. */
+export function auctionRollUnique(env, zone, usedNames) {
+    const deps = env.deps, tier = Number(zone.tier) || 1;
+    const pool = marketTradeGetBlackMarketUniquePool({ deps }, tier, 'any', { includeChase: false }).filter(unique => !usedNames.has(unique.name));
+    if (!pool.length) return null;
+    const unique = pool[Math.floor(Math.random() * pool.length)], offer = marketTradeCreateBlackMarketUniqueOffer({ deps }, unique, tier);
+    const item = deps.generateUniqueItem(offer.reqTier, offer.slot, offer.name);
+    if (!item) return null;
+    usedNames.add(unique.name);
+    return { item, offer: { price: offer.price, min: marketTradeBlackMarketUniquePriceRange(unique, offer.reqTier).min } };
+}
+
+/** The drop variants (modules/domain/loot-variants.mjs) with the tables corruption reads. */
+function dropVariants(env) {
+    const deps = env.deps;
+    if (!env.dropVariants) {
+        env.dropVariants = createEquipmentDropVariants({ get MOD_DB() { return deps.MOD_DB; }, get EQUIPMENT_DROP_VARIANTS() { return deps.EQUIPMENT_DROP_VARIANTS; } },
+            { getAffixTierRange: (...args) => deps.getAffixTierRange(...args) });
+    }
+    return env.dropVariants;
+}
+
+/** Adds the variants an ordinary drop can carry, at gear.variants' chances, through the game's own functions (uniques keep their own). */
+export function auctionApplyVariants(env, item, rarity) {
+    if (rarity === 'unique') return item;
+    const rules = GEAR.variants, hits = Object.keys(rules).filter(key => Math.random() < rules[key].chance);
+    for (const key of hits) VARIANT_APPLY[key](env, item, rarity);
+    return item;
+}
+
+/** Each variant through the game's own function; a variant the item cannot take is skipped. */
+const VARIANT_APPLY = Object.freeze({
+    exceptional(env, item) {
+        const bases = Array.isArray(item.baseStats) ? item.baseStats.filter(Boolean) : [];
+        if (bases.length && !item.exceptionalBase) env.deps.boostExceptionalBaseLine(item, bases[Math.floor(Math.random() * bases.length)]);
+    },
+    socket(env, item) {
+        const sockets = env.deps.equipmentSockets;
+        if (sockets.isAccessory(item) && !sockets.hasVoidSocket(item)) sockets.openVoidSocket(item);
+    },
+    corrupted(env, item, rarity) {
+        const variants = dropVariants(env);
+        if (rarity !== 'normal' && variants.corruptionPlan(item).length) variants.corrupt(item);
+    }
+});
+
+/** The variant keys item carries (the screen tags them with the game's own labels). */
+export function auctionItemVariants(env, item) {
+    return [item.exceptionalBase ? 'exceptional' : '', env.deps.equipmentSockets.hasVoidSocket(item) ? 'socket' : '', item.corrupted ? 'corrupted' : ''].filter(Boolean);
+}
+
+/** Lot index's item: { item, rarity, offer? } or null when this try made nothing appraisable. */
+function auctionRollEntry(env, plan, index) {
+    const rarity = plan.rarities[index], zone = plan.zones[index], slot = plan.slots[index];
+    const made = rarity === 'unique' ? auctionRollUnique(env, zone, plan.uniques) : { item: auctionRollPlain(env, zone, rarity, slot, plan.used.get(slot)) };
+    if (!made || !made.item || !env.deps.itemAppraisal.quote(made.item)) return null;
+    if (rarity !== 'unique') plan.used.get(slot).add(made.item.baseId);
+    return { ...made, item: auctionApplyVariants(env, made.item, rarity), rarity };
+}
+
+/** Up to GEAR.lots entries (bounded tries): lot i of rarity plan[i], slot plan[i] and zone plan[i]. A unique that cannot be made gives its
+ * place to a rare. */
+export function auctionRollItems(env, state) {
+    const slots = env.deps.EQUIPMENT_DROP_SLOTS;
+    const plan = { rarities: auctionRarityPlan(state), zones: auctionLotZones(env, state.lotZone, GEAR.lots), slots: auctionSlotPlan(slots, GEAR.lots),
+        used: new Map(slots.map(slot => [slot, new Set()])), uniques: new Set() };
+    const entries = [];
+    for (let tries = 0; entries.length < GEAR.lots && tries < GEAR.lots * 3; tries++) {
+        const index = entries.length, entry = auctionRollEntry(env, plan, index);
+        if (entry) entries.push(entry);
+        else if (plan.rarities[index] === 'unique') plan.rarities[index] = 'rare';
+    }
+    return entries;
+}
+
+/** The bucket's entries ({ item, rarity, offer? }), regenerated from (seed, bucket, lotZone); the item id counter is put back afterwards. */
+export function auctionGenerateItems(env, state) {
+    const counter = env.deps.readItemIdCounter();
+    try {
+        return auctionWithSeededRandom(`${state.seed}:${state.bucket}`, () => auctionRollItems(env, state));
+    } finally {
+        env.deps.writeItemIdCounter(counter);
+    }
+}

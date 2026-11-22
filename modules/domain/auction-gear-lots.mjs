@@ -1,109 +1,46 @@
 /**
- * 경매장 상인 매물: 시세 구간마다 희귀 장비 40개. 저장하지 않고 (seed, bucket, lotZone)에서 다시 만든다: 한 동기 함수 안에서 Math.random을
- * createSeededRng(seed:bucket)로 바꿔 끼우고 finally에서 되돌린다. 지역은 lotZone과 그 앞 보통 지역 둘의 사다리를 번갈아 쓰고(매물 i는
- * 사다리[i % 길이]), 부위는 드랍 부위를 한 바퀴씩(무기는 두 번) 섞어 돈다. 같은 부위에서 이미 나온 베이스는 몇 번 다시 골라 피한다.
- * 장비는 몬스터 드랍과 같은 지역, 티어 입력으로 베이스를 고르고 희귀로 만든다
- * (chooseItemBase + createItemFromBase): 고유와 체이싱 고유 길을 타지 않으므로 그 기록과 로그가 생기지 않는다. 생성이 올린 아이템 번호만
- * finally에서 되돌린다(미리보기 규칙). 싸게 내놓았는지, 값의 흔들림, 이미 팔렸는지는 따로 정해진 주사위(seed:bucket:deal:번호)라 생성이 바뀌어도 그대로다.
- * 값은 언제나 마법의 새싹(이슬 몇 개 값에서는 시세와 흔들림이 반올림에 묻혀서): 기준 = max(감정 marketValue, NPC 상점이 그 희귀에 매기는 값
- * x gear.premium)을 새싹 단위(감정의 단위표)로 나누고 옵션 궁합(gear.synergy, auctionLotQuality)을 곱한 값, price = pay(기준 x 계열 시세 x
- * 흔들림), fairPrice = pay(기준 x 계열 시세), 둘 다 gear.floorBud 이상이고 price는 기준 x 0.82(가장 싼 흔들림) 아래로 내려가지 않는다.
+ * 경매장 상인 매물의 값과 구매. 매물은 modules/domain/auction-gear-rolls.mjs가 (seed, bucket, lotZone)에서 만든다(일반, 마법, 희귀, 고유).
+ * 싸게 내놓았는지, 값의 흔들림, 이미 팔렸는지는 따로 정해진 주사위(seed:bucket:deal:번호)라 생성이 바뀌어도 그대로다.
+ * 값: 일반, 마법, 희귀는 마법의 새싹이다. 기준 = max(감정 marketValue, NPC 장비 상점이 그 등급에 매기는 값 x gear.premium[등급])을 새싹 단위
+ * (감정의 단위표)로 나누고 옵션 궁합(gear.synergy, auctionLotQuality, 마법과 희귀만)과 변형 배율(gear.variants)을 곱한 값이다. 고유는 황금률이고
+ * 기준은 암거래상이 그 고유에 부른 값이다. price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 둘 다 그 등급의 바닥
+ * (gear.floor, 고유는 암거래상의 가장 싼 값도) 이상이고 price는 기준 x 0.82(가장 싼 흔들림) 아래로 내려가지 않는다.
  * 바닥에 걸려 시세보다 싸지 않은 bargain은 'npc'로 낸다(화면은 둘을 나누지 않는다). 산 장비를 분해해도 남는 것이 없다.
  * 산 장비는 새 번호, tradeLocked, auctionBound를 받는다: 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { createSeededRng, clampNumber } from '../common/numbers.mjs';
+import { auctionGenerateItems, auctionItemVariants } from './auction-gear-rolls.mjs';
 import { NPC_SHOP_PRICE, npcTradeGearWarePrice } from './npc-shop-rolls.mjs';
 import { auctionFactor, auctionPay, auctionItemFamily, auctionLineFamilies } from './auction-pulse.mjs';
 import { auctionUseBlock, auctionClockFor, auctionAddTrend } from './auction-clock.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
 
-/** Runs run() with Math.random replaced by a seeded stream; the original is back afterwards whatever happens. Synchronous only. */
-export function auctionWithSeededRandom(seedText, run) {
-    const own = Object.prototype.hasOwnProperty.call(Math, 'random'), original = Math.random;
-    Math.random = createSeededRng(seedText);
-    try {
-        return run();
-    } finally {
-        if (own) Math.random = original;
-        else delete Math.random;
-    }
-}
-
-/** The zones the lots are rolled over, top first: lotZone and the ordinary zones just before it (ids lotZone - 1, lotZone - 2: story acts
- * 0 to 9 and chaos depths from 10 are numbered in one line), up to gear.ladder of them. A lotZone that is not an ordinary numbered zone
- * gives that zone alone, or zone 0. */
-export function auctionLotZoneLadder(env, lotZone) {
-    const deps = env.deps;
-    if (!Number.isSafeInteger(lotZone) || lotZone < 0 || !deps.getZone(lotZone)) return [deps.getZone(lotZone) || deps.getZone(0)];
-    return Array.from({ length: GEAR.ladder }, (_, step) => lotZone - step).filter(id => id >= 0).map(id => deps.getZone(id)).filter(Boolean);
-}
-
-/** Shuffles list in place with Math.random (the seeded stream inside auctionWithSeededRandom). */
-export function auctionShuffle(list) {
-    for (let index = list.length - 1; index > 0; index--) {
-        const other = Math.floor(Math.random() * (index + 1));
-        [list[index], list[other]] = [list[other], list[index]];
-    }
-    return list;
-}
-
-/** The slot of each of count lots: rounds of every drop slot (slots: EQUIPMENT_DROP_SLOTS) once and the weapon slot gear.weaponTurns times,
- * each round shuffled. */
-export function auctionSlotPlan(slots, count) {
-    const round = [...slots, ...Array.from({ length: GEAR.weaponTurns - 1 }, () => '무기')], plan = [];
-    while (plan.length < count) plan.push(...auctionShuffle([...round]));
-    return plan.slice(0, count);
-}
-
-/** A base for slot in zone, drawn again (up to gear.baseRetries times) while it is one of the used base ids. */
-export function auctionPickBase(env, zone, slot, dropTier, used) {
-    let base = env.deps.chooseItemBase(slot, dropTier, zone);
-    for (let retry = 0; retry < GEAR.baseRetries && used.has(base.id); retry++) base = env.deps.chooseItemBase(slot, dropTier, zone);
-    return base;
-}
-
-/** One rare of slot for zone with a monster drop's zone and tier inputs (item level, drop tier, affix tier cap and floor, base); used: the base
- * ids this slot already had. */
-export function auctionRollRare(env, zone, slot, used) {
-    const deps = env.deps, itemLevel = deps.levelProgression.itemLevel(zone, {});
-    const dropTier = Math.min(deps.rollRealmItemDropTier(zone, {}), deps.levelProgression.maxDropTier(itemLevel));
-    const affixTierCap = Math.min(deps.levelProgression.affixCap(itemLevel), deps.getRealmEquipmentAffixTierCap(zone, dropTier));
-    const base = auctionPickBase(env, zone, slot, dropTier, used);
-    const item = deps.createItemFromBase(base, 'rare', dropTier, { dropRealm: zone.type || null, dropRegion: null, affixTierCap,
-        affixTierFloor: deps.getDroppedAffixTierRange(affixTierCap).min, tierWeightFalloff: deps.DROPPED_AFFIX_TIER_WEIGHT_FALLOFF });
-    deps.maybeApplyExceptionalBase(item);
-    return deps.levelProgression.stampItem(item, itemLevel);
-}
-
-/** Up to GEAR.lots appraisable rares (bounded tries): lot i of slot plan[i] at ladder[i % ladder.length]. */
-export function auctionRollItems(env, ladder) {
-    const slots = env.deps.EQUIPMENT_DROP_SLOTS, plan = auctionSlotPlan(slots, GEAR.lots), used = new Map(slots.map(slot => [slot, new Set()])), items = [];
-    for (let tries = 0; items.length < GEAR.lots && tries < GEAR.lots * 3; tries++) {
-        const index = items.length, item = auctionRollRare(env, ladder[index % ladder.length], plan[index], used.get(plan[index]));
-        if (!item || !env.deps.itemAppraisal.quote(item)) continue;
-        used.get(plan[index]).add(item.baseId);
-        items.push(item);
-    }
-    return items;
-}
-
-/** The bucket's items, regenerated from (seed, bucket, lotZone); the item id counter is put back afterwards. */
-export function auctionGenerateItems(env, state) {
-    const ladder = auctionLotZoneLadder(env, state.lotZone), counter = env.deps.readItemIdCounter();
-    try {
-        return auctionWithSeededRandom(`${state.seed}:${state.bucket}`, () => auctionRollItems(env, ladder));
-    } finally {
-        env.deps.writeItemIdCounter(counter);
-    }
-}
-
-/** What the NPC gear shop asks for this rare, in dew (its own price function and constants, modules/domain/npc-shop-rolls.mjs). */
+/** What the NPC gear shop asks for this normal, magic or rare item, in dew (its own price function and constants, modules/domain/npc-shop-rolls.mjs:
+ * normal and magic in buds, rare in dew), through the appraisal's unit table. */
 export function auctionShopPrice(env, item) {
+    if (!['normal', 'magic', 'rare'].includes(item.rarity)) throw new Error(`Auction shop price for a ${item.rarity} item`);
     const ware = npcTradeGearWarePrice({ PRICE: NPC_SHOP_PRICE, deps: { getItemCraftTier: env.deps.getItemCraftTier } }, item);
-    if (ware.priceKey !== 'formlessDew') throw new Error(`Auction lot is not a rare priced in dew: ${item.rarity}`);
-    return ware.price;
+    return ware.price * env.deps.itemAppraisal.unitValue(ware.priceKey);
+}
+
+/** The price multiplier of item's variants (gear.variants: neither the appraisal nor the shop price counts them). */
+export function auctionVariantMultiplier(env, item) {
+    return auctionItemVariants(env, item).reduce((product, key) => product * GEAR.variants[key].price, 1);
+}
+
+/** The base value of a lot in its currency and the floors under it: { currency, base, least (fairPrice floor), quality }. */
+export function auctionLotValue(env, entry, family) {
+    const { item, rarity, offer } = entry;
+    if (rarity === 'unique') {
+        const least = Math.max(GEAR.floor.unique, offer.min);
+        return { currency: 'goldenRule', base: offer.price, least, quality: { synergy: 0, roll: 0, multiplier: 1 } };
+    }
+    const unit = env.deps.itemAppraisal.unitValue('magicBud'), shopBuds = auctionShopPrice(env, item) * GEAR.premium[rarity] / unit;
+    const quality = rarity === 'normal' ? { synergy: 0, roll: 0, multiplier: 1 } : auctionLotQuality(env, item, family);
+    const base = Math.max(env.deps.itemAppraisal.quote(item).marketValue / unit, shopBuds) * quality.multiplier * auctionVariantMultiplier(env, item);
+    return { currency: 'magicBud', base, least: GEAR.floor[rarity], quality };
 }
 
 /** How well item's explicit lines (item.stats) fit family (gear.synergy): a line carrying family scores 1, one carrying only an affine family
@@ -131,20 +68,19 @@ export function auctionLotQuality(env, item, family) {
     return { synergy, roll, multiplier: Math.min(rule.cap, 1 + rule.perCube * synergy ** 3) * (rule.rollMin + rule.rollSpan * roll) };
 }
 
-/** The fixed part of lot index: its item, family, quality, base value in buds and deal (from its own seeded stream). */
-export function auctionLotBase(env, state, item, index) {
+/** The fixed part of lot index: its item, rarity, variants, family, quality, base value and deal (from its own seeded stream). */
+export function auctionLotBase(env, state, entry, index) {
     const deal = createSeededRng(`${state.seed}:${state.bucket}:deal:${index}`), bargain = deal() < GEAR.bargainChance;
     const [low, high] = bargain ? GEAR.bargain : GEAR.normal, variance = low + (high - low) * deal();
     const soldOut = deal() < (bargain ? GEAR.soldBargain : GEAR.soldNormal);
-    const unit = env.deps.itemAppraisal.unitValue('magicBud'), shopBuds = auctionShopPrice(env, item) * GEAR.premium / unit;
-    const family = auctionItemFamily(env, item), quality = auctionLotQuality(env, item, family);
-    const baseBuds = Math.max(env.deps.itemAppraisal.quote(item).marketValue / unit, shopBuds) * quality.multiplier;
+    const item = entry.item, family = auctionItemFamily(env, item), value = auctionLotValue(env, entry, family);
     // The generator's id was handed back with the counter: a negative id can never meet a bag item's.
     item.id = -(index + 1);
-    return { id: `${state.bucket}:${index}`, index, item, family, synergy: quality.synergy, rollQuality: quality.roll, source: bargain ? 'bargain' : 'npc',
-        merchant: GEAR.merchants[index % GEAR.merchants.length], currency: 'magicBud', baseBuds, variance, soldOut,
+    return { id: `${state.bucket}:${index}`, index, item, rarity: entry.rarity, variants: auctionItemVariants(env, item), family,
+        synergy: value.quality.synergy, rollQuality: value.quality.roll, source: bargain ? 'bargain' : 'npc', merchant: GEAR.merchants[index % GEAR.merchants.length],
+        currency: value.currency, baseValue: value.base, variance, soldOut, least: value.least,
         // A low pulse times the deepest bargain would go under the base x 0.82: that is where the lot stops.
-        floor: Math.max(GEAR.floorBud, auctionPay(baseBuds * GEAR.bargain[0])) };
+        floor: Math.max(value.least, auctionPay(value.base * GEAR.bargain[0])) };
 }
 
 /** The bucket's lot bases, cached for the session by (seed, bucket, lotZone). [] before the first advance. */
@@ -153,24 +89,25 @@ export function auctionLotBases(env, owner) {
     if (!state.seed || !state.bucket) return [];
     const key = `${state.seed}:${state.bucket}:${String(state.lotZone)}`;
     if (env.lotCache.key !== key) {
-        env.lotCache = { key, lots: auctionGenerateItems(env, state).map((item, index) => auctionLotBase(env, state, item, index)) };
+        env.lotCache = { key, lots: auctionGenerateItems(env, state).map((entry, index) => auctionLotBase(env, state, entry, index)) };
     }
     return env.lotCache.lots;
 }
 
 /**
- * The NPC lots of the saved bucket (call advance first), priced in magicBud at this bucket's factors, never below gear.floorBud nor the
- * lot's base x gear.bargain[0].
- * @returns {Array<{id: string, index: number, item: object, family: string, synergy: number, rollQuality: number, source: 'npc'|'bargain',
- *   merchant: string, currency: string, price: number, fairPrice: number, ratioPct: number, soldOut: boolean, boughtByMe: boolean}>}
+ * The NPC lots of the saved bucket (call advance first), priced at this bucket's factors (magicBud, uniques goldenRule), never below the
+ * rarity's floor (gear.floor, a unique also the black market's cheapest price) nor the lot's base x gear.bargain[0].
+ * @returns {Array<{id: string, index: number, item: object, rarity: string, variants: string[], family: string, synergy: number,
+ *   rollQuality: number, source: 'npc'|'bargain', merchant: string, currency: string, price: number, fairPrice: number, ratioPct: number,
+ *   soldOut: boolean, boughtByMe: boolean}>} variants: 'exceptional' | 'socket' | 'corrupted'.
  *   synergy and rollQuality: auctionLotQuality's s and q. id is 'bucket:index'; item is a shared
  *   read-only preview whose id is -(index + 1), never a bag id (buying gives a copy with a fresh id).
  */
 export function auctionGearLots(env, owner) {
     const state = owner.auction;
-    return auctionLotBases(env, owner).map(({ baseBuds, variance, floor, ...lot }) => {
-        const value = baseBuds * auctionFactor(state, lot.family, state.bucket);
-        const price = Math.max(floor, auctionPay(value * variance)), fairPrice = Math.max(GEAR.floorBud, auctionPay(value));
+    return auctionLotBases(env, owner).map(({ baseValue, variance, floor, least, ...lot }) => {
+        const value = baseValue * auctionFactor(state, lot.family, state.bucket);
+        const price = Math.max(floor, auctionPay(value * variance)), fairPrice = Math.max(least, auctionPay(value));
         const ratioPct = Math.round(price / fairPrice * 100);
         // A bargain held up by a floor is no cheaper than the market: no 급매 without a shown discount.
         const source = lot.source === 'bargain' && ratioPct >= 100 ? 'npc' : lot.source;

@@ -28,11 +28,16 @@ export function marketTradeIsBlackMarketUniqueRegistered(owner, unique) {
     return !!(key && owner.uniqueCodex && owner.uniqueCodex[key]);
 }
 
+/** The goldenRule range the black market asks for an ordinary unique of requirement tier req: { min, max } (the auction never goes under min). */
+export function marketTradeBlackMarketUniquePriceRange(unique, req) {
+    const min = Math.max(1, Math.floor(req / 10));
+    return { min, max: Math.max(min + 1, Math.floor(req / 4) + 1) };
+}
+
 function marketTradeRollBlackMarketOfferPrice(unique, req) {
     if (unique.ultraRare) return marketTradeRollBlackMarketChaseUniquePrice(req);
-    const minPrice = Math.max(1, Math.floor(req / 10));
-    const maxPrice = Math.max(minPrice + 1, Math.floor(req / 4) + 1);
-    return minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
+    const { min, max } = marketTradeBlackMarketUniquePriceRange(unique, req);
+    return min + Math.floor(Math.random() * (max - min + 1));
 }
 
 export function marketTradeCreateBlackMarketUniqueOffer(env, unique, tier, options) {

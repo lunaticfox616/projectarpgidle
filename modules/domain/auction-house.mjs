@@ -16,6 +16,8 @@ import { auctionRestore } from './auction-restore.mjs';
 /**
  * deps: contentProgression, itemAppraisal (quote, unitValue), playerStall (listBlockReason), getZone, the generator primitives
  * (levelProgression, rollRealmItemDropTier, getRealmEquipmentAffixTierCap, getDroppedAffixTierRange, EQUIPMENT_DROP_SLOTS, chooseItemBase,
+ * UNIQUE_DB, BASE_ITEM_DB, UNIQUE_EQUIPMENT_RULES, generateUniqueItem (the black market's uniques), boostExceptionalBaseLine, equipmentSockets, MOD_DB,
+ * EQUIPMENT_DROP_VARIANTS, getAffixTierRange (variants),
  * createItemFromBase, maybeApplyExceptionalBase, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF), getItemCraftTier, getItemDisplayName, readItemIdCounter, writeItemIdCounter, canStoreEquipmentItems(items, owner), normalizeItem, escapeHTML, console, ORB_DB, _t,
  * defaultGame, PLAYER_STALL_RULES, STAT_AFFIX_TAGS, AFFIX_TAG_LABELS, getEquipmentLoadoutOwnedItems, actExplorationLoot, actExplorationState.
  */
