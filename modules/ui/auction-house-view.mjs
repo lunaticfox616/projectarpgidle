@@ -8,7 +8,7 @@ import { renderAuction } from './auction-house-render.mjs';
 import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial } from './auction-house-actions.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
-const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'bargain', 'user'], sort: ['cheap', 'dear', 'deal'] });
+const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'user'], sort: ['cheap', 'dear', 'deal'] });
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
 export function createAuctionHouseView(deps) {
@@ -27,7 +27,7 @@ function initialState() {
     return {
         tab: 'gear', print: '', card: { key: '', html: '' },
         gear: { slot: 'all', source: 'all', sort: 'cheap', family: '', selected: '' },
-        materials: { key: '', side: 'buy', count: 1 },
+        materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
         hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 }
     };
@@ -42,7 +42,8 @@ const CLICKS = Object.freeze([
     ['data-ah-family', (runtime, value) => jumpFamily(runtime, value)],
     ['data-ah-clear-family', runtime => jumpFamily(runtime, '')],
     ['data-ah-jump', (runtime, value) => jumpMaterial(runtime, value)],
-    ['data-ah-material', (runtime, value) => { runtime.state.materials.key = value; runtime.api.render(true); }],
+    ['data-ah-group', (runtime, value) => { runtime.state.materials.group = value; runtime.api.render(true); }],
+    ['data-ah-material', (runtime, value, el) => selectMaterial(runtime, value, el)],
     ['data-ah-side', (runtime, value) => { runtime.state.materials.side = value === 'sell' ? 'sell' : 'buy'; runtime.api.render(true); }],
     ['data-ah-preset', (runtime, value) => preset(runtime, value)],
     ['data-ah-trade', (runtime, value) => trade(runtime, Number(value))],
@@ -60,6 +61,14 @@ function selectLot(runtime, id, el) {
     const detail = el.ownerDocument.querySelector('#market-panel-auction .ah-detail');
     // 좁은 칸에서는 자세히 칸이 목록 위에 있다: 고른 매물이 보이게 올린다.
     if (detail && detail.getBoundingClientRect().top < 0) detail.scrollIntoView({ block: 'start' });
+}
+
+function selectMaterial(runtime, key, el) {
+    runtime.state.materials.key = key;
+    runtime.api.render(true);
+    const ticket = el.ownerDocument.querySelector('#market-panel-auction .ah-ticket');
+    // 좁은 칸에서는 거래표가 목록 위에 있다: 고른 재료의 거래표가 보이게 올린다(목록은 제 칸 안에서 고른 줄을 보인다).
+    if (ticket && ticket.getBoundingClientRect().top < 0) ticket.scrollIntoView({ block: 'start' });
 }
 
 function onClick(runtime, event) {

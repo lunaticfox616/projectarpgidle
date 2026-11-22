@@ -144,6 +144,7 @@ export function jumpFamily(runtime, family) {
 
 export function jumpMaterial(runtime, key) {
     runtime.state.tab = 'materials';
+    runtime.state.materials.group = 'all';
     runtime.state.materials.key = key;
     runtime.api.render(true);
 }

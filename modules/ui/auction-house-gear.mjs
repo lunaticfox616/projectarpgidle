@@ -1,14 +1,15 @@
 /**
- * 경매장 장비 칸: 고르기 줄(부위, 출처, 정렬, 시세 띠에서 누른 계열), 매물 카드 격자, 고른 매물의 자세히 칸.
+ * 경매장 장비 칸: 고르기 줄(부위, 출처, 정렬, 시세 띠에서 누른 계열, 고르기를 지난 매물 수), 매물 카드 격자, 고른 매물의 자세히 칸.
  * 상인 매물은 auctionHouse.gearLots, 다른 플레이어의 장비는 장비 전당의 전시품(modules/ui/auction-house-hall.mjs)을 같은 모양으로 놓는다.
+ * 규칙이 싸게 내놓은 매물(source 'bargain')도 화면은 다른 상인 매물과 같게 보인다.
  */
-import { tr, esc, priceTag, familyLabel, itemName, slotLabel, itemArtHtml } from './auction-house-format.mjs';
+import { tr, esc, num, priceTag, familyLabel, itemName, slotLabel, itemArtHtml } from './auction-house-format.mjs';
 import { userLots, userLotIssue, hallActive } from './auction-house-hall.mjs';
 
-const SOURCES = Object.freeze([['all', '전체'], ['merchant', '상인'], ['bargain', '급매'], ['user', '다른 플레이어']]);
+const SOURCES = Object.freeze([['all', '전체'], ['merchant', '상인'], ['user', '다른 플레이어']]);
 const SORTS = Object.freeze([['cheap', '싼 순'], ['dear', '비싼 순'], ['deal', '시세 대비 싼 순']]);
 
-/** Every lot of this bucket: the merchants' 16, then up to 5 hall shows. */
+/** Every lot of this bucket: the merchants' 40, then up to 5 hall shows. */
 export function allLots(runtime) {
     return [...runtime.deps.auctionHouse.gearLots(runtime.deps.game), ...userLots(runtime)];
 }
@@ -24,7 +25,7 @@ const SORTERS = Object.freeze({
 
 function sourceMatches(view, lot) {
     if (view.source === 'merchant') return lot.source !== 'user';
-    return view.source === 'all' || view.source === lot.source;
+    return view.source === 'all' || lot.source === 'user';
 }
 
 /** The lots the toolbar lets through, sorted; lots that cannot be bought (sold out, bought) go last. */
@@ -47,19 +48,19 @@ function slotRows(runtime, lots) {
     return [['all', runtime.deps._t('모든 부위')], ...seen.entries()];
 }
 
-function toolbarHtml(runtime, lots) {
+function toolbarHtml(runtime, lots, shownCount) {
     const view = runtime.state.gear, sources = hallActive(runtime) ? SOURCES : SOURCES.filter(([id]) => id !== 'user');
     const family = view.family ? `<button type="button" class="ah-filter-chip" data-ah-clear-family aria-label="${runtime.deps._t('{name} 계열만 보기 해제', { name: familyLabel(runtime, view.family) })}">${esc(runtime, familyLabel(runtime, view.family))}<span aria-hidden="true">✕</span></button>` : '';
     return `<div class="ah-tools">
         <select data-ah-filter="slot" aria-label="${runtime.deps._t('부위')}">${optionsHtml(runtime, slotRows(runtime, lots), view.slot)}</select>
         <select data-ah-filter="source" aria-label="${runtime.deps._t('출처')}">${optionsHtml(runtime, sources.map(([id, label]) => [id, tr(runtime, label)]), view.source)}</select>
-        <select data-ah-filter="sort" aria-label="${runtime.deps._t('정렬')}">${optionsHtml(runtime, SORTS.map(([id, label]) => [id, tr(runtime, label)]), view.sort)}</select>${family}</div>`;
+        <select data-ah-filter="sort" aria-label="${runtime.deps._t('정렬')}">${optionsHtml(runtime, SORTS.map(([id, label]) => [id, tr(runtime, label)]), view.sort)}</select>${family}
+        <span class="ah-lot-count" role="status">${runtime.deps._t('매물 {count}', { count: num(runtime, shownCount) })}</span></div>`;
 }
 
 function badgeHtml(runtime, lot) {
     if (lot.boughtByMe) return `<em class="ah-badge is-closed">${runtime.deps._t('구매함')}</em>`;
     if (lot.soldOut) return `<em class="ah-badge is-closed">${runtime.deps._t('팔림')}</em>`;
-    if (lot.source === 'bargain') return `<em class="ah-badge is-deal">${runtime.deps._t('급매 -{n}%', { n: 100 - lot.ratioPct })}</em>`;
     return lot.source === 'user' ? `<em class="ah-badge is-copy">${runtime.deps._t('복제품')}</em>` : '';
 }
 
@@ -93,10 +94,9 @@ function sellerHtml(runtime, lot) {
 function detailHtml(runtime, lot) {
     if (!lot) return '';
     const reason = lotIssue(runtime, lot);
-    const fair = lot.source === 'bargain' ? `<p class="ah-detail-fair">${runtime.deps._t('시세')} ${priceTag(runtime, lot.currency, lot.fairPrice)}</p>` : '';
     return `<aside class="ah-detail" aria-label="${runtime.deps._t('고른 매물')}"><div class="ah-detail-deal">
             <p class="ah-detail-who">${sellerHtml(runtime, lot)}</p>
-            <p class="ah-detail-price"><span>${runtime.deps._t('가격')}</span>${priceTag(runtime, lot.currency, lot.price, ' is-big')}${badgeHtml(runtime, lot)}</p>${fair}
+            <p class="ah-detail-price"><span>${runtime.deps._t('가격')}</span>${priceTag(runtime, lot.currency, lot.price, ' is-big')}${badgeHtml(runtime, lot)}</p>
             <button type="button" class="ah-primary" data-ah-buy="${esc(runtime, lot.id)}" ${reason ? 'disabled' : ''}>${runtime.deps._t('구매')}</button>
             ${reason ? `<p class="ah-why" role="status">${esc(runtime, reason)}</p>` : ''}</div>
         <div class="ah-detail-card">${lotCardDetail(runtime, lot)}</div></aside>`;
@@ -122,7 +122,7 @@ export function gearViewHtml(runtime) {
     const shown = shownLots(runtime, lots), chosen = chosenLot(runtime, shown, lots);
     const list = shown.length ? `<ul class="ah-lots">${shown.map(lot => lotCardHtml(runtime, lot)).join('')}</ul>`
         : `<p class="ah-empty">${runtime.deps._t('조건에 맞는 매물이 없습니다.')}</p>`;
-    return `<div class="ah-gear">${toolbarHtml(runtime, lots)}<div class="ah-gear-body">${detailHtml(runtime, chosen)}${list}</div></div>`;
+    return `<div class="ah-gear">${toolbarHtml(runtime, lots, shown.length)}<div class="ah-gear-body">${detailHtml(runtime, chosen)}${list}</div></div>`;
 }
 
 /** Finds a lot of this bucket by id (for the buy command). */

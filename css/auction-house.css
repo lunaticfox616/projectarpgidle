@@ -50,6 +50,7 @@
 .ah-gear { display: grid; gap: 8px; min-width: 0; }
 .ah-tools { display: flex; flex-wrap: wrap; gap: 6px; }
 #market-panel-auction .ah-tools select { flex: 1 1 120px; width: auto; min-height: var(--ah-tap); padding: 4px 8px; border-radius: 0; font-size: 12px; }
+.ah-lot-count { align-self: center; margin-left: auto; color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
 #market-panel-auction .ah-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--ah-gold); color: var(--ah-gold); background: none; }
 .ah-gear-body { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "detail" "list"; gap: 10px; align-items: start; }
 .ah-lots { grid-area: list; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; min-width: 0; }
@@ -67,12 +68,10 @@
 .ah-lot-meta small { color: var(--color-text-secondary); font-size: 12px; }
 .ah-lot-side { display: grid; justify-items: end; gap: 4px; }
 .ah-badge { padding: 0 4px; border: 1px solid var(--ah-line); color: var(--color-text-secondary); font-size: 12px; font-style: normal; line-height: 16px; white-space: nowrap; }
-.ah-badge.is-deal { border-color: color-mix(in srgb, var(--ah-up) 55%, transparent); color: var(--ah-up); }
 .ah-badge.is-copy { border-color: #4f5a66; color: #b6c4d2; }
 .ah-detail { grid-area: detail; display: grid; gap: 10px; padding: 10px; border: 1px solid var(--ah-line); background: var(--ah-panel); min-width: 0; }
 .ah-detail-deal { display: grid; gap: 6px; }
-.ah-detail-who, .ah-detail-fair { color: var(--color-text-secondary); font-size: 12px; }
-.ah-detail-fair { display: flex; align-items: center; gap: 6px; }
+.ah-detail-who { color: var(--color-text-secondary); font-size: 12px; }
 .ah-detail-price { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
 .ah-detail-price > span:first-child { color: var(--color-text-secondary); }
 .ah-detail-card { min-width: 0; max-height: min(56vh, 520px); overflow: auto; overflow-wrap: anywhere; }
@@ -84,9 +83,17 @@
     .ah-detail { position: sticky; top: 0; }
 }
 
-/* 재료: 목록과 거래표 */
-.ah-materials { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "ticket" "list"; gap: 10px; align-items: start; }
-.ah-mats { grid-area: list; display: grid; gap: 4px; min-width: 0; }
+/* 재료: 묶음 단추 줄, 제 칸 안에서 밀리는 목록(전체에서는 묶음 머리줄이 위에 붙는다)과 거래표 */
+.ah-materials { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "groups" "ticket" "list"; gap: 10px; align-items: start; }
+.ah-groups { grid-area: groups; display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+#market-panel-auction .ah-group { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--ah-line); background: #100f0d;
+    color: var(--color-text-secondary); white-space: nowrap; }
+#market-panel-auction .ah-group.is-on { border-color: var(--ah-gold); color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 8%, #100f0d); }
+.ah-group small { color: inherit; font-size: 12px; opacity: .75; }
+.ah-mats { grid-area: list; display: grid; align-content: start; gap: 4px; min-width: 0; max-height: clamp(260px, calc(100vh - 470px), 640px); overflow-y: auto; overscroll-behavior: contain;
+    padding-right: 2px; }
+.ah-mat-head { position: sticky; top: 0; z-index: 1; padding: 6px 8px 4px; border-bottom: 1px solid var(--ah-line); background: var(--ah-panel);
+    color: var(--color-text-secondary); font-size: 12px; }
 #market-panel-auction .ah-mat { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 4px 8px;
     border: 1px solid var(--ah-line); background: #100f0d; color: var(--color-text); text-align: left; }
 #market-panel-auction .ah-mat.is-chosen { border-color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 8%, #100f0d); }
@@ -125,7 +132,7 @@
 .ah-receipt-row.is-fee .ah-price b { color: #c9a8a1; }
 .ah-receipt-row.is-total { padding-top: 4px; border-top: 1px solid var(--ah-line); }
 @container (min-width: 700px) {
-    .ah-materials { grid-template-columns: minmax(0, 1fr) minmax(260px, 300px); grid-template-areas: "list ticket"; }
+    .ah-materials { grid-template-columns: minmax(0, 1fr) minmax(260px, 300px); grid-template-areas: "groups groups" "list ticket"; }
     .ah-ticket { position: sticky; top: 0; }
 }
 
@@ -159,7 +166,11 @@
 /* 휴대폰: 누르는 칸은 44px 이상 */
 @container (max-width: 520px) {
     .ah-root { --ah-tap: 44px; }
-    #market-panel-auction :is(.ah-chip, .ah-tabs button, .ah-primary, .ah-lot, .ah-mat) { min-height: 44px; }
+    #market-panel-auction :is(.ah-chip, .ah-tabs button, .ah-primary, .ah-lot, .ah-mat, .ah-group) { min-height: 44px; }
+    /* 묶음 단추는 한 줄에서 옆으로 밀고, 목록은 거래표 아래에서 화면의 절반 남짓만 차지한다 */
+    .ah-groups { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+    .ah-groups .ah-group { flex: none; }
+    .ah-mats { max-height: 52vh; }
     .ah-lots { grid-template-columns: minmax(0, 1fr); }
     /* 자세히 칸이 목록 위에 서므로 카드는 화면의 40%까지만, 나머지는 카드 안에서 민다 */
     .ah-detail-card { max-height: 40vh; }

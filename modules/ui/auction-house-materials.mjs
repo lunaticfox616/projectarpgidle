@@ -1,7 +1,9 @@
 /**
- * 경매장 재료 칸: 왼쪽은 이 저장이 가져 본 재료의 목록(그림, 이름, 보유, 지난 24구간의 시세 선, 지금 한 묶음 사는 값, 시세), 오른쪽은
- * 고른 재료의 거래표(사기/팔기, 남은 양, 묶음 수와 1, 5, 10, 최대, 영수증, 못 하는 까닭, 실행 단추). 값과 까닭은 모두
+ * 경매장 재료 칸: 위에 묶음 단추 줄(전체와 가져 본 재료가 있는 묶음, 단추마다 그 수), 왼쪽은 이 저장이 가져 본 재료의 목록(전체에서는
+ * 묶음 머리줄로 나눈다: 그림, 이름, 보유, 지난 24구간의 시세 선, 지금 한 묶음 사는 값, 시세)으로 제 칸 안에서 밀리고, 오른쪽은
+ * 고른 재료의 거래표(사기/팔기, 그 재료의 남은 양, 묶음 수와 1, 5, 10, 최대, 영수증, 못 하는 까닭, 실행 단추). 값과 까닭은 모두
  * auctionHouse.materialQuote가 낸다. 시세 선은 라이브러리 없이 정수 좌표의 계단 선(SVG)으로 그려 도트처럼 또렷하다.
+ * 다시 그려도 목록의 밀린 자리는 남고 고른 재료가 목록 칸 안에 보인다(keepListScroll).
  */
 import { trHtml, esc, num, pct, trendClass, priceTag } from './auction-house-format.mjs';
 
@@ -10,6 +12,45 @@ const PRESETS = Object.freeze([1, 5, 10]);
 
 /** The materials this save has seen (unseen ones are not listed). */
 export function seenMaterials(runtime) { return runtime.deps.auctionHouse.materials(runtime.deps.game).filter(row => row.seen); }
+
+/** The groups (materials.groups) with at least one seen row: [{ id, label, rows }]. */
+function seenGroups(runtime, rows) {
+    return runtime.deps.auctionHouse.rules.materials.groups.map(group => ({ id: group.id, label: group.label, rows: rows.filter(row => row.group === group.id) }))
+        .filter(group => group.rows.length);
+}
+
+function groupChipsHtml(runtime, groups, total) {
+    const chosen = runtime.state.materials.group;
+    const chip = (id, label, count) => `<button type="button" class="ah-group${chosen === id ? ' is-on' : ''}" data-ah-group="${esc(runtime, id)}" aria-pressed="${chosen === id}">
+        <span>${trHtml(runtime, label)}</span><small>${num(runtime, count)}</small></button>`;
+    return `<div class="ah-groups" role="group" aria-label="${runtime.deps._t('재료')}">${chip('all', '전체', total)}${groups.map(group => chip(group.id, group.label, group.rows.length)).join('')}</div>`;
+}
+
+/** The list: every seen row under its group's header for 전체, the chosen group's rows alone otherwise. */
+function listHtml(runtime, groups, pulse) {
+    const chosen = runtime.state.materials.group;
+    const body = chosen === 'all'
+        ? groups.map(group => `<li class="ah-mat-head" role="presentation">${trHtml(runtime, group.label)}</li>${group.rows.map(row => rowHtml(runtime, row, pulse)).join('')}`).join('')
+        : groups.find(group => group.id === chosen).rows.map(row => rowHtml(runtime, row, pulse)).join('');
+    return `<ul class="ah-mats" aria-label="${runtime.deps._t('재료')}">${body}</ul>`;
+}
+
+/** The list's scroll position before a repaint (null when no list is shown). */
+export function listScroll(view) {
+    const list = view.querySelector('.ah-mats');
+    return list ? list.scrollTop : null;
+}
+
+/** After a repaint: puts the list back where it was, then moves it (the list alone, never the page) so the chosen row is inside it. */
+export function keepListScroll(view, top) {
+    const list = view.querySelector('.ah-mats'), row = list?.querySelector('.ah-mat.is-chosen');
+    if (!list) return;
+    if (top !== null) list.scrollTop = top;
+    if (!row) return;
+    const box = list.getBoundingClientRect(), place = row.getBoundingClientRect(), head = list.querySelector('.ah-mat-head')?.offsetHeight || 0;
+    if (place.top < box.top + head) list.scrollTop -= box.top + head - place.top;
+    else if (place.bottom > box.bottom) list.scrollTop += place.bottom - box.bottom;
+}
 
 /** A step line of history (oldest first) on integer pixels, scaled to the factor band (pulse.min..pulse.max). */
 export function sparkHtml(runtime, history) {
@@ -34,7 +75,7 @@ function rowHtml(runtime, row, pulse) {
 }
 
 function sideHtml(runtime, row) {
-    const side = runtime.state.materials.side, quota = runtime.deps.auctionHouse.rules.materials.quota;
+    const side = runtime.state.materials.side, quota = row.quota;
     const button = (id, label) => `<button type="button" role="radio" class="ah-side${side === id ? ' is-on' : ''}" data-ah-side="${id}" aria-checked="${side === id}">
         <b>${trHtml(runtime, label)}</b><small>${runtime.deps._t('남은 {left}/{quota}', { left: num(runtime, row.quotaLeft[id]), quota: num(runtime, quota) })}</small></button>`;
     return `<div class="ah-sides" role="radiogroup" aria-label="${runtime.deps._t('거래 방향')}">${button('buy', '구매')}${button('sell', '판매')}</div>`;
@@ -70,14 +111,16 @@ function ticketHtml(runtime, row) {
         ${sideHtml(runtime, row)}${countHtml(runtime, row)}<div class="ah-receipt-box" data-ah-receipt aria-live="polite">${receiptHtml(runtime)}</div></section>`;
 }
 
-/** The whole 재료 view. */
+/** The whole 재료 view. A chosen group without seen rows falls back to 전체; a chosen material outside the shown rows to the first shown. */
 export function materialsViewHtml(runtime) {
     const rows = seenMaterials(runtime);
     if (!rows.length) return `<p class="ah-empty">${runtime.deps._t('아직 거래할 수 있는 재료가 없습니다.')}</p>`;
-    const view = runtime.state.materials;
-    if (!rows.some(row => row.key === view.key)) view.key = rows[0].key;
+    const view = runtime.state.materials, groups = seenGroups(runtime, rows);
+    if (!groups.some(group => group.id === view.group)) view.group = 'all';
+    const shown = view.group === 'all' ? rows : groups.find(group => group.id === view.group).rows;
+    if (!shown.some(row => row.key === view.key)) view.key = shown[0].key;
     const pulse = runtime.deps.auctionHouse.pulse(runtime.deps.game), chosen = rows.find(row => row.key === view.key);
-    return `<div class="ah-materials"><ul class="ah-mats" aria-label="${runtime.deps._t('재료')}">${rows.map(row => rowHtml(runtime, row, pulse)).join('')}</ul>${ticketHtml(runtime, chosen)}</div>`;
+    return `<div class="ah-materials">${groupChipsHtml(runtime, groups, rows.length)}${listHtml(runtime, groups, pulse)}${ticketHtml(runtime, chosen)}</div>`;
 }
 
 /** The toast after a done trade: what moved. */

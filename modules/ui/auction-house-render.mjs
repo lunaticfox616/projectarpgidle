@@ -5,7 +5,7 @@
  */
 import { trHtml, esc, pct, trendClass, familyLabel, paint } from './auction-house-format.mjs';
 import { gearViewHtml } from './auction-house-gear.mjs';
-import { materialsViewHtml } from './auction-house-materials.mjs';
+import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-materials.mjs';
 import { standsViewHtml, claimable } from './auction-house-stands.mjs';
 import { watchHall } from './auction-house-hall.mjs';
 
@@ -92,9 +92,10 @@ function focusKey(view) {
 }
 
 function paintView(runtime, view) {
-    const key = focusKey(view);
-    if (!paint(view, VIEWS[runtime.state.tab](runtime)) || !key) return;
-    view.querySelector(key)?.focus();
+    const key = focusKey(view), top = listScroll(view);
+    if (!paint(view, VIEWS[runtime.state.tab](runtime))) return;
+    keepListScroll(view, top);
+    if (key) view.querySelector(key)?.focus({ preventScroll: true });
 }
 
 /** A short print of everything this section shows: the same print means nothing to redraw. */
