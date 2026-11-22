@@ -25,6 +25,7 @@ const auctionHouse = (() => {
         get MOD_DB() { return MOD_DB; },
         get EQUIPMENT_DROP_VARIANTS() { return EQUIPMENT_DROP_VARIANTS; },
         get getAffixTierRange() { return getAffixTierRange; },
+        get getAvailableMods() { return getAvailableMods; },
         get maybeApplyExceptionalBase() { return maybeApplyExceptionalBase; },
         get DROPPED_AFFIX_TIER_WEIGHT_FALLOFF() { return DROPPED_AFFIX_TIER_WEIGHT_FALLOFF; },
         get getItemCraftTier() { return getItemCraftTier; },

@@ -2,8 +2,9 @@
  * 경매장 상인 매물의 몸(아이템, 계열, 품질, 값), 값 매기기와 구매. 매물의 머리(등급, 부위, 지역, 흥정, 놓이는 때, 팔림)는
  * modules/domain/auction-lot-heads.mjs가 정한다. 몸은 필요할 때만 매물 제 주사위(seed:b:i:body)로 굴려 묶음 기록에 남긴다: 어느 차례로
  * 굴려도, 다시 불러와도 같다. 둘 중 나은 매물은 아이템을 두 번 굴려 품질 배율이 높은 쪽을 쓴다. 생성이 올린 아이템 번호는 되돌린다(미리보기 규칙).
- * 값: 일반, 마법, 희귀는 마법의 새싹이다. 기준 = max(감정 marketValue, NPC 장비 상점이 그 등급에 매기는 값 x gear.premium[등급])을 새싹 단위
- * (감정의 단위표)로 나누고 옵션 궁합(gear.synergy, auctionLotQuality, 마법과 희귀만)과 변형 배율(gear.variants)을 곱한 값이다. 고유는 황금률이고
+ * 값: 일반, 마법, 희귀의 기준 = max(감정 marketValue, NPC 장비 상점이 그 등급에 매기는 값 x gear.premium[등급])에 옵션 궁합과 줄 값
+ * (gear.synergy, auctionLotQuality, 마법과 희귀만), 변형 배율(gear.variants)을 곱한 값(이슬)이고, 그 크기에 따라 새싹, 이슬, 황금률 가운데
+ * 하나로 판다(gear.priceIn, 감정의 단위표로 나눈다). 고유는 황금률이고
  * 기준은 암거래상이 그 고유에 부른 값(콘텐츠 고유는 그 매물의 값) x 굴림 배율(gear.uniqueRoll, auctionUniqueRollQuality)이다. price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 계열 시세는 매물이 태어난
  * 구간의 것이라(그 구간의 서버 보정은 목록이 보는 동안 저장에 남는다) 값은 매물이 머무는 동안 바뀌지 않는다. 둘 다 그 등급의 바닥
  * (gear.floor, 고유는 암거래상의 가장 싼 값도) 이상이고 price는 기준 x 0.82(가장 싼 흔들림) 아래로 내려가지 않는다.
@@ -49,10 +50,11 @@ export function auctionLotValue(env, entry, family) {
         const least = Math.max(GEAR.floor.unique, offer.min), roll = auctionUniqueRollQuality(item), rule = GEAR.uniqueRoll;
         return { currency: 'goldenRule', base: offer.price * (1 + rule.span * roll ** rule.power), least, quality: { synergy: 0, roll, multiplier: 1 } };
     }
-    const unit = env.deps.itemAppraisal.unitValue('magicBud'), shopBuds = auctionShopPrice(env, item) * GEAR.premium[rarity] / unit;
-    const quality = rarity === 'normal' ? { synergy: 0, roll: 0, multiplier: 1 } : auctionLotQuality(env, item, family);
-    const base = Math.max(env.deps.itemAppraisal.quote(item).marketValue / unit, shopBuds) * quality.multiplier * auctionVariantMultiplier(env, item);
-    return { currency: 'magicBud', base, least: GEAR.floor[rarity], quality };
+    const unitOf = env.deps.itemAppraisal.unitValue, quality = rarity === 'normal' ? { synergy: 0, roll: 0, multiplier: 1 } : auctionLotQuality(env, item, family);
+    const dew = Math.max(env.deps.itemAppraisal.quote(item).marketValue, auctionShopPrice(env, item) * GEAR.premium[rarity]) * quality.multiplier * auctionVariantMultiplier(env, item);
+    // The dearer the lot, the larger its coin (gear.priceIn); the rarity's floor (buds) is carried into that coin, rounded up.
+    const currency = GEAR.priceIn.find(row => dew >= row.from).coin, unit = unitOf(currency);
+    return { currency, base: dew / unit, least: auctionPay(GEAR.floor[rarity] * unitOf('magicBud') / unit), quality };
 }
 
 /** The average place of a unique's variable lines in their roll ranges (valMin..valMax as the generator stamped them): 0 at the bottom, 1 at
@@ -97,20 +99,38 @@ function auctionTierWorths(env, floor, cap) {
     return env.tierWorth.get(key);
 }
 
-/** The average worth of item's explicit lines by their tiers (auctionTierWorths over the range the lot could roll): 1 for an average roll and
- * for an item without lines; the rarer the tiers, the higher. */
-export function auctionLotTierWorth(env, item) {
-    const stats = Array.isArray(item.stats) ? item.stats : [], cap = Number(item.affixTierCap) || 1;
-    const floor = Math.min(cap, env.deps.getDroppedAffixTierRange(cap).min), worths = auctionTierWorths(env, floor, cap);
-    if (!stats.length) return 1;
-    return stats.reduce((sum, stat) => sum + worths[clampNumber((Number(stat.tier) || floor) - floor, 0, cap - floor)], 0) / stats.length;
+/** What a line of each stat is worth by how seldom its option is picked for item's base: (the average weight of the options a bare item of
+ * that base can take / the option's weight) ^ kindPower, so an option of average weight is worth 1 and a seldom one more. Weights are MOD_DB's
+ * own: a line the weapon's category makes scarce (WEAPON_CATEGORY_OFF_MODS) is a poor fit, not a prize. Stat id -> worth, kept per base, drop
+ * region and influence for the session (env.kindWorth). */
+function auctionKindWorths(env, item) {
+    const key = `${item.baseId}|${item.dropRegion || ''}|${item.influence || ''}`;
+    if (env.kindWorth.has(key)) return env.kindWorth.get(key);
+    const written = new Map(env.deps.MOD_DB.map(mod => [mod.id, mod.weight])), weights = new Map();
+    for (const mod of env.deps.getAvailableMods({ ...item, stats: [] })) {
+        const id = mod.statId || mod.id;
+        weights.set(id, (weights.get(id) || 0) + Math.max(0.01, Number(written.has(mod.id) ? written.get(mod.id) : mod.weight) || 1));
+    }
+    const average = [...weights.values()].reduce((sum, weight) => sum + weight, 0) / (weights.size || 1);
+    env.kindWorth.set(key, new Map([...weights].map(([id, weight]) => [id, (average / weight) ** GEAR.synergy.kindPower])));
+    return env.kindWorth.get(key);
 }
 
-/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3) x auctionLotTierWorth }. */
+/** The average worth of item's explicit lines: each line's tier worth (auctionTierWorths over the range the lot could roll) x its option's
+ * worth (auctionKindWorths, 1 for a line the base's pool does not hold). 1 for an average roll and for an item without lines; the rarer the
+ * tiers and the options, the higher. */
+export function auctionLotLineWorth(env, item) {
+    const stats = Array.isArray(item.stats) ? item.stats : [], cap = Number(item.affixTierCap) || 1;
+    if (!stats.length) return 1;
+    const floor = Math.min(cap, env.deps.getDroppedAffixTierRange(cap).min), tiers = auctionTierWorths(env, floor, cap), kinds = auctionKindWorths(env, item);
+    return stats.reduce((sum, stat) => sum + tiers[clampNumber((Number(stat.tier) || floor) - floor, 0, cap - floor)] * (kinds.get(stat.id) || 1), 0) / stats.length;
+}
+
+/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3) x auctionLotLineWorth }. */
 export function auctionLotQuality(env, item, family) {
     const rule = GEAR.synergy, synergy = auctionLotSynergy(env, item, family), roll = auctionLotRollQuality(env, item);
     const match = 1 + rule.perCube * synergy ** 3 + rule.topCube * Math.max(0, synergy - rule.topFrom) ** 3;
-    return { synergy, roll, multiplier: Math.min(rule.cap, match) * auctionLotTierWorth(env, item) };
+    return { synergy, roll, multiplier: Math.min(rule.cap, match) * auctionLotLineWorth(env, item) };
 }
 
 /** A gear entry's family and value, or a non-gear entry's (auction-kind-lots.mjs: family '' when its lines carry none, level and line count). */
@@ -221,7 +241,7 @@ export function auctionLotPhase(lot, clock, bought) {
 }
 
 /**
- * Lot row ({ lot: head and body, bought }) priced at its birth bucket's factors (magicBud, uniques goldenRule, the other kinds formlessDew), never
+ * Lot row ({ lot: head and body, bought }) priced at its birth bucket's factors (gear in the coin of gear.priceIn, uniques goldenRule, the other kinds formlessDew), never
  * below the rarity's floor (gear.floor, a unique also the black market's cheapest price; kinds.*.floor) nor the lot's base x gear.bargain[0],
  * with where it stands at clock.
  * @returns {{id: string, birthBucket: number, index: number, kind: 'gear'|'jewel'|'ward'|'talisman', item: object, rarity: string,
