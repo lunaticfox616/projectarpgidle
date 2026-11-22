@@ -77,7 +77,7 @@ export function gearMode(runtime, mode) {
     runtime.api.render(true);
 }
 
-/** The name search typed: the list and the count alone are repainted (the box keeps its focus and caret). */
+/** The search typed (names and option lines): the list, the count and the detail alone are repainted (the box keeps its focus and caret). */
 export function typeSearch(runtime, input) {
     runtime.state.gear.query = input.value.slice(0, 40);
     const root = input.closest('.ah-gear');

@@ -79,6 +79,8 @@
 .ah-cell-slot { grid-area: slot; }
 .ah-cell-level { grid-area: level; }
 .ah-cell-options { grid-area: options; display: flex; align-items: center; gap: 4px; min-width: 0; }
+/* 검색이 찾은 옵션 줄: 계열 표시 자리에, 길면 말줄임 */
+.ah-match { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #d8c8a4; font-style: normal; }
 .ah-cell-seller { display: none; }
 .ah-cell-left, .ah-cell-ago { grid-area: left; justify-self: end; }
 :is(.ah-cell-slot, .ah-cell-level, .ah-cell-options, .ah-cell-seller, .ah-cell-left, .ah-cell-ago) { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }

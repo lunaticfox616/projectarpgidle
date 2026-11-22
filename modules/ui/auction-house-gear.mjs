@@ -19,8 +19,7 @@ const COLUMNS = Object.freeze({
     open: Object.freeze([['art', ''], ['name', '이름'], ['slot', '부위'], ['level', '아이템 Lv.'], ['options', '옵션'], ['seller', '판매자'], ['left', '남은 시간'], ['price', '가격']]),
     recent: Object.freeze([['art', ''], ['name', '이름'], ['slot', '부위'], ['level', '아이템 Lv.'], ['options', '옵션'], ['price', '가격'], ['ago', '시간']])
 });
-const MINUTE_MS = 60000;
-// The chosen lot left the list (sold and gone, expired, or no longer shown): the detail says so.
+const MINUTE_MS = 60000;// The chosen lot left the list (sold and gone, expired, or no longer shown): the detail says so.
 const GONE = Object.freeze({ gone: true });
 
 /** Every lot listed now: the merchants' lots, then up to 5 hall shows. */
@@ -59,18 +58,69 @@ function sourceMatches(view, lot) {
     return view.source === 'all' || lot.source === 'user';
 }
 
-function lotMatches(runtime, view, lot) {
-    const query = String(view.query || '').trim().toLocaleLowerCase(runtime.deps.i18n.locale);
+function filterMatches(view, lot) {
     return (view.slot === 'all' || lot.item.slot === view.slot) && (view.rarity === 'all' || lot.item.rarity === view.rarity) && sourceMatches(view, lot)
-        && (!view.family || lot.family === view.family) && (!query || itemName(runtime, lot.item).toLocaleLowerCase(runtime.deps.i18n.locale).includes(query));
+        && (!view.family || lot.family === view.family);
+}
+
+// The defence lines the tooltip writes as 'name: value' (modules/ui/tooltip-items.mjs appendItemBaseStats).
+const DEFENCE_LINES = Object.freeze(['armor', 'evasion', 'energyShield']);
+
+/** The shown text of item's option lines as the item tooltip writes them: base lines, explicit lines (a compound line's parts joined by ' / ')
+ * and the unique effect. */
+function optionLines(runtime, item) {
+    const { getStatName, formatValue, formatSignedValue } = runtime.deps, label = stat => tr(runtime, stat.statName || getStatName(stat.id));
+    const base = (Array.isArray(item.baseStats) ? item.baseStats : []).filter(Boolean)
+        .map(stat => (DEFENCE_LINES.includes(stat.id) ? `${getStatName(stat.id)}: ${Math.floor(Number(stat.val) || 0)}` : `${label(stat)} ${formatSignedValue(stat.id, stat.val)}`));
+    const explicit = (Array.isArray(item.stats) ? item.stats : []).filter(Boolean)
+        .map(stat => [stat, ...(Array.isArray(stat.extraStats) ? stat.extraStats : [])].map(line => `${label(line)} +${formatValue(line.id, line.val)}`).join(' / '));
+    return [...base, ...explicit, ...(item.uniqueEffect ? [tr(runtime, item.uniqueEffect)] : [])];
+}
+
+/** What the search reads of item in the player's language, made once per item and language (kept by item, so typing does not rebuild it):
+ * name (shown name, base name and slot name, lower case) and lines ({ text, low } of every option line). */
+function searchText(runtime, item) {
+    const locale = runtime.deps.i18n.locale, kept = runtime.state.search.get(item);
+    if (kept && kept.locale === locale) return kept;
+    const low = text => String(text).toLocaleLowerCase(locale);
+    const made = { locale, name: low([itemName(runtime, item), item.baseName ? tr(runtime, item.baseName) : '', slotLabel(runtime, item)].join('\n')),
+        lines: optionLines(runtime, item).map(text => ({ text, low: low(text) })) };
+    runtime.state.search.set(item, made);
+    return made;
+}
+
+/** The search words: the box's text split on whitespace, lower case in the player's language. */
+function searchWords(runtime) {
+    return String(runtime.state.gear.query || '').toLocaleLowerCase(runtime.deps.i18n.locale).split(/\s+/).filter(Boolean);
+}
+
+/** Whether item has every word in its names or its option lines: { ok, line } where line is the first option line a word matched that the
+ * names did not ('' when the names held every word). */
+function searchMatch(runtime, words, item) {
+    if (!words.length) return { ok: true, line: '' };
+    const text = searchText(runtime, item);
+    let line = '';
+    for (const word of words) {
+        if (text.name.includes(word)) continue;
+        const hit = text.lines.find(row => row.low.includes(word));
+        if (!hit) return { ok: false, line: '' };
+        line = line || hit.text;
+    }
+    return { ok: true, line };
 }
 
 const closedLot = lot => !!(lot.soldOut || lot.boughtByMe);
 
-/** The lots the toolbar lets through. Listed lots: sorted by the chosen column (dir 1 or -1), lots that cannot be bought (sold, bought) last.
- * Recent trades keep their order (newest first). */
+/** The lots the toolbar lets through (each keeps matchLine, the option line the search matched, or ''). Listed lots: sorted by the chosen
+ * column (dir 1 or -1), lots that cannot be bought (sold, bought) last. Recent trades keep their order (newest first). */
 export function shownLots(runtime, lots) {
-    const view = runtime.state.gear, kept = lots.filter(lot => lotMatches(runtime, view, lot));
+    const view = runtime.state.gear, words = searchWords(runtime);
+    const kept = lots.filter(lot => {
+        if (!filterMatches(view, lot)) return false;
+        const hit = searchMatch(runtime, words, lot.item);
+        lot.matchLine = hit.line;
+        return hit.ok;
+    });
     if (view.mode === 'recent') return kept;
     const order = SORTERS[view.sort](runtime), dir = view.dir === -1 ? -1 : 1;
     const closed = lot => (closedLot(lot) ? 1 : 0);
@@ -104,7 +154,7 @@ function modesHtml(runtime) {
 }
 
 function toolbarHtml(runtime, lots, shown) {
-    const view = runtime.state.gear, sources = hallActive(runtime) ? SOURCES : SOURCES.filter(([id]) => id !== 'user'), search = runtime.deps._t('검색');
+    const view = runtime.state.gear, sources = hallActive(runtime) ? SOURCES : SOURCES.filter(([id]) => id !== 'user'), search = runtime.deps._t('이름, 옵션 검색');
     const family = view.family ? `<button type="button" class="ah-filter-chip" data-ah-clear-family aria-label="${runtime.deps._t('{name} 계열만 보기 해제', { name: familyLabel(runtime, view.family) })}">${esc(runtime, familyLabel(runtime, view.family))}<span aria-hidden="true">✕</span></button>` : '';
     const source = view.mode === 'recent' ? '' : `<select data-ah-filter="source" aria-label="${runtime.deps._t('출처')}">${optionsHtml(runtime, sources.map(([id, label]) => [id, tr(runtime, label)]), view.source)}</select>`;
     return `<div class="ah-tools">
@@ -135,7 +185,7 @@ function minutesText(runtime, ms) { return runtime.deps._t('{minutes}분', { min
 /** The time left of a listed lot ('' for a hall show and a sold lot). */
 function leftText(runtime, lot) { return lot.source === 'user' || lot.soldOut ? '' : minutesText(runtime, lot.leftMs); }
 
-function agoText(runtime, lot) { return runtime.deps._t('{minutes}분 전', { minutes: num(runtime, Math.max(0, Math.floor(lot.agoMs / MINUTE_MS))) }); }
+function agoText(runtime, lot) { return runtime.deps._t('{minutes}분 전', { minutes: num(runtime, Math.max(1, Math.floor(lot.agoMs / MINUTE_MS))) }); }
 
 /** The cells every row has: picture, name with tags, slot, item level, options. */
 function lotCellsHtml(runtime, lot) {
@@ -144,7 +194,7 @@ function lotCellsHtml(runtime, lot) {
         <span class="ah-cell-name"><strong class="ah-lot-name">${esc(runtime, itemName(runtime, lot.item))}</strong>${tagsHtml(runtime, lot)}</span>
         <span class="ah-cell-slot">${esc(runtime, slotLabel(runtime, lot.item))}</span>
         <span class="ah-cell-level"><small class="ah-cell-key">${runtime.deps._t('아이템 Lv.')}</small>${num(runtime, lot.item.itemLevel || 1)}</span>
-        <span class="ah-cell-options"><small class="ah-cell-key">${runtime.deps._t('옵션')}</small>${num(runtime, optionCount(lot))}${family ? `<em class="ah-tag">${esc(runtime, family)}</em>` : ''}</span>`;
+        <span class="ah-cell-options"><small class="ah-cell-key">${runtime.deps._t('옵션')}</small>${num(runtime, optionCount(lot))}${lot.matchLine ? `<em class="ah-match" data-tip="${esc(runtime, lot.matchLine)}">${esc(runtime, lot.matchLine)}</em>` : family ? `<em class="ah-tag">${esc(runtime, family)}</em>` : ''}</span>`;
 }
 
 function lotRowHtml(runtime, lot) {

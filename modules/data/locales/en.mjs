@@ -11026,6 +11026,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '대장장이 길드 정산': "Smiths' Guild Settlement",
         '물리, 방어 장비와 잿불가지, 톱니 화석 값이 올랐습니다.': 'Physical and armor gear, Ember Branches and Jagged Fossils have risen in price.',
         '{prefix} {suffix}|판매자 이름': '{prefix} {suffix}',
+        '이름, 옵션 검색': 'Search name, affix',
         '모루터': 'Anvil Yard',
         '허공뿌리': 'Voidroot',
         '수관': 'Canopy',

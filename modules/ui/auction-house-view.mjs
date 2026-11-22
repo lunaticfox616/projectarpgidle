@@ -29,7 +29,9 @@ function initialState() {
         gear: { mode: 'open', slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'price', dir: 1, family: '', selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
-        hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 }
+        hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 },
+        // The search text of each lot's item (modules/ui/auction-house-gear.mjs searchText), kept by item while the item lives.
+        search: new WeakMap()
     };
 }
 
