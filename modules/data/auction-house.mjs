@@ -154,12 +154,15 @@ const AUCTION_HOUSE = Object.freeze({
         // 부위 계획에서 무기가 한 바퀴에 나오는 횟수.
         weaponTurns: 2,
         // 옵션 궁합: 매물의 계열 F(auctionItemFamily)에 맞춰 추가 옵션 줄마다 점수를 매긴다. F를 가진 줄 1, F는 없고 affinity[F]의 계열을 가진
-        // 줄 near(0.5), 나머지 0. 점수 합 s로 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3(최대 cap)을 곱하고, 줄의 단계가 굴릴 수 있던
-        // 폭(1 ~ affixTierCap, 높을수록 좋다)의 어디쯤인지의 평균 q로 rollMin + rollSpan x q를 곱한다. 상인 매물만 쓴다(내 출품의 감정가와 전당 전시는 그대로다).
+        // 줄 near(0.5), 나머지 0. 점수 합 s로 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3(최대 cap)을 곱하고, 줄의 단계 값의 평균을 곱한다.
+        // 단계 값 = (1 / 드랍이 그 단계 이상을 굴릴 확률)^tierPower를 한 번 굴림의 평균으로 나눈 값(평균 줄이 1). 단계는 1 ~ affixTierCap에서 게임의
+        // 드랍 가중치로 굴리므로 높은 단계일수록 드물고, 한 단계의 값 차이는 위로 갈수록 크다(상한 15: 1단계 0.26, 2단계 0.30, 10단계 1.04, 11단계 1.29,
+        // 14단계 3.53, 15단계 7.25; 상한 20: 1단계 0.24, 20단계 9.64). 상인 매물만 쓴다(내 출품의 감정가와 전당 전시는 그대로다).
         // 희귀는 줄이 넷이나 다섯이라 s는 5까지다. 배율: s 3 = 5.05, 3.5 = 8.9, 4 = 22.6, 4.5 = 55.2, 5 = 115.75. topFrom 위의 항이 없던 때는
         // s 5가 19.75배(가장 비싼 희귀 831 새싹 = 황금률 1개 값, 가장 싼 고유보다 쌌다)였다. 희귀 3,033개 가운데 s 4 이상은 13개, s 5는 1개다(2026-11-23 셈).
+        // 궁합도 단계도 잘 뽑힌 희귀는 고유보다 비싸도 된다(사용자 결정, 2026-11-23): 단계 값에 상한을 두지 않는다.
         synergy: Object.freeze({
-            near: 0.5, perCube: 0.15, topFrom: 3, topCube: 12, cap: 120, rollMin: 0.8, rollSpan: 0.7,
+            near: 0.5, perCube: 0.15, topFrom: 3, topCube: 12, cap: 120, tierPower: 1,
             affinity: Object.freeze({
                 fire: Object.freeze(['critical', 'spell', 'attack', 'projectile']),
                 cold: Object.freeze(['critical', 'spell', 'attack', 'projectile']),

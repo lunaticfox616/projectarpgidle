@@ -82,11 +82,35 @@ export function auctionLotRollQuality(env, item) {
     return stats.reduce((sum, stat) => sum + (span > 0 ? clampNumber(((Number(stat.tier) || floor) - floor) / span, 0, 1) : 0.5), 0) / stats.length;
 }
 
-/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3) x (rollMin + rollSpan x q) }. */
+/** What each tier of a line is worth among the tiers floor..cap a drop rolls (weight 1 / (1 + (tier - floor) x falloff), the game's own roll):
+ * (1 / the chance of that tier or better) ^ tierPower, divided by its average over a roll, so an average line is worth 1 and a step near the
+ * cap is worth more than a step near the floor. Index = tier - floor. Kept per floor and cap for the session (env.tierWorth). */
+function auctionTierWorths(env, floor, cap) {
+    const key = `${floor}:${cap}`;
+    if (env.tierWorth.has(key)) return env.tierWorth.get(key);
+    const weights = Array.from({ length: cap - floor + 1 }, (_, step) => 1 / (1 + step * env.deps.DROPPED_AFFIX_TIER_WEIGHT_FALLOFF));
+    const total = weights.reduce((sum, weight) => sum + weight, 0), worths = [];
+    let tail = 0;
+    for (let step = weights.length - 1; step >= 0; step--) { tail += weights[step] / total; worths[step] = (1 / tail) ** GEAR.synergy.tierPower; }
+    const average = weights.reduce((sum, weight, step) => sum + weight / total * worths[step], 0);
+    env.tierWorth.set(key, worths.map(worth => worth / average));
+    return env.tierWorth.get(key);
+}
+
+/** The average worth of item's explicit lines by their tiers (auctionTierWorths over the range the lot could roll): 1 for an average roll and
+ * for an item without lines; the rarer the tiers, the higher. */
+export function auctionLotTierWorth(env, item) {
+    const stats = Array.isArray(item.stats) ? item.stats : [], cap = Number(item.affixTierCap) || 1;
+    const floor = Math.min(cap, env.deps.getDroppedAffixTierRange(cap).min), worths = auctionTierWorths(env, floor, cap);
+    if (!stats.length) return 1;
+    return stats.reduce((sum, stat) => sum + worths[clampNumber((Number(stat.tier) || floor) - floor, 0, cap - floor)], 0) / stats.length;
+}
+
+/** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3) x auctionLotTierWorth }. */
 export function auctionLotQuality(env, item, family) {
     const rule = GEAR.synergy, synergy = auctionLotSynergy(env, item, family), roll = auctionLotRollQuality(env, item);
     const match = 1 + rule.perCube * synergy ** 3 + rule.topCube * Math.max(0, synergy - rule.topFrom) ** 3;
-    return { synergy, roll, multiplier: Math.min(rule.cap, match) * (rule.rollMin + rule.rollSpan * roll) };
+    return { synergy, roll, multiplier: Math.min(rule.cap, match) * auctionLotTierWorth(env, item) };
 }
 
 /** A gear entry's family and value, or a non-gear entry's (auction-kind-lots.mjs: family '' when its lines carry none, level and line count). */
