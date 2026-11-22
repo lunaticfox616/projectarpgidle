@@ -7,7 +7,7 @@
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { stallRulesOwnedOutsideEscrow } from './stall-restoration.mjs';
 import { auctionBucketOf } from './auction-clock.mjs';
-import { auctionPulseKeys, auctionDeltaValues, AUCTION_DELTA_SLOTS } from './auction-pulse.mjs';
+import { auctionPulseKeys, auctionDeltaValues, AUCTION_DELTA_SLOTS, AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
 import { auctionMaterialQuota } from './auction-materials.mjs';
 
 const MINE = AUCTION_HOUSE.myLots;
@@ -25,14 +25,38 @@ export function auctionRestoreClock(state, source) {
     if (auctionBucketOf(state.lastAt) < state.bucket) state.lastAt = state.bucket * AUCTION_HOUSE.bucketMs;
 }
 
-/** The plain fields: clock, seed, zone, this bucket's bought lots and quota, trend, the saved server correction. */
+/** A saved lot zone: a zone id (non-negative integer) or a short zone key, else undefined. */
+const soundZone = zone => (count(zone) === zone || (typeof zone === 'string' && zone.length > 0 && zone.length <= 64) ? zone : undefined);
+
+/** The lot zones of the lookback buckets ([{ bucket, zone }], one per bucket, oldest first). A save from before the list (one lotZone for
+ * the saved bucket) gives that bucket its zone. */
+export function auctionRestoreLotZones(state, source) {
+    const oldest = state.bucket - AUCTION_LOT_LOOKBACK, rows = Array.isArray(source.lotZones) ? source.lotZones : [];
+    if (!Array.isArray(source.lotZones) && soundZone(source.lotZone) !== undefined) rows.push({ bucket: state.bucket, zone: source.lotZone });
+    const sound = rows.filter(row => row && typeof row === 'object' && count(row.bucket) === row.bucket && row.bucket >= oldest && row.bucket <= state.bucket
+        && soundZone(row.zone) !== undefined);
+    return sound.filter((row, index) => sound.findIndex(other => other.bucket === row.bucket) === index)
+        .map(row => ({ bucket: row.bucket, zone: row.zone })).sort((a, b) => a.bucket - b.bucket);
+}
+
+/** The bought lot ids ('birthBucket:index') of the lookback batches, once each. Ids of another shape (a save from before the list kept lot
+ * numbers of one bucket) are dropped. */
+export function auctionRestoreBought(state, source) {
+    const oldest = state.bucket - AUCTION_LOT_LOOKBACK, shape = /^(\d{1,15}):(\d{1,3})$/;
+    const sound = id => {
+        const match = typeof id === 'string' ? shape.exec(id) : null;
+        return !!match && Number(match[1]) >= oldest && Number(match[1]) <= state.bucket && Number(match[2]) < AUCTION_HOUSE.gear.batch;
+    };
+    return [...new Set((Array.isArray(source.bought) ? source.bought : []).filter(sound))];
+}
+
+/** The plain fields: clock, seed, lot zones, bought lots, this bucket's quota, trend, the saved server corrections. */
 export function auctionRestoreFields(env, source) {
     const state = JSON.parse(JSON.stringify(env.deps.defaultGame.auction));
     auctionRestoreClock(state, source);
     state.seed = Number.isSafeInteger(source.seed) && source.seed > 0 && source.seed <= 0xffffffff ? source.seed : 0;
-    const zone = source.lotZone;
-    state.lotZone = count(zone) === zone || (typeof zone === 'string' && zone.length > 0 && zone.length <= 64) ? zone : null;
-    state.bought = [...new Set((Array.isArray(source.bought) ? source.bought : []).filter(index => Number.isSafeInteger(index) && index >= 0 && index < AUCTION_HOUSE.gear.lots))];
+    state.lotZones = auctionRestoreLotZones(state, source);
+    state.bought = auctionRestoreBought(state, source);
     // A side key 'buy:key' or 'sell:key' of a listed material keeps its count up to that material's quota; keys no longer listed are dropped.
     const sides = new Map(AUCTION_HOUSE.materials.keys.flatMap(key => [[`buy:${key}`, key], [`sell:${key}`, key]]));
     state.quota = auctionRestoreKeyed(source.quota, (key, value) => sides.has(key) && count(value) ? Math.min(value, auctionMaterialQuota(sides.get(key))) : 0);

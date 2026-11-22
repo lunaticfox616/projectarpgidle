@@ -1,6 +1,6 @@
 /**
  * 경매장(거래 창의 넷째 칸, 루프 20 해금). 입찰은 없고 모두 즉시 체결된다. 규칙은 modules/domain/auction-*.mjs, 저장은 game.auction.
- * 시세 구간(bucketMs)마다 시세 배율이 바뀌고, 상인 매물이 새로 놓이고, 내 출품에 상인 수요가 한 번 붙는다.
+ * 시세 구간(bucketMs)마다 시세 배율이 바뀌고, 상인 매물 한 묶음이 생기고(매물은 구간 안에서 하나씩 놓이고 하나씩 내려간다), 내 출품에 상인 수요가 한 번 붙는다.
  * 모든 수치가 이 표에 있다. 재료 기준가는 베일라의 표(NPC_CURRENCY_EXCHANGE.prices, 이슬 값이나 새싹 값을 표의 새싹 값으로 바꾼 값)만 쓴다: 두 번째 가격표는 없다.
  * 설계: docs/auction-house-plan-20261121.md(브랜치 auction-house-spec-20261121), 2026-11-22 검토로 고친 값이 여기 있다.
  */
@@ -93,11 +93,12 @@ const AUCTION_HOUSE = Object.freeze({
         quotas: Object.freeze({ bossKeyFlame: 3, bossKeyFrost: 3, bossKeyStorm: 3, beastKeyCerberus: 3, trialKey3: 3, chaosKey: 3, coreKey: 3, hiveKey: 3,
             colonyTrace: 3, altarEmber: 5, altarIchor: 5, bossCore: 5, enchantedHoney: 5, burningEmberBranch: 5, radiantSealShard: 5 })
     }),
-    // 상인 매물: 구간마다 60개, 저장하지 않고 (seed, bucket, lotZone)에서 다시 만든다. 등급은 rarities의 수를 씨앗으로 섞어 매물 번호마다 정한다.
+    // 상인 매물: 구간 b마다 batch개의 묶음이 생기고, 저장하지 않고 (seed, b, b의 지역)에서 다시 만든다. 등급은 rarities의 수를 씨앗으로 섞어 매물 번호마다 정한다.
+    // 매물마다 제 주사위로 놓이는 때(구간 안 아무 때), 머무는 시간(lifeMs), 다른 손님에게 팔리는지와 그때를 정한다: 목록은 그 시각에 놓여 있는 매물이다.
     // 일반은 옵션 없는 베이스, 마법과 희귀는 게임의 굴림, 고유는 그 지역에서 암거래상이 내놓을 수 있는 고유(체이스 고유 제외)다.
-    // 지역은 다섯 개마다 셋을 lotZone과 그 앞 보통 지역 둘(번호 순서)에서 번갈아, 둘을 그보다 앞의 보통 지역(0 ~ lotZone - 3)에 고르게 나눈다.
+    // 지역은 다섯 개마다 셋을 묶음의 지역과 그 앞 보통 지역 둘(번호 순서)에서 번갈아, 둘을 그보다 앞의 보통 지역(0 ~ 지역 - 3)에 고르게 나눈다.
     // 부위는 드랍 부위를 고르게 돌며(무기는 한 바퀴에 두 번) 같은 부위의 베이스가 겹치지 않게 고른다. 싸게 내놓은 매물(bargain)은 0.82 ~ 0.88배,
-    // 보통은 0.96 ~ 1.10배(화면은 둘을 나누지 않는다). 구간이 열릴 때 이미 팔린 매물이 있다.
+    // 보통은 0.96 ~ 1.10배(화면은 둘을 나누지 않는다). 값은 놓일 때(태어난 구간의 시세) 정해져 내려갈 때까지 그대로다.
     // 값: 일반, 마법, 희귀는 새싹(이슬 3, 4개 값에서는 시세와 흔들림이 반올림에 묻힌다), 고유는 암거래상처럼 황금률. 일반, 마법, 희귀의 기준은
     // 감정가와 NPC 상점이 그 등급에 매기는 값 x premium[등급] 가운데 큰 쪽에 옵션 궁합(synergy, 마법과 희귀만)과 변형 배율(variants)을 곱한 값,
     // 고유의 기준은 암거래상이 그 고유에 부르는 값이다. 산 장비는 다시 팔 수 없어 값이 높아도 고리가 없다.
@@ -111,9 +112,18 @@ const AUCTION_HOUSE = Object.freeze({
         //   이슬 -> 황금률은 암거래상의 가장 좋은 굴림(이슬 9.82개에 봉우리 1개, 봉우리 3개에 황금률 1개 = 이슬 29.45개), 봉우리 -> 황금률 1/3:
         //   황금률 1.40개 -> 2(고유만 올림으로 끝낸다: 1 더하면 암거래상이 1 ~ 2에 파는 낮은 고유가 모두 3이 된다). 고유는 암거래상의 가장 싼 값 아래로도 내려가지 않는다. 분해 보상, 환율, 베일라와 암거래상의 폭이 바뀌면 다시 셈한다.
         floor: Object.freeze({ normal: 2, magic: 2, rare: 10, unique: 2 }),
-        lots: 60,
-        // 등급별 매물 수(합이 lots). 매물 i의 등급은 seed:bucket:rarity 주사위로 섞은 이 목록의 i번째다(생성이 바뀌어도 그대로).
-        rarities: Object.freeze([['unique', 3], ['rare', 30], ['magic', 15], ['normal', 12]]),
+        // 한 구간에 생기는 매물 수. 매물마다 평균 45분 머물러 어느 때나 팔리지 않은 매물이 50개 남짓 보인다.
+        batch: 20,
+        // 묶음의 등급별 매물 수(합이 batch). 매물 i의 등급은 seed:bucket:rarity 주사위로 섞은 이 목록의 i번째다(생성이 바뀌어도 그대로).
+        rarities: Object.freeze([['unique', 1], ['rare', 10], ['magic', 5], ['normal', 4]]),
+        // 매물이 머무는 시간(ms, 20 ~ 70분에서 고르게). 놓이는 때는 태어난 구간 안에서 고르게. 목록은 머무는 시간의 최대에서 셈한 지난 구간까지 본다.
+        lifeMs: Object.freeze([1200000, 4200000]),
+        // 다른 손님에게 팔릴 확률(보통, 싸게 내놓은 매물)과 팔리는 때(머무는 시간의 0.15 ~ 0.9 지점). 팔린 매물은 soldShowMs(3분) 동안 팔림으로 남는다.
+        soldChance: Object.freeze({ npc: 0.35, bargain: 0.6 }),
+        soldAt: Object.freeze([0.15, 0.9]),
+        soldShowMs: 180000,
+        // 최근 거래에 보이는 팔린 매물 수(새것부터).
+        recentTrades: 30,
         // 지역 나눔: 매물 다섯 개(every)마다 top개는 사다리, 나머지는 사다리보다 앞의 보통 지역. 앞 지역이 없으면 모두 사다리.
         spread: Object.freeze({ every: 5, top: 3 }),
         // 드랍이 가질 수 있는 변형(게임의 함수로 붙인다)과 매물에 붙는 확률, 감정가와 상점 값이 반영하지 않아 곱하는 배율.
@@ -151,8 +161,6 @@ const AUCTION_HOUSE = Object.freeze({
         bargainChance: 0.24,
         bargain: Object.freeze([0.82, 0.88]),
         normal: Object.freeze([0.96, 1.10]),
-        soldBargain: 0.25,
-        soldNormal: 0.10,
         merchants: Object.freeze(['시든 도시 중개인', '모루터 감정사', '허공뿌리 행상', '수관 수집상'])
     }),
     // 내 출품: 3칸. 구간이 바뀔 때마다 한 번 상인 수요가 붙고(최대 buckets번), 못 팔리면 기간이 끝난다. 값은 감정가(그 구간 시세)의 1.2배까지,

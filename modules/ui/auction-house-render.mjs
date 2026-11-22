@@ -1,10 +1,12 @@
 /**
- * 경매장 칸 그리기. 타이머와 폴링은 없다: 칸이 보일 때(marketUi가 이 칸을 그릴 때)와 명령 전에 시계를 지금으로 옮기고(advance),
- * 거래 창의 기존 갱신(renderMarketUI)이 부를 때는 저장과 화면 상태의 짧은 서명이 같으면 아무것도 다시 만들지 않는다. 시세 띠, 칸 단추,
- * 본문을 따로 칠해 바뀐 부분만 바꾼다(칸 단추는 제자리에서 속성만 고친다: 화살표 키의 초점이 남는다). 닫힌 칸은 일을 하지 않는다.
+ * 경매장 칸 그리기. 칸이 보일 때(marketUi가 이 칸을 그릴 때)와 명령 전에 시계를 지금으로 옮기고(advance), 거래 창의 기존 갱신
+ * (renderMarketUI)이 부를 때는 저장과 화면 상태의 짧은 서명이 같으면 아무것도 다시 만들지 않는다. 시세 띠, 칸 단추, 본문을 따로 칠해
+ * 바뀐 부분만 바꾼다(칸 단추는 제자리에서 속성만 고친다: 화살표 키의 초점이 남는다). 닫힌 칸은 일을 하지 않는다.
+ * 장비 칸이 보이는 동안은 1초마다 도는 확인 하나가 다음 매물이 놓이거나 팔리거나 내려가는 때(길어야 15초 뒤)에 목록만 새로 그린다
+ * (repaintGearBoard). 칸이나 창이 닫히면 다음 확인에서 멈추고(칸을 다시 그릴 때 다시 건다), 화면을 치우면 바로 멈춘다.
  */
 import { trHtml, esc, pct, trendClass, familyLabel, paint } from './auction-house-format.mjs';
-import { gearViewHtml } from './auction-house-gear.mjs';
+import { gearViewHtml, repaintGearBoard } from './auction-house-gear.mjs';
 import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-materials.mjs';
 import { standsViewHtml, claimable } from './auction-house-stands.mjs';
 import { watchHall } from './auction-house-hall.mjs';
@@ -12,6 +14,8 @@ import { watchHall } from './auction-house-hall.mjs';
 const TABS = Object.freeze([['gear', '장비'], ['materials', '재료'], ['mine', '내 출품']]);
 const MOVERS = 3;
 const WALLET = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
+// The gear list's refresh: at the next change of the list, at least this soon and at most this late (the 남은 시간 column counts minutes).
+const REFRESH_MS = Object.freeze({ min: 500, max: 15000, tick: 1000 });
 
 /** Moves the auction clock to now and announces what settled (as the game tick does). Returns whether the bucket turned. */
 export function syncClock(runtime) {
@@ -92,9 +96,12 @@ function focusKey(view) {
 }
 
 function paintView(runtime, view) {
-    const key = focusKey(view), top = listScroll(view);
+    const key = focusKey(view), top = listScroll(view), lotsTop = view.querySelector('.ah-lots')?.scrollTop;
     if (!paint(view, VIEWS[runtime.state.tab](runtime))) return;
     keepListScroll(view, top);
+    // The gear list stays where it was scrolled (a clock step, a filter or a purchase redraws the whole view).
+    const lots = view.querySelector('.ah-lots');
+    if (lots && lotsTop !== undefined) lots.scrollTop = lotsTop;
     if (key) view.querySelector(key)?.focus({ preventScroll: true });
 }
 
@@ -128,15 +135,62 @@ function ensureSkeleton(runtime, host) {
     return true;
 }
 
+/** The section's host when the gear list can be seen now (shown, and its window open: a closed window lays out no boxes), else null. */
+function seenGearHost(runtime) {
+    const host = runtime.state.tab === 'gear' ? shownHost(runtime) : null;
+    return host && host.getClientRects().length ? host : null;
+}
+
+/** Stops the gear list's refresh check. */
+export function stopGearRefresh(runtime) {
+    if (!runtime.refresh) return;
+    runtime.deps.window.clearInterval(runtime.refresh);
+    runtime.refresh = 0;
+}
+
+/** When the gear list should next be repainted (UTC ms on the auction clock): its next change (a lot arrives, sells or leaves), within
+ * REFRESH_MS. */
+function nextRefreshAt(runtime) {
+    const { auctionHouse, game } = runtime.deps, now = runtime.deps.now(), clock = Math.max(now, game.auction.lastAt);
+    return clock + Math.min(REFRESH_MS.max, Math.max(REFRESH_MS.min, auctionHouse.gearNextChange(game, now) - clock));
+}
+
+/** Keeps one check a second while the gear tab can be seen (it repaints the list when refreshAt comes); stops it otherwise. painted: the
+ * view was just drawn, so the next repaint is counted from now. */
+function keepGearRefresh(runtime, painted) {
+    if (!seenGearHost(runtime)) { stopGearRefresh(runtime); return; }
+    if (painted || !runtime.refreshAt) runtime.refreshAt = nextRefreshAt(runtime);
+    if (!runtime.refresh) runtime.refresh = runtime.deps.window.setInterval(() => gearRefreshTick(runtime), REFRESH_MS.tick);
+}
+
+/** The check: stops when the list cannot be seen, repaints it when its time came. */
+function gearRefreshTick(runtime) {
+    if (!seenGearHost(runtime)) { stopGearRefresh(runtime); return; }
+    if (Math.max(runtime.deps.now(), runtime.deps.game.auction.lastAt) >= runtime.refreshAt) refreshGear(runtime);
+}
+
+/** The clock moves (a turned bucket repaints the band), then the list, the count and the detail alone are repainted. A gear view without a
+ * list (no lots yet) is left for the next render, which then draws it whole. */
+function refreshGear(runtime) {
+    const root = seenGearHost(runtime)?.querySelector('.ah-root');
+    if (!root) return;
+    if (syncClock(runtime)) paint(root.querySelector('.ah-band'), bandHtml(runtime));
+    const gear = root.querySelector('.ah-gear');
+    if (gear && gear.querySelector('[data-ah-board]')) repaintGearBoard(runtime, gear);
+    else runtime.state.print = '';
+    runtime.refreshAt = nextRefreshAt(runtime);
+}
+
 /** Draws the section when it is shown (force: a user action or the section was just opened). */
 export function renderAuction(runtime, force = false) {
     const host = shownHost(runtime);
-    if (!host) return;
+    if (!host) { stopGearRefresh(runtime); return; }
     if (syncClock(runtime)) force = true;
     // The server pulse (modules/application/auction-pulse-service.mjs): at most one request per bucket and 10 minutes; its reply redraws.
     runtime.deps.auctionPulse.sync();
     watchHall(runtime);
     if (ensureSkeleton(runtime, host)) force = true;
+    keepGearRefresh(runtime, false);
     const print = signature(runtime);
     if (!force && (print === runtime.state.print || editingInput(host))) return;
     runtime.state.print = print;
@@ -144,4 +198,5 @@ export function renderAuction(runtime, force = false) {
     paint(root.querySelector('.ah-band'), bandHtml(runtime));
     paintTabs(runtime, root);
     paintView(runtime, root.querySelector('.ah-view'));
+    keepGearRefresh(runtime, true);
 }

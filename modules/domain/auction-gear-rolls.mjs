@@ -1,9 +1,9 @@
 /**
- * 경매장 상인 매물 생성: 시세 구간마다 60개를 (seed, bucket, lotZone)에서 다시 만든다(저장하지 않는다). 한 동기 함수 안에서 Math.random을
- * createSeededRng(seed:bucket)로 바꿔 끼우고 finally에서 되돌리며, 생성이 올린 아이템 번호도 되돌린다(미리보기 규칙).
+ * 경매장 상인 매물 생성: 시세 구간 b의 묶음(gear.batch개)을 (seed, b, 그 구간의 지역)에서 다시 만든다(저장하지 않는다). 한 동기 함수 안에서
+ * Math.random을 createSeededRng(seed:bucket)로 바꿔 끼우고 finally에서 되돌리며, 생성이 올린 아이템 번호도 되돌린다(미리보기 규칙).
  * 매물 i의 등급은 따로 정해진 주사위(seed:bucket:rarity)로 섞은 gear.rarities 목록의 i번째, 지역은 번호로 정한다: 다섯 개마다 셋은
- * lotZone과 그 앞 보통 지역 둘의 사다리를 번갈아, 둘은 그보다 앞의 보통 지역(0 ~ lotZone - 3)에 고르게. 부위는 드랍 부위를 한 바퀴씩
- * (무기는 두 번) 섞어 돌고, 같은 부위에서 이미 나온 베이스는 몇 번 다시 골라 피한다.
+ * 묶음의 지역과 그 앞 보통 지역 둘의 사다리를 번갈아, 둘은 그보다 앞의 보통 지역(0 ~ 지역 - 3)에 고르게. 부위는 드랍 부위를 한 바퀴씩
+ * (무기는 두 번) 섞어 돌고, 같은 부위에서 이미 나온 베이스는 몇 번 다시 골라 피한다(묶음 안에서).
  * 일반, 마법, 희귀는 몬스터 드랍과 같은 지역, 티어 입력으로 chooseItemBase + createItemFromBase(그 등급)를 쓴다. 고유는 암거래상이 그 지역의
  * 티어에서 내놓을 수 있는 고유(체이스 제외, modules/domain/black-market-uniques.mjs)를 이름으로 정해 generateUniqueItem으로 만든다:
  * 이름을 정한 고유는 체이스 기록과 로그를 남기지 않는다. 값은 암거래상의 제안(createBlackMarketUniqueOffer)과 같은 범위에서 굴린다.
@@ -29,7 +29,7 @@ export function auctionWithSeededRandom(seedText, run) {
     }
 }
 
-/** The zones the lots are rolled over, top first: lotZone and the ordinary zones just before it (ids lotZone - 1, lotZone - 2: story acts
+/** The zones the lots are rolled over, top first: lotZone (the batch's zone) and the ordinary zones just before it (ids lotZone - 1, lotZone - 2: story acts
  * 0 to 9 and chaos depths from 10 are numbered in one line), up to gear.ladder of them. A lotZone that is not an ordinary numbered zone
  * gives that zone alone, or zone 0. */
 export function auctionLotZoneLadder(env, lotZone) {
@@ -61,10 +61,11 @@ export function auctionShuffle(list, random = Math.random) {
     return list;
 }
 
-/** The rarity of each lot: gear.rarities expanded and shuffled with the bucket's own rarity stream (seed:bucket:rarity). */
-export function auctionRarityPlan(state) {
+/** The rarity of each lot of batch ({ seed, bucket, zone }): gear.rarities expanded and shuffled with the bucket's own rarity stream
+ * (seed:bucket:rarity). */
+export function auctionRarityPlan(batch) {
     const plan = GEAR.rarities.flatMap(row => Array.from({ length: Number(row[1]) }, () => String(row[0])));
-    return auctionShuffle(plan, createSeededRng(`${state.seed}:${state.bucket}:rarity`));
+    return auctionShuffle(plan, createSeededRng(`${batch.seed}:${batch.bucket}:rarity`));
 }
 
 /** The slot of each of count lots: rounds of every drop slot (slots: EQUIPMENT_DROP_SLOTS) once and the weapon slot gear.weaponTurns times,
@@ -156,14 +157,14 @@ function auctionRollEntry(env, plan, index) {
     return { ...made, item: auctionApplyVariants(env, made.item, rarity), rarity };
 }
 
-/** Up to GEAR.lots entries (bounded tries): lot i of rarity plan[i], slot plan[i] and zone plan[i]. A unique that cannot be made gives its
- * place to a rare. */
-export function auctionRollItems(env, state) {
+/** Up to GEAR.batch entries of batch (bounded tries): lot i of rarity plan[i], slot plan[i] and zone plan[i]. A unique that cannot be made
+ * gives its place to a rare. */
+export function auctionRollItems(env, batch) {
     const slots = env.deps.EQUIPMENT_DROP_SLOTS;
-    const plan = { rarities: auctionRarityPlan(state), zones: auctionLotZones(env, state.lotZone, GEAR.lots), slots: auctionSlotPlan(slots, GEAR.lots),
+    const plan = { rarities: auctionRarityPlan(batch), zones: auctionLotZones(env, batch.zone, GEAR.batch), slots: auctionSlotPlan(slots, GEAR.batch),
         used: new Map(slots.map(slot => [slot, new Set()])), uniques: new Set() };
     const entries = [];
-    for (let tries = 0; entries.length < GEAR.lots && tries < GEAR.lots * 3; tries++) {
+    for (let tries = 0; entries.length < GEAR.batch && tries < GEAR.batch * 3; tries++) {
         const index = entries.length, entry = auctionRollEntry(env, plan, index);
         if (entry) entries.push(entry);
         else if (plan.rarities[index] === 'unique') plan.rarities[index] = 'rare';
@@ -171,11 +172,11 @@ export function auctionRollItems(env, state) {
     return entries;
 }
 
-/** The bucket's entries ({ item, rarity, offer? }), regenerated from (seed, bucket, lotZone); the item id counter is put back afterwards. */
-export function auctionGenerateItems(env, state) {
+/** The batch's entries ({ item, rarity, offer? }), regenerated from batch { seed, bucket, zone }; the item id counter is put back afterwards. */
+export function auctionGenerateItems(env, batch) {
     const counter = env.deps.readItemIdCounter();
     try {
-        return auctionWithSeededRandom(`${state.seed}:${state.bucket}`, () => auctionRollItems(env, state));
+        return auctionWithSeededRandom(`${batch.seed}:${batch.bucket}`, () => auctionRollItems(env, batch));
     } finally {
         env.deps.writeItemIdCounter(counter);
     }

@@ -1,10 +1,12 @@
 /**
  * 경매장 시계와 이용 조건. 시계는 Math.max(now, lastAt)이고(기기 시계를 되돌려도 지난 구간이 다시 오지 않는다), 시세 구간 번호는 그 시계를
- * bucketMs로 나눈 몫이다. 구간이 오를 때만 정산한다: 지난 구간마다 내 출품을 굴리고(최대 offlineBuckets 구간), 이번 구간의 거래량과
- * 산 매물을 비우고, 상인 매물을 굴릴 지역(lotZone)을 정하고, 거래 흐름(trend)을 반으로 줄인다. 타이머는 없다: 부르는 쪽이 시각을 넘긴다.
+ * bucketMs로 나눈 몫이다. 구간이 오를 때만 정산한다: 지난 구간마다 내 출품을 굴리고(최대 offlineBuckets 구간), 이번 구간의 거래량을 비우고,
+ * 아직 지역이 적히지 않은 구간(지난 lookback 구간까지)에 상인 매물을 굴릴 지금의 지역을 적고, 목록에서 벗어난 구간의 지역과 산 매물을 지우고,
+ * 거래 흐름(trend)을 반으로 줄인다. 타이머는 없다: 부르는 쪽이 시각을 넘긴다.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionRollLots } from './auction-demand.mjs';
+import { AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
 
 /** The bucket of a clock (UTC ms). */
 export function auctionBucketOf(clock) { return Math.floor(clock / AUCTION_HOUSE.bucketMs); }
@@ -23,6 +25,25 @@ export function auctionLotZoneId(env, owner) {
     const here = usable(owner.currentZoneId) ? owner.currentZoneId : null;
     if (usable(owner.maxZoneId) && (here === null || owner.maxZoneId > here)) return owner.maxZoneId;
     return here === null ? 0 : here;
+}
+
+/** The birth bucket of a merchant lot id ('birthBucket:index'). */
+export function auctionLotBirth(id) { return Number(String(id).split(':')[0]); }
+
+/** The zone the batch of bucket is rolled for: the one recorded for it (state.lotZones), else fallback (a bucket not advanced into yet
+ * takes the zone the advance would record). */
+export function auctionZoneOfBucket(state, bucket, fallback) {
+    const row = state.lotZones.find(entry => entry.bucket === bucket);
+    return row ? row.zone : fallback;
+}
+
+/** Records zone for the buckets from..bucket inside the lookback that have none and drops the records that left it. */
+export function auctionRecordLotZones(state, from, bucket, zone) {
+    const oldest = bucket - AUCTION_LOT_LOOKBACK, kept = state.lotZones.filter(row => row.bucket >= oldest && row.bucket <= bucket);
+    for (let passed = Math.max(from, oldest); passed <= bucket; passed++) {
+        if (!kept.some(row => row.bucket === passed)) kept.push({ bucket: passed, zone });
+    }
+    state.lotZones = kept.sort((a, b) => a.bucket - b.bucket);
 }
 
 /** A fresh nonzero uint32 for state.seed (picked once, the first time the auction is advanced). */
@@ -46,7 +67,8 @@ export function auctionAddTrend(state, key, amount) {
 
 /**
  * Moves the auction clock to now (UTC ms). The bucket never goes down; when it rises, the passed buckets settle (at most
- * offlineBuckets of them), the bucket's quota and bought list empty, lotZone is taken anew and the trend halves.
+ * offlineBuckets of them), the bucket's quota empties, the new lookback buckets get today's lot zone, the zones and bought ids of batches
+ * that left the lookback go, and the trend halves.
  * @returns {{ok: boolean, bucketChanged: boolean, settled: Array<{lotId: number, status: string, name: string, currency: string, amount: number}>}}
  * status is 'sold' or 'expired'.
  * ok is false (nothing changed) for an invalid clock.
@@ -62,10 +84,10 @@ export function auctionAdvance(env, owner, now) {
     for (let passed = Math.max(state.bucket + 1, bucket - AUCTION_HOUSE.offlineBuckets + 1); passed <= bucket; passed++) {
         settled.push(...auctionRollLots(env, owner, passed));
     }
+    auctionRecordLotZones(state, state.bucket + 1, bucket, auctionLotZoneId(env, owner));
     state.bucket = bucket;
     state.quota = {};
-    state.bought = [];
-    state.lotZone = auctionLotZoneId(env, owner);
+    state.bought = state.bought.filter(id => auctionLotBirth(id) >= bucket - AUCTION_LOT_LOOKBACK);
     auctionDecayTrend(state);
     return { ok: true, bucketChanged: true, settled };
 }

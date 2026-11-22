@@ -11029,6 +11029,9 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '모루터 감정사': 'Anvil Yard Appraiser',
         '허공뿌리 행상': 'Voidroot Peddler',
         '수관 수집상': 'Canopy Collector',
+        '최근 거래': 'Recent trades',
+        '{minutes}분 전': '{minutes}m ago',
+        '이미 내려간 매물입니다.': 'This lot is no longer listed.',
     })
 });
 

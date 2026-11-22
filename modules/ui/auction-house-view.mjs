@@ -4,20 +4,20 @@
  * 명령은 auction-house-actions.mjs. 화면 상태는 저장하지 않는다.
  */
 import { listenView, releaseViewEvents } from './view-events.mjs';
-import { renderAuction } from './auction-house-render.mjs';
-import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch } from './auction-house-actions.mjs';
+import { renderAuction, stopGearRefresh } from './auction-house-render.mjs';
+import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode } from './auction-house-actions.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
 const FILTERS = Object.freeze({ slot: null, source: ['all', 'merchant', 'user'], rarity: ['all', 'normal', 'magic', 'rare', 'unique'] });
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
 export function createAuctionHouseView(deps) {
-    const runtime = { deps, state: initialState(), api: null, active: true, listeners: [] };
+    const runtime = { deps, state: initialState(), api: null, active: true, listeners: [], refresh: 0, refreshAt: 0 };
     runtime.api = Object.freeze({
         render: (force = false) => renderAuction(runtime, force),
         /** The trade window opens this section on tab (the loop card asks for 내 출품). */
         showTab: tab => { if (TABS.includes(tab)) runtime.state.tab = tab; },
-        dispose: () => releaseViewEvents(runtime)
+        dispose: () => { stopGearRefresh(runtime); releaseViewEvents(runtime); }
     });
     installEvents(runtime);
     return runtime.api;
@@ -26,7 +26,7 @@ export function createAuctionHouseView(deps) {
 function initialState() {
     return {
         tab: 'gear', print: '', card: { key: '', html: '' },
-        gear: { slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'price', dir: 1, family: '', selected: '' },
+        gear: { mode: 'open', slot: 'all', rarity: 'all', source: 'all', query: '', sort: 'price', dir: 1, family: '', selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
         hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 }
@@ -40,6 +40,7 @@ const CLICKS = Object.freeze([
     ['data-ah-lot', (runtime, value, el) => selectLot(runtime, value, el)],
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],
     ['data-ah-sort', (runtime, value) => sortGear(runtime, value)],
+    ['data-ah-mode', (runtime, value) => gearMode(runtime, value)],
     ['data-ah-family', (runtime, value) => jumpFamily(runtime, value)],
     ['data-ah-clear-family', runtime => jumpFamily(runtime, '')],
     ['data-ah-jump', (runtime, value) => jumpMaterial(runtime, value)],

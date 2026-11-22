@@ -363,11 +363,12 @@ const DEFAULT_GAME_BLUEPRINT = {
     // proceeds/budProceeds/goldProceeds: unclaimed integer dew/buds/gold; rng: saved uint32; sequence: increasing listing ID.
     playerStall: { version: 8, sequence: 0, offerSequence: 0, eventSequence: 0, saleSequence: 0, nextOfferAt: 0, lastAt: 0, nextVisitAt: 0, rng: 1357911, proceeds: 0, budProceeds: 0, goldProceeds: 0, listings: [], history: [], sales: [] },
     // 경매장(js/auction-house.js, modules/domain/auction-house.mjs): seed uint32 picked once (NPC lots only, never prices); lastAt UTC ms
-    // watermark; bucket floor(clock / 15 min), never lower; lotZone the zone id the NPC lots are rolled for; bought NPC lot indexes and
-    // quota { 'buy:key' | 'sell:key': bundles } of this bucket; lots my listings (escrow owns open and expired items); trend { key: int }.
-    // deltas: the server corrections [{ bucket, values: { pulse key: -0.06..0.06 } }], at most two (this bucket's and the next one's), each
-    // fetched during the bucket before and saved so a reload cannot change a bucket's prices.
-    auction: { version: 1, seed: 0, lastAt: 0, bucket: 0, lotZone: null, bought: [], quota: {}, lots: [], sequence: 0, trend: {}, deltas: [] },
+    // watermark; bucket floor(clock / 15 min), never lower; lotZones [{ bucket, zone }] the zone id (or special zone key) each listed batch
+    // of NPC lots is rolled for, the lookback buckets only (modules/domain/auction-pulse.mjs AUCTION_LOT_LOOKBACK); bought the NPC lot ids
+    // ('birthBucket:index') I bought from those batches; quota { 'buy:key' | 'sell:key': bundles } of this bucket; lots my listings (escrow
+    // owns open and expired items); trend { key: int }. deltas: the server corrections [{ bucket, values: { pulse key: -0.06..0.06 } }] of
+    // the lookback buckets, this one and the next one, each fetched during the bucket before and saved so a reload cannot change a price.
+    auction: { version: 2, seed: 0, lastAt: 0, bucket: 0, lotZones: [], bought: [], quota: {}, lots: [], sequence: 0, trend: {}, deltas: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,

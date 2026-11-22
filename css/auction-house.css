@@ -46,8 +46,11 @@
 .ah-price b { color: var(--ah-gold); font-weight: 400; }
 .ah-price.is-big .shop-coin { width: 20px; height: 20px; }
 
-/* 장비: 고르기 줄, 거래소 목록(넓으면 머리줄과 한 줄 행, 좁으면 두 줄 행)과 자세히 칸. 목록은 제 칸 안에서 민다. */
+/* 장비: 판매 중 | 최근 거래 단추, 고르기 줄, 거래소 목록(넓으면 머리줄과 한 줄 행, 좁으면 두 줄 행)과 자세히 칸. 목록은 제 칸 안에서 민다. */
 .ah-gear { display: grid; gap: 8px; min-width: 0; }
+.ah-modes { display: flex; gap: 4px; }
+#market-panel-auction .ah-mode { padding: 2px 14px; border: 1px solid var(--ah-line); background: #100f0d; color: var(--color-text-secondary); }
+#market-panel-auction .ah-mode.is-on { border-color: var(--ah-gold); color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 8%, #100f0d); }
 .ah-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 #market-panel-auction .ah-tools select { flex: 1 1 96px; width: auto; min-height: var(--ah-tap); padding: 4px 8px; border-radius: 0; font-size: 12px; }
 #market-panel-auction .ah-search { flex: 2 1 150px; min-width: 0; min-height: var(--ah-tap); padding: 4px 8px; border: 1px solid #594931; border-radius: 0; background: #090908;
@@ -55,14 +58,16 @@
 .ah-lot-count { margin-left: auto; color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
 #market-panel-auction .ah-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--ah-gold); color: var(--ah-gold); background: none; }
 .ah-gear-body { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "detail" "list"; gap: 10px; align-items: start; }
+/* 자세히 칸을 따로 다시 그리는 자리: 상자를 만들지 않아 자세히 칸이 그대로 격자의 한 칸이다. */
+.ah-detail-slot { display: contents; }
 .ah-board { grid-area: list; display: grid; min-width: 0; border: 1px solid var(--ah-line); background: #0d0c0b; }
 .ah-board > .ah-empty { border: 0; }
 .ah-board-head { display: none; }
 .ah-lots { display: grid; min-width: 0; max-height: clamp(280px, calc(100vh - 420px), 720px); overflow-y: auto; overscroll-behavior: contain; }
 .ah-lots li + li { border-top: 1px solid #1f1c17; }
-/* 좁은 칸: 두 줄 행(이름과 표시 / 부위, 레벨, 옵션), 값은 오른쪽 */
+/* 좁은 칸: 두 줄 행(이름과 표시, 값 / 부위, 레벨, 옵션, 남은 시간이나 팔린 때) */
 #market-panel-auction .ah-lot { --item-rarity: #7d8996; display: grid; grid-template-columns: 36px auto auto minmax(0, 1fr) auto;
-    grid-template-areas: "art name name name price" "art slot level options price"; align-items: center; gap: 2px 10px; width: 100%; min-height: 48px;
+    grid-template-areas: "art name name name price" "art slot level options left"; align-items: center; gap: 2px 10px; width: 100%; min-height: 48px;
     padding: 5px 8px 5px 6px; border: 0; border-left: 3px solid transparent; background: none; color: var(--color-text); text-align: left; }
 #market-panel-auction .ah-lot:hover { background: #15130f; }
 #market-panel-auction .ah-lot.is-chosen { border-left-color: var(--ah-gold); background: color-mix(in srgb, var(--ah-gold) 8%, #100f0d); }
@@ -75,9 +80,10 @@
 .ah-cell-level { grid-area: level; }
 .ah-cell-options { grid-area: options; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .ah-cell-seller { display: none; }
-:is(.ah-cell-slot, .ah-cell-level, .ah-cell-options, .ah-cell-seller) { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
+.ah-cell-left, .ah-cell-ago { grid-area: left; justify-self: end; }
+:is(.ah-cell-slot, .ah-cell-level, .ah-cell-options, .ah-cell-seller, .ah-cell-left, .ah-cell-ago) { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
 .ah-cell-key { margin-right: 3px; color: #7f776a; font-size: 12px; }
-.ah-cell-price { grid-area: price; display: grid; justify-items: end; gap: 2px; }
+.ah-cell-price { grid-area: price; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .ah-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
 .ah-tag { padding: 0 4px; border: 1px solid #3a342a; color: #a9a092; font-size: 12px; font-style: normal; line-height: 16px; white-space: nowrap; }
 .ah-tag.is-exceptional { border-color: color-mix(in srgb, #9fe0c0 45%, transparent); color: #9fe0c0; }
@@ -91,8 +97,11 @@
 .ah-badge { padding: 0 4px; border: 1px solid var(--ah-line); color: var(--color-text-secondary); font-size: 12px; font-style: normal; line-height: 16px; white-space: nowrap; }
 /* 넓은 칸: 머리줄과 한 줄 행, 같은 열 너비 */
 @container (min-width: 700px) {
-    .ah-board { --ah-cols: 30px minmax(0, 1fr) 52px 62px 84px minmax(0, 96px) 64px; }
-    .ah-board-head, #market-panel-auction .ah-lot { grid-template-columns: var(--ah-cols); grid-template-areas: "art name slot level options seller price"; column-gap: 8px; }
+    .ah-board { --ah-cols: 30px minmax(0, 1fr) 48px 58px 76px minmax(0, 88px) 52px 64px; --ah-areas: "art name slot level options seller left price"; }
+    .ah-board.is-recent { --ah-cols: 30px minmax(0, 1fr) 48px 58px 76px 64px 64px; --ah-areas: "art name slot level options price ago"; }
+    .ah-board-head, #market-panel-auction .ah-lot { grid-template-columns: var(--ah-cols); grid-template-areas: var(--ah-areas); column-gap: 6px; }
+    .ah-cell-ago { grid-area: ago; }
+    .ah-head-left, .ah-head-ago { text-align: right; }
     .ah-board-head { display: grid; align-items: center; padding: 0 8px 0 9px; border-bottom: 1px solid var(--ah-line); background: var(--ah-panel); color: var(--color-text-secondary); font-size: 12px; }
     .ah-board-head > span { min-width: 0; white-space: nowrap; overflow: hidden; }
     .ah-head-price { text-align: right; }
@@ -204,7 +213,7 @@
 /* 휴대폰: 누르는 칸은 44px 이상 */
 @container (max-width: 520px) {
     .ah-root { --ah-tap: 44px; }
-    #market-panel-auction :is(.ah-chip, .ah-tabs button, .ah-primary, .ah-lot, .ah-mat, .ah-group) { min-height: 44px; }
+    #market-panel-auction :is(.ah-chip, .ah-tabs button, .ah-primary, .ah-lot, .ah-mat, .ah-group, .ah-mode) { min-height: 44px; }
     /* 묶음 단추는 한 줄에서 옆으로 밀고, 목록은 거래표 아래에서 화면의 절반 남짓만 차지한다 */
     .ah-groups { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
     .ah-groups .ah-group { flex: none; }

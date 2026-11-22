@@ -4,7 +4,7 @@
  */
 import { itemName } from './auction-house-format.mjs';
 import { syncClock, announce } from './auction-house-render.mjs';
-import { findLot, repaintGearBoard } from './auction-house-gear.mjs';
+import { findLot, repaintGearBoard, SORTABLE } from './auction-house-gear.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
 import { tradeToast, maxCount, receiptHtml } from './auction-house-materials.mjs';
 import { startingAsk, askTermsHtml, draftItem, claimToast } from './auction-house-stands.mjs';
@@ -35,7 +35,7 @@ function command(runtime, run) {
 
 export function buyLot(runtime, id) {
     const lot = findLot(runtime, id);
-    if (!lot) { refuse(runtime, runtime.deps._t('이번 시세 구간의 매물이 아닙니다. 목록을 다시 확인하세요.')); return; }
+    if (!lot) { refuse(runtime, runtime.deps._t('이미 내려간 매물입니다.')); return; }
     if (lot.source === 'user') { buyUserLot(runtime, lot).catch(error => runtime.deps.console.error('auction hall buy failed:', error)); return; }
     const result = command(runtime, now => runtime.deps.auctionHouse.buyGearLot(runtime.deps.game, id, now));
     if (!result) return;
@@ -61,10 +61,19 @@ export function typeCount(runtime, input) {
 
 /** A sortable column header: that column ascending, a second click on it descending. */
 export function sortGear(runtime, column) {
-    if (!['name', 'level', 'options', 'price'].includes(column)) return;
+    if (!SORTABLE.includes(column)) return;
     const view = runtime.state.gear;
     view.dir = view.sort === column ? -view.dir : 1;
     view.sort = column;
+    runtime.api.render(true);
+}
+
+/** The 판매 중 | 최근 거래 switch: that list, nothing chosen yet (its first row is chosen). */
+export function gearMode(runtime, mode) {
+    const view = runtime.state.gear;
+    if (!['open', 'recent'].includes(mode) || view.mode === mode) return;
+    view.mode = mode;
+    view.selected = '';
     runtime.api.render(true);
 }
 

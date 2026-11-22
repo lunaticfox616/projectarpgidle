@@ -87,8 +87,15 @@ export function auctionPulse(owner) {
         history: key => Array.from({ length }, (_, index) => auctionFactor(state, key, bucket - length + 1 + index)) };
 }
 
-/** Saved corrections: the current bucket's and the next one's. */
-export const AUCTION_DELTA_SLOTS = 2;
+/** How many buckets back a merchant lot can still be listed: its longest stay (life, or the sold point plus the sold display) in buckets,
+ * rounded up. The list at a clock in bucket b reads the batches b - lookback .. b. */
+export const AUCTION_LOT_LOOKBACK = (() => {
+    const gear = AUCTION_HOUSE.gear, longest = Math.max(gear.lifeMs[1], gear.lifeMs[1] * gear.soldAt[1] + gear.soldShowMs);
+    return Math.ceil(longest / AUCTION_HOUSE.bucketMs);
+})();
+
+/** Saved corrections: the buckets whose batches can still be listed (a lot keeps its birth bucket's price), the current one and the next. */
+export const AUCTION_DELTA_SLOTS = AUCTION_LOT_LOOKBACK + 2;
 
 /** A correction's values: the known pulse keys only, each a finite nonzero number clamped to ±voteSwing. */
 export function auctionDeltaValues(values) {
@@ -101,14 +108,16 @@ export function auctionDeltaValues(values) {
 }
 
 /** Stores the server's correction fetched during bucketFetched in the save for the next bucket (bucketFetched + 1), so prices never move
- * inside a bucket and a reload sees the same correction. The saved list keeps at most AUCTION_DELTA_SLOTS records (the current bucket's and
- * the next one's): a fetch during bucket B never replaces B's own correction. Refused (nothing changes) when that bucket is not ahead of
- * the saved bucket or the input is not an object. Returns whether it was taken. Factors stay inside min..max whatever the correction. */
+ * inside a bucket and a reload sees the same correction. The saved list keeps at most AUCTION_DELTA_SLOTS records (the lookback buckets',
+ * whose listed lots keep their birth price, the current one's and the next one's): a fetch during bucket B never replaces B's own correction.
+ * Refused (nothing changes) when that bucket is not ahead of the saved bucket or the input is not an object. Returns whether it was taken.
+ * Factors stay inside min..max whatever the correction. */
 export function auctionSetPulseDelta(owner, bucketFetched, values) {
     const state = owner && owner.auction, target = bucketFetched + 1;
     if (!state || !Number.isSafeInteger(bucketFetched) || bucketFetched < 0 || target <= state.bucket) return false;
     if (!values || typeof values !== 'object' || Array.isArray(values)) return false;
-    const kept = (Array.isArray(state.deltas) ? state.deltas : []).filter(row => row.bucket >= state.bucket && row.bucket !== target);
+    const oldest = state.bucket - AUCTION_LOT_LOOKBACK;
+    const kept = (Array.isArray(state.deltas) ? state.deltas : []).filter(row => row.bucket >= oldest && row.bucket !== target);
     state.deltas = [...kept, { bucket: target, values: auctionDeltaValues(values) }].sort((a, b) => a.bucket - b.bucket).slice(-AUCTION_DELTA_SLOTS);
     return true;
 }
