@@ -200,7 +200,7 @@ function lotCellsHtml(runtime, lot) {
     const level = lotLevel(lot);
     return `${lotArtHtml(runtime, lot)}${nameCellHtml(runtime, lot)}
         <span class="ah-cell-slot">${esc(runtime, lotSlot(runtime, lot))}</span>
-        <span class="ah-cell-level">${level === null ? '' : `<small class="ah-cell-key">${runtime.deps._t('Lv.')}</small>${num(runtime, level)}`}</span>
+        <span class="ah-cell-level">${level === null ? '' : `<small class="ah-cell-key">Lv.</small>${num(runtime, level)}`}</span>
         <span class="ah-cell-options"><small class="ah-cell-key">${runtime.deps._t('옵션')}</small>${num(runtime, optionCount(lot))}${family ? `<em class="ah-tag is-family">${esc(runtime, family)}</em>` : ''}</span>`;
 }
 
