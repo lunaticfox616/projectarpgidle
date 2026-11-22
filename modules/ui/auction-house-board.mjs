@@ -35,7 +35,7 @@ function landingBoard(runtime, board) {
     const trades = auctionHouse.recentHeads(game, now).slice(0, LANDING.trades);
     if (!newest.length && !trades.length) { board.innerHTML = `<p class="ah-empty">${runtime.deps._t('아직 매물이 없습니다.')}</p>`; return; }
     board.innerHTML = `<section class="ah-landing"><h4>${runtime.deps._t('방금 올라온 매물')}</h4>${listHtml('newest')}</section>
-        <section class="ah-landing is-recent"><h4>${esc(runtime, tr(runtime, '최근 거래'))}</h4>${listHtml('trades')}</section>`;
+        <details class="ah-landing is-recent"><summary>${esc(runtime, tr(runtime, '최근 거래'))}</summary>${listHtml('trades')}</details>`;
     queueRows(runtime, board.querySelector('[data-ah-rows="newest"]'), newest.map(head => head.id), 'open');
     queueRows(runtime, board.querySelector('[data-ah-rows="trades"]'), trades.map(head => head.id), 'recent');
 }
