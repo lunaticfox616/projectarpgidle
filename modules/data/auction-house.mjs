@@ -220,6 +220,17 @@ const AUCTION_HOUSE = Object.freeze({
             lineBase: 0.85, perLine: 0.1, cap: 1.4, floor: 2
         })
     }),
+    // 콘텐츠 고유 매물: 묶음마다 보통 매물 뒤의 번호 둘(보통 칸, 극희귀 칸)이 제 주사위로 chance의 확률에만 생긴다(보통 매물은 그대로다).
+    // 고유는 그 칸의 파는 고유 전체(modules/domain/auction-content-lots.mjs의 표, 이 저장이 깬 것만이 아니다)에서 고르게 고른다.
+    // 값 = 암거래상이 그 고유 티어에 부르는 가장 높은 값 x price 범위의 한 점(올림), 태어날 때 정해지고 시세와 흥정이 없다.
+    // 머무는 시간 lifeMs, 다른 손님에게 sold.chance의 확률로 머무는 시간 x sold.at 범위의 한 점에 팔린다.
+    // 목록, 검색, 구매는 그 보스를 잡았거나 그 콘텐츠를 깬 저장에게만 보인다.
+    content: Object.freeze({
+        ordinary: Object.freeze({ chance: 1 / 8, price: Object.freeze([6, 10]) }),
+        ultraRare: Object.freeze({ chance: 1 / 32, price: Object.freeze([10, 18]) }),
+        lifeMs: Object.freeze([3600000, 10800000]),
+        sold: Object.freeze({ chance: 0.5, at: Object.freeze([0.3, 0.9]) })
+    }),
     // 내 출품: 3칸. 구간이 바뀔 때마다 한 번 상인 수요가 붙고(최대 buckets번), 못 팔리면 기간이 끝난다. 값은 감정가(그 구간 시세)의 1.2배까지,
     // 최소 2(수수료 1을 떼고 1이 남는다). chances: [호가 / 감정가 상한, 판매 확률], 상한을 넘으면(시세가 떨어져서) overChance.
     // 1.2배 상한이 없으면 아무 값이나 구간마다 8%로 팔려 재화를 찍어 낸다(시안의 문제를 고쳤다).

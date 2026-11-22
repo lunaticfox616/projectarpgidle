@@ -1,6 +1,6 @@
 /**
  * 경매장 상인 매물의 목록과 미리 굴리기. 시계 t = max(now, lastAt)에서 b - lookback .. b 묶음(AUCTION_LOT_LOOKBACK)의 머리 가운데 해금이 열린
- * 종류의 놓였고 아직 보이는 매물(팔리지 않은 매물, 팔린 뒤 gear.soldShowMs 동안의 팔린 매물, 내려갈 때까지의 내가 산 매물)이 목록이다.
+ * 종류의 놓였고 아직 보이는 매물(콘텐츠 고유 매물은 그 콘텐츠를 깬 저장에게만, modules/domain/auction-content-lots.mjs)(팔리지 않은 매물, 팔린 뒤 gear.soldShowMs 동안의 팔린 매물, 내려갈 때까지의 내가 산 매물)이 목록이다.
  * 최근 거래는 다른 손님에게 팔린 매물 gear.recentTrades개(새것부터)다. 목록과 최근 거래는 머리로만 내놓는다(값은 auctionLotAt이 몸을 굴려 매긴다). 몸(아이템과 값)은 비싸서 미리 굴린다(auctionWarmLots): 부르는 쪽이
  * 넘긴 stop()이 멈추라 할 때까지 목록과 최근 거래의 빠진 몸을 굴리고(prefer를 통과한 머리 먼저), 다음 부름에서 잇는다. 시계와 타이머는
  * 부르는 쪽에 있다. 머리도 같은 stop() 아래에서 만든다.
@@ -10,6 +10,7 @@ import { auctionBucketOf } from './auction-clock.mjs';
 import { auctionOpenKinds } from './auction-kind-lots.mjs';
 import { auctionLookbackRecords } from './auction-lot-heads.mjs';
 import { auctionLotBody, auctionListClock, auctionLotPhase } from './auction-gear-lots.mjs';
+import { auctionContentRows } from './auction-content-lots.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
 const LIVE = new Set(['open', 'sold', 'bought']);
@@ -23,12 +24,14 @@ const WARM_PLAN_MS = 1000;
 export function auctionListRows(env, owner, clock, stop = NEVER) {
     const state = owner.auction;
     if (!state.seed || !state.bucket) return { live: [], sold: [] };
-    const records = auctionLookbackRecords(env, owner, auctionBucketOf(clock), stop);
+    const top = auctionBucketOf(clock), records = auctionLookbackRecords(env, owner, top, stop);
     if (!records) return null;
     const open = auctionOpenKinds(env, owner), bought = new Set(state.bought), live = [], sold = [];
     for (const record of records) {
         for (const head of record.heads) if (open.has(head.kind)) sortRow({ head, record, bought: bought.has(head.id) }, clock, live, sold);
     }
+    // Content uniques owner may see only (auction-content-lots.mjs): the others leave no trace in the list, the trades or the counts.
+    for (const row of auctionContentRows(env, owner, top)) sortRow({ ...row, bought: bought.has(row.head.id) }, clock, live, sold);
     return { live, sold: sold.sort((a, b) => b.head.soldAt - a.head.soldAt).slice(0, GEAR.recentTrades) };
 }
 
@@ -98,8 +101,9 @@ export function auctionWarmLots(env, owner, now, options = {}) {
         preferred: { done: wanted.length - first.size + Math.min(rolled, first.size), total: wanted.length } };
 }
 
-/** Forgets every batch record (heads and bodies) and the warm plan; the next read builds them again. */
+/** Forgets every batch record (heads and bodies, content lots too) and the warm plan; the next read builds them again. */
 export function auctionDropLots(env) {
     env.lotCache.clear();
+    env.contentCache.clear();
     env.warmPlan = null;
 }

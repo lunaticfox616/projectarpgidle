@@ -9,12 +9,12 @@ import { liveQuery, statRows, pickOptionStat } from './auction-house-conditions.
 const SUGGEST_MS = 120;
 const SUGGEST_ROWS = 8;
 
-/** The names for the name box in the player's language, made once per language: [{ value, label, low }]. */
+/** The names for the name box in the player's language, made again when the language or the names the save may see change: [{ value, label, low }]. */
 function nameRows(runtime) {
-    const locale = runtime.deps.i18n.locale, kept = runtime.nameRows;
-    if (kept && kept.locale === locale) return kept.list;
-    const labels = [...new Set(runtime.deps.auctionHouse.searchNames().map(name => tr(runtime, name)))];
-    runtime.nameRows = { locale, list: labels.map(label => ({ value: label, label, low: label.toLocaleLowerCase(locale) })) };
+    const locale = runtime.deps.i18n.locale, kept = runtime.nameRows, names = runtime.deps.auctionHouse.searchNames(runtime.deps.game);
+    if (kept && kept.locale === locale && kept.count === names.length) return kept.list;
+    const labels = [...new Set(names.map(name => tr(runtime, name)))];
+    runtime.nameRows = { locale, count: names.length, list: labels.map(label => ({ value: label, label, low: label.toLocaleLowerCase(locale) })) };
     return runtime.nameRows.list;
 }
 

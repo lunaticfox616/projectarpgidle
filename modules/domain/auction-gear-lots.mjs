@@ -11,16 +11,19 @@
  * 산 장비는 새 번호, tradeLocked, auctionBound를 받는다: 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
  * 묶음은 장비 매물 뒤에 주얼, 액막이, 부적 매물(modules/domain/auction-kind-lots.mjs, 번호 gear.batch부터)을 더 갖는다: 같은 매물 주사위, 같은
  * 판매자, 값은 이슬. 구매는 닫힌 종류를 그 까닭으로 거절한다. 목록과 미리 굴리기는 modules/domain/auction-lot-list.mjs.
+ * 그 뒤의 콘텐츠 고유 매물(modules/domain/auction-content-lots.mjs)은 고유 생성기로 몸을 굴리고 값에 시세가 없으며, 그 콘텐츠를 깨지 않은
+ * 저장에게는 읽기(auctionLotAt)도 구매도 목록 밖의 매물처럼 없다.
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { clampNumber } from '../common/numbers.mjs';
 import { auctionWithSeededRandom, auctionRollPlain, auctionRollUnique, auctionApplyVariants, auctionItemVariants } from './auction-gear-rolls.mjs';
 import { NPC_SHOP_PRICE, npcTradeGearWarePrice } from './npc-shop-rolls.mjs';
-import { auctionFactor, auctionPay, auctionItemFamily, auctionLineFamilies, AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
+import { auctionFactor, auctionPay, auctionItemFamily, auctionLineFamilies, auctionLookbackOf, AUCTION_CONTENT_FIRST, AUCTION_CONTENT_SLOTS } from './auction-pulse.mjs';
 import { auctionUseBlock, auctionClockFor, auctionAddTrend, auctionBucketOf } from './auction-clock.mjs';
 import { AUCTION_BATCH_LOTS, auctionRollKind, auctionKindValue, auctionKindFamily, auctionKindLevel, auctionKindLines, auctionKindLock, auctionKindRoomReason,
     auctionStoreLot } from './auction-kind-lots.mjs';
 import { auctionBatchRecord, auctionFillHeads } from './auction-lot-heads.mjs';
+import { auctionContentHeadOf, auctionContentVisible, auctionRollContentUnique } from './auction-content-lots.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
 // Tries of a gear body before it gives up (a try that makes nothing the appraisal can price draws again from the same stream).
@@ -97,7 +100,7 @@ function auctionPreviewId(bucket, index) {
  * BODY_TRIES tries made nothing the appraisal can price. A unique the game refuses to make gives its place to a rare. */
 function auctionGearEntry(env, head, zone) {
     for (let tries = 0; tries < BODY_TRIES; tries++) {
-        const unique = head.rarity === 'unique' ? auctionRollUnique(env, zone, head.unique) : null;
+        const unique = head.content ? auctionRollContentUnique(env, head) : head.rarity === 'unique' ? auctionRollUnique(env, zone, head.unique) : null;
         const rarity = unique ? 'unique' : head.rarity === 'unique' ? 'rare' : head.rarity;
         const made = unique || { item: auctionRollPlain(env, zone, rarity, head.slot) };
         if (made.item && env.deps.itemAppraisal.quote(made.item)) return { ...made, item: auctionApplyVariants(env, made.item, rarity, head.flags), rarity };
@@ -119,7 +122,8 @@ function auctionBodyFields(env, head, entry, pricing) {
 /** Head's body rolled with Math.random (the body's stream): a non-gear lot's kind roll; a gear item (twice for a best-of-two lot, keeping the
  * higher quality multiplier). null when no gear item could be priced. */
 function auctionRollBody(env, record, head) {
-    const zone = record.plan.zones[head.index];
+    // A content lot (auction-content-lots.mjs) has no batch plan: its unique is rolled at its own tier.
+    const zone = head.content ? null : record.plan.zones[head.index];
     if (head.kind !== 'gear') {
         const entry = auctionRollKind(env, head.kind, zone);
         return auctionBodyFields(env, head, entry, auctionEntryPricing(env, entry));
@@ -147,21 +151,24 @@ export function auctionLotBody(env, record, head) {
     return record.bodies.get(head.index);
 }
 
-/** The record and head of lot id ('birthBucket:index') inside the lookback of clock's bucket (heads of its batch built), or null. */
+/** The record and head of lot id ('birthBucket:index') inside the lookback of clock's bucket (heads of its batch built), or null (also for a
+ * content lot that did not appear). */
 function auctionLotHeadOf(env, owner, lotId, clock) {
     const match = /^(\d{1,15}):(\d{1,3})$/.exec(String(lotId)), top = auctionBucketOf(clock);
     if (!owner.auction.seed || !match) return null;
     const bucket = Number(match[1]), index = Number(match[2]);
-    if (bucket < top - AUCTION_LOT_LOOKBACK || bucket > top || index >= AUCTION_BATCH_LOTS) return null;
+    if (bucket < top - auctionLookbackOf(index) || bucket > top || index >= AUCTION_CONTENT_FIRST + AUCTION_CONTENT_SLOTS.length) return null;
+    if (index >= AUCTION_BATCH_LOTS) return auctionContentHeadOf(env, owner, bucket, index, top);
     const record = auctionBatchRecord(env, owner, bucket);
     auctionFillHeads(env, record);
     return { record, head: record.heads[index] };
 }
 
 /** Lot lotId of the lookback batches at now (read at max(now, lastAt)), priced, with its phase (also 'coming' or 'gone'); its body is
- * rolled when missing. null for an id outside the lookback or a lot without a body. */
+ * rolled when missing. null for an id outside the lookback, a lot without a body, or a content lot owner may not see (no trace of it). */
 export function auctionLotAt(env, owner, lotId, now) {
-    const state = owner.auction, clock = auctionListClock(state, now), found = auctionLotHeadOf(env, owner, lotId, clock);
+    const state = owner.auction, clock = auctionListClock(state, now), shown = auctionLotHeadOf(env, owner, lotId, clock);
+    const found = shown && (!shown.head.content || auctionContentVisible(env, owner, shown.head.unique)) ? shown : null;
     const body = found && auctionLotBody(env, found.record, found.head);
     return body ? auctionPricedLot(state, { lot: { ...found.head, ...body }, bought: state.bought.includes(found.head.id) }, clock) : null;
 }
@@ -198,8 +205,8 @@ export function auctionLotPhase(lot, clock, bought) {
  */
 export function auctionPricedLot(state, row, clock) {
     const { baseValue, variance, floor, least, ...lot } = row.lot;
-    // A lot whose lines carry no family (some jewels, wards and talismans) keeps factor 1.
-    const value = baseValue * (lot.family ? auctionFactor(state, lot.family, lot.birthBucket) : 1);
+    // A lot whose lines carry no family (some jewels, wards and talismans) keeps factor 1; a content unique's price has no pulse.
+    const value = baseValue * (lot.family && !lot.content ? auctionFactor(state, lot.family, lot.birthBucket) : 1);
     const price = Math.max(floor, auctionPay(value * variance)), fairPrice = Math.max(least, auctionPay(value));
     const ratioPct = Math.round(price / fairPrice * 100);
     // A bargain held up by a floor is no cheaper than the market: no 급매 without a shown discount.

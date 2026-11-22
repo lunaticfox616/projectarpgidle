@@ -6,7 +6,7 @@
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { auctionRollLots } from './auction-demand.mjs';
-import { AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
+import { AUCTION_LOT_LOOKBACK, auctionLookbackOf } from './auction-pulse.mjs';
 
 /** The bucket of a clock (UTC ms). */
 export function auctionBucketOf(clock) { return Math.floor(clock / AUCTION_HOUSE.bucketMs); }
@@ -87,7 +87,7 @@ export function auctionAdvance(env, owner, now) {
     auctionRecordLotZones(state, state.bucket + 1, bucket, auctionLotZoneId(env, owner));
     state.bucket = bucket;
     state.quota = {};
-    state.bought = state.bought.filter(id => auctionLotBirth(id) >= bucket - AUCTION_LOT_LOOKBACK);
+    state.bought = state.bought.filter(id => auctionLotBirth(id) >= bucket - auctionLookbackOf(Number(String(id).split(':')[1])));
     auctionDecayTrend(state);
     return { ok: true, bucketChanged: true, settled };
 }

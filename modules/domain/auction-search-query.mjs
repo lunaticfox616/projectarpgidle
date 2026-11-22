@@ -9,6 +9,7 @@
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { AUCTION_VARIANT_KEYS } from './auction-gear-rolls.mjs';
+import { auctionContentPools, auctionContentVisible } from './auction-content-lots.mjs';
 
 /** How many searches a save keeps, and how many option rows a query holds. */
 export const AUCTION_SAVED_SEARCHES = 5;
@@ -44,13 +45,15 @@ export function auctionSearchStats(env) {
     return [...statTable(env)].map(([id, name]) => ({ id, name }));
 }
 
-/** The names a lot can carry for the name box's suggestions (Korean source names): every base name, then every unique name, once each. */
-export function auctionSearchNames(env) {
+/** The names a lot can carry for the name box's suggestions (Korean source names): every base name, then every unique name, once each, without
+ * the content uniques the auction sells that owner may not see (auction-content-lots.mjs). */
+export function auctionSearchNames(env, owner) {
     if (!env.searchNames) {
         env.searchNames = Object.freeze([...new Set([...env.deps.BASE_ITEM_DB.map(base => base.name), ...env.deps.UNIQUE_DB.map(unique => unique.name)]
             .filter(name => typeof name === 'string' && name))]);
     }
-    return env.searchNames;
+    const content = auctionContentPools(env).byName;
+    return env.searchNames.filter(name => !content.has(name) || auctionContentVisible(env, owner, name));
 }
 
 /** A level bound: an integer 1..999, else null. */
@@ -135,13 +138,13 @@ export function auctionDeleteSearch(owner, index) {
 
 /**
  * The facade's search calls (modules/domain/auction-house.mjs): searchRules (the option rows a query holds, the searches a save keeps, the
- * currencies of a price limit), normalizeQuery(raw), searchStats() ([{ id, name }]), searchNames() (base and unique names), saveSearch(owner, raw)
+ * currencies of a price limit), normalizeQuery(raw), searchStats() ([{ id, name }]), searchNames(owner) (base and unique names owner may see), saveSearch(owner, raw)
  * ({ ok, reason? }) and deleteSearch(owner, index).
  */
 export function auctionSearchApi(env) {
     return {
         searchRules: Object.freeze({ options: AUCTION_QUERY_OPTIONS, saved: AUCTION_SAVED_SEARCHES, currencies: AUCTION_QUERY_CURRENCIES }),
-        normalizeQuery: raw => auctionNormalizeQuery(env, raw), searchStats: () => auctionSearchStats(env), searchNames: () => auctionSearchNames(env),
+        normalizeQuery: raw => auctionNormalizeQuery(env, raw), searchStats: () => auctionSearchStats(env), searchNames: owner => auctionSearchNames(env, owner),
         saveSearch: (owner, raw) => auctionSaveSearch(env, owner, raw), deleteSearch: (owner, index) => auctionDeleteSearch(owner, index)
     };
 }

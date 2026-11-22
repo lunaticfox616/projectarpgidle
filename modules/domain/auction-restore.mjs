@@ -7,7 +7,7 @@
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { stallRulesOwnedOutsideEscrow } from './stall-restoration.mjs';
 import { auctionBucketOf } from './auction-clock.mjs';
-import { auctionPulseKeys, auctionDeltaValues, AUCTION_DELTA_SLOTS, AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
+import { auctionPulseKeys, auctionDeltaValues, AUCTION_DELTA_SLOTS, AUCTION_CONTENT_SLOTS, AUCTION_LOT_LOOKBACK, auctionLookbackOf } from './auction-pulse.mjs';
 import { auctionMaterialQuota } from './auction-materials.mjs';
 import { AUCTION_BATCH_LOTS } from './auction-kind-lots.mjs';
 import { auctionRestoreSearches } from './auction-search-query.mjs';
@@ -41,13 +41,14 @@ export function auctionRestoreLotZones(state, source) {
         .map(row => ({ bucket: row.bucket, zone: row.zone })).sort((a, b) => a.bucket - b.bucket);
 }
 
-/** The bought lot ids ('birthBucket:index', index below AUCTION_BATCH_LOTS) of the lookback batches, once each. Ids of another shape (a save from before the list kept lot
+/** The bought lot ids ('birthBucket:index', index below AUCTION_BATCH_LOTS or a content unique slot) of the lookback batches (each index's own
+ * lookback, auctionLookbackOf), once each. Ids of another shape (a save from before the list kept lot
  * numbers of one bucket) are dropped. */
 export function auctionRestoreBought(state, source) {
-    const oldest = state.bucket - AUCTION_LOT_LOOKBACK, shape = /^(\d{1,15}):(\d{1,3})$/;
+    const shape = /^(\d{1,15}):(\d{1,3})$/, known = index => index < AUCTION_BATCH_LOTS + AUCTION_CONTENT_SLOTS.length;
     const sound = id => {
-        const match = typeof id === 'string' ? shape.exec(id) : null;
-        return !!match && Number(match[1]) >= oldest && Number(match[1]) <= state.bucket && Number(match[2]) < AUCTION_BATCH_LOTS;
+        const match = typeof id === 'string' ? shape.exec(id) : null, index = match ? Number(match[2]) : -1;
+        return !!match && known(index) && Number(match[1]) >= state.bucket - auctionLookbackOf(index) && Number(match[1]) <= state.bucket;
     };
     return [...new Set((Array.isArray(source.bought) ? source.bought : []).filter(sound))];
 }

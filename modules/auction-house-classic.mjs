@@ -50,6 +50,8 @@ const auctionHouse = (() => {
         get talismans() { return talismans; },
         get stumpBox() { return stumpBox; },
         get CONTENT_UNLOCK_CATALOG() { return CONTENT_UNLOCK_CATALOG; },
+        get ATLAS_ENDGAME() { return ATLAS_ENDGAME; },
+        get COSMOS_ROUTE_GALAXIES() { return COSMOS_ROUTE_GALAXIES; },
         get JEWEL_OPTION_POOL() { return JEWEL_OPTION_POOL; },
         get COLONY_WARD_POOL() { return COLONY_WARD_POOL; },
         get TALISMAN_STAT_POOL() { return TALISMAN_STAT_POOL; }

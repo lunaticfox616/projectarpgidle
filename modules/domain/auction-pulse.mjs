@@ -94,6 +94,19 @@ export const AUCTION_LOT_LOOKBACK = (() => {
     return Math.ceil(longest / AUCTION_HOUSE.bucketMs);
 })();
 
+/** The first content unique lot index of a batch (equal to AUCTION_BATCH_LOTS: after the gear lots and the other kinds); the ordinary slot is this
+ * index and the ultraRare slot the next. */
+export const AUCTION_CONTENT_FIRST = AUCTION_HOUSE.gear.batch + AUCTION_HOUSE.kinds.lots.reduce((sum, row) => sum + row.count, 0);
+export const AUCTION_CONTENT_SLOTS = Object.freeze(['ordinary', 'ultraRare']);
+
+/** The lookback of the content unique lots: arrival inside the birth bucket plus their longest life, in buckets, rounded up. */
+export const AUCTION_CONTENT_LOOKBACK = Math.ceil((AUCTION_HOUSE.bucketMs + AUCTION_HOUSE.content.lifeMs[1]) / AUCTION_HOUSE.bucketMs);
+
+/** How many buckets back lot index of a batch can still be listed (and its bought id kept). */
+export function auctionLookbackOf(index) {
+    return index >= AUCTION_CONTENT_FIRST ? AUCTION_CONTENT_LOOKBACK : AUCTION_LOT_LOOKBACK;
+}
+
 /** Saved corrections: the buckets whose batches can still be listed (a lot keeps its birth bucket's price), the current one and the next. */
 export const AUCTION_DELTA_SLOTS = AUCTION_LOT_LOOKBACK + 2;
 
