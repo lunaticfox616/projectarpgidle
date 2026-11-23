@@ -50,6 +50,8 @@ export function validateItemTooltipAnchor(runtime) {
         if (!runtime.deps.window.GameModules.combatLogView.itemSnapshot(key)) hideItemTooltip(runtime);
         return;
     }
+    // Another view's item (an auction lot, a recovered item) is in neither the bag nor a slot: its view and the anchor watch close its tooltip.
+    if (scope !== 'equip' && scope !== 'inv') return;
     let expectedId = Number(idText);
     if (!Number.isFinite(expectedId)) return hideItemTooltip(runtime);
     const current = itemTooltipRecord(runtime, scope, key);

@@ -108,7 +108,7 @@ export function paintBoard(runtime, root, force) {
 
 /** 더 보기 (the button, or the list's end came near): the next page of the result is queued under the rows already drawn. */
 export function showMore(runtime, root) {
-    const search = runtime.search, list = root.querySelector('[data-ah-board] [data-ah-rows="result"]');
+    const search = runtime.search, list = root && root.querySelector('[data-ah-board] [data-ah-rows="result"]');
     if (!search || search.phase !== 'done' || !list) return;
     queueRows(runtime, list, search.ids.slice(search.limit, search.limit + PAGE_ROWS), 'open');
     search.limit += PAGE_ROWS;

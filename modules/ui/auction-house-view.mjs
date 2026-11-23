@@ -9,7 +9,7 @@ import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft,
     gearWeapon, pickFilter, pickSort, resetQuery, unpickLot, moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, saveQuery, runSaved, deleteSaved,
     repaintGear } from './auction-house-actions.mjs';
 import { pickSuggest, hideSuggest, activeSuggest, moveSuggest } from './auction-house-suggest.mjs';
-import { peekLot, unpeekLot, hidePeek } from './auction-house-peek.mjs';
+import { peekLot, unpeekLot, hidePeek, scrollPeek } from './auction-house-peek.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
 // The selects that search at once: the rarity of the search bar and the source of the panel.
@@ -221,8 +221,9 @@ function installEvents(runtime) {
     listenView(runtime, document, 'change', event => onChange(runtime, event));
     listenView(runtime, document, 'input', event => onInput(runtime, event));
     listenView(runtime, document, 'keydown', event => onKeydown(runtime, event));
-    // A lot row under the mouse shows the game's item tooltip; scrolling the list takes it away (the row moved from under the pointer).
+    // A lot row under the mouse shows the game's item tooltip; scrolling a box that holds the row takes it away (the row moved from under
+    // the pointer; the combat log and the chat scroll on their own and do not).
     for (const type of ['pointerover', 'pointermove']) listenView(runtime, document, type, event => { if (runtime.active) peekLot(runtime, event); });
     listenView(runtime, document, 'pointerout', event => unpeekLot(runtime, event));
-    listenView(runtime, document, 'scroll', () => hidePeek(runtime), true);
+    listenView(runtime, document, 'scroll', event => scrollPeek(runtime, event), true);
 }

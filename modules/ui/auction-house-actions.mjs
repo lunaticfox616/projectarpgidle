@@ -6,7 +6,7 @@ import { itemName } from './auction-house-format.mjs';
 import { lotName, openKinds } from './auction-house-kinds.mjs';
 import { syncClock, announce, wantFrame, budgetStop, SEARCH_CLICK_MS } from './auction-house-render.mjs';
 import { startSearch, rowLot, SORTABLE } from './auction-house-search.mjs';
-import { liveQuery, clearCondition, cycleVariant, setCategory } from './auction-house-conditions.mjs';
+import { liveQuery, clearCondition, cycleVariant, setCategory, hasConditions } from './auction-house-conditions.mjs';
 import { scheduleSuggest, hideSuggest } from './auction-house-suggest.mjs';
 import { paintTools, SORT_PICKS } from './auction-house-panel.mjs';
 import { fillGear } from './auction-house-gear.mjs';
@@ -210,11 +210,13 @@ export function moreLots(runtime) {
     wantFrame(runtime);
 }
 
-/** The 최근 거래 switch ('recent': the latest trades, 'open': back to the lots on sale): that list, nothing chosen. */
+/** The 최근 거래 switch ('recent': the latest trades, 'open': back to the lots on sale): that list, nothing chosen. Coming back searches
+ * again when a result was shown or a condition is chosen (the category may have changed on 최근 거래), else shows the first view. */
 export function gearMode(runtime, mode) {
     const view = runtime.state.gear;
     if (!['open', 'recent'].includes(mode) || view.mode === mode) return;
     Object.assign(view, { mode, selected: '', panel: false });
+    if (mode === 'open' && (runtime.search || hasConditions(runtime, liveQuery(runtime)))) { findLots(runtime); return; }
     repaintGear(runtime);
     wantFrame(runtime);
 }
