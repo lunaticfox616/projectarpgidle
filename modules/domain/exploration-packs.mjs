@@ -1,5 +1,8 @@
 import { packRollExplorationRoomWaves, packShouldSealEncounterRun, roomPackKind, packStarterRescueRoom, packOwnsNoPack, packEmptiedExplorationPack, packMarkExplorationAmbushRooms, RESCUE_STRIKE } from './exploration-pack-rules.mjs';
 import { packCreateActExplorationPack } from './exploration-pack-create.mjs';
+import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
+import { packPlaceExplorationBoss } from './exploration-pack-placement.mjs';
+import { repositionPassages } from './atlas-passage-cells.mjs';
 import { packCreateExplorationBossStage, packCreateBeehiveRoomPacks, packCreateColonyDefenseRoomPacks, packCreateGrandBreachRoomPacks, packCreateMarkerRoomPacks } from './exploration-pack-content.mjs';
 
 // c.owner is the current game state, supplied for each call; deps are legacy domain services.
@@ -17,16 +20,23 @@ export function packCreateActExplorationEncounter(c, zone, exploration) {
     if(!plan && exploration===true)throw Error('일반 액트나 전용 맵이 있는 콘텐츠에서만 탐험을 시작할 수 있습니다.');
     if(!plan)return null;
     plan.rotation=c.deps.actExplorationProgress.objects.savedFacing(zone)??c.deps.rollExplorationFacing();
-    if(c.deps.actExplorationDoors.session())plan.rooms=c.deps.actExplorationDoors.planKey(zone,plan); // 방 단위 무대 시험판(js/act-exploration-doors.js): 액트와 그 밖의 모든 탐험 구역
+    if(c.deps.actExplorationDoors.session())plan.rooms=c.deps.actExplorationDoors.planKey(zone,plan);
     const run=c.deps.actExplorationState.create(plan,packCreateExplorationPacks(c, zone,c.deps.actExplorationMap.forRun(plan),plan.bossStages),c.deps.getCombatTime());
     run.waves=packRollExplorationRoomWaves(c, zone,c.deps.actExplorationMap.forRun(run),run.packs);
     if(packShouldSealEncounterRun(plan,zone))run.sealed=true;
     run.mode=c.deps.actExplorationProgress.startMode(c.owner.settings);
     c.deps.actExplorationProgress.objects.initialize(run,zone);
+    if (zone.type === 'atlasMap' && !zone.pocket) repositionRunPassages(c,run);
     return run;
 }
 
+function repositionRunPassages(c,run) {
+    const sites = c.owner.atlas.run?.passages?.sites;
+    if (sites?.length) repositionPassages(c.deps.actExplorationMap.forRun(run),sites,c.deps.actExplorationState.objects.solidCells(run));
+}
+
 export function packCreateExplorationPacks(c, zone, map, bossStages) {
+    if (zone.pocket) return expeditionPacks(c, zone, map);
     const own=roomPackKind(zone);
     if(own)return ROOM_BUILDERS[own](c,zone,map);
     const packs=[],encounters=c.deps.atlasEncounters.rooms(zone,map),arranger=c.deps.arranger.forMap(map);
@@ -42,6 +52,32 @@ export function packCreateExplorationPacks(c, zone, map, bossStages) {
     const dressed=c.deps.combatIncidents.dressPacks(zone,map,packs.concat(packCreateAddedExplorationPacks(c, zone,map,{patrol: patrol,arranger: arranger,keep: rescueRoom}),
         packCreateStarterRescuePack(c, zone,map,rescueRoom)));
     return packMarkExplorationAmbushRooms(c, zone,map,dressed);
+}
+
+function expeditionPacks(c, zone, map) {
+    const course = atlasExpeditions[zone.pocket];
+    return map.rooms.filter(room => room.role === 'battle' || room.role === 'boss').map(room => {
+        if (room.role === 'boss') {
+            const pack = packCreateActExplorationPack(c, zone, room, 0, {encounter:zone.pocket});
+            const enemy = pack.waiting[0];
+            Object.assign(enemy, {name:zone.bossName, bossAssetKey:null, spriteVariantId:null, monsterVisualId:zone.bossVisualId});
+            c.deps.assignEnemyGridCombatProfile(enemy);
+            return packPlaceExplorationBoss(c, map, room, pack);
+        }
+        const [label, count, stops, duration, trigger] = course[Number(room.id.slice(1)) - 1];
+        const pack = count ? packCreateActExplorationPack(c, zone, room, null, {encounter:zone.pocket, formation:{count}})
+            : packEmptiedExplorationPack(room);
+        // Each step uses a different physical cell. The cursor and channel time belong to the save.
+        const spots = [[-2,0],[2,1],[0,-1]].slice(0, stops).map(([x,y]) => ({
+            gx:room.gx + Math.sign(x)*Math.min(Math.abs(x),room.radiusX), gy:room.gy + Math.sign(y)*Math.min(Math.abs(y),room.radiusY)
+        }));
+        pack.task = {label, spots, index:0, elapsed:0, duration};
+        if (trigger === 'ambush') {
+            pack.task.reinforcements = pack.waiting;
+            Object.assign(pack,{waiting:[],aliveIds:[],eliteIds:[]});
+        }
+        return pack;
+    });
 }
 
 export function packCreateStarterRescuePack(c, zone, map, room) {
@@ -60,7 +96,7 @@ export function packCreateStarterRescuePack(c, zone, map, room) {
 
 /** 방의 원래 무리가 설 자리: 방 단위 무대에서는 그 방의 자리 묶음을 따른다(stageRoomArranger). 이어진 지도에서는 전의 자리 그대로다. */
 export function packArrangedRoomFormation(c, arranger, zone, room, {encounter, formation}) {
-    const cells=arranger.cells(room,0,c.deps.formation.count(zone,encounter,formation));
+    const cells=arranger.cells(room,0,room.host ? 4 : c.deps.formation.count(zone,encounter,formation));
     return cells ? {...formation,cells,front:arranger.front(room)} : formation;
 }
 

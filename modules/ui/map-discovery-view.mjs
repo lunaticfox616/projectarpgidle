@@ -28,7 +28,7 @@ export class MapDiscoveryView {
         const owner = this.owner();
         let activeUnlocked = false;
         for (const def of this.deps.MAP_PRIMARY_CONTENTS) {
-            const unlocked = this.deps.isMapPrimaryContentUnlocked(owner, def.id);
+            const unlocked = this.deps.isMapPrimaryContentUnlocked(owner, def.id) && this.deps.contentProgression.canOpen(def.id, owner);
             if (def.id === owner.mapSubtab) activeUnlocked = unlocked;
             this.renderPrimaryTab(owner, def, unlocked);
         }

@@ -1,3 +1,4 @@
+import { finishKeys } from '../data/equipment-finishes.mjs';
 import { stashHtml, stashShowTab, stashTip } from './crafting-stash-view.mjs';
 
 /** Owns the visible currency tab only. Balances and discovered slots are read on each render. */
@@ -18,6 +19,7 @@ function initialize(ctx) {
             { label: '제거', cols: 2, keys: ['blightSpore', 'pruningShears'] },
             { label: '진화', cols: 1, keys: ['fairyRing'] }] },
         { id: 'special', label: '특수 제작', icon: 'emberBranch', groups: [
+            { label:'장비 세공', cols:4, keys:finishKeys },
             { label: '타락', cols: 1, keys: ['emberBranch', 'burningEmberBranch'] },
             { label: '고정', cols: 1, keys: ['ouroboros', 'enchantedHoney'] },
             { label: '부여', cols: 2, keys: ['venomStinger', 'voidChisel', 'oceanRerollShard'] },

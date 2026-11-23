@@ -6,7 +6,7 @@ export class RealmTrialEntry {
 
     trial(trialId) {
         if (!this.active) return;
-        if (!(0, this.deps.contentProgression).isUnlocked('battleTrials')) return (0, this.deps.addLog)((0, this.deps._t)('루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.'), 'attack-monster');
+        if (!(0, this.deps.contentProgression).isUnlocked('battleTrials')) return (0, this.deps.addLog)((0, this.deps._t)('루프 5부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.'), 'attack-monster');
         if (!['trial_3','trial_4'].includes(trialId)) return (0, this.deps.changeZone)(trialId);
         const block = (0, this.deps.getContentStartBlockReason)() || (0, this.deps.getZoneTravelBlockReason)(trialId);
         if (block) return (0, this.deps.addLog)(block, 'attack-monster');

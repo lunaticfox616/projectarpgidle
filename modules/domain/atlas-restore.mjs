@@ -1,5 +1,6 @@
 import { atlasCoreRenameSavedIds, atlasCoreNodeList, atlasCoreNormalizeRun, atlasCoreNormalizeFragments, atlasCoreNormalizeMemory } from './atlas-restore-values.mjs';
 import { atlasCoreDefaults } from './atlas-state.mjs';
+import { atlasAutoUnlocked } from './atlas-auto.mjs';
 import { atlasCoreNormalizeResult, atlasCoreNormalizeTally } from './atlas-receipts.mjs';
 import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
 
@@ -29,9 +30,16 @@ export function atlasCoreNormalize(env, state) {
     const savedNext = Math.floor(Number(raw.nextUid));
     next.nextUid = Math.min(Number.MAX_SAFE_INTEGER, Math.max(Number.isSafeInteger(savedNext) ? savedNext : 1, ...[...uids].map(uid => uid + 1), 1));
     state.atlas = next;
+    restoreWheelAccess(state, raw);
     atlasCoreRestoreBoardRun(env, raw, state);
     atlasCoreSetLoadout(env, state, Array.isArray(raw.loadout) ? raw.loadout : []);
     return next;
+}
+
+function restoreWheelAccess(state, raw) {
+    const atlas = state.atlas;
+    atlas.autoMap = atlas.autoMap && atlasAutoUnlocked(state);
+    atlas.wheelHub = raw.wheelHub === true && !atlas.run && atlas.lastResult?.outcome === 'complete';
 }
 
 export function atlasCoreRestoreBoardRun(env, raw, state) {

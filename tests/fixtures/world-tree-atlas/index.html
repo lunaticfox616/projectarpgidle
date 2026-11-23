@@ -5,9 +5,10 @@
 <iframe id="game" title="실제 세계수 아틀라스 테스트" sandbox="allow-scripts allow-same-origin"></iframe>
 <script>
 const frame=document.getElementById('game');let seeded=false;
+const review=new URLSearchParams(location.search).get('review');
 window.addEventListener('message',event=>{
  if(event.source!==frame.contentWindow||event.origin!==location.origin)return;
- if(event.data.type==='unlock-lab-status'&&event.data.ready&&!seeded){seeded=true;frame.contentWindow.postMessage({type:'worldtree-lab',mode:new URLSearchParams(location.search).get('review')==='regions'?'realms':'start'},location.origin);}
+ if(event.data.type==='unlock-lab-status'&&event.data.ready&&!seeded){seeded=true;frame.contentWindow.postMessage({type:'worldtree-lab',mode:({regions:'realms',wheel:'wheel',finishes:'finishes',loop:'loop',challenge:'challenge'})[review]||'start'},location.origin);}
  if(event.data.type==='worldtree-lab-status'){
   document.getElementById('status').textContent=event.data.message;
   if(seeded)document.querySelectorAll('header button').forEach(button=>button.disabled=false);
@@ -67,6 +68,22 @@ let fast=false;document.getElementById('speed').onclick=()=>{fast=!fast;document
 document.getElementById('defeat').onclick=()=>frame.contentWindow.postMessage({type:'worldtree-defeat'},location.origin);
 document.getElementById('view').onclick=()=>frame.contentWindow.postMessage({type:'worldtree-view'},location.origin);
 document.getElementById('atlas').onclick=()=>frame.contentWindow.postMessage({type:'worldtree-atlas'},location.origin);
+if(review==='finishes'||review==='loop'){
+ const loop=review==='loop';
+ document.title=loop?'루프 전환 체험':'장비 세공 체험';
+ frame.title=loop?'실제 게임 루프 정산':'실제 게임 제작실';
+ const header=document.querySelector('header');
+ header.firstChild.textContent=loop?'루프 전환 · 체험용 저장':'장비 세공 · 체험용 저장';
+ header.querySelectorAll('button').forEach(button=>button.hidden=true);
+ if(loop){
+  const next=document.createElement('button');next.textContent='이번 루프 조건 채우기';
+  next.onclick=()=>frame.contentWindow.postMessage({type:'worldtree-loop-ready'},location.origin);
+  header.insertBefore(next,header.querySelector('small'));
+ }
+ const reset=document.createElement('button');reset.textContent=loop?'처음부터':'무기·반지와 재료 초기화';
+ reset.onclick=()=>location.reload();
+ header.insertBefore(reset,header.querySelector('small'));
+}
 // Wait for the guest boot and initial class selection before accepting fixture switches.
 document.querySelectorAll('header button').forEach(button=>button.disabled=true);
 (async()=>{

@@ -76,9 +76,9 @@ class StageElementalSpells {
     zonePlan(o) {
         const A = (o.radius + 0.5) * this.WIDE, B = (o.radius + 0.5) * this.DEEP, r = this.S.random(7717);
         const inside = () => { const a = r() * this.TAU, d = Math.sqrt(r()) * 0.92; return [Math.cos(a) * A * d, Math.sin(a) * B * d]; };
-        const flames = Array.from({ length: 36 }, (_, i) => { const [x, y] = inside(); return { x, y, H: (i % 6 ? 10 : 18) + r() * 14, W: (i % 6 ? 3 : 5) + Math.round(r() * 2), ph: r() * this.TAU, sp: 0.8 + r() * 0.6, t0: r() * 220 }; });
-        const embers = Array.from({ length: 34 }, () => { const [x, y] = inside(); return { x, y, t0: r() * 900, vy: 34 + r() * 30, vx: (r() - 0.5) * 14, life: 520 + r() * 420 }; });
-        return { A, B, C: this.S.ramp('fire'), life: o.life, flames, embers, floor: null };
+        const flames = Array.from({ length: 22 }, () => { const [x, y] = inside(); return { x, y, H: 8 + r() * 9, W: 8 + r() * 5, ph: r() * this.TAU, sp: 0.8 + r() * 0.6, t0: r() * 220 }; });
+        const embers = Array.from({ length: 20 }, () => { const [x, y] = inside(); return { x, y, t0: r() * 900, vy: 34 + r() * 30, vx: (r() - 0.5) * 14, life: 520 + r() * 420 }; });
+        return { A, B, C: this.S.ramp(o.ramp || 'fire'), life: o.life, flames, embers, floor: null };
     }
 
     /** 그 줄 y가 다각형과 만나는 자리들(왼쪽부터). */
@@ -120,11 +120,11 @@ class StageElementalSpells {
         for (const path of this.CRATER.fissures.map(map)) {
             this.craterRibbon(g, path, { near: 6.9, far: 2, color: '#4a2c25', alpha: 0.24 * e, reach: open, lift: 1 });
             this.craterRibbon(g, path, { near: 5.2, far: 1, color: '#100b10', alpha: 0.88 * e, reach: open });
-            this.craterRibbon(g, path, { near: 1.25, far: 0.25, color: '#bc4d20', alpha: 0.32 * e, reach: Math.min(open, 0.67), lift: 0.4 });
+            this.craterRibbon(g, path, { near: 1.25, far: 0.25, color: z.C[2], alpha: 0.32 * e, reach: Math.min(open, 0.67), lift: 0.4 });
         }
         for (const path of this.CRATER.branches.map(map)) this.craterRibbon(g, path, { near: 2, far: 0.65, color: '#100b10', alpha: 0.67 * e, reach: open });
-        this.craterRibbon(g, map(this.CRATER.ledges[0]), { near: 2, far: 1, color: '#d37530', alpha: 0.23 * e });
-        this.craterRibbon(g, map(this.CRATER.ledges[1]), { near: 1.6, far: 0.8, color: '#9c4926', alpha: 0.21 * e });
+        this.craterRibbon(g, map(this.CRATER.ledges[0]), { near: 2, far: 1, color: z.C[3], alpha: 0.23 * e });
+        this.craterRibbon(g, map(this.CRATER.ledges[1]), { near: 1.6, far: 0.8, color: z.C[2], alpha: 0.21 * e });
         g.globalAlpha = 1;
     }
 
@@ -155,10 +155,11 @@ class StageElementalSpells {
         if (k < 0) return;
         const H = Math.round(fl.H * Math.min(1, k / 160) * o.e * (0.75 + 0.25 * Math.sin(o.t / 70 * fl.sp + fl.ph)) * (0.85 + 0.15 * Math.sin(o.t / 23 + fl.ph * 2)));
         const x0 = Math.round(fl.x), y0 = Math.round(fl.y), sway = Math.sin(o.t / 110 + fl.ph);
-        for (let j = 0; j < H && H >= 2; j++) {
-            const v = j / H, hw = Math.max(0, Math.round(fl.W / 2 * (1 - v * v))), cx = x0 + Math.round(sway * v * v * 2.5);
-            g.globalAlpha = Math.min(1, o.e * 1.1) * (v > 0.8 ? 0.75 : 0.92); g.fillStyle = v < 0.35 ? z.C[2] : v < 0.7 ? z.C[3] : z.C[4]; g.fillRect(cx - hw, y0 - j, hw * 2 + 1, 1);
-            if (v < 0.3 && hw > 0) { g.fillStyle = z.C[3]; g.fillRect(cx, y0 - j, 1, 1); }
+        g.globalAlpha = o.e * 0.88;
+        for (let j = 0; j < H; j += 2) {
+            const v = j / H, hw = Math.round(fl.W * 0.5 * (1 - v)), cx = x0 + Math.round(sway * v * 2);
+            g.fillStyle = z.C[2]; g.fillRect(cx - hw, y0 - j, 2 * hw + 1, 2);
+            if (v < 0.66) { g.fillStyle = z.C[4]; g.fillRect(cx - Math.floor(hw / 2), y0 - j, Math.max(1, hw), 2); }
         }
     }
 
@@ -180,7 +181,7 @@ class StageElementalSpells {
         g.globalAlpha = 1;
     }
 
-    /** 유성 낙화의 불타는 지대. @param {{at:object, radius:number, delay:number, life:number}} o 지대 가운데, 반지름(칸), 늦춤(ms), 보이는 시간(ms) */
+    /** 유성 낙화의 불타는 지대. @param {{at:object, radius:number, delay:number, life:number, ramp?:string}} o 지대 가운데, 반지름(칸), 늦춤(ms), 보이는 시간(ms) */
     spellFireZone(o) {
         const closureView = this;
         const z = this.zonePlan(o);

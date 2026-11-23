@@ -27,7 +27,7 @@ export function invaderRollWho(env) { return Math.random() < env.deps.RULE.grind
 
 export function invaderHasLiveMonsters(run, room) { return run.packs.some(pack => pack.roomId === room.id && pack.aliveIds.length > 0); }
 
-export function invaderNewRoom(run, room) { return ['battle', 'elite', 'optional'].includes(room.role) && !run.visitedRooms.includes(room.id) && invaderHasLiveMonsters(run, room); }
+export function invaderNewRoom(run, room) { return !room.host && ['battle', 'elite', 'optional'].includes(room.role) && !run.visitedRooms.includes(room.id) && invaderHasLiveMonsters(run, room); }
 
 /** 처음 들어서는 방에서 한 번 굴린다(js/act-exploration-doors.js cross). */
     export function* invaderRollRoom(env, run, map, room) {

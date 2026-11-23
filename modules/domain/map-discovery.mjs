@@ -20,7 +20,7 @@ export class MapDiscovery {
         return {
             'map-explore-hunting': Math.min(Math.max(0, Math.floor(owner.maxZoneId || 0)), cap),
             'map-explore-root-boss': bosses.filter(zone => (owner.season || 1) >= (zone.reqSeason || 2)).length,
-            'map-explore-colony': (owner.season || 1) >= 15 ? 1 : 0,
+            'map-explore-colony': this.deps.contentProgression.isUnlocked('colony', owner) ? 1 : 0,
             'map-explore-trials': trials.filter(available).length
         };
     }

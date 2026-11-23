@@ -27,7 +27,7 @@ export function* progressTick(env, now,stats) {
     // Combat replay supplies fixed ticks. A restored/stalled foreground clock must not
     // turn one frame into an unbounded movement-only catch-up loop.
     if(now-run.motionTimeMs>1000)env.deps.actExplorationMotion.rebase(run,now-100);
-    while(run.motionTimeMs+20<=now) {
+    while(env.owner.actExploration===run && run.motionTimeMs+20<=now) {
         run.motionTimeMs+=20;
         (yield* progressStepFrame(env, run,stats));
     }
@@ -38,6 +38,7 @@ function* progressStepFrame(env, run,stats) {
     const walking=run.motion;
     const freeWalking=env.deps.actExplorationMotion.freeBusy(run);
     (yield* progressStep(env, run,stats));
+    if (env.owner.actExploration !== run) return;
     progressContinueApproachAfterStep(env, run,walking,stats);
     if(freeWalking && !env.deps.actExplorationMotion.freeBusy(run))env.deps.continuePlayerExplorationApproach(stats);
     if(walking || env.deps.actExplorationMotion.freeMoving(run))env.memo.walkedMs.set(run,(env.memo.walkedMs.get(run)||0)+20);
@@ -55,6 +56,11 @@ function* progressStep(env, run,stats) {
     const from=progressAdvanceMovement(env, run,stats);
     env.deps.swapSummonOutOfHeroTile(from);
     if(run.motion || env.deps.actExplorationMotion.freeBusy(run))return;
+    if (yield* visitAtlasFloor(env, run)) return;
+    yield* progressOnFloor(env,run,stats);
+}
+
+function* progressOnFloor(env,run,stats) {
     if(!(yield* progressExplore(env, run,stats))){(yield* progressWalkClearedCommand(env, run,stats));return;}
     env.deps.actExplorationDoors.cross(run); // 방 단위 무대: 열린 문 칸에 서 있으면 이어진 방으로 옮겨진 뒤 그 방을 본다
     env.deps.actExplorationState.discover(run,env.owner.gridPlayer,stats);
@@ -71,6 +77,41 @@ function* progressStep(env, run,stats) {
     if(!target)return;
     if(target.gx===env.owner.gridPlayer.gx && target.gy===env.owner.gridPlayer.gy){run.destination=null;return;}
     progressWalk(env, run,target,stats);
+}
+
+function* visitAtlasFloor(env, run) {
+    if (run.zoneId !== 'atlas_map' || run.status !== 'active') return false;
+    const cell = env.owner.gridPlayer, at = spot => spot && spot.gx === cell.gx && spot.gy === cell.gy;
+    if (run.source?.pocket) return advanceObjective(run,at);
+    const sites = env.owner.atlas.run?.passages?.sites;
+    const site = sites?.find(row => !row.used && at(row));
+    if (!site || !wantsToEnter(env,run,at)) return false;
+    return yield {kind:'enterAtlasPassage', args:[site.type]};
+}
+
+function wantsToEnter(env,run,at) {
+    return at(run.destination) || (progressRunMode(env,run) === 'full' && !env.deps.actExplorationDoors.fightingHere(run));
+}
+
+function advanceObjective(run,at) {
+    const pack = run.packs.find(row => row.task && (row.aliveIds.length || row.task.index < row.task.spots.length));
+    if (!pack || pack.aliveIds.length) return false;
+    const task = pack.task;
+    if (!at(task.spots[task.index])) {task.elapsed=0;return false;}
+    if (at(run.destination)) run.destination = null;
+    task.elapsed += 20;
+    if (task.elapsed >= task.duration) completeFloorAction(pack);
+    return true;
+}
+
+function completeFloorAction(pack) {
+    const task = pack.task;
+    task.elapsed = 0;
+    task.index++;
+    if (task.index !== task.spots.length || !task.reinforcements) return;
+    const waiting = task.reinforcements;
+    delete task.reinforcements;
+    Object.assign(pack,{waiting, aliveIds:waiting.map(row => row.id), eliteIds:waiting.filter(row => row.isElite).map(row => row.id)});
 }
 
 function progressAdvanceMovement(env, run,stats) {

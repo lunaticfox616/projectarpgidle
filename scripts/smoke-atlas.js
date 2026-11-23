@@ -441,6 +441,8 @@ for(const allocatedBefore of [true,false]) {
         game.atlas.stash=[{...atlasMaps.create('trunk_8',16),uid:1},{...atlasMaps.create('trunk_g',16),uid:2}];`);
     // 수호자 지도는 기본으로 자동에 들어간다(이전 저장도): 빠지면 뿌리 입장권이 끊겨 정점 진행이 조용히 멈춘다
     assert.equal(autoRun('game.atlas.autoGuardians'),true);
+    assert.equal(autoRun('atlas.nextAuto(game,16)'),null,'an old preference cannot consume a stone before conquest');
+    autoRun('game.atlas.endgame.kills.pinnacle=1');
     assert.equal(autoRun('atlas.nextAuto(game,16).node'),'trunk_g','unfinished guardians still come first');
     autoRun('game.atlas.autoGuardians=false;game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
     assert.equal(autoRun('atlas.nextAuto(game,16).node'),'trunk_8','turning guardians off survives save/load');
@@ -452,6 +454,7 @@ for(const action of ['nextZone','stop']) {
     for(const open of challenges) {
         const {run: specialRun}=fixture(845);
         specialRun(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+            game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
             game.settings.mapCompleteAction='${action}';atlas.sync(game);game.atlas.autoMap=true;
             game.atlas.stash=[{...atlasMaps.create('roots_0',1),uid:900}];game.atlas.nextUid=901;
             game.atlas.endgame.kills.pinnacle=1;game.atlas.endgame.items=Object.fromEntries(Object.keys(ATLAS_ENDGAME.items).map(id=>[id,99]));
@@ -461,12 +464,12 @@ for(const action of ['nextZone','stop']) {
         assert.equal(specialRun('game.atlas.run'),null,'a special challenge never opens an automatic map');
         assert.equal(specialRun('game.atlas.stash.some(map=>map.uid===900)'),true,'unchosen map stones remain in the stash');
         assert.equal(specialRun('game.currentZoneId'),29);
-        assert.equal(specialRun('game.combatHalted'),action==='stop','special returns honor the completion action');
+        assert.equal(specialRun('game.combatHalted'),action==='stop'||open==='atlasRun.openPinnacle()','the pinnacle opens the wheel hub and other special returns honor settings');
         specialRun('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
         assert.equal(specialRun('game.atlas.autoMap'),true,'special returns preserve the player auto-map setting');
     }
 }
-run(`game.atlas.autoMap=true;game.atlas.stash=game.atlas.stash.filter(map=>map.tier===1);`);
+run(`game.atlas.endgame.kills.pinnacle=1;game.atlas.autoMap=true;game.atlas.stash=game.atlas.stash.filter(map=>map.tier===1);`);
 const autoFirst = copy('game.atlas.stash[0]');
 run(`atlasRun.open(${autoFirst.uid})`);
 while (tick < 9000 && run(`!!game.atlas.run && game.atlas.run.map.uid === ${autoFirst.uid}`)) advance();

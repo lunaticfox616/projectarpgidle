@@ -115,7 +115,7 @@ export class LoopEntryProgress {
             if (!this.deps.game.unlockedSeasonContents.includes(key)) this.deps.game.unlockedSeasonContents.push(key);
             if (!opts.silent && !this.deps.game.contentProgression && !this.deps.game.seenSeasonContentNotices.includes(key) && this.deps.SEASON_CONTENT_ROADMAP[s]) {
                 let def = this.deps.SEASON_CONTENT_ROADMAP[s];
-                (yield { kind: 'addLog', args: [this.deps._t('🧩 루프 {s} [{title}] 이정표 개방', { s, title: this.deps._t(def.title) }), 'season-up'] });
+                (yield { kind: 'addLog', args: [this.deps._t('🧩 루프 {s} [{title}] 이정표 개방', { s, title: this.deps._t(def.title, { minLoop: s }) }), 'season-up'] });
                 for (const line of (def.features || []).slice(0, 2)) (yield { kind: 'addLog', args: [`   - ${line}`, 'loot-magic'] });
                 this.deps.game.seenSeasonContentNotices.push(key);
             }

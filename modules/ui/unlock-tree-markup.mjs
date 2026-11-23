@@ -1,6 +1,13 @@
 import { gainOf, upgradeEffect, cardGain, view_cardName } from './unlock-tree-labels.mjs';
 
+import { beyondUnlockPreview } from '../common/unlock-preview.mjs';
+
+export function unknownUnlock(runtime, def) {
+    return beyondUnlockPreview(def.minLoop, runtime.deps.game.season) && !runtime.deps.contentProgression.isUnlocked(def.id);
+}
+
 export function stateOf(runtime, def) {
+    if (unknownUnlock(runtime, def)) return 'unknown';
     const status = runtime.deps.contentProgression.status(def.id);
     if (status.unlocked) return 'owned';
     if (status.available) return 'ready';
@@ -30,6 +37,7 @@ export function unseenIds(runtime) {
 
 export function nodeHtml(runtime, def, L, marks) {
     const at = L.pos.get(def.id), state = stateOf(runtime, def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(def.name));
+    if (state === 'unknown') return `<button type="button" class="unlock-unknown" disabled style="${style}">${runtime.deps._t('아직 알 수 없음')}</button>`;
     if (at.step) return `<button type="button" class="unlock-pip ${nodeClass(runtime, def, state, marks)}" data-unlock-select="${def.id}" data-tip="${tipOf(runtime, def, true)}" aria-label="${name}" style="${style}">${(0, runtime.deps.escapeHTML)(upgradeEffect(runtime, def.series, def.rank))}${view_unseenHtml(runtime, def, marks)}</button>`;
     const chip = state !== 'owned' && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : '';
     const second = L.cardH >= runtime.state.UNLOCK_BOARD_SIZE.gainFrom ? `<small class="unlock-card-gain">${(0, runtime.deps.escapeHTML)(cardGain(runtime, def))}</small>` : '';
@@ -41,7 +49,7 @@ export function edgesHtml(runtime, L, marks) {
     const rank = { 'is-dim': 0, 'is-next': 1, 'is-lit': 2 }, edges = [];
     runtime.state.unlockBoard.rows.forEach(def => runtime.deps.contentProgression.parents(def).forEach(from => {
         const points = runtime.state.unlockBoard.edgePoints(L, from, def.id), long = Math.abs(points[points.length - 1][0] - points[0][0]) > 300;
-        const state = runtime.deps.contentProgression.isUnlocked(def.id) ? 'is-lit' : runtime.deps.contentProgression.isUnlocked(from) ? 'is-next' : 'is-dim';
+        const state = unknownUnlock(runtime, def) ? 'is-dim' : runtime.deps.contentProgression.isUnlocked(def.id) ? 'is-lit' : runtime.deps.contentProgression.isUnlocked(from) ? 'is-next' : 'is-dim';
         edges.push({ from, to: def.id, points, long, state, side: def.after !== from, fresh: marks.lit.has(from) && marks.fresh.has(def.id) });
     }));
     return edges.sort((a, b) => rank[a.state] - rank[b.state]).map(edge => {
@@ -62,7 +70,7 @@ export function nowLeft(runtime, scroller) {
 
 export function railLabelsHtml(runtime, L) {
     const rails = new Map();
-    runtime.state.unlockBoard.rows.filter(def => def.rail).forEach(def => {
+    runtime.state.unlockBoard.rows.filter(def => def.rail && !unknownUnlock(runtime, def)).forEach(def => {
         const at = L.pos.get(def.id), span = rails.get(def.rail) || { left: at.left, right: at.right, first: at.right, y: at.y, def };
         span.right = Math.max(span.right, at.right);
         rails.set(def.rail, span);

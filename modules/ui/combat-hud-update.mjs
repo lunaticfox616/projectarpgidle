@@ -68,6 +68,7 @@ function updateCombatLocation(runtime) {
     let storyAct = zone.type === 'act' ? (0, runtime.deps.getStoryActByZoneId)(zone.id) : null;
     // 지역 이름만(전투 머리말 없이): 액트는 "액트 1: 제목", 그 밖은 지역 이름을 현재 언어로.
     let compactZoneText = storyAct ? `${(0, runtime.deps.formatStoryActLabel)(storyAct)}: ${(0, runtime.deps._t)(storyAct.title)}` : (0, runtime.deps._t)(zone.name);
+    if (runtime.deps.game.atlas?.wheelHub) compactZoneText = runtime.deps._t('차륜 거점');
     setTextById(runtime, 'ui-combat-zone', compactZoneText);
     // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
     setTextById(runtime, 'ui-combat-zone-inline', compactZoneText);

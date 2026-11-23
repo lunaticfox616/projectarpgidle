@@ -49,15 +49,15 @@ const TALENT_BLOOM_CARD_DEFS = {
     // hero10 (연금술사)
     'hero10__catalyst': { name: "마그눔 오푸스", surface: {"desc": "점화/중독 피해 배율 +28%. 대신 점화/중독이 아닌 상태이상을 걸 수 없음", "uniq": [{"key": "igniteDamageMorePct", "perLevelParams": {"pct": 2.8}}, {"key": "poisonDamageMorePct", "perLevelParams": {"pct": 2.8}}], "runtime": {"key": "ailmentWhitelist", "allowed": ["ignite", "poison"]}}, hidden: [{"stat": "igniteChance", "lv10": 8}, {"stat": "poisonChance", "lv10": 8}] },
     // 2026-10-02에 더한 전직 여섯의 카드(직업의 대표 재능 × 전직)
-    'hero1__stormarcher': { name: "천둥 화살비", surface: { desc: "투사체 피해 +25%, 번개 피해 +30%, 감전된 적에게 주는 피해 +12%" }, hidden: [{"stat":"move","lv10":3}] },
-    'hero2__berserker': { name: "피의 함성", surface: { desc: "근접 피해 +25%, 공격 속도 +8%, 활성 함성마다 피해 +10%" }, hidden: [{"stat":"leech","lv10":0.3}] },
-    'hero2__juggernaut': { name: "대지 분쇄자", surface: { desc: "근접 피해 +25%, 강타 피해 +30%, 활성 함성마다 피해 +8%" }, hidden: [{"stat":"armorPct","lv10":6}] },
-    'hero4__bladedancer': { name: "그림자 무희", surface: { desc: "치명타 피해 +30%, 회피 +15%, 비껴내기 피해 감소 +8%" }, hidden: [{"stat":"aspd","lv10":3}] },
-    'hero10__grovewarden': { name: "독초 정원", surface: { desc: "지속 피해 배율 +25%, 냉기 피해 +30%, 중독 피해 +15%" }, hidden: [{"stat":"regen","lv10":0.3}] },
-    'hero10__bombardier': { name: "독연기 폭탄", surface: { desc: "지속 피해 배율 +25%, 포션 스킬 피해 +30%, 중독 피해 +12%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    'hero1__stormarcher': { name: "천둥 화살비", surface: { desc: "감전된 적을 맞히면 추적 번개가 떨어집니다. 재사용 1초, 공격력의 100%, 감전 효과 +10%." }, hidden: [{"stat":"move","lv10":3}] },
+    'hero2__berserker': { name: "피의 함성", surface: { desc: "출혈 중인 적을 적중하면 상태이상 피해 계산에 쓰는 적중 피해가 2배가 됩니다. 출혈 확률은 카드 레벨당 +1.5%입니다." }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero2__juggernaut': { name: "대지 분쇄자", surface: { desc: "적중 시 18% 확률로 균열파를 일으켜 주변 적에게 준 피해의 65%를 전달합니다." }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero4__bladedancer': { name: "그림자 무희", surface: { desc: "비껴내면 3초간 그림자 은신에 들어가 이동 속도, 회피, 치명타 피해가 20% 증가합니다." }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero10__grovewarden': { name: "독초 정원", surface: { desc: "타격할 때마다 적의 카오스 저항을 2%씩 깎아 독이 스며들 자리를 만듭니다. 최대 6중첩." }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero10__bombardier': { name: "독연기 폭탄", surface: { desc: "처치한 적이 18% 확률로 폭발해 주변에 그 적 최대 생명력의 12%를 피해로 줍니다." }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
 };
 
-// 2026-10-02에 더한 전직 여섯의 카드(mechanic 'statCard')는 능력치 둘(재능, 전직)과 고유 효과 하나다.
+// 여섯 전직의 적중·방어·처치 효과는 장비와 같은 전투 경로에서 적용한다.
 // 고유 효과는 합산, 큰 값, 켜고 끄는 키만 쓴다(나중 줄이 앞 줄을 덮는 키는 카드가 맨 뒤라 장비 수치를 덮는다).
 // 표면 효과의 실제 전투 계약. 기존 surface.ops/dmg/uniq는 초기 프로토타입 수치이므로
 // 정밀 구현에서는 이 표만 단일 출처로 사용한다. stats의 수치는 카드 10레벨 기준이며
@@ -109,11 +109,11 @@ const TALENT_PRECISE_CARD_RULES = Object.freeze({
 
     'hero10__catalyst': { mechanic: 'magnumOpus', uniques: [{ key: 'igniteDamageMorePct', params: { pct: 28 } }, { key: 'poisonDamageMorePct', params: { pct: 28 } }] },
     // 2026-10-02에 더한 전직 여섯의 카드(직업의 대표 재능 × 전직)
-    'hero1__stormarcher': { mechanic: 'statCard', stats: { projectilePctDmg: 25, lightPctDmg: 30 }, uniques: [{ key: 'hitShockedEnemyDamageMorePct', params: {pct: 12} }] },
-    'hero2__berserker': { mechanic: 'statCard', stats: { meleePctDmg: 25, aspd: 8 }, uniques: [{ key: 'warcryResonanceBelt', params: {perWarcryAmpPct: 10} }] },
-    'hero2__juggernaut': { mechanic: 'statCard', stats: { meleePctDmg: 25, slamPctDmg: 30 }, uniques: [{ key: 'warcryResonanceBelt', params: {perWarcryAmpPct: 8} }] },
-    'hero4__bladedancer': { mechanic: 'statCard', stats: { critDmg: 30, evasionPct: 15 }, uniques: [{ key: 'uniqueDeflectDamageReduce', params: {pct: 8} }] },
-    'hero10__grovewarden': { mechanic: 'statCard', stats: { dotPctDmg: 25, coldPctDmg: 30 }, uniques: [{ key: 'poisonDamageMorePct', params: {pct: 15} }] },
-    'hero10__bombardier': { mechanic: 'statCard', stats: { dotPctDmg: 25, potionPctDmg: 30 }, uniques: [{ key: 'poisonDamageMorePct', params: {pct: 12} }] },
+    'hero1__stormarcher': { mechanic: 'shockTracerGreaves', uniques: [{ key: 'shockTracerGreaves', params: {"shockEffectPct":10,"strikeDamagePct":100,"icdSec":1} }] },
+    'hero2__berserker': { mechanic: 'bleedWeightOnBleedingHit', stats: {"bleedChance":15}, uniques: [{ key: 'bleedWeightOnBleedingHit', params: {} }] },
+    'hero2__juggernaut': { mechanic: 'realmRiftWaveOnHit', uniques: [{ key: 'realmRiftWaveOnHit', params: {"chance":18,"damagePct":65} }] },
+    'hero4__bladedancer': { mechanic: 'deflectGrantShadowStealth', uniques: [{ key: 'deflectGrantShadowStealth', params: {"duration":3,"move":20,"evasionPct":20,"critDmg":20} }] },
+    'hero10__grovewarden': { mechanic: 'hitApplyChaosResDown', uniques: [{ key: 'hitApplyChaosResDown', params: {"perHit":2,"maxStacks":6} }] },
+    'hero10__bombardier': { mechanic: 'corpseExplodeOnKill', uniques: [{ key: 'corpseExplodeOnKill', params: {"chance":18,"lifePct":12} }] },
 });
 export { TALENT_BLOOM_CARD_DEFS, TALENT_PRECISE_CARD_RULES };

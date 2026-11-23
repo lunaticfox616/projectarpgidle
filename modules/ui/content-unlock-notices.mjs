@@ -21,10 +21,10 @@ export function announceLoop(runtime) {
     if (runtime.deps.contentProgression.points().complete && !added.length) return;
     const lines = [(0, runtime.deps._t)('해금 포인트 {balance}P', { balance: runtime.deps.contentProgression.balance() })];
     if (paid.length) lines.push((0, runtime.deps._t)('새 해금: {names}', { names: paid.join(', ') }));
-    // 고를 것이 새로 없는 루프(7, 9)는 다음에 열리는 루프를 한 줄 미리 보인다.
+    // 새 구매가 없는 루프에는 바로 다음 루프만 예고한다.
     if (!added.length) {
-        const ahead = runtime.deps.CONTENT_UNLOCK_CATALOG.filter(def => !def.series && def.minLoop > runtime.deps.game.season).reduce((min, def) => Math.min(min, def.minLoop), Infinity);
-        if (Number.isFinite(ahead)) lines.push((0, runtime.deps._t)('루프 {loop}: {names}', { loop: ahead, names: view_listed(runtime, ahead).map(def => `[${(0, runtime.deps._t)(def.name)}]`).join(', ') }));
+        const ahead = runtime.deps.game.season + 1, upcoming = view_listed(runtime, ahead);
+        if (upcoming.length) lines.push((0, runtime.deps._t)('루프 {loop}: {names}', { loop: ahead, names: upcoming.map(def => `[${(0, runtime.deps._t)(def.name)}]`).join(', ') }));
     }
     (0, runtime.deps.queueTutorialNotice)('unlock_content_loop_' + runtime.deps.game.season, (0, runtime.deps._t)('루프 {season}', { season: runtime.deps.game.season }), lines.join('\n'), 'tab-unlocks');
 }

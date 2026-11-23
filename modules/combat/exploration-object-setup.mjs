@@ -1,6 +1,7 @@
 
 
 export function* objectInitialize(env, run,zone) {
+    if (zone.pocket) return;
     if(!['act','abyss','atlasMap'].includes(zone.type)||env.deps.actExplorationState.packRooms(env.deps.actExplorationMap.forRun(run)).length<2)return;
     const atlasMap=zone.type==='atlasMap',saved=atlasMap&&env.owner.atlas.run?.objects;
     if(saved&&(yield* objectRestoreSaved(env, run,saved)))return;

@@ -436,6 +436,7 @@
                 <div id="move-area" style="text-align: center; margin-bottom: 10px; display: flex; flex-direction: column; min-height: 0;">
                     <div id="battlefield-wrap" class="battlefield-wrap">
                         <canvas id="battlefield-canvas"></canvas>
+                        <div id="atlas-wheel-refuge" hidden></div>
                         <div class="battlefield-caption" id="ui-battlefield-caption" data-i18n>전장을 스캔 중...</div>
                     </div>
                     <div id="side-encounter-hud" hidden></div>
@@ -802,7 +803,7 @@
         </div>
 
         <div id="ui-class-locked" class="content-passive-entry" style="margin-top: 30px;">
-            <span data-i18n>루프 3부터 해금에서 전직을 열면, 액트 3 클리어 후 전직 시련에 도전합니다. 첫 시련을 통과하면 전직을 고릅니다.</span>
+            <span data-i18n>루프 5부터 해금에서 전직을 열면, 액트 3 클리어 후 전직 시련에 도전합니다. 첫 시련을 통과하면 전직을 고릅니다.</span>
             <button type="button" id="ui-class-trial-link" onclick="contentUnlockUi.open('battleTrials')" data-i18n>전직 시련 보기</button>
         </div>
     </div>
@@ -835,6 +836,7 @@
             <section id="stump-board-section" class="stump-box-pane">
                 <div id="stump-box-board"></div>
                 <div id="stump-cube" class="stump-cube"></div>
+                <details class="cl-exchange" data-exchange="wardCord" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>금줄 꼬기</summary><div></div></details>
                 <div id="stump-box-summary" class="stump-box-summary"></div>
             </section>
             <section id="stump-storage-section" class="stump-box-pane">
@@ -936,7 +938,8 @@
 
         <div id="item-tab-craft" class="subtab-content">
             <section id="crafting-workspace"></section>
-            <details id="cl-materials" ontoggle="if(this.open) renderFossilWorkbench()"><summary data-i18n>수확/화석 정제</summary><div id="ui-craft-spore-actions"></div><section id="fossil-materials"><div id="ui-fossil-material-actions" class="craft-actions"></div></section></details>
+            <details id="cl-materials" ontoggle="if(this.open) renderFossilWorkbench()"><summary data-i18n>수확/화석 정제</summary><div id="ui-craft-spore-actions"></div><section id="fossil-materials"><div id="ui-fossil-material-actions" class="craft-actions"></div>
+                <details class="cl-exchange" id="finish-exchange-fossil" data-exchange="transferStone" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>전이석 교환</summary><div></div><small data-i18n>봉인편린은 루프 6부터 고대 미궁에서 획득합니다.</small></details></section></details>
         </div>
 
         <div id="item-tab-knitting" class="subtab-content"></div>
@@ -1069,6 +1072,7 @@
         </div>
 
         <div id="map-tab-underworld" class="subtab-content">
+            <details class="cl-exchange" data-exchange="balanceWeight" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>천칭의 추 교환</summary><div></div></details>
             <h2 data-i18n>지하계</h2>
             <div class="map-grid" id="ui-underworld-list"></div>
             <div id="ui-underworld-panel" class="underworld-panel"></div>
@@ -1137,6 +1141,7 @@
             </div>
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
+            <details class="cl-exchange" data-exchange="artManual" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>비전서 제작</summary><div></div></details>
             <div id="ui-gem-enhance-header" class="gem-forge-heading" style="display:none;">
                 <div><span class="skill-panel-kicker" data-i18n>룬 공방</span><h2 data-i18n>룬 성장과 각인 공방</h2></div>
             </div>
@@ -1640,6 +1645,7 @@
 <script defer src="data/constants.js"></script>
 <script defer src="data/level-progression.js"></script>
 <script defer src="data/build-stat-inputs.js"></script>
+<script defer src="data/content-progression.js"></script>
 <script defer src="data/maps.js"></script>
 <script defer src="data/bgm.js"></script>
 <script defer src="data/story-journal.js"></script>
@@ -1704,7 +1710,6 @@
 <script defer src="data/wisp-summons.js"></script>
 <script defer src="data/rewards.js"></script>
 <script defer src="data/talent-cards.js"></script>
-<script defer src="data/content-progression.js"></script>
 <script defer src="data/hotkeys.js"></script>
 <script defer src="data/locales/ko.js"></script>
 <link rel="rignin-language" data-language="en" href="data/locales/en.js?v=20261103-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1&atlas-plate=20261109-1&logfit=20261109-1&wmlocks=20261109-1">

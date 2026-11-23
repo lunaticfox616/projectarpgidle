@@ -242,7 +242,6 @@ const meteorProgressRules = createMeteorProgress({
     get METEOR_SITE_FLAGS() { return METEOR_SITE_FLAGS; },
     get METEOR_SITE_NUMBERS() { return METEOR_SITE_NUMBERS; },
     get METEOR_KINDS() { return METEOR_KINDS; },
-    get getMeteorSiteUnlockReady() { return getMeteorSiteUnlockReady; },
     get _t() { return _t; },
     get contentProgression() { return contentProgression; },
     get getCombatTime() { return getCombatTime; },

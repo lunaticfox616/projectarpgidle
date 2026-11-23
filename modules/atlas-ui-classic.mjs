@@ -1,5 +1,6 @@
 import { createAtlasView } from './ui/atlas-view.mjs';
 const atlasUi = createAtlasView({
+    get startMoving() { return startMoving; },
     get document() { return document; },
     get switchTab() { return switchTab; },
     get switchMapSubtab() { return switchMapSubtab; },

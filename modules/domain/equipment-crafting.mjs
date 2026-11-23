@@ -1,4 +1,7 @@
 // One crafting rule owner: provenance, slot limits, omens, outcome selection and imprints.
+import { finishInspectItem, finishApplyToItem, finishExchangeMaterial, finishLegalMods, restoreTransfers } from './weapon-finishes.mjs';
+import { finishRules } from '../data/equipment-finishes.mjs';
+import { craftLegalAddPool } from './equipment-craft-rules.mjs';
 // Callers supply item/state; ordinary payment, persistence and UI remain outside this service.
 import { craftBasicRule, craftBasicFits, craftGetSource, craftGetLabel, craftFilterSporeMods, craftResolveAction, craftGetBlockReason, craftGetSporeBlockReason, craftGetFossilBlockReason, craftGetRiftHarvestBlockReason, craftGetFossilUseReason, craftAffixKind, craftStoredAffixKind, craftKeptOnReroll, craftAffixCounts, craftAffixRoom, craftFitsRoom, craftPickReplacement, craftAffixHeader, craftBuildLockReason } from './equipment-craft-rules.mjs';
 import { craftApplyBasic, craftCraftBasic, craftPendingChoice, craftChoiceWaitReason, craftFossilCraftReason, craftPickChoice, craftNormalizeImprint, craftEngraveReason, craftEngrave, craftRestoreReason, craftRestoreImprint } from './equipment-craft-results.mjs';
@@ -7,7 +10,9 @@ import { craftSporePool, craftPickSporeMod, craftRollSporeLine, craftOmenSpec, c
 /** Build shared tables once per service, before any item mutation or random roll. */
 function createCraftEnvironment(deps) {
     const env = { deps };
-    env.labels = Object.freeze({ spore: '수확', fossil: '화석', transplant: '이식' });
+    env.labels = Object.freeze({ spore: '수확', fossil: '화석', transplant: '이식',
+        temper:'심층 담금질', press:'꽃가루 탁본', prune:'균사 식각',
+        ...Object.fromEntries(Object.entries(finishRules).map(([key, rule]) => [key, rule.name])) });
     env.sporeActions = new Set(['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos']);
     env.sporeRerolls = new Set(['transmute', 'alteration', 'alchemy', 'chaos']);
     env.sporeStatIds = Object.freeze(Object.fromEntries(Object.entries(env.deps.AFFIX_TAG_LISTS.spore)
@@ -29,7 +34,13 @@ function createCraftEnvironment(deps) {
 export function createEquipmentCrafting(deps) {
     const env = createCraftEnvironment(deps);
     return Object.freeze({
+        inspectFinish: (...args) => finishInspectItem(env, ...args),
+        ordinaryFinishMods: item => finishLegalMods(env,item),
+        restoreFinishSlots: item => restoreTransfers(env,item),
+        applyFinish: (...args) => finishApplyToItem(env, ...args),
+        exchangeFinish: (...args) => finishExchangeMaterial(env, ...args),
         basicActions: env.basicActions,
+        basicAddPool: item  => craftLegalAddPool(env, item),
         rerollActions: env.rerollActions,
         basicRule: (...args) => craftBasicRule(env, ...args),
         basicFits: (...args) => craftBasicFits(env, ...args),

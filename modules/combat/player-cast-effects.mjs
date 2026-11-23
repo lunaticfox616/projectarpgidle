@@ -22,7 +22,8 @@ export function* castAddPlayerHitVisualFx(env, pStats, options, targetEnemy, hit
 export function* castNoteNativeGemSwing(env, name, stats) {
     const cast = env.nativeCasts.casts.at(-1), swing = cast && (cast.move ? cast.move.swing : cast.swing);
     if (!swing || env.owner.isBackgroundCalculation) return;
-    yield { kind: 'addBattleFx', args: ['playerSwing', { skillName: name, element: stats.sSkill.ele, color: env.deps.getElementColor(stats.sSkill.ele), pose: swing.pose, contactFrame: swing.contactFrame,
+    const element = cast.attackOptions?.forcedElement || stats.sSkill.ele;
+    yield { kind: 'addBattleFx', args: ['playerSwing', { skillName: name, element, color: env.deps.getElementColor(element), pose: swing.pose, contactFrame: swing.contactFrame,
         sourceCell: env.deps.copyCombatGridCell(env.owner.gridPlayer), impactDelayMs: swing.impact - cast.at, duration: Math.max(80, swing.until - cast.at) }] };
 }
 

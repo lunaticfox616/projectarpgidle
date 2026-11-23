@@ -144,8 +144,8 @@ export function regionChanceNote(runtime, type) {
 
 export function chancesHtml(runtime) {
     const bonus = runtime.deps.atlasPassives.effects(runtime.deps.game);
-    const rows = late => runtime.deps.atlasEncounters.types.filter(type => !!runtime.deps.ATLAS.encounters[type].late === late && runtime.deps.atlasEncounters.isOpen(type, runtime.deps.game.season))
-        .map(type => `${runtime.deps.ATLAS.encounters[type].name} ${runtime.deps.ATLAS.encounters[type].chance + (bonus[type] || 0)}%${regionChanceNote(runtime, type)}`).join(', ');
+    const rows = late => runtime.deps.atlasEncounters.types.filter(type => !!runtime.deps.ATLAS.encounters[type].late === late && runtime.deps.atlasEncounters.isOpen(type, runtime.deps.game.season, runtime.deps.game))
+        .map(type => `${runtime.deps._t(runtime.deps.ATLAS.encounters[type].name)} ${runtime.deps.atlasEncounters.chance(type, bonus, null)}%${regionChanceNote(runtime, type)}`).join(', ');
     // 제단은 아틀라스가 깨어난 뒤에만, 콘텐츠 방과 따로 생긴다(js/atlas-encounters.js roll).
     const altars = runtime.deps.atlasEndgame.awakened(runtime.deps.game) ? `<p class="atlas-encounters">${(0, runtime.deps._t)('제단 확률: {value} (지도마다 {altarLimit}개까지)', { value: rows(true), altarLimit: runtime.deps.ATLAS.altarLimit })}</p>` : '';
     // 황금 방(data/atlas.js goldenRoom): 콘텐츠 방마다 이 확률로 황금 방이 된다(보상 3배와 귀한 재료).

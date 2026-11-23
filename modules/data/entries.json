@@ -58,6 +58,20 @@
     ]
   },
   {
+    "source": "modules/data/content-progression.mjs",
+    "output": "data/content-progression.js",
+    "names": [
+      "CONTENT_UNLOCK_POINT_AWARDS",
+      "CONTENT_UNLOCK_SERIES_VERSION",
+      "CONTENT_UNLOCK_TREE_VERSION",
+      "CONTENT_UNLOCK_LOOP_MOVE_VERSION",
+      "CONTENT_UNLOCK_RECORD_VERSION",
+      "CONTENT_UNLOCK_SERIES",
+      "CONTENT_UNLOCK_RAILS",
+      "CONTENT_UNLOCK_CATALOG"
+    ]
+  },
+  {
     "source": "modules/data/maps.mjs",
     "output": "data/maps.js",
     "names": [
@@ -871,20 +885,6 @@
     ],
     "commonjs": [
       "TALENT_BLOOM_CARD_DEFS"
-    ]
-  },
-  {
-    "source": "modules/data/content-progression.mjs",
-    "output": "data/content-progression.js",
-    "names": [
-      "CONTENT_UNLOCK_POINT_AWARDS",
-      "CONTENT_UNLOCK_SERIES_VERSION",
-      "CONTENT_UNLOCK_TREE_VERSION",
-      "CONTENT_UNLOCK_LOOP_MOVE_VERSION",
-      "CONTENT_UNLOCK_RECORD_VERSION",
-      "CONTENT_UNLOCK_SERIES",
-      "CONTENT_UNLOCK_RAILS",
-      "CONTENT_UNLOCK_CATALOG"
     ]
   },
   {

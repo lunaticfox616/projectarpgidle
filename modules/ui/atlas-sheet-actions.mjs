@@ -112,7 +112,7 @@ export function top(runtime, chart) {
     return `<header class="as-top"><span class="as-progress" style="--fill:${Math.round(st.completed.length / total * 100)}%"><b>${(0, runtime.deps._t)('완료')} ${st.completed.length}/${total}</b></span>
             <span class="as-seeds" aria-label="${(0, runtime.deps._t)('씨앗')} ${st.seeds}/${runtime.deps.ATLAS.seeds.max}">${(0, runtime.deps._t)('씨앗')}${seeds}</span>
             <span class="as-points">${(0, runtime.deps._t)('보너스')} <b>${st.bonus.length}</b></span><span class="as-points">${(0, runtime.deps._t)('포인트')} <b>${points}</b>${free > 0 ? ` <em>+${free}</em>` : ''}</span>
-            <label class="as-auto"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)('자동 지도')}</span></label></header>`;
+            <label class="as-auto"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '자동 지도 · 정점 정복 후')}</span></label></header>`;
 }
 
 export function nodeInfoHtml(runtime, picked) {

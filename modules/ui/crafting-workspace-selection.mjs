@@ -42,6 +42,10 @@ export function workspaceResourceState(ctx, key) {
     if(!ctx.deps.contentProgression.canOpen('item-tab-craft')||!ctx.deps.contentProgression.canDropCurrency(key))return {enabled:false,reason:(0, ctx.deps._t)('아직 해금되지 않았습니다.')};
     const locked=ctx.deps.equipmentCrafting.buildLockReason(ctx.deps.game);if(locked)return {enabled:false,reason:locked};
     const row=ctx.state.recipes.find(entry=>entry.key===key);if(!row)return null;
+    if(row.kind==='finish'){
+        const {reason}=ctx.handlers.finishSelection(key).plan;
+        return {enabled:!reason,reason};
+    }
     if(row.kind==='fossil')return workspaceFossilState(ctx, key);
     const special=workspaceSpecialState(ctx, key);if(special)return special;
     if(['ouroboros','oceanRerollShard'].includes(key))return workspaceSelectedState(ctx, key);
@@ -55,7 +59,7 @@ export function workspaceSelectedState(ctx, key) {
 }
 
 export function workspaceFossilState(ctx, key) {
-    const reason=ctx.deps.equipmentCrafting.getFossilUseReason(selected(ctx),ctx.deps.FOSSIL_DB.find(entry=>entry.key===key),ctx.deps.game.season,ctx.deps.game.currencies)||workspaceFossilSlotReason(ctx, key);
+    const reason=ctx.deps.equipmentCrafting.getFossilUseReason(selected(ctx),ctx.deps.FOSSIL_DB.find(entry=>entry.key===key),ctx.deps.game)||workspaceFossilSlotReason(ctx, key);
     return {enabled:!reason,reason};
 }
 

@@ -819,6 +819,11 @@ const RENAMED_UNIQUES = Object.freeze({
 });
 
 // Phase-1 extracted data (global compatibility).
+/** @typedef {{name: string, slots: string[], reqTier: number, uniqueEffect: string, uniqueEffectKey: string,
+ * uniqueEffectParams?: Record<string, number|string|boolean>, stats: {id:string,min:number,max:number}[],
+ * syncEffectOnLoad?:boolean, ultraRare?:boolean, realmCodexOnly?:boolean, cosmosChase?:boolean, realm?:string, contentUnlock?:string,
+ * dropOnly?:{type?:string,id?:string,bossId?:string,minFloor?:number,minTier?:number,bossDropChance?:number}}} UniqueEquipmentDefinition */
+/** @type {UniqueEquipmentDefinition[]} */
 const UNIQUE_DB = [
     { name: "첫 계약", slots: ["무기"], reqTier: 1, uniqueEffect: "소환수 최대 한도 +1", uniqueEffectKey: "summonCapBonus", uniqueEffectParams: { cap: 1 }, stats: [{ id: "summonFlatDmg", min: 4, max: 8 }, { id: "summonPctDmg", min: 12, max: 18 }, { id: "summonEfficiency", min: 6, max: 10 }, { id: 'summonResPen', min: 14.7, max: 16.8 }, { id: 'critDmg', min: 46.7, max: 53.1 }] },
     { name: "무리의 서약", slots: ["무기"], reqTier: 6, uniqueEffect: "소환수 최대 한도 +1", uniqueEffectKey: "summonCapBonus", uniqueEffectParams: { cap: 1 }, stats: [{ id: "summonPctDmg", min: 18, max: 28 }, { id: "summonHpPct", min: 16, max: 24 }, { id: "summonAspd", min: 8, max: 14 }, { id: "resAll", min: 6, max: 10 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'minDmgRoll', min: 16, max: 18.1 }] },
@@ -1030,6 +1035,18 @@ const UNIQUE_DB = [
     // 공격 칸에 두고(js/skills.js isAttackRuneBlockedByMobilityBoots), 되감긴 모래시계는 재사용 대기시간 감소 상한을 올린다.
     { name: "칼이 된 발걸음", slots: ["신발"], reqTier: 14, uniqueEffect: "공격 스킬룬을 쓸 수 없음. 이동 스킬룬을 공격 스킬룬 칸에 둘 수 있고, 그 룬은 공격 속도대로 나가며 보조스킬룬을 받음", uniqueEffectKey: "mobilityRuneAsAttack", stats: [{ id: "move", min: 12, max: 18 }, { id: "aspd", min: 6, max: 10 }, { id: "evasion", min: 90, max: 140 }, { id: "mobilityCooldownRecovery", min: 10, max: 20 }, { id: "resAll", min: 8, max: 12 }] },
     { name: "되감긴 모래시계", slots: ["목걸이"], reqTier: 16, uniqueEffect: "재사용 대기시간 감소 상한 +10%p", uniqueEffectKey: "cooldownReductionCap", uniqueEffectParams: { pct: 10 }, stats: [{ id: "cooldownRecovery", min: 15, max: 25 }, { id: "cooldownReduction", min: 6, max: 10 }, { id: "pctHp", min: 6, max: 10 }, { id: "resAll", min: 10, max: 16 }, { id: "aspd", min: 4, max: 8 }] },
+    {"name": "나이테의 파수", "slots": ["무기"], "reqTier": 10, "uniqueEffect": "막기 성공 시 에너지 보호막 3% 회복", "uniqueEffectKey": "blockRecoverEnergyShieldPct", "uniqueEffectParams": {"pct": 3}, "stats": [{"id": "flatDmg", "min": 25, "max": 38},{"id": "energyShield", "min": 35, "max": 50},{"id": "armorPct", "min": 12, "max": 18}]},
+    {"name": "산맥의 단면", "slots": ["무기"], "reqTier": 12, "uniqueEffect": "타격 시 12% 확률로 공격 피해 80%의 균열파 발동", "uniqueEffectKey": "realmRiftWaveOnHit", "uniqueEffectParams": {"chance": 12, "damagePct": 80}, "stats": [{"id": "flatDmg", "min": 38, "max": 52},{"id": "slamPctDmg", "min": 20, "max": 28},{"id": "aoePctDmg", "min": 12, "max": 16}]},
+    {"name": "매복자의 접칼", "slots": ["무기"], "reqTier": 3, "uniqueEffect": "비껴내기 성공 시 3초간 그림자 은신(이동속도/회피/치명타 피해 +20%)", "uniqueEffectKey": "deflectGrantShadowStealth", "uniqueEffectParams": {"duration": 3, "move": 20, "evasionPct": 20, "critDmg": 20}, "stats": [{"id": "flatDmg", "min": 8, "max": 14},{"id": "aspd", "min": 4, "max": 8},{"id": "evasion", "min": 12, "max": 20}]},
+    {"name": "가시의 서명", "slots": ["무기"], "reqTier": 17, "uniqueEffect": "타격마다 적의 카오스 저항 −2%(최대 6중첩)", "uniqueEffectKey": "hitApplyChaosResDown", "uniqueEffectParams": {"perHit": 2, "maxStacks": 6}, "stats": [{"id": "flatDmg", "min": 42, "max": 58},{"id": "poisonChance", "min": 12, "max": 18},{"id": "dotPctDmg", "min": 20, "max": 30}]},
+    {"name": "되짚는 제비", "slots": ["무기"], "reqTier": 5, "uniqueEffect": "투사체 룬이 관통 후 귀환. 왕복 타격은 각각 50% 피해 (창공 각인 우선)", "uniqueEffectKey": "projectilePatternMode", "uniqueEffectParams": {"mode": "return", "damageMultiplier": 1}, "stats": [{"id": "flatDmg", "min": 12, "max": 20},{"id": "aspd", "min": 5, "max": 8},{"id": "move", "min": 4, "max": 6}]},
+    {"name": "천둥의 표적", "slots": ["무기"], "reqTier": 17, "uniqueEffect": "감전된 적에게 주는 피해 +25%", "uniqueEffectKey": "hitShockedEnemyDamageMorePct", "uniqueEffectParams": {"pct": 25}, "stats": [{"id": "flatDmg", "min": 45, "max": 60},{"id": "shockChance", "min": 12, "max": 18},{"id": "critDmg", "min": 22, "max": 32}]},
+    {"name": "빈 둥지의 울림", "slots": ["무기"], "reqTier": 4, "uniqueEffect": "소환수가 죽으면 4초간 피해 +20%", "uniqueEffectKey": "summonDeathDamageBuff", "uniqueEffectParams": {"pct": 20, "duration": 4}, "stats": [{"id": "summonPctDmg", "min": 12, "max": 20},{"id": "flatHp", "min": 18, "max": 28},{"id": "aspd", "min": 3, "max": 6}]},
+    {"name": "뇌운의 굴절", "slots": ["무기"], "reqTier": 17, "uniqueEffect": "원소 타격마다 적의 원소 저항 −2%(최대 −12%)", "uniqueEffectKey": "stackingElementalResDownOnHit", "uniqueEffectParams": {"perHit": 2, "max": 12}, "stats": [{"id": "spellFlatDmg", "min": 30, "max": 48},{"id": "lightPctDmg", "min": 20, "max": 30},{"id": "crit", "min": 5, "max": 8}]},
+    {"name": "벌지기의 연막병", "slots": ["무기"], "reqTier": 4, "uniqueEffect": "타격 시 6% 확률로 벌 소환(최대 3마리)", "uniqueEffectKey": "queenBeeSummonOnHit", "uniqueEffectParams": {"chance": 6, "hitPct": 65, "intervalSec": 1, "attacks": 2, "maxBees": 3}, "stats": [{"id": "flatDmg", "min": 8, "max": 14},{"id": "potionPctDmg", "min": 10, "max": 16},{"id": "poisonChance", "min": 4, "max": 8}]},
+    {"name": "역병의 마개", "slots": ["무기"], "reqTier": 17, "uniqueEffect": "적 처치 시 10% 확률로 생명력 14% 시체 폭발", "uniqueEffectKey": "corpseExplodeOnKill", "uniqueEffectParams": {"chance": 10, "lifePct": 14}, "stats": [{"id": "flatDmg", "min": 40, "max": 54},{"id": "chaosPctDmg", "min": 18, "max": 28},{"id": "potionPctDmg", "min": 20, "max": 32}]},
+    {"name": "잔불의 기도", "slots": ["무기"], "reqTier": 5, "uniqueEffect": "치명타 적중 시 에너지 보호막 재충전 대기시간을 0.25초 앞당김 (재사용 대기시간 0.6초)", "uniqueEffectKey": "critAdvanceEnergyShieldRecharge", "uniqueEffectParams": {"advanceSec": 0.25, "cooldownSec": 0.6}, "stats": [{"id": "firePctDmg", "min": 12, "max": 18},{"id": "crit", "min": 4, "max": 7},{"id": "energyShield", "min": 14, "max": 22}]},
+    {"name": "조종을 울리는 자", "slots": ["무기"], "reqTier": 20, "uniqueEffect": "저주 한도 +1, 적용된 저주 1개당 최종 피해 +5%", "uniqueEffectKey": "curseCrown", "uniqueEffectParams": {"extraCurseCap": 1, "finalDmgPerCursePct": 5}, "stats": [{"id": "flatDmg", "min": 54, "max": 72},{"id": "lightPctDmg", "min": 24, "max": 36},{"id": "regen", "min": 0.6, "max": 1}]},
     { name: "마지막 수호의 향로", slots: ["무기"], reqTier: 15, dropOnly: { type: 'colony' }, uniqueEffect: "사망 방지 보호막(최대 생명력 15%) 25초마다 재생성", uniqueEffectKey: "realmDeathWard", uniqueEffectParams: { hpPct: 15, cooldown: 25 }, stats: [{ id: "flatDmg", min: 95, max: 140 }, { id: "physPctDmg", min: 30, max: 40 }, { id: "resAll", min: 8, max: 12 }] }
 ];
 
@@ -1444,6 +1461,10 @@ function getCanonicalCurrencyKey(currencyKey) {
 }
 
 const ORB_DB = {
+    transferStone: { name:'전이석', desc:'일반 접미어 한 줄을 빈 접두어 칸으로 옮깁니다. 등급과 수치는 유지됩니다.', icon:'assets/ui/currency/strong-seal-shard.png', dropUnlocks:['fossilRestore'] },
+    artManual: { name:'비전서', desc:'무기의 일반 접두어 한 줄을 지정한 룬의 특정 타격을 강화하는 옵션으로 교체합니다.', icon:'assets/ui/grove/recipe-book.png', dropUnlocks:['gemForge'] },
+    balanceWeight: { name:'천칭의 추', desc:'최저 등급 옵션을 선택 계열로 바꾸고 최고 등급 옵션을 한 등급 낮춰 다시 굴립니다.', icon:'assets/items/pixel-refresh-20261108/unique_exact_scales.png', dropUnlocks:['underworld'] },
+    wardCord: { name:'금줄', desc:'일반 옵션 한 줄을 금줄로 바꿉니다. 이후 기본 재화로 옵션을 추가할 때 지정 속성을 제외합니다.', icon:'assets/ui/currency/omen-weave-v4.png', dropUnlocks:['stump'] },
     magicBud: { name: '마법의 새싹', desc: '일반 아이템을 마법 아이템으로 만들고 옵션을 부여합니다. 마법 아이템의 옵션은 1~2줄로 다시 굴립니다.' },
     sapBud: { name: '수액 봉오리', desc: '마법 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
     formlessDew: { name: '형체 없는 이슬', desc: '일반 아이템을 희귀로 만들거나, 희귀 아이템의 옵션을 모두 다시 굴립니다.' },
@@ -1505,7 +1526,7 @@ const ORB_DB = {
     burningEmberBranch: { name: '타오른 잿불가지', desc: '장비를 한 번 더 타락시킵니다(장비 하나에 한 번). 이미 타락한 장비와 고유 장비에도 씁니다. 25% 확률로 장비가 타서 사라지고(재는 그루터기 함 거름), 아니면 타락 전용 줄 2개, 옵션 수치 다시 굽기(줄마다 80~120%), 품질 30% 가운데 하나가 일어나거나 변화가 없습니다. 아틀라스의 잿불 터에서 얻습니다.' },
     jewelCore: { name: '주얼 핵(구)', desc: '이전 버전 재화입니다. 로드 시 주얼 결정으로 자동 통합됩니다.' },
     jewelShard: { name: '주얼 결정', desc: '주얼을 해체하면 얻습니다. 주얼 보관함 뽑기와 조합창의 주얼 융합에 씁니다.' },
-    hiveKey: { name: '벌집 열쇠', desc: '루프8 이후 맵핑에서 낮은 확률로 발견되는 벌집 입장권입니다.' },
+    hiveKey: { name: '벌집 열쇠', desc: '벌집 원정 해금 후 혼돈 지역의 적에게서 드물게 발견됩니다. 벌집 원정 입장에 씁니다.' },
     enchantedHoney: { name: '마력 깃든 벌꿀', desc: '장비 옵션 1개를 영구 고정하는 매우 희귀 재화입니다.' },
     venomStinger: { name: '독벌침', desc: '무기에 랜덤 공격 옵션 한 줄을 추가/재설정합니다.' },
     pollen: { name: '꽃가루', desc: '아틀라스 패시브 ‘여왕의 방’이 있으면 지도에서 10개씩 써서 벌 이벤트를 일으킵니다. 벌집 원정의 불리한 선택지가 가져가기도 합니다.' },
@@ -1567,7 +1588,7 @@ function normalizeCraftChoice(value) {
 // Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.
 const WALLET_CURRENCY_INFO = Object.freeze({
     colonyShard: Object.freeze({ icon: 'assets/ui/currency/colony-shard.png', name: '군락지 편린', desc: '군락지에서 얻고 액막이를 해체해도 나옵니다. 30개로 군락지 화면에서 액막이를 만듭니다.' }),
-    colonyTrace: Object.freeze({ icon: 'assets/ui/currency/colony-trace.png', name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지에 들어갈 때 씁니다.' })
+    colonyTrace: Object.freeze({ icon: 'assets/ui/currency/colony-trace.png', name: '군락지 흔적', desc: '군락지 해금 후 심화 혼돈, 벌집 원정, 대균열에서 발견됩니다. 군락지 입장에 씁니다.', dropUnlocks: ['colony'] })
 });
 /** Name and description of any wallet currency: ORB_DB items first, then the wallet-only counters. */
 function getCurrencyInfo(key) {
@@ -1621,6 +1642,7 @@ for (const [unlock, keys] of [
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
     ['jewel', ['jewelShard','voidChisel']],
+    ['beehive', ['hiveKey']],
     ['talisman', ['sealShard','strongSealShard','radiantSealShard']]
 ]) {
     for (const key of keys) ORB_DB[key].dropUnlocks = [unlock];

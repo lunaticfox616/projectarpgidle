@@ -8,7 +8,7 @@ export function packExplorationPackKey(room, stage) { return room.id+':'+(stage=
 export function packExplorationWavesAllowed(c, zone, map) { return !!map.stage && !roomPackKind(zone) && !(zone.type==='act' && zone.id===0 && (c.owner.season||1)===1); }
 
 /** 정예 방, 또는 문이 하나인 막다른 방(입구와 보스 방 말고). */
-export function packIsExplorationWaveRoom(map, room) { return room.role==='elite' || (['battle','optional'].includes(room.role) && map.doors.filter(door=>door.room===room.index).length===1); }
+export function packIsExplorationWaveRoom(map, room) { return !room.host && (room.role==='elite' || (['battle','optional'].includes(room.role) && map.doors.filter(door=>door.room===room.index).length===1)); }
 
 /** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
  * One-time generation only; existing runs retain every enemy. Atlas and bespoke encounters keep their authored budgets. */

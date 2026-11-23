@@ -37,12 +37,13 @@ export function killApplyVoidRiftMobTuning(enemy) {
 /** From loop 9 in void rift zones: a kill counts toward an open rift's wave, and with no rift open may open one at random. */
 export function* killRollRandomVoidRiftOnKill(env, enemy, zone) {
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
-    if ((env.owner.season || 1) < 9 || !killIsVoidRiftCombatZone(zone)) return;
+    if (!killIsVoidRiftCombatZone(zone)) return;
     const v = env.owner.voidRift || (env.owner.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     if (v.active) {
         if (enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
         return;
     }
+    if (!env.deps.contentProgression.isUnlocked('voidrift', env.owner)) return;
     if (Math.random() >= (enemy.isElite ? 0.0003335 : 0.000075)) return;
     Object.assign(v, { active: true, activeKills: 0, requiredKills: 0, pendingWave: true, totalToSpawn: 6 + Math.floor(Math.random() * 4), spawnedCount: 0, defeatedCount: 0, spawnTick: 0 });
     (yield { kind: 'killSay', args: ['🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster', { noToast: true }] });

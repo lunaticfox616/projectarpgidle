@@ -1,5 +1,5 @@
 import { clampNumber } from '../common/numbers.mjs';
-import { SKILL_EFFECT_IMAGES } from './skill-effect-look.mjs';
+import { SKILL_EFFECT_IMAGES, skillEffectFilter } from './skill-effect-look.mjs';
 import { combatEffectBounds } from './combat-effect-geometry.mjs';
 
 export function drawMeteorDescent(ctx, bounds, progress, image) {
@@ -100,11 +100,14 @@ export class MeteorSpellPainter {
     draw(ctx, fx, now, arriveAt, targets) {
         let bounds = combatEffectBounds(targets);
         let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
+        ctx.save();
+        if (fx.element && fx.element !== 'fire') ctx.filter = fx.element === 'phys' ? 'grayscale(1)' : skillEffectFilter(fx.element, SKILL_EFFECT_IMAGES.meteorGround);
         if (now < arriveAt) {
             drawMeteorDescent(ctx, bounds, progress, this.deps.image(SKILL_EFFECT_IMAGES.meteorProjectile));
-            return;
+        } else {
+            this.ground(ctx, bounds, now, fx.start + fx.duration);
+            this.impact(ctx, bounds, now, arriveAt);
         }
-        this.ground(ctx, bounds, now, fx.start + fx.duration);
-        this.impact(ctx, bounds, now, arriveAt);
+        ctx.restore();
     }
 }

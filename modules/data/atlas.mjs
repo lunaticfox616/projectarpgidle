@@ -1,6 +1,58 @@
+// Combat encounters borrow enemies and materials from the unlocked activity. They never start a nested run.
+const regions = {
+    underworld: ['지하 광맥', 'deepWhetstone', ['underworld-beetle', 'underworld-hound'], 'underworld-obsidian-centipede'],
+    ocean: ['침몰한 암초', 'reefFragment', ['ocean-angler', 'ocean-crab'], 'ocean-oracle'],
+    colony: ['군락의 전초지', 'colonyShard', ['act5-ant', 'colony-borer-grub'], 'colony-carapace-beetle'],
+    labyrinth: ['미궁의 갈림길', 'jewelShard'],
+    sky: ['탑의 난간', 'skyEssence', ['sky-imp', 'sky-roc'], 'sky-griffin'],
+    cosmos: ['유리 성운', 'skyEssence', ['cosmos-star', 'cosmos-ooze'], 'cosmos-sentinel'],
+    timerift: ['멈춘 시간대', 'fossilRift', ['rift-ashen-hound', 'rift-seed-lantern'], 'rift-oath-warden'],
+    trials: ['시련의 문턱', 'runeShard'],
+    fossil: ['노출된 화석층', 'fossil'],
+    memoryDungeon: ['잊힌 회랑', 'jewelShard'],
+    ringRoute: ['나이테의 갈림목', 'rootIron'],
+    fishing: ['그늘진 여울', 'reefFragment', ['ocean-crab', 'ocean-shell'], 'ocean-oracle'],
+    duel: ['결투사의 야영지', 'runeShard'],
+    battleTrials: ['투사의 관문', 'rootIron'],
+    chaosRealm: ['혼돈의 이음새', 'voidChisel'],
+    beyond: ['경계 너머의 파수대', 'sealShard'],
+    deepChaos: ['심화 혼돈', 'abyssCatalyst']
+};
+
+const frontierEncounters = Object.freeze(Object.fromEntries(Object.entries(regions).map(([key, [name, currency, normal, elite]]) =>
+    [key, Object.freeze({ name, unlock: key, chance: 0.22, packExtra: 2, prefix: name,
+        ...(normal ? { roster: { normal, elite: [elite] } } : {}),
+        enemy: { hp: 1.4, damage: 1.1, attack: 1, exp: 1.4 },
+        rewards: [[currency, 1, 0.04]], chest: [currency, 1], golden: [[currency, 1]], mapChance: 0.12 })])));
+
+const frontierLabels = Object.freeze(Object.fromEntries(Object.entries(frontierEncounters).map(([key, row]) => [key, [row.name, '%p']])));
+
+// Each wheel uses the existing radial layout and allocation rules. A branch can be specialised without buying a neighbour.
+function expedition(id, name, tint, keys) {
+    const nodes = [[id + '_r', name, [], Object.fromEntries(keys.map(key => [key, 2]))]];
+    const branches = ['a', 'b', 'c'];
+    branches.forEach((letter, i) => {
+        const key = keys[i], branch = id + '_' + letter, next = id + '_' + branches[(i + 1) % 3];
+        const title = frontierEncounters[key].name, keystone = keys[3 + (i % (keys.length - 3))];
+        nodes.push([branch + '1', title, [id + '_r'], { [key]: 6 }], [branch + '2', title, [branch + '1'], { [key]: 6 }],
+            [branch + 'N', title, [branch + '2'], { [key]: 10 }, true], [branch + 'T', title, [branch + 'N'], { [key]: 8 }],
+            [branch + branches[(i + 1) % 3], name, [branch + '2', next + '2'], { [key]: 3, [keys[(i + 1) % 3]]: 3 }],
+            [id + '_k' + (i + 1), frontierEncounters[keystone].name, [branch + 'N', next + 'N'], { [keystone]: 9 }, 'key']);
+    });
+    return { id, name, tint, nodes };
+}
+
+const frontierWheels = [
+    expedition('depths', '심층 원정', '#649396', ['underworld', 'ocean', 'colony', 'labyrinth']),
+    expedition('horizon', '경계 원정', '#9185bf', ['sky', 'cosmos', 'timerift', 'trials']),
+    expedition('traces', '흔적 원정', '#968056', ['fossil', 'memoryDungeon', 'ringRoute', 'fishing']),
+    expedition('ordeals', '시련 원정', '#a26862', ['duel', 'battleTrials', 'chaosRealm', 'beyond', 'deepChaos'])
+];
+
 // 세계수 아틀라스 (docs/atlas-endgame-20260930.md 3절): 지역 · 노드 · 지도석 옵션과 규칙 수치. 모든 수치는 첫 제안값이다.
 // 노드 위치와 방향 연결은 lore에 정의하고 js/atlas.js가 읽는다.
 const ATLAS = Object.freeze({
+    frontierLabels, frontierWheels,
     zoneId: 'atlas_map',
     // 아틀라스는 마지막 엔드게임(2026-11-06 사용자: 루프 25쯤, 지금 열리는 때는 너무 어렵다): 이 루프부터 이번 루프의 혼돈 20을 깨면 열린다.
     // 이미 열린 저장은 그대로다. 등급의 난이도는 루프와 상관없이 같다(아래 difficulty).
@@ -157,30 +209,31 @@ const ATLAS = Object.freeze({
     // chance: 지도마다 그 방이 생길 기본 확률(%). 패시브 · 각인이 더한다. 지도마다 굴려 생기는 방은 encounterLimit개까지.
     // roster: 그 콘텐츠의 실제 외형을 일반/정예별로 순환 배치한다. 이름과 공격 방식은 data/bosses.js의 같은 외형을 따른다.
     encounters: Object.freeze({
-        breach: Object.freeze({ name: '공허 균열', chance: 8, packExtra: 4, enemy: Object.freeze({ hp: 2, damage: 1.3, attack: 1.25, exp: 2 }),
+        ...frontierEncounters,
+        breach: Object.freeze({ name: '공허 균열', chance: 0.44, unlock: 'voidrift', packExtra: 4, enemy: Object.freeze({ hp: 2, damage: 1.3, attack: 1.25, exp: 2 }),
             roster: Object.freeze({ normal: Object.freeze(['breach-scout', 'breach-reflux']), elite: Object.freeze(['breach-veil', 'breach-venom']) }),
             rewards: Object.freeze([['voidChisel', 2, 0.15], ['jewelShard', 0, 0.12]]), mapChance: 0.3,
             golden: Object.freeze([['voidChisel', 2], ['jewelShard', 2]]), chest: Object.freeze(['voidChisel', 1]) }),
-        hive: Object.freeze({ name: '벌집', chance: 8, packExtra: 3, enemy: Object.freeze({ hp: 1.2, damage: 1, attack: 1.3, exp: 1.3 }),
+        hive: Object.freeze({ name: '벌집', chance: 0.44, unlock: 'beehive', packExtra: 3, enemy: Object.freeze({ hp: 1.2, damage: 1, attack: 1.3, exp: 1.3 }),
             roster: Object.freeze({ normal: Object.freeze(['hive-worker', 'hive-drone', 'hive-scout', 'hive-nurse']), elite: Object.freeze(['hive-guard', 'hive-royal']) }),
             rewards: Object.freeze([['pollen', 6, 0.5], ['venomStinger', 0, 0.06], ['enchantedHoney', 0.08, 0]]), mapChance: 0.15,
             golden: Object.freeze([['enchantedHoney', 1]]), chest: Object.freeze(['pollen', 6]) }),
-        treasure: Object.freeze({ name: '보물 방', chance: 10, packExtra: 1, prefix: '보물 수호', enemy: Object.freeze({ hp: 1.5, damage: 1.1, attack: 1, exp: 1.5 }),
+        treasure: Object.freeze({ name: '보물 방', chance: 2, packExtra: 1, prefix: '보물 수호', enemy: Object.freeze({ hp: 1.5, damage: 1.1, attack: 1, exp: 1.5 }),
             rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5,
             golden: Object.freeze([['goldenRule', 1]]), chest: Object.freeze(['sapBud', 1]) }),
-        meteor: Object.freeze({ name: '운석 분화구', chance: 6, packExtra: 2, enemy: Object.freeze({ hp: 1.6, damage: 1.2, attack: 1.1, exp: 1.6 }),
+        meteor: Object.freeze({ name: '운석 분화구', chance: 0.44, unlock: 'meteorSite', packExtra: 2, enemy: Object.freeze({ hp: 1.6, damage: 1.2, attack: 1.1, exp: 1.6 }),
             roster: Object.freeze({ normal: Object.freeze(['meteor-shard', 'meteor-melt']), elite: Object.freeze(['meteor-sentinel']) }),
             rewards: Object.freeze([['skyEssence', 0.8, 0.06]]), mapChance: 0.2,
             golden: Object.freeze([['skyEssence', 3]]), chest: Object.freeze(['skyEssence', 1]) }),
         // 잿불 터(12번 루프 30, data/ember-corruption.js): 잿불 무리(화염으로 치고, 잿불 테와 불씨가 보인다)가 잿불가지와 드물게
         // 타오른 잿불가지를 떨어뜨린다. 루프 30부터(minLoop), 잊힌 정원(화염 지역) 지도에서는 두 배로 자주(regionChance).
-        emberField: Object.freeze({ name: '잿불 터', chance: 8, packExtra: 3, prefix: '잿불', minLoop: 30, unlock: 'emberField', regionChance: Object.freeze({ garden: 2 }),
+        emberField: Object.freeze({ name: '잿불 터', chance: 0.44, packExtra: 3, prefix: '잿불', minLoop: 30, unlock: 'emberField', regionChance: Object.freeze({ garden: 2 }),
             ele: 'fire', outline: '#ffb347', sparks: '#ff9a3c', enemy: Object.freeze({ hp: 1.5, damage: 1.25, attack: 1.15, exp: 1.6 }),
             rewards: Object.freeze([['emberBranch', 2, 0.1], ['burningEmberBranch', 0.1, 0]]), mapChance: 0.15,
             golden: Object.freeze([['burningEmberBranch', 1]]), chest: Object.freeze(['emberBranch', 2]) }),
         // 수액 상처(12번 루프 32, data/sap-catalysts.js): 세계수의 상처에서 굳은 수액 무리(단단하다, 호박 테와 수액 방울)가 기폭제를
         // 떨어뜨린다. 루프 32부터, 고목 줄기 지도에서 두 배. 방을 비우면 무작위 한 종류의 기폭제(키 목록이면 하나를 고른다).
-        sapWound: Object.freeze({ name: '수액 상처', chance: 8, packExtra: 3, prefix: '수액', minLoop: 32, unlock: 'sapWound', regionChance: Object.freeze({ trunk: 2 }),
+        sapWound: Object.freeze({ name: '수액 상처', chance: 0.44, packExtra: 3, prefix: '수액', minLoop: 32, unlock: 'sapWound', regionChance: Object.freeze({ trunk: 2 }),
             outline: '#e8c15a', sparks: '#f2b33d', enemy: Object.freeze({ hp: 2, damage: 1.1, attack: 0.95, exp: 1.7 }),
             rewards: Object.freeze([[Object.freeze(['catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1, 0.1]]), mapChance: 0.15,
             golden: Object.freeze([[Object.freeze(['catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 2]]),
@@ -191,11 +244,11 @@ const ATLAS = Object.freeze({
         // 깊은 뿌리 지도에서 두 배. 방을 비우면 무작위 한 색의 기름 2 + 등급당 0.15.
         // 묘목장(12번 루프 39, data/stump-nursery.js): 묘목 무리(초록 테와 잎사귀)가 그 지도 지역 색의 씨앗을 떨어뜨리고, 방을 비우면
         // 하나는 반드시(js/atlas-run.js clearRoom). 루프 39부터, 하늘 가지 지도에서 두 배.
-        nursery: Object.freeze({ name: '묘목장', chance: 8, packExtra: 2, prefix: '묘목', minLoop: 39, unlock: 'nursery', regionChance: Object.freeze({ canopy: 2 }),
+        nursery: Object.freeze({ name: '묘목장', chance: 0.44, packExtra: 2, prefix: '묘목', minLoop: 39, unlock: 'nursery', regionChance: Object.freeze({ canopy: 2 }),
             ordinaryRoster: Object.freeze(['atlas-canopy-leafglider', 'atlas-canopy-leafglider', 'postchaos-inverted-sapling']),
             outline: '#7fd99a', sparks: '#b8f0a0', enemy: Object.freeze({ hp: 1.3, damage: 1.1, attack: 1.05, exp: 1.5 }),
             rewards: Object.freeze([['magicBud', 3, 0.2]]), mapChance: 0.15 }),
-        witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, unlock: 'garden', regionChance: Object.freeze({ roots: 2 }),
+        witheredGarden: Object.freeze({ name: '시든 정원', chance: 0.44, packExtra: 3, prefix: '시든', minLoop: 36, unlock: 'garden', regionChance: Object.freeze({ roots: 2 }),
             // 희귀 굴림과 정예를 남기고 보통 슬롯 최대 둘에만 전열·후열을 지정한다. ownLook을 켜는 roster와 다르다.
             ordinaryRoster: Object.freeze(['atlas-garden-bonsai-snail', 'act9-chorus-bulbs']),
             ele: 'chaos', outline: '#a8c97f', sparks: '#cfe0a0', enemy: Object.freeze({ hp: 1.4, damage: 1.2, attack: 1.1, exp: 1.6 }),
@@ -204,10 +257,10 @@ const ATLAS = Object.freeze({
             // 지역 기름: 목록에서 고를 때 encounterRegionShare만큼 그 지도 지역의 색(줄기는 무작위)이 나온다.
             regionKeys: Object.freeze({ garden: 'oilFire', sanctum: 'oilCold', canopy: 'oilLight', roots: 'oilChaos' }) }),
         // 깨어난 뒤(late): 붉은 제단(대사제)과 푸른 제단(갉는 자). 방을 비우면 잉걸 · 허기의 즙(data/atlas-endgame.js altars).
-        redAltar: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
+        redAltar: Object.freeze({ name: '붉은 제단', chance: 2, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             ordinaryRoster: Object.freeze(['deacon-act8-melee', 'deacon-act8-ranged', 'deacon-act8-ranged']),
             rewards: Object.freeze([['magicBud', 2, 0.2]]), mapChance: 0.1 }),
-        blueAltar: Object.freeze({ name: '푸른 제단', chance: 12, packExtra: 3, prefix: '허기진', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1, exp: 1.8 }),
+        blueAltar: Object.freeze({ name: '푸른 제단', chance: 2, packExtra: 3, prefix: '허기진', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1, exp: 1.8 }),
             ordinaryRoster: Object.freeze(['act7-husk-stag', 'act7-husk-stag', 'act10-graft-beast']),
             rewards: Object.freeze([['formlessDew', 1, 0.1]]), mapChance: 0.1 })
     }),

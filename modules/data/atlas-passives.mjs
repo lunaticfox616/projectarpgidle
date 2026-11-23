@@ -3,6 +3,7 @@
 // = 19노드. 끝 · 사이 · 세 번째 핵심(2026-09-30 추가)은 모두 기존 노드 뒤에 붙어, 예전 저장의 찍은 노드가 끊기지 않는다.
 // 화면 배치(가운데 뿌리 · 육각으로 맞물린 고리 넷)는 js/atlas-passives-ui.js가 id로 정한다: _r 뿌리, _a1~_aT 줄기, _ab 사이, _k 핵심.
 // requires는 "이 중 하나라도 찍혀 있으면" 찍을 수 있다는 뜻이다. 효과 키는 js/atlas-passives.js가 더한다(수치는 첫 제안값).
+import { ATLAS } from './atlas.mjs';
 const ATLAS_PASSIVES = Object.freeze({
     wheels: Object.freeze([
         { id: 'sustain', name: '뿌리: 지도 유지', tint: '#6f5a86', nodes: [
@@ -47,7 +48,7 @@ const ATLAS_PASSIVES = Object.freeze({
             ['b_cN', '되돌아오는 각인', ['b_c2'], { fragmentKeep: 20 }, true],
             ['b_k1', '세 번째 홈', ['b_aN', 'b_cN'], { slots: 1 }, 'key'],
             ['b_k2', '강대한 보스', ['b_aN', 'b_bN'], { bossLife: 40, bossMap: 50, bossRarity: 50 }, 'key'],
-            ['b_aT', '각인 사냥', ['b_aN'], { fragmentDrop: 20 }], ['b_bT', '보스의 기억', ['b_bN'], { bossMap: 15, bossRarity: 15 }],
+            ['b_aT', '각인 사냥', ['b_aN'], { fragmentDrop: 20, redAltar: 18 }], ['b_bT', '보스의 기억', ['b_bN'], { bossMap: 15, bossRarity: 15, blueAltar: 18 }],
             ['b_cT', '단단한 손', ['b_cN'], { fragmentKeep: 10 }],
             ['b_ab', '흔적 수집', ['b_a2', 'b_b2'], { fragmentDrop: 8, bossMap: 5 }], ['b_bc', '남는 흔적', ['b_b2', 'b_c2'], { bossMap: 5, fragmentKeep: 4 }],
             ['b_ca', '아끼는 수집', ['b_c2', 'b_a2'], { fragmentKeep: 4, fragmentDrop: 8 }],
@@ -87,12 +88,13 @@ const ATLAS_PASSIVES = Object.freeze({
             ['f_ab', '불붙은 수액', ['f_a2', 'f_b2'], { emberField: 4, sapWound: 4 }], ['f_bc', '수액 먹은 꽃', ['f_b2', 'f_c2'], { sapWound: 4, witheredGarden: 4 }],
             ['f_ca', '재 덮인 정원', ['f_c2', 'f_a2'], { witheredGarden: 4, emberField: 4 }],
             ['f_k3', '되감긴 기억', ['f_cN', 'f_aN'], { memoryDrop: 50, variantChance: 4 }, 'key', 33]
-        ] }
+        ] }, ...ATLAS.frontierWheels
     ].map(wheel => Object.freeze({ ...wheel, nodes: Object.freeze(wheel.nodes.map(([id, name, requires, effect, rank = false, minLoop = 0]) =>
         Object.freeze({ id, name, requires: Object.freeze(requires), effect: Object.freeze(effect), rank: rank === 'key' ? 'keystone' : (rank ? 'notable' : 'small'),
             minLoop: Math.max(wheel.minLoop || 0, minLoop) }))) }))),
     // 효과 이름(패시브 화면). % 붙는 키는 수치 뒤에 %를, 나머지는 그대로 쓴다.
     labels: Object.freeze({
+        ...ATLAS.frontierLabels, redAltar: ['붉은 제단', '%p'], blueAltar: ['푸른 제단', '%p'],
         mapDrop: ['지도석 드롭', '%'], mapTierUp: ['높은 등급 지도석', '%p'], mapRarity: ['마법과 희귀 지도석', '%'], mapQuality: ['품질 붙은 지도석', '%p'],
         starter: ['루프 시작 지도석', '개'], portals: ['포털', '개'], quantity: ['아이템 수량', '%'], rarity: ['아이템 희귀도', '%'],
         packSize: ['무리마다 몬스터', ''], extraElite: ['전투 방 정예', '%p'], monsterLife: ['몬스터 생명력', '%'], monsterDamage: ['몬스터 피해', '%'],

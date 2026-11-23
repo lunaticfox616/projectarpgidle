@@ -33,7 +33,7 @@
  * dead ids are removed once by the death handler. Boss stages are zero-based and sequential.
  */
 /**
- * @typedef {'spore'|'fossil'|'transplant'} EquipmentCraftSource
+ * @typedef {'spore'|'fossil'|'transplant'|'temper'|'press'|'prune'} EquipmentCraftSource
  * Explicit equipment affixes may store craftSource. Missing means ordinary/unknown legacy origin.
  * Compound substats belong to the parent affix. Rift fossil's blank+amplifier form one effect.
  */

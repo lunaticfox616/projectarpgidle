@@ -45,6 +45,8 @@ export function doorFightingHere(env, run) {
  * (EXPLORATION_ARRIVAL_GRACE_MS)에도 잠긴다: 2026-10-16 사용자 "그동안에 방 이동못하게막아".
  * @returns {?string} 잠긴 까닭: 'fight', 'gate', 'arrival'(들어선 뒤의 유예), 열렸으면 null */
 function doorLockOf(env, run, door) {
+    const next = doorStageMap(env, run)?.rooms[door.to];
+    if (next?.host && run.packs.some(pack => pack.roomId === next.host && pack.aliveIds.length)) return 'fight';
     if (doorFightingIn(env, run, door.room)) return 'fight';
     if (door.gate && env.deps.actExplorationState.gateSealed(run)) return 'gate';
     return env.deps.actExplorationState.inArrivalGrace(run, env.deps.getCombatTime()) ? 'arrival' : null;

@@ -1,3 +1,4 @@
+import { finishKeys, finishHeld } from '../data/equipment-finishes.mjs';
 /** Saved crafting preferences and resource discovery; no UI or current-game access. */
 class CraftingWorkspaceState {
   constructor(deps) {
@@ -9,6 +10,7 @@ class CraftingWorkspaceState {
   }
 
   group(key) {
+      if (finishKeys.includes(key)) return 'special';
       if (this.basic.includes(key)) return 'basic';
       if (this.deps.CRAFT_OMENS.keys.includes(key)) return 'omen';
       if (this.materials.includes(key) || this.deps.FOSSIL_DB.some(row => row.key === key)) return 'fossil';
@@ -20,7 +22,7 @@ class CraftingWorkspaceState {
   normalize(value, currencies = {}) {
       const source = value && typeof value === 'object' ? value : {};
       const seen = Array.isArray(source.discovered) ? source.discovered : [];
-      const discovered = [...new Set([...seen, ...Object.keys(currencies).filter(key => currencies[key] > 0)].filter(key => this.group(key)))];
+      const discovered = [...new Set([...seen, ...finishKeys.filter(key => finishHeld(currencies,key)>0), ...Object.keys(currencies).filter(key => currencies[key] > 0)].filter(key => this.group(key)))];
       return { discovered, goal: this.normalizeGoal(source.goal) };
   }
 
@@ -44,6 +46,7 @@ class CraftingWorkspaceState {
   capture(state) {
       if (!state.craftingWorkspace) state.craftingWorkspace = this.normalize(null, state.currencies);
       const seen = state.craftingWorkspace.discovered;
+      for (const key of finishKeys) if (!seen.includes(key) && finishHeld(state.currencies,key)>0) seen.push(key);
       Object.keys(state.currencies).forEach(key => {
           if (state.currencies[key] > 0 && this.group(key) && !seen.includes(key)) seen.push(key);
       });

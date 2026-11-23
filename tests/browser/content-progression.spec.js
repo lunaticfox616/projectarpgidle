@@ -236,19 +236,32 @@ test('the unlock buy button stays visible in a small desktop window', async ({ p
     expect(hit).toBe(true);
 });
 
-// 2026-11-02: the unlock tab is one tree from three roots: it scrolls along the loops and the panel itself stays inside the window.
 test('the unlock tab draws one tree that scrolls by loop', async ({ page }, info) => {
     await page.evaluate(() => {
         game.season = 20; game.contentProgression.highestLoop = 20;
+        game.contentProgression.plannedUnlockId = 'ocean';
         contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks'); unlockTabUi.render();
     });
     const panel = page.locator('#content-unlock-panel');
-    await expect(panel.locator('.unlocks-canvas [data-unlock-select="gemAwakening"]')).toHaveCount(1);
+    for (const id of ['craft', 'support']) {
+        await expect(panel.locator(`.unlock-lines [data-from="passiveTree"][data-to="${id}"]`)).toHaveCount(1);
+        const plan = await page.evaluate(id => window.GameModules.unlockPlan.read(id), id);
+        expect(plan.remainingIds).toEqual(['passiveTree', id]);
+        expect(plan.totalCost).toBe(3);
+    }
+    await expect(panel.locator('.unlock-unknown').first()).toBeDisabled();
+    await expect(panel.locator('.unlock-unknown').first()).toHaveText('아직 알 수 없음');
+    await expect(panel.locator('.unlocks-canvas [data-unlock-select="deepTree"]')).toHaveCount(1);
+    await expect(panel.locator('[data-unlock-select="ocean"], [data-unlock-select="gemAwakening"]')).toHaveCount(0);
+    await expect(panel.locator('.unlock-goal')).toHaveCount(0);
     await expect(panel.locator('.unlock-lines [data-to="gemAwakening"]')).toHaveCount(2);
     expect(await panel.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
     expect(await panel.locator('.unlocks-scroll').evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
     await expect(panel.locator('.unlock-detail img[src*="portrait"]')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('unlock-tab.png') });
+    await page.evaluate(() => { game.season = 21; contentProgression.sync(); unlockTabUi.render(); });
+    await expect(panel.locator('.unlocks-canvas [data-unlock-select="ocean"]')).toHaveCount(1);
+    await expect(panel.locator('.unlock-goal')).toContainText('심해');
 });
 
 // An older atlas unlock remains usable independently of Chaos Realm, even below today's initial unlock loop.
@@ -607,7 +620,11 @@ test('first system visits coach real transactions without stacking notices', asy
     const coach = page.locator('#tutorial-action-card');
     const target = page.locator('.tutorial-action-target');
     await expect(coach).toContainText('보조스킬룬 장착');
+    const boardTab = page.locator('#btn-rune-board.tutorial-action-target');
+    if (await boardTab.isVisible()) await boardTab.click();
+    await expect(target).toHaveAttribute('data-board-pick', 'support');
     await target.click();
+    await expect(target).toHaveAttribute('data-slot-action', 'choose');
     await target.click();
     await expect.poll(() => page.evaluate(() => game.equippedSupports.includes('가속'))).toBe(true);
     await expect(coach).toBeHidden();

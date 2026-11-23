@@ -52,7 +52,7 @@ export function getItemAffixTierHtml(runtime, stat) {
     const tier = (0, runtime.deps.isFixedEquipmentAffix)(stat) ? ' <span class="tier-badge tier-badge-fixed">[T0]</span>'
         : (stat.tier !== undefined ? ` ${(0, runtime.deps.getTierBadgeHtml)(stat.tier, 'T')}` : '');
     const source = runtime.deps.equipmentCrafting.getLabel(stat);
-    return `${tier}${source ? ` <span class="equipment-craft-source">, ${source}</span>` : ''}`;
+    return `${tier}${source ? ` <span class="equipment-craft-source">, ${(0, runtime.deps._t)(source)}</span>` : ''}`;
 }
 
 /** 추가 옵션 머리말: 마법과 희귀는 "추가 옵션 5/6 (접두 2/3, 접미 3/3)"(2026-10-07 접두 3, 접미 3). 예전 규칙으로 한도를 넘은
