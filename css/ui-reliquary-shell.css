@@ -1444,10 +1444,6 @@ body #tab-map .map-state-badge.recommended {
     border-radius: 3px;
   }
 
-  #mobile-battle-pip .mobile-battle-dock-label {
-    color: #cbb181;
-  }
-
   body.mobile-battle-tab .player-exp-percent {
     top: 68%;
     right: 9%;
