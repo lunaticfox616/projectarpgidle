@@ -1,5 +1,5 @@
 /**
- * 경매장 상인 매물의 머리: 게임의 생성 함수를 부르지 않는 값싼 부분. 묶음(seed, 구간 b, b의 지역)마다 계획(매물 번호마다 등급, 지역, 부위,
+ * 경매장 상인 매물의 머리: 게임의 생성 함수를 부르지 않는 값싼 부분. 묶음(seed, 구간 b, b의 지역과 아틀라스 지도 등급)마다 계획(매물 번호마다 등급, 지역, 부위,
  * 판매자)을 한 번 만들고, 매물 b:i의 머리는 제 주사위(seed:b:lot:i)만으로 정한다: 고유의 이름(그 지역 티어의 암거래상 고유), 변형 추첨
  * (gear.variants, 몸이 붙인다), 싸게 내놓았는지와 흔들림, 둘 중 나은 매물(gear.bestOfTwo, 마법과 희귀), 놓이는 때, 머무는 시간, 다른 손님에게
  * 팔리는지와 그때(gear.sold). 그래서 머리는 다른 매물에 기대지 않는다. 머리는 숫자와 짧은 글뿐이고 아이템은 없다(몸은 auction-gear-lots.mjs).
@@ -11,7 +11,7 @@ import { createSeededRng } from '../common/numbers.mjs';
 import { auctionLotZones, auctionLotZoneLadder, auctionRarityPlan, auctionSlotPlan, auctionShuffle, auctionUniquePool, AUCTION_VARIANT_KEYS } from './auction-gear-rolls.mjs';
 import { AUCTION_KIND_PLAN, AUCTION_BATCH_LOTS } from './auction-kind-lots.mjs';
 import { AUCTION_LOT_LOOKBACK } from './auction-pulse.mjs';
-import { auctionZoneOfBucket, auctionLotZoneId } from './auction-clock.mjs';
+import { auctionZoneOfBucket, auctionLotZoneId, auctionAtlasOfBucket, auctionLotAtlasTier } from './auction-clock.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
 // Batches kept for the session: the lookback's and a few more (a moved zone).
@@ -44,7 +44,7 @@ export function auctionBatchSellers(batch) {
 function auctionBatchPlan(env, batch) {
     const ladder = auctionLotZoneLadder(env, batch.zone);
     return { rarities: auctionRarityPlan(batch), slots: auctionSlotPlan(batch, env.deps.EQUIPMENT_DROP_SLOTS, GEAR.batch), sellers: auctionBatchSellers(batch),
-        zones: [...auctionLotZones(env, batch.zone, GEAR.batch), ...AUCTION_KIND_PLAN.map(row => ladder[row.at % ladder.length])] };
+        zones: [...auctionLotZones(env, batch.zone, GEAR.batch, batch.atlas), ...AUCTION_KIND_PLAN.map(row => ladder[row.at % ladder.length])] };
 }
 
 /** Lot head's chance to be sold to someone else (gear.sold): by its deal, plus the bonus for a best-of-two lot, a drawn variant or a unique. */
@@ -106,13 +106,14 @@ function auctionHeadDeal(draw, rarity) {
     return { flags: rarity && rarity !== 'unique' ? drawn : 0, source: bargain ? 'bargain' : 'npc', variance, best };
 }
 
-/** The batch record of bucket for owner (its recorded zone, or the zone an advance would record now): { key, batch, plan, heads, bodies },
- * made empty on first use; heads and bodies fill later. */
+/** The batch record of bucket for owner (its recorded zone and atlas map tier, or those an advance would record now):
+ * { key, batch, plan, heads, bodies }, made empty on first use; heads and bodies fill later. */
 export function auctionBatchRecord(env, owner, bucket) {
-    const state = owner.auction, zone = auctionZoneOfBucket(state, bucket, auctionLotZoneId(env, owner)), key = `${state.seed}:${bucket}:${String(zone)}`;
+    const state = owner.auction, zone = auctionZoneOfBucket(state, bucket, auctionLotZoneId(env, owner));
+    const atlas = auctionAtlasOfBucket(state, bucket, auctionLotAtlasTier(env, owner)), key = `${state.seed}:${bucket}:${String(zone)}:${atlas}`;
     let record = env.lotCache.get(key);
     if (!record) {
-        record = { key, batch: { seed: state.seed, bucket, zone }, plan: null, heads: [], bodies: new Map() };
+        record = { key, batch: { seed: state.seed, bucket, zone, atlas }, plan: null, heads: [], bodies: new Map() };
         env.lotCache.set(key, record);
         if (env.lotCache.size > CACHED_BATCHES) env.lotCache.delete(env.lotCache.keys().next().value);
     }

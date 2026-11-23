@@ -167,6 +167,8 @@ const AUCTION_HOUSE = Object.freeze({
         // 다르고(무기 숫돌, 방어구와 허리띠 뿌리철, 목걸이와 반지 연마제: 드랍 부위는 모두 셋 가운데 하나가 맞는다) 값은 materials 가운데 비싼 것을 쓴다(지금은 셋이 같다).
         quality: Object.freeze({ range: Object.freeze([5, 20]), materials: Object.freeze(['deepWhetstone', 'rootIron', 'jewelPolish']) }),
         // 지역 사다리: 묶음의 지역(맨 위)과 그 앞의 보통 지역(번호 하나씩 앞) 몇 개까지. 매물 i는 사다리[i % 길이]에서 굴린다.
+        // 아틀라스 노드를 깬 저장은 그 위에 칸이 하나 더 있다: 깬 가장 높은 노드 등급의 아틀라스 지도(줄 단계 상한 15 ~ 20, 16등급부터 20).
+        // 장비 매물의 15%쯤이 거기서 굴려진다(사용자 결정 2026-11-23: 16 ~ 20단계 줄도 경매장에 나온다). 묶음의 등급은 지역처럼 저장에 적힌다.
         ladder: 3,
         // 부위 계획에서 무기가 한 바퀴에 나오는 횟수.
         weaponTurns: 2,
@@ -180,8 +182,14 @@ const AUCTION_HOUSE = Object.freeze({
         // 줄마다 단계 값에 옵션 종류 값을 곱한다: (그 베이스가 받을 수 있는 옵션의 평균 가중치 / 그 옵션의 가중치)^kindPower. 드랍이 드물게 고르는
         // 옵션일수록 비싸다(MOD_DB weight 0.15인 줄은 평균의 6배쯤). 무기 대분류에 안 어울려 낮춘 가중치(WEAPON_CATEGORY_OFF_MODS)는 쓰지 않는다.
         // 궁합도 단계도 잘 뽑힌 희귀는 고유보다 비싸도 된다(사용자 결정, 2026-11-23): 줄 값에 상한을 두지 않는다.
+        // 지존작(사용자 결정 2026-11-23: 정말 비싼 매물은 황금률 수백에서 천 개대까지 간다; 보통 매물의 값은 그대로 둔다):
+        // topSet: 단계가 tier(15) 이상인 줄 수 n으로 줄 값에 1 + per x (n / full)^power를 곱한다(한 줄 1.07배, 두 줄 1.58배, 세 줄 2.9배,
+        //   네 줄 5.6배, 다섯 줄 10배). 15단계는 보통 지역 드랍이 닿는 가장 높은 단계라 상한이 11 ~ 14인 매물은 받지 못한다.
+        // highStep: 16단계부터의 줄은 한 단계마다 줄 값 x highStep(20단계 3.05배). 아틀라스 지도 칸의 매물만 닿는다.
+        // 셈: 궁합 5에 다섯 줄이 모두 15단계인 희귀는 황금률 500개쯤, 모두 20단계면 2,000개쯤(변형이 다 붙으면 3배).
         synergy: Object.freeze({
             near: 0.5, perCube: 0.15, topFrom: 3, topCube: 12, cap: 120, tierPower: 1, kindPower: 1,
+            topSet: Object.freeze({ tier: 15, full: 5, per: 9, power: 3 }), highStep: 1.25,
             affinity: Object.freeze({
                 fire: Object.freeze(['critical', 'spell', 'attack', 'projectile']),
                 cold: Object.freeze(['critical', 'spell', 'attack', 'projectile']),
@@ -255,9 +263,16 @@ const AUCTION_HOUSE = Object.freeze({
     // 값 = 암거래상이 그 고유 티어에 부르는 가장 높은 값 x price 범위의 한 점(올림), 태어날 때 정해지고 시세와 흥정이 없다.
     // 머무는 시간 lifeMs, 다른 손님에게 sold.chance의 확률로 머무는 시간 x sold.at 범위의 한 점에 팔린다.
     // 목록, 검색, 구매는 그 보스를 잡았거나 그 콘텐츠를 깬 저장에게만 보인다.
+    // 체이스 고유 칸 둘(사용자 결정 2026-11-23: 정말 비싼 매물은 황금률 수백에서 천 개대까지 간다). 값에는 고유의 굴림 배율(1 ~ 5배)이 더 곱해진다.
+    // chase: 암거래상이 체이스로 내놓는 극희귀 고유. price는 암거래상의 체이스 값 범위(요구 단계 x 2 ~ x 7.5, 황금률 30 ~ 150) 안의 한 점(0 ~ 1).
+    //   굴림까지 황금률 30 ~ 750. 암거래상처럼 지금 지역의 티어 + 4까지의 고유만 보인다. 평균 세 시간에 하나.
+    // cosmosChase: 코스모스 보스의 체이스 고유 다섯. price는 황금률 값 그대로(400 ~ 700), 굴림까지 400 ~ 3,500(굴림이 보통이면 500 ~ 900). 그 보스를 잡은 저장에게만 보이고
+    //   평균 하루에 하나.
     content: Object.freeze({
         ordinary: Object.freeze({ chance: 1 / 8, price: Object.freeze([6, 10]) }),
         ultraRare: Object.freeze({ chance: 1 / 32, price: Object.freeze([10, 18]) }),
+        chase: Object.freeze({ chance: 1 / 12, price: Object.freeze([0, 1]) }),
+        cosmosChase: Object.freeze({ chance: 1 / 96, price: Object.freeze([400, 700]) }),
         lifeMs: Object.freeze([3600000, 10800000]),
         sold: Object.freeze({ chance: 0.5, at: Object.freeze([0.3, 0.9]) })
     }),

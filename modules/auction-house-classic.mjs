@@ -9,6 +9,8 @@ const auctionHouse = (() => {
         get itemAppraisal() { return itemAppraisal; },
         get playerStall() { return playerStall; },
         get getZone() { return getZone; },
+        get atlas() { return atlas; },
+        get ATLAS() { return ATLAS; },
         get levelProgression() { return levelProgression; },
         get rollRealmItemDropTier() { return rollRealmItemDropTier; },
         get getRealmEquipmentAffixTierCap() { return getRealmEquipmentAffixTierCap; },

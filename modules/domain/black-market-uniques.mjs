@@ -11,11 +11,15 @@ export function marketTradeGetBlackMarketUniqueBase(env, unique) {
     return env.deps.BASE_ITEM_DB.find(base => base.id === env.deps.UNIQUE_EQUIPMENT_RULES[unique.name].baseId);
 }
 
+/** The goldenRule range the black market asks for a chase (ultraRare) unique of requirement tier reqTier: { min, max }. */
+export function marketTradeBlackMarketChasePriceRange(reqTier) {
+    const tier = Math.max(1, Math.floor(Number(reqTier) || 1)), min = Math.max(30, Math.min(150, Math.floor(tier * 2)));
+    return { min, max: Math.max(min, Math.min(150, Math.floor(tier * 7.5))) };
+}
+
 export function marketTradeRollBlackMarketChaseUniquePrice(reqTier) {
-    let tier = Math.max(1, Math.floor(Number(reqTier) || 1));
-    let minPrice = Math.max(30, Math.min(150, Math.floor(tier * 2)));
-    let maxPrice = Math.max(minPrice, Math.min(150, Math.floor(tier * 7.5)));
-    return minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
+    const { min, max } = marketTradeBlackMarketChasePriceRange(reqTier);
+    return min + Math.floor(Math.random() * (max - min + 1));
 }
 
 export function marketTradeGetBlackMarketUniqueCodexKey(unique) {

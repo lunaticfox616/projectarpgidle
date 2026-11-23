@@ -162,14 +162,29 @@ function auctionKindWorths(env, item) {
     return env.kindWorth.get(key);
 }
 
-/** The average worth of item's explicit lines: each line's tier worth (auctionTierWorths over the range the lot could roll) x its option's
- * worth (auctionKindWorths, 1 for a line the base's pool does not hold). 1 for an average roll and for an item without lines; the rarer the
- * tiers and the options, the higher. */
+/** What a line of tier is worth beyond its place in the roll (gear.synergy.highStep): x highStep for every tier above topSet.tier, the tiers
+ * only an atlas map's gear reaches. 1 up to topSet.tier. */
+function auctionHighTierWorth(tier) {
+    const rule = GEAR.synergy;
+    return rule.highStep ** Math.max(0, tier - rule.topSet.tier);
+}
+
+/** The multiplier for the lines of the top tiers together (gear.synergy.topSet): 1 + per x (lines of tier topSet.tier or above / full)^power,
+ * so one such line adds next to nothing and a full set of them is worth 1 + per times as much. */
+export function auctionTopSetWorth(item) {
+    const rule = GEAR.synergy.topSet, top = (Array.isArray(item.stats) ? item.stats : []).filter(stat => Number(stat.tier) >= rule.tier).length;
+    return 1 + rule.per * Math.min(1, top / rule.full) ** rule.power;
+}
+
+/** The worth of item's explicit lines: the average of each line's tier worth (auctionTierWorths over the range the lot could roll, x
+ * auctionHighTierWorth) x its option's worth (auctionKindWorths, 1 for a line the base's pool does not hold), x auctionTopSetWorth.
+ * 1 for an average roll and for an item without lines; the rarer the tiers and the options, the higher. */
 export function auctionLotLineWorth(env, item) {
     const stats = Array.isArray(item.stats) ? item.stats : [], cap = Number(item.affixTierCap) || 1;
     if (!stats.length) return 1;
     const floor = Math.min(cap, env.deps.getDroppedAffixTierRange(cap).min), tiers = auctionTierWorths(env, floor, cap), kinds = auctionKindWorths(env, item);
-    return stats.reduce((sum, stat) => sum + tiers[clampNumber((Number(stat.tier) || floor) - floor, 0, cap - floor)] * (kinds.get(stat.id) || 1), 0) / stats.length;
+    const worthOf = stat => { const tier = clampNumber(Number(stat.tier) || floor, floor, cap); return tiers[tier - floor] * auctionHighTierWorth(tier) * (kinds.get(stat.id) || 1); };
+    return stats.reduce((sum, stat) => sum + worthOf(stat), 0) / stats.length * auctionTopSetWorth(item);
 }
 
 /** The lot's quality: { synergy s, roll q, multiplier = min(cap, 1 + perCube x s^3 + topCube x max(0, s - topFrom)^3) x auctionLotLineWorth }. */

@@ -1,7 +1,8 @@
 /**
  * 경매장 상인 장비 매물의 계획과 아이템 굴림. 묶음의 계획(매물 번호마다 등급, 지역, 부위)은 번호로 정한다: 등급은 따로 정해진 주사위
  * (seed:bucket:rarity)로 섞은 gear.rarities 목록의 i번째, 지역은 다섯 개마다 셋은 묶음의 지역과 그 앞 보통 지역 둘의 사다리를 번갈아,
- * 둘은 그보다 앞의 보통 지역(0 ~ 지역 - 3)에 고르게, 부위는 드랍 부위를 한 바퀴씩(무기는 두 번) 섞어 돈다. 같은 베이스나 고유가 겹쳐도 된다.
+ * 둘은 그보다 앞의 보통 지역(0 ~ 지역 - 3)에 고르게(아틀라스 노드를 깬 저장은 사다리 맨 위에 그 등급의 아틀라스 지도 칸이 하나 더 있다:
+ * 줄 단계 16 ~ 20은 거기서만 나온다, auctionAtlasLotZone), 부위는 드랍 부위를 한 바퀴씩(무기는 두 번) 섞어 돈다. 같은 베이스나 고유가 겹쳐도 된다.
  * 아이템(매물의 몸, modules/domain/auction-gear-lots.mjs)은 부르는 쪽이 Math.random을 매물 제 주사위로 바꿔 끼운 동안(auctionWithSeededRandom)
  * 굴린다. 일반, 마법, 희귀는 몬스터 드랍과 같은 지역, 티어 입력으로 chooseItemBase + createItemFromBase(그 등급)를 쓴다. 고유는 머리가 고른
  * 이름(암거래상이 그 지역의 티어에서 내놓을 수 있는 고유, 체이스 제외, modules/domain/black-market-uniques.mjs)으로 generateUniqueItem이 만든다:
@@ -37,10 +38,19 @@ export function auctionLotZoneLadder(env, lotZone) {
     return Array.from({ length: GEAR.ladder }, (_, step) => lotZone - step).filter(id => id >= 0).map(id => deps.getZone(id)).filter(Boolean);
 }
 
+/** The zone an atlas map of tier would be for a drop's item rolls (type, atlasTier and areaLevel as modules/domain/atlas-zone.mjs builds them:
+ * its gear reaches affix tiers 16 to 20), with the unique tier of below (the ladder's top zone). */
+export function auctionAtlasLotZone(env, tier, below) {
+    const level = env.deps.ATLAS.areaLevel;
+    return { id: `atlas:${tier}`, type: 'atlasMap', atlasTier: tier, areaLevel: level.base + (tier - 1) * level.perTier, tier: below.tier };
+}
+
 /** The zone of each of count lots: in every gear.spread.every lots, the first spread.top take the ladder in turn and the rest the ordinary
- * zones before the ladder (0 up to lotZone - ladder), spread evenly by their order; without earlier zones every lot takes the ladder. */
-export function auctionLotZones(env, lotZone, count) {
-    const ladder = auctionLotZoneLadder(env, lotZone), { every, top } = GEAR.spread;
+ * zones before the ladder (0 up to lotZone - ladder), spread evenly by their order; without earlier zones every lot takes the ladder.
+ * With atlasTier (the batch's atlas map tier, 0: none) the ladder has one more rung on top: an atlas map of that tier. */
+export function auctionLotZones(env, lotZone, count, atlasTier = 0) {
+    const ground = auctionLotZoneLadder(env, lotZone), { every, top } = GEAR.spread;
+    const ladder = atlasTier > 0 ? [auctionAtlasLotZone(env, atlasTier, ground[0]), ...ground] : ground;
     const numbered = Number.isSafeInteger(lotZone) && lotZone >= GEAR.ladder && !!env.deps.getZone(lotZone);
     const earlier = numbered ? Array.from({ length: lotZone - GEAR.ladder + 1 }, (_, id) => env.deps.getZone(id)).filter(Boolean) : [];
     const early = index => earlier.length > 0 && index % every >= top;

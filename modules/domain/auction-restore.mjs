@@ -30,15 +30,18 @@ export function auctionRestoreClock(state, source) {
 /** A saved lot zone: a zone id (non-negative integer) or a short zone key, else undefined. */
 const soundZone = zone => (count(zone) === zone || (typeof zone === 'string' && zone.length > 0 && zone.length <= 64) ? zone : undefined);
 
-/** The lot zones of the lookback buckets ([{ bucket, zone }], one per bucket, oldest first). A save from before the list (one lotZone for
- * the saved bucket) gives that bucket its zone. */
+// The highest atlas map tier a saved batch can carry (ATLAS.tierCap is 24; a larger number is a broken save).
+const ATLAS_TIER_MAX = 99;
+
+/** The lot zones of the lookback buckets ([{ bucket, zone, atlas }], one per bucket, oldest first; atlas: the atlas map tier of that batch,
+ * 0 for none and for a save from before it). A save from before the list (one lotZone for the saved bucket) gives that bucket its zone. */
 export function auctionRestoreLotZones(state, source) {
     const oldest = state.bucket - AUCTION_LOT_LOOKBACK, rows = Array.isArray(source.lotZones) ? source.lotZones : [];
     if (!Array.isArray(source.lotZones) && soundZone(source.lotZone) !== undefined) rows.push({ bucket: state.bucket, zone: source.lotZone });
     const sound = rows.filter(row => row && typeof row === 'object' && count(row.bucket) === row.bucket && row.bucket >= oldest && row.bucket <= state.bucket
         && soundZone(row.zone) !== undefined);
     return sound.filter((row, index) => sound.findIndex(other => other.bucket === row.bucket) === index)
-        .map(row => ({ bucket: row.bucket, zone: row.zone })).sort((a, b) => a.bucket - b.bucket);
+        .map(row => ({ bucket: row.bucket, zone: row.zone, atlas: Math.min(ATLAS_TIER_MAX, count(row.atlas)) })).sort((a, b) => a.bucket - b.bucket);
 }
 
 /** The bought lot ids ('birthBucket:index', index below AUCTION_BATCH_LOTS or a content unique slot) of the lookback batches (each index's own

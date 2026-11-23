@@ -18,7 +18,7 @@ import { auctionRestore } from './auction-restore.mjs';
 import { auctionSearchApi } from './auction-search-query.mjs';
 
 /**
- * deps: contentProgression, itemAppraisal (quote, unitValue), playerStall (listBlockReason), getZone, the generator primitives
+ * deps: contentProgression, itemAppraisal (quote, unitValue), playerStall (listBlockReason), getZone, atlas (bestTier), ATLAS (areaLevel), the generator primitives
  * (levelProgression, rollRealmItemDropTier, getRealmEquipmentAffixTierCap, getDroppedAffixTierRange, EQUIPMENT_DROP_SLOTS, chooseItemBase,
  * UNIQUE_DB, BASE_ITEM_DB, UNIQUE_EQUIPMENT_RULES, generateUniqueItem (the black market's uniques), boostExceptionalBaseLine, equipmentSockets, MOD_DB,
  * EQUIPMENT_DROP_VARIANTS, getAffixTierRange (variants), getAvailableMods (the options a base can take, for the option worth),

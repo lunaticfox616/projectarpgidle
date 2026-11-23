@@ -27,6 +27,12 @@ export function auctionLotZoneId(env, owner) {
     return here === null ? 0 : here;
 }
 
+/** The atlas map tier a share of the gear lots is rolled at (auctionLotZones): the highest atlas node owner completed (atlas.bestTier), 0 while
+ * the atlas is closed or nothing is completed. */
+export function auctionLotAtlasTier(env, owner) {
+    return owner.atlas && owner.atlas.unlocked ? Math.max(0, Math.floor(Number(env.deps.atlas.bestTier(owner)) || 0)) : 0;
+}
+
 /** The birth bucket of a merchant lot id ('birthBucket:index'). */
 export function auctionLotBirth(id) { return Number(String(id).split(':')[0]); }
 
@@ -37,11 +43,17 @@ export function auctionZoneOfBucket(state, bucket, fallback) {
     return row ? row.zone : fallback;
 }
 
-/** Records zone for the buckets from..bucket inside the lookback that have none and drops the records that left it. */
-export function auctionRecordLotZones(state, from, bucket, zone) {
+/** The atlas map tier the batch of bucket is rolled with: the one recorded for it (state.lotZones), else fallback. */
+export function auctionAtlasOfBucket(state, bucket, fallback) {
+    const row = state.lotZones.find(entry => entry.bucket === bucket);
+    return row ? row.atlas || 0 : fallback;
+}
+
+/** Records zone and the atlas map tier for the buckets from..bucket inside the lookback that have none and drops the records that left it. */
+export function auctionRecordLotZones(state, from, bucket, zone, atlas) {
     const oldest = bucket - AUCTION_LOT_LOOKBACK, kept = state.lotZones.filter(row => row.bucket >= oldest && row.bucket <= bucket);
     for (let passed = Math.max(from, oldest); passed <= bucket; passed++) {
-        if (!kept.some(row => row.bucket === passed)) kept.push({ bucket: passed, zone });
+        if (!kept.some(row => row.bucket === passed)) kept.push({ bucket: passed, zone, atlas });
     }
     state.lotZones = kept.sort((a, b) => a.bucket - b.bucket);
 }
@@ -67,7 +79,7 @@ export function auctionAddTrend(state, key, amount) {
 
 /**
  * Moves the auction clock to now (UTC ms). The bucket never goes down; when it rises, the passed buckets settle (at most
- * offlineBuckets of them), the bucket's quota empties, the new lookback buckets get today's lot zone, the zones and bought ids of batches
+ * offlineBuckets of them), the bucket's quota empties, the new lookback buckets get today's lot zone and atlas map tier, the zones and bought ids of batches
  * that left the lookback go, and the trend halves.
  * @returns {{ok: boolean, bucketChanged: boolean, settled: Array<{lotId: number, status: string, name: string, currency: string, amount: number}>}}
  * status is 'sold' or 'expired'.
@@ -84,7 +96,7 @@ export function auctionAdvance(env, owner, now) {
     for (let passed = Math.max(state.bucket + 1, bucket - AUCTION_HOUSE.offlineBuckets + 1); passed <= bucket; passed++) {
         settled.push(...auctionRollLots(env, owner, passed));
     }
-    auctionRecordLotZones(state, state.bucket + 1, bucket, auctionLotZoneId(env, owner));
+    auctionRecordLotZones(state, state.bucket + 1, bucket, auctionLotZoneId(env, owner), auctionLotAtlasTier(env, owner));
     state.bucket = bucket;
     state.quota = {};
     state.bought = state.bought.filter(id => auctionLotBirth(id) >= bucket - auctionLookbackOf(Number(String(id).split(':')[1])));
