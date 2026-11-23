@@ -1,7 +1,7 @@
 /**
  * 경매장 칸 그리기. 칸이 보일 때(marketUi가 이 칸을 그릴 때)와 명령 전에 시계를 지금으로 옮기고(advance), 거래 창의 기존 갱신
- * (renderMarketUI)이 부를 때는 저장과 화면 상태의 짧은 서명이 같으면 아무것도 다시 만들지 않는다. 시세 띠, 칸 단추, 본문을 따로 칠해
- * 바뀐 부분만 바꾼다(칸 단추는 제자리에서 속성만 고친다: 화살표 키의 초점이 남는다). 닫힌 칸은 일을 하지 않는다.
+ * (renderMarketUI)이 부를 때는 저장과 화면 상태의 짧은 서명이 같으면 아무것도 다시 만들지 않는다. 맨 위 줄(칸 단추와 지갑), 한 줄 시세
+ * (이번 구간의 사건 이름, 오른 것과 내린 것, 다음 시세 시각; 사건의 설명은 이름에 마우스를 올리면 보인다), 본문을 따로 칠해 바뀐 부분만 바꾼다(칸 단추는 제자리에서 속성만 고친다: 화살표 키의 초점이 남는다). 닫힌 칸은 일을 하지 않는다.
  * 칸이 보이는 동안 그림 틀마다 한 번(requestAnimationFrame) 예산(FRAME_BUDGET_MS) 안에서만 일한다: 목록 행 붙이기, 검색, 매물의 몸 미리 굴리기
  * (auctionHouse.warmLots, 머리 만들기도 같은 예산). 할 일이 없으면 틀을 더 걸지 않는다. 1초마다 도는 확인 하나는 시계를 옮기고, 새로 놓인 매물의
  * 몸을 굴리고, 아이템 칸이면 그려진 행만 고친다(목록을 다시 짓지 않는다). 칸이나 창이 닫히면 다음 확인에서 둘 다 멈추고, 만든 매물은 3분 동안
@@ -17,6 +17,7 @@ import { stepSearch, searchPrefer } from './auction-house-search.mjs';
 import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-materials.mjs';
 import { standsViewHtml, claimable } from './auction-house-stands.mjs';
 import { watchHall } from './auction-house-hall.mjs';
+import { hidePeek } from './auction-house-peek.mjs';
 
 const TABS = Object.freeze([['gear', '아이템'], ['materials', '재료'], ['mine', '내 출품']]);
 const MOVERS = 3;
@@ -65,17 +66,19 @@ function nextChangeText(runtime, bucket) {
     return runtime.deps._t('{time}에 시세가 바뀝니다', { time });
 }
 
+/** The one-line market: the event's title (its description as a tip), the movers, the time of the next change. */
 function bandHtml(runtime) {
     const pulse = runtime.deps.auctionHouse.pulse(runtime.deps.game), event = pulse.event;
-    return `<div class="ah-event"><h3>${trHtml(runtime, event.title)}</h3><p>${trHtml(runtime, event.description)}</p></div>
+    return `<strong class="ah-event" data-tip="${trHtml(runtime, event.description)}">${trHtml(runtime, event.title)}</strong>
         <ul class="ah-movers" aria-label="${runtime.deps._t('시세 변화')}">${moverRows(runtime, pulse).map(row => chipHtml(runtime, row)).join('')}</ul>
-        <div class="ah-band-side"><p class="ah-next">${nextChangeText(runtime, pulse.bucket)}</p>${runtime.deps.shopView.walletHtml(WALLET)}</div>`;
+        <span class="ah-next">${nextChangeText(runtime, pulse.bucket)}</span>`;
 }
 
 function skeletonHtml(runtime) {
-    const tabs = TABS.map(([id]) => `<button type="button" role="tab" id="ah-tab-${id}" aria-controls="ah-view" data-ah-tab="${id}"><span class="ah-tab-label"></span></button>`).join('');
-    return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-band"></header>
-        <nav class="ah-tabs" role="tablist" aria-label="${runtime.deps._t('경매장')}" onkeydown="marketUi.moveTab(event)">${tabs}</nav>
+    const tabs = TABS.map(([id]) => `<button type="button" role="tab" class="psd-tab" id="ah-tab-${id}" aria-controls="ah-view" data-ah-tab="${id}"><span class="ah-tab-label"></span></button>`).join('');
+    return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-top">
+            <nav class="ah-tabs psd-tabs" role="tablist" aria-label="${runtime.deps._t('경매장')}" onkeydown="marketUi.moveTab(event)">${tabs}</nav><div class="ah-purse"></div></header>
+        <div class="ah-band"></div>
         <div class="ah-view" id="ah-view" role="tabpanel"></div></div>`;
 }
 
@@ -95,6 +98,7 @@ function paintTabs(runtime, root) {
         paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, id, label));
     }
     root.querySelector('.ah-view').setAttribute('aria-labelledby', `ah-tab-${tab}`);
+    root.dataset.tab = tab;
 }
 
 const VIEWS = Object.freeze({ gear: gearViewHtml, materials: materialsViewHtml, mine: standsViewHtml });
@@ -110,7 +114,7 @@ function focusKey(view) {
 function paintView(runtime, view) {
     const key = focusKey(view), top = listScroll(view), painted = paint(view, VIEWS[runtime.state.tab](runtime));
     if (painted) keepListScroll(view, top);
-    // The 아이템 view paints its boxes in place (its rows stay); its frame is rebuilt only when the mode changes.
+    // The 아이템 view paints its boxes in place (its rows stay); its frame is drawn once.
     if (runtime.state.tab === 'gear') fillGear(runtime, view.querySelector('.ah-gear'), painted);
     if (painted && key) view.querySelector(key)?.focus({ preventScroll: true });
 }
@@ -229,9 +233,10 @@ export function frameStep(runtime) {
     if (frameWorkLeft(runtime, root)) wantFrame(runtime);
 }
 
-/** Stops the frame work and the check (the section closed or the screen was disposed; disposing also stops watching the host). */
+/** Stops the frame work and the check (the section closed or the screen was disposed; disposing also stops watching the host and the list's end). */
 export function stopWork(runtime, disposing = false) {
     if (disposing && runtime.observer) runtime.observer.disconnect();
+    if (disposing && runtime.moreObserver) runtime.moreObserver.disconnect();
     if (runtime.frame) runtime.deps.window.cancelAnimationFrame(runtime.frame);
     if (runtime.tick) runtime.deps.window.clearInterval(runtime.tick);
     runtime.frame = 0;
@@ -241,6 +246,7 @@ export function stopWork(runtime, disposing = false) {
 /** The section closed: the work stops and the generated lots are dropped DROP_MS later unless it opens again. */
 function closeSection(runtime) {
     runtime.seen = false;
+    hidePeek(runtime);
     stopWork(runtime);
     if (!runtime.dropTimer) runtime.dropTimer = runtime.deps.window.setTimeout(runtime.dropLots, DROP_MS);
 }
@@ -293,6 +299,7 @@ export function renderAuction(runtime, force = false) {
     runtime.state.print = print;
     const root = host.querySelector('.ah-root');
     paint(root.querySelector('.ah-band'), bandHtml(runtime));
+    paint(root.querySelector('.ah-purse'), runtime.deps.shopView.walletHtml(WALLET));
     paintTabs(runtime, root);
     paintView(runtime, root.querySelector('.ah-view'));
 }

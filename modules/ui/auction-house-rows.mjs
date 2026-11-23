@@ -1,16 +1,20 @@
 /**
- * 경매장 아이템 칸 목록의 한 행과 머리줄. 넓은 칸은 머리줄이 있는 두 줄 행(그림, 이름과 변형 표시 아래에 판매자 이름과 검색이 맞힌 옵션 줄,
- * 부위, 아이템 레벨, 옵션 수와 계열, 남은 시간, 가격)이고 이름, 아이템 레벨, 옵션, 남은 시간, 가격 머리를 누르면 그 순서로, 다시 누르면 거꾸로
- * 다시 검색한다(가격은 이슬 값으로 비교한다). 좁은 칸도 두 줄 행이고 검색에 옵션 조건이 있을 때만 첫 조건의 줄이 셋째 줄에 선다. 최근 거래
- * 행은 남은 시간 대신 팔린 지 몇 분인지를 보인다(이 세션에 내가 산 매물은 구매함 표시와 산 지 몇 분). 판매자 이름을 누르면 그 판매자가 조건이 된다. 장비 아닌 종류의 부위 칸, 그림, 이름은 그 종류의 것이다(modules/ui/auction-house-kinds.mjs).
+ * 경매장 아이템 칸 목록의 한 행과 머리줄. 넓은 칸은 머리줄이 있는 행(그림, 이름과 변형 표시 아래에 부위(무기는 대분류)와 판매자 이름, 그 아래에
+ * 검색의 옵션 조건이 맞힌 줄들, 아이템 레벨, 옵션 수와 계열, 남은 시간, 가격)이고 이름, 아이템 레벨, 옵션, 남은 시간, 가격 머리를 누르면 그
+ * 순서로, 다시 누르면 거꾸로 다시 검색한다(가격은 이슬 값으로 비교한다). 좁은 칸은 머리줄 없는 두 줄 행이고 맞힌 줄이 있으면 그 아래에 선다
+ * (순서는 상태 줄의 정렬 고르기가 정한다). 최근 거래 행은 남은 시간 대신 팔린 지 몇 분인지를 보인다(이 세션에 내가 산 매물은 구매함 표시와
+ * 산 지 몇 분). 판매자 이름은 글일 뿐이다(상인은 실제 플레이어가 아니라 누를 것이 없다). 지금 가진 재화로 못 사는 값은 붉게 보인다
+ * (행의 data-ah-cost가 재화와 값을 들고 있어 1초 확인이 지갑이 바뀌었을 때 다시 본다). 행에 마우스를 올리면 게임의 아이템 툴팁이 뜬다
+ * (modules/ui/auction-house-peek.mjs, 그래서 행 안의 값에는 따로 설명을 달지 않는다). 장비 아닌 종류의 부위 글, 그림, 이름은 그 종류의 것이다
+ * (modules/ui/auction-house-kinds.mjs).
  */
-import { tr, esc, num, priceTag, familyLabel, sellerName } from './auction-house-format.mjs';
+import { tr, esc, num, rowPrice, canPay, familyLabel, sellerName } from './auction-house-format.mjs';
 import { lotName, lotSlot, lotLevel, optionCount, lotArtHtml } from './auction-house-kinds.mjs';
 import { VARIANT_LABELS } from './auction-house-conditions.mjs';
 
 const COLUMNS = Object.freeze({
-    open: Object.freeze([['art', ''], ['name', '이름'], ['slot', '부위'], ['level', '아이템 Lv.'], ['options', '옵션'], ['left', '남은 시간'], ['price', '가격']]),
-    recent: Object.freeze([['art', ''], ['name', '이름'], ['slot', '부위'], ['level', '아이템 Lv.'], ['options', '옵션'], ['price', '가격'], ['ago', '시간']])
+    open: Object.freeze([['art', ''], ['name', '이름'], ['level', '아이템 Lv.'], ['options', '옵션'], ['left', '남은 시간'], ['price', '가격']]),
+    recent: Object.freeze([['art', ''], ['name', '이름'], ['level', '아이템 Lv.'], ['options', '옵션'], ['price', '가격'], ['ago', '시간']])
 });
 const SORTED = new Set(['name', 'level', 'options', 'left', 'price']);
 const MINUTE_MS = 60000;
@@ -34,13 +38,8 @@ function tagsHtml(runtime, lot) {
 /** Who sells lot: a hall show's curator, or the merchant's composed name. */
 export function sellerText(runtime, lot) { return esc(runtime, lot.source === 'user' ? lot.merchant : sellerName(runtime, lot.seller)); }
 
-/** The seller's name as a control that adds the seller as a condition (tag 'span' inside a row's button, 'button' elsewhere); a hall
- * show's curator is plain text. */
-export function sellerHtml(runtime, lot, tag) {
-    if (lot.source === 'user') return `<span class="ah-lot-seller">${sellerText(runtime, lot)}</span>`;
-    const type = tag === 'button' ? ' type="button"' : '';
-    return `<${tag}${type} class="ah-lot-seller is-pick" data-ah-seller="${esc(runtime, lot.id)}">${sellerText(runtime, lot)}</${tag}>`;
-}
+/** The seller's name as plain text (a merchant is not a real player: there is nothing to open). */
+export function sellerHtml(runtime, lot) { return `<span class="ah-lot-seller">${sellerText(runtime, lot)}</span>`; }
 
 /** Whole minutes rounded up: '{minutes}분'. */
 /** The whole minutes left shown for ms (at least 1). */
@@ -53,31 +52,37 @@ function leftText(runtime, lot) { return lot.source === 'user' || closedLot(lot)
 
 export function agoText(runtime, lot) { return runtime.deps._t('{minutes}분 전', { minutes: num(runtime, Math.max(1, Math.floor(lot.agoMs / MINUTE_MS))) }); }
 
-/** The name cell: the name with its tags, and under it the seller's whole name and the option line the search matched (when it did). */
+/** The name cell: the name with its tags, under it the slot and the seller's whole name, then the option lines the search matched. */
 function nameCellHtml(runtime, lot) {
-    const match = lot.matchLine ? `<em class="ah-match" data-tip="${esc(runtime, lot.matchLine)}">${esc(runtime, lot.matchLine)}</em>` : '';
+    const lines = Array.isArray(lot.matchLines) ? lot.matchLines : [];
+    const matches = lines.length ? `<span class="ah-matches">${lines.map(line => `<em class="ah-match">${esc(runtime, line)}</em>`).join('')}</span>` : '';
     return `<span class="ah-cell-name"><span class="ah-name-line"><strong class="ah-lot-name">${esc(runtime, lotName(runtime, lot))}</strong>${tagsHtml(runtime, lot)}</span>
-        <span class="ah-lot-sub">${sellerHtml(runtime, lot, 'span')}${match}</span></span>`;
+        <span class="ah-lot-sub"><span class="ah-cell-slot">${esc(runtime, lotSlot(runtime, lot))}</span>${sellerHtml(runtime, lot)}</span>${matches}</span>`;
 }
 
-/** The cells every row has: picture, name (with the seller under it), slot, item level, options. */
+/** The cells every row has: picture, name (with the slot, the seller and the matched lines under it), item level, options. */
 function lotCellsHtml(runtime, lot) {
     const family = optionCount(lot) ? familyLabel(runtime, lot.family) : '';
     const level = lotLevel(lot);
     return `${lotArtHtml(runtime, lot)}${nameCellHtml(runtime, lot)}
-        <span class="ah-cell-slot">${esc(runtime, lotSlot(runtime, lot))}</span>
         <span class="ah-cell-level">${level === null ? '' : `<small class="ah-cell-key">Lv.</small>${num(runtime, level)}`}</span>
         <span class="ah-cell-options"><small class="ah-cell-key">${runtime.deps._t('옵션')}</small>${num(runtime, optionCount(lot))}${family ? `<em class="ah-tag is-family">${esc(runtime, family)}</em>` : ''}</span>`;
+}
+
+/** The price cell of a row of the lots on sale: a closed lot's badge, else the price (marked when the hero cannot pay it now). */
+function openPriceHtml(runtime, lot, closed) {
+    if (closed) return `<span class="ah-cell-price">${badgeHtml(runtime, lot)}</span>`;
+    return `<span class="ah-cell-price${canPay(runtime, lot.currency, lot.price) ? '' : ' is-short'}">${rowPrice(runtime, lot.currency, lot.price)}</span>`;
 }
 
 /** One row of lot (tail 'open': time left and price, a closed lot dimmed with its badge; 'recent': price and how long ago it sold). The row
  * keeps the phase it was drawn in (data-ah-state) so the clock's check patches only what changed. */
 export function lotRowHtml(runtime, lot, tail) {
-    const chosen = lot.id === runtime.state.gear.selected, recent = tail === 'recent', closed = !recent && closedLot(lot);
-    const end = recent ? `<span class="ah-cell-price">${badgeHtml(runtime, { boughtByMe: lot.boughtByMe })}${priceTag(runtime, lot.currency, lot.price)}</span><span class="ah-cell-ago">${esc(runtime, agoText(runtime, lot))}</span>`
-        : `<span class="ah-cell-left">${esc(runtime, leftText(runtime, lot))}</span>
-        <span class="ah-cell-price">${closed ? badgeHtml(runtime, lot) : priceTag(runtime, lot.currency, lot.price)}</span>`;
-    return `<li><button type="button" class="ah-lot${closed ? ' is-closed' : ''}${chosen ? ' is-chosen' : ''}" data-ah-lot="${esc(runtime, lot.id)}" data-ah-state="${esc(runtime, lot.phase || '')}"
+    const chosen = lot.id === runtime.state.gear.selected, recent = tail === 'recent', closed = !recent && closedLot(lot), open = !recent && !closed;
+    const end = recent ? `<span class="ah-cell-price">${badgeHtml(runtime, { boughtByMe: lot.boughtByMe })}${rowPrice(runtime, lot.currency, lot.price)}</span><span class="ah-cell-ago">${esc(runtime, agoText(runtime, lot))}</span>`
+        : `<span class="ah-cell-left">${esc(runtime, leftText(runtime, lot))}</span>${openPriceHtml(runtime, lot, closed)}`;
+    const cost = open ? ` data-ah-cost="${esc(runtime, `${lot.currency}:${lot.price}`)}"` : '';
+    return `<li><button type="button" class="ah-lot${closed ? ' is-closed' : ''}${chosen ? ' is-chosen' : ''}" data-ah-lot="${esc(runtime, lot.id)}"${cost} data-ah-state="${esc(runtime, lot.phase || '')}"
             aria-pressed="${chosen}" style="--item-rarity:${esc(runtime, runtime.deps.getRarityColor(lot.item.rarity))}">${lotCellsHtml(runtime, lot)}${end}</button></li>`;
 }
 

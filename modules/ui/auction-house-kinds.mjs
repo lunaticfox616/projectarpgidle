@@ -1,10 +1,9 @@
 /**
  * 경매장 아이템 칸이 매물의 종류(장비, 주얼, 액막이, 부적)마다 다르게 읽는 것: 이름, 부위 칸의 글, 아이템 레벨, 옵션 줄 수와 글, 그림, 자세히 칸의
- * 카드, 종류 단추 줄. 장비 전당의 전시품은 종류가 없어 장비로 읽는다. 주얼과 액막이는 가방이 쓰는 그림과 카드(shopView.itemCardHtml이 가방과
+ * 카드. 장비 전당의 전시품은 종류가 없어 장비로 읽는다. 주얼과 액막이는 가방이 쓰는 그림과 카드(shopView.itemCardHtml이 가방과
  * 같은 툴팁을 그린다), 부적은 그루터기 함의 이름, 그림, 카드(stumpBoxUi.itemTipHtml)를 쓴다.
  */
-import { tr, esc, num, itemName, slotLabel } from './auction-house-format.mjs';
-import { liveQuery } from './auction-house-conditions.mjs';
+import { tr, esc, itemName, slotLabel } from './auction-house-format.mjs';
 
 // The defence lines the tooltip writes as 'name: value' (modules/ui/tooltip-items.mjs appendItemBaseStats).
 const DEFENCE_LINES = Object.freeze(['armor', 'evasion', 'energyShield']);
@@ -58,6 +57,11 @@ function itemLineRows(runtime, item) {
     return [...base, ...explicit];
 }
 
+/** The texts of the lot's lines that carry stats (one per stat that has a line, in the stats' order). */
+export function statLineTexts(runtime, lot, stats) {
+    return stats.map(stat => statLineText(runtime, lot, stat)).filter(Boolean);
+}
+
 /** The text of the lot's line that carries stat ('' when none does): a talisman's stat line as its card writes it, an item line otherwise. */
 export function statLineText(runtime, lot, stat) {
     if (lotKind(lot) === 'talisman') {
@@ -79,21 +83,3 @@ export function lotCardHtml(runtime, lot) {
 
 /** The kinds the save can see ('gear' first, then the unlocked ones in the rules' order). */
 export function openKinds(runtime) { return runtime.deps.auctionHouse.lotKinds(runtime.deps.game); }
-
-/** The kind chips under the mode switch: 전체 and each open kind with its count (counted: the lots each chip would show). The box is
- * repainted alone with the list (data-ah-kinds). */
-export function kindChipsHtml(runtime, counted) {
-    return `<div class="ah-kinds" role="group" aria-label="${runtime.deps._t('종류')}" data-ah-kinds>${kindChipsInner(runtime, counted)}</div>`;
-}
-
-/** The chips inside the box. */
-export function kindChipsInner(runtime, counted) {
-    const chosen = liveQuery(runtime).kind, labels = { all: '전체', gear: '장비' }, counts = new Map([['all', counted.length]]);
-    for (const lot of counted) counts.set(lotKind(lot), (counts.get(lotKind(lot)) || 0) + 1);
-    const chip = kind => {
-        const label = labels[kind] || kindRow(runtime, kind).label, count = counts.get(kind) || 0;
-        return `<button type="button" class="ah-group${chosen === kind ? ' is-on' : ''}" data-ah-kind="${esc(runtime, kind)}" aria-pressed="${chosen === kind}">
-            <span>${esc(runtime, tr(runtime, label))}</span><small>${num(runtime, count)}</small></button>`;
-    };
-    return ['all', ...openKinds(runtime)].map(chip).join('');
-}

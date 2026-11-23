@@ -6,10 +6,10 @@ import { itemName } from './auction-house-format.mjs';
 import { lotName, openKinds } from './auction-house-kinds.mjs';
 import { syncClock, announce, wantFrame, budgetStop, SEARCH_CLICK_MS } from './auction-house-render.mjs';
 import { startSearch, rowLot, SORTABLE } from './auction-house-search.mjs';
-import { liveQuery, clearCondition, cycleVariant, addOptionRow, typeOptionName } from './auction-house-conditions.mjs';
+import { liveQuery, clearCondition, cycleVariant, setCategory, hasConditions } from './auction-house-conditions.mjs';
 import { scheduleSuggest, hideSuggest } from './auction-house-suggest.mjs';
-import { paintTools } from './auction-house-panel.mjs';
-import { liveHeads, fillGear } from './auction-house-gear.mjs';
+import { paintTools, SORT_PICKS } from './auction-house-panel.mjs';
+import { fillGear } from './auction-house-gear.mjs';
 import { showMore } from './auction-house-board.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
 import { tradeToast, maxCount, receiptHtml, bookHtml } from './auction-house-materials.mjs';
@@ -45,7 +45,7 @@ export function buyLot(runtime, id) {
     if (lot.source === 'user') { buyUserLot(runtime, lot).catch(error => runtime.deps.console.error('auction hall buy failed:', error)); return; }
     const result = command(runtime, now => runtime.deps.auctionHouse.buyGearLot(runtime.deps.game, id, now));
     if (!result) return;
-    runtime.myBuys.set(id, { at: runtime.deps.now(), kind: lot.kind || 'gear' });
+    runtime.myBuys.set(id, { at: runtime.deps.now(), kind: lot.kind || 'gear', slot: lot.slot || '' });
     runtime.deps.showGameToast(runtime.deps._t('[{name}] 구매', { name: lotName(runtime, lot) }), { tone: 'success' });
     settle(runtime);
 }
@@ -77,10 +77,12 @@ export function repaintGear(runtime) {
     else runtime.api.render(true);
 }
 
-/** Searches with the chosen conditions now (검색, Enter in the name box, 새 매물, a header, a saved search): the panel closes, the snapshot is
- * taken (with every candidate's search fields made, the result too, under SEARCH_CLICK_MS) and the frame work starts. */
-export function findLots(runtime) {
-    runtime.state.gear.panel = false;
+/** Searches with the chosen conditions now (검색, Enter in a box, 새 매물, a header, a saved search, a pressed condition): the snapshot is
+ * taken (with every candidate's search fields made, the result too, under SEARCH_CLICK_MS) and the frame work starts. The panel closes
+ * unless keepPanel (a condition pressed inside it). */
+export function findLots(runtime, keepPanel = false) {
+    if (!keepPanel) runtime.state.gear.panel = false;
+    runtime.state.gear.mode = 'open';
     hideSuggest(runtime, gearRoot(runtime));
     startSearch(runtime, budgetStop(runtime, SEARCH_CLICK_MS));
     repaintGear(runtime);
@@ -93,19 +95,61 @@ export function togglePanel(runtime) {
     repaintGear(runtime);
 }
 
-/** Repaints the bar, the chips and the panel alone after a condition was typed or changed (no search). */
+/** Repaints the search desk alone after a condition was typed (no search). */
 function repaintTools(runtime) {
     const root = gearRoot(runtime);
-    if (root) paintTools(runtime, root, liveHeads(runtime));
+    if (root) paintTools(runtime, root);
 }
 
-/** A chip's ✕, a variant chip, an option row's ✕ or 옵션 추가: the condition changes, nothing is searched. */
+/** A pressed condition (a chip's ✕, a variant chip, an option chip's ✕, the 살 수 있는 매물만 switch): it changes and the search runs at once
+ * (the panel stays as it is). */
 export function editCondition(runtime, kind, value) {
-    if (kind === 'clear') clearCondition(runtime, value);
+    const view = runtime.state.gear;
+    if (kind === 'afford' || value === 'afford') view.afford = kind === 'afford' && !view.afford;
+    else if (kind === 'clear') clearCondition(runtime, value);
     else if (kind === 'variant') cycleVariant(runtime, value);
     else if (kind === 'option-x') clearCondition(runtime, `option:${value}`);
-    else if (kind === 'option-add') addOptionRow(runtime);
     runtime.toolsStale = true;
+    findLots(runtime, true);
+}
+
+/** A category of the strip (전체, a slot, a kind that is not gear): 판매 중 searches it at once, 최근 거래 shows its trades. */
+export function gearCategory(runtime, value) {
+    const [part, key] = String(value).split(':'), rules = runtime.deps.auctionHouse.searchRules;
+    const known = value === 'all' || (part === 'slot' && rules.slots.includes(key)) || (part === 'kind' && key !== 'gear' && openKinds(runtime).includes(key));
+    if (!known) return;
+    setCategory(runtime, value);
+    if (runtime.state.gear.mode === 'recent') { repaintGear(runtime); wantFrame(runtime); return; }
+    findLots(runtime, true);
+}
+
+/** A weapon category of the weapon strip ('all': every weapon): searched at once. */
+export function gearWeapon(runtime, id) {
+    const query = liveQuery(runtime), rules = runtime.deps.auctionHouse.searchRules;
+    if (query.slot !== rules.weaponSlot || (id !== 'all' && !rules.weapons.some(row => row.id === id))) return;
+    query.weapon = id;
+    findLots(runtime, true);
+}
+
+/** A select of the desk or the panel (rarity, source): the condition changes and the search runs at once. */
+export function pickFilter(runtime, name, value) {
+    liveQuery(runtime)[name] = value;
+    findLots(runtime, true);
+}
+
+/** 조건 지우기: every condition goes and the first view (the saved searches, the newest lots) comes back. */
+export function resetQuery(runtime) {
+    const view = runtime.state.gear;
+    Object.assign(view, { query: null, panel: false, afford: false, sort: 'newest', dir: -1, selected: '' });
+    runtime.search = null;
+    runtime.toolsStale = true;
+    repaintGear(runtime);
+    wantFrame(runtime);
+}
+
+/** The detail's ✕: no lot is chosen. */
+export function unpickLot(runtime) {
+    runtime.state.gear.selected = '';
     repaintGear(runtime);
 }
 
@@ -118,22 +162,11 @@ export function typeCondition(runtime, el) {
     repaintTools(runtime);
 }
 
-/** An option row typed: its name (suggestions follow) or its minimum. */
+/** An option chip's minimum typed (searched on Enter or 검색). */
 export function typeOption(runtime, el) {
-    const name = el.getAttribute('data-ah-opt-name'), least = el.getAttribute('data-ah-opt-min'), options = liveQuery(runtime).options;
-    if (name !== null) {
-        typeOptionName(runtime, Number(name), el.value.slice(0, 40));
-        scheduleSuggest(runtime, el, `option:${name}`);
-    } else if (least !== null && options[Number(least)]) options[Number(least)].min = el.value === '' ? null : Number(el.value);
+    const row = liveQuery(runtime).options[Number(el.getAttribute('data-ah-opt-min'))];
+    if (row) row.min = el.value === '' ? null : Number(el.value);
     repaintTools(runtime);
-}
-
-/** A seller's name in a row or the detail: that merchant becomes a condition (nothing is searched). */
-export function addSeller(runtime, id) {
-    const lot = rowLot(runtime, id);
-    if (!lot || lot.source === 'user') return;
-    liveQuery(runtime).seller = lot.seller;
-    repaintGear(runtime);
 }
 
 /** 저장: keeps the chosen conditions in the save (the rules refuse a repeat or a sixth) and saves the game. */
@@ -177,32 +210,29 @@ export function moreLots(runtime) {
     wantFrame(runtime);
 }
 
-/** The 판매 중 | 최근 거래 switch: that list, nothing chosen. 판매 중 pressed again over a result goes back to the first view (the saved
- * searches, the newest lots). */
+/** The 최근 거래 switch ('recent': the latest trades, 'open': back to the lots on sale): that list, nothing chosen. Coming back searches
+ * again when a result was shown or a condition is chosen (the category may have changed on 최근 거래), else shows the first view. */
 export function gearMode(runtime, mode) {
-    const view = runtime.state.gear, back = mode === 'open' && view.mode === 'open' && !!runtime.search;
-    if (!['open', 'recent'].includes(mode) || (view.mode === mode && !back)) return;
-    if (back) runtime.search = null;
-    view.mode = mode;
-    view.selected = '';
-    runtime.api.render(true);
-    wantFrame(runtime);
-}
-
-/** A kind chip (전체 or an open kind): the next search's kind (최근 거래 shows that kind's trades at once). */
-export function gearKind(runtime, kind) {
-    const query = liveQuery(runtime);
-    if (!['all', ...openKinds(runtime)].includes(kind) || query.kind === kind) return;
-    query.kind = kind;
+    const view = runtime.state.gear;
+    if (!['open', 'recent'].includes(mode) || view.mode === mode) return;
+    Object.assign(view, { mode, selected: '', panel: false });
+    if (mode === 'open' && (runtime.search || hasConditions(runtime, liveQuery(runtime)))) { findLots(runtime); return; }
     repaintGear(runtime);
     wantFrame(runtime);
 }
 
-/** The name box typed: kept for the next search (nothing is searched yet); its suggestions follow. */
+/** The narrow list's order select ('column:direction'): the search runs again in that order. */
+export function pickSort(runtime, value) {
+    if (!SORT_PICKS.some(([pick]) => pick === value)) return;
+    const [sort, dir] = value.split(':');
+    Object.assign(runtime.state.gear, { sort, dir: Number(dir) });
+    findLots(runtime, true);
+}
+
+/** The search box typed: kept as the name of the next search (searched on Enter or 검색); its suggestions follow. */
 export function typeSearch(runtime, input) {
     liveQuery(runtime).name = input.value.slice(0, 40);
-    scheduleSuggest(runtime, input, 'name');
-    repaintTools(runtime);
+    scheduleSuggest(runtime, input);
 }
 
 export function preset(runtime, value) {
@@ -287,8 +317,9 @@ export function jumpFamily(runtime, family) {
     runtime.state.tab = 'gear';
     runtime.state.gear.mode = 'open';
     liveQuery(runtime).family = family;
-    if (family) { findLots(runtime); return; }
+    runtime.toolsStale = true;
     runtime.api.render(true);
+    if (family) findLots(runtime);
 }
 
 export function jumpMaterial(runtime, key) {

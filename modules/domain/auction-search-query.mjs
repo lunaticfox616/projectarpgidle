@@ -1,7 +1,8 @@
 /**
  * 경매장 아이템 칸 검색의 조건 한 모양(query)과 저장한 검색(owner.auction.searches). 화면이 고르는 조건, 저장한 검색, 불러온 저장이 모두
  * auctionNormalizeQuery 하나로 고쳐진다: 모르는 종류, 부위, 등급, 출처, 계열, 재화, 능력치, 판매자는 버리거나 '전체'로 돌린다.
- * query: { name (40자까지), kind ('all' | 'gear' | 열린 종류), slot ('all' | 부위 열쇠), rarity, source ('all' | 'merchant' | 'user'),
+ * query: { name (40자까지), kind ('all' | 'gear' | 열린 종류), slot ('all' | 부위 열쇠), weapon ('all' | 무기 대분류, 부위가 무기일 때만), rarity,
+ * source ('all' | 'merchant' | 'user'),
  * family ('' | 계열), levelMin, levelMax (1..999 또는 null, 거꾸로면 바꾼다), priceMax (양의 정수 또는 null), currency (priceMax의 재화),
  * options ([{ stat, min }] 4개까지, min은 수 또는 null), variants ({ 변형 열쇠: 'any' | 'yes' | 'no' }), seller ([머리 번호, 꼬리 번호] 또는 null) }.
  * 능력치는 매물 줄이 가질 수 있는 것(추가 옵션, 베이스, 고유, 주얼, 액막이, 부적의 줄)만 안다. 저장한 검색은 AUCTION_SAVED_SEARCHES개까지이고
@@ -21,6 +22,8 @@ const RARITIES = Object.freeze(['all', 'normal', 'magic', 'rare', 'unique']);
 const SOURCES = Object.freeze(['all', 'merchant', 'user']);
 const VARIANT_STATES = Object.freeze(['any', 'yes', 'no']);
 const NAME_MAX = 40;
+// The slot whose lots have a weapon category (the first drop slot; the key is the game's own slot name).
+const WEAPON_SLOT = '무기';
 const LEVEL_MAX = 999;
 const PRICE_MAX = 1e9;
 
@@ -88,6 +91,23 @@ function knownSlot(env, slot) {
     return typeof slot === 'string' && (env.deps.EQUIPMENT_DROP_SLOTS.includes(slot) || env.deps.UNIQUE_DB.some(unique => (unique.slots || []).includes(slot)));
 }
 
+/** The weapon category a query keeps: one of WEAPON_CATEGORIES while the slot is the weapon slot, else 'all'. */
+function weaponOfQuery(env, source, slot) {
+    return slot === WEAPON_SLOT && typeof source.weapon === 'string' && Object.hasOwn(env.deps.WEAPON_CATEGORIES, source.weapon) ? source.weapon : 'all';
+}
+
+/** The weapon categories as [{ id, name, sample }] (sample: the category's base of the lowest requirement tier, for its picture), made once. */
+function weaponRows(env) {
+    if (env.searchWeapons) return env.searchWeapons;
+    const { WEAPON_CATEGORIES, BASE_ITEM_DB, getWeaponCategoryId } = env.deps, tierOf = base => Number(base.reqTier) || 1;
+    env.searchWeapons = Object.freeze(Object.entries(WEAPON_CATEGORIES).map(([id, row]) => {
+        const bases = BASE_ITEM_DB.filter(entry => entry.slot === WEAPON_SLOT && getWeaponCategoryId({ baseId: entry.id }) === id);
+        const base = bases.reduce((best, entry) => (!best || tierOf(entry) < tierOf(best) ? entry : best), null);
+        return Object.freeze({ id, name: row.name, sample: base ? base.id : '' });
+    }));
+    return env.searchWeapons;
+}
+
 /** The level bounds of a query, the lower first. */
 function levelRange(source) {
     const low = levelBound(source.levelMin), high = levelBound(source.levelMax);
@@ -96,10 +116,10 @@ function levelRange(source) {
 
 /** raw (the screen's conditions, a saved search, anything) as a sound query (see the file head). */
 export function auctionNormalizeQuery(env, raw) {
-    const source = isObject(raw) ? raw : {}, variants = isObject(source.variants) ? source.variants : {};
+    const source = isObject(raw) ? raw : {}, variants = isObject(source.variants) ? source.variants : {}, slot = knownSlot(env, source.slot) ? source.slot : 'all';
     return {
         name: typeof source.name === 'string' ? source.name.trim().slice(0, NAME_MAX) : '',
-        kind: pick(KINDS, source.kind), slot: knownSlot(env, source.slot) ? source.slot : 'all',
+        kind: pick(KINDS, source.kind), slot, weapon: weaponOfQuery(env, source, slot),
         rarity: pick(RARITIES, source.rarity), source: pick(SOURCES, source.source),
         family: AUCTION_HOUSE.families.includes(source.family) ? source.family : '',
         ...levelRange(source), priceMax: priceBound(source.priceMax), currency: pick(AUCTION_QUERY_CURRENCIES, source.currency),
@@ -138,12 +158,16 @@ export function auctionDeleteSearch(owner, index) {
 
 /**
  * The facade's search calls (modules/domain/auction-house.mjs): searchRules (the option rows a query holds, the searches a save keeps, the
- * currencies of a price limit), normalizeQuery(raw), searchStats() ([{ id, name }]), searchNames(owner) (base and unique names owner may see), saveSearch(owner, raw)
+ * currencies of a price limit, the slots a category strip lists and the weapon categories as [{ id, name, sample }]), weaponOf(item) (a weapon's
+ * category id, '' for anything else), normalizeQuery(raw), searchStats() ([{ id, name }]), searchNames(owner) (base and unique names owner may see), saveSearch(owner, raw)
  * ({ ok, reason? }) and deleteSearch(owner, index).
  */
 export function auctionSearchApi(env) {
     return {
-        searchRules: Object.freeze({ options: AUCTION_QUERY_OPTIONS, saved: AUCTION_SAVED_SEARCHES, currencies: AUCTION_QUERY_CURRENCIES }),
+        searchRules: Object.freeze({ options: AUCTION_QUERY_OPTIONS, saved: AUCTION_SAVED_SEARCHES, currencies: AUCTION_QUERY_CURRENCIES, weaponSlot: WEAPON_SLOT,
+            get slots() { return env.deps.EQUIPMENT_DROP_SLOTS; },
+            get weapons() { return weaponRows(env); } }),
+        weaponOf: item => (item && item.slot === WEAPON_SLOT && env.deps.getWeaponCategoryId(item)) || '',
         normalizeQuery: raw => auctionNormalizeQuery(env, raw), searchStats: () => auctionSearchStats(env), searchNames: owner => auctionSearchNames(env, owner),
         saveSearch: (owner, raw) => auctionSaveSearch(env, owner, raw), deleteSearch: (owner, index) => auctionDeleteSearch(owner, index)
     };

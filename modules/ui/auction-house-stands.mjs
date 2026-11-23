@@ -44,14 +44,14 @@ function draftHtml(runtime, item) {
     if (!quote.listable) {
         return `<article class="ah-stand is-draft">${headHtml(runtime, itemArtHtml(runtime, item), itemName(runtime, item), '출품 준비', 'is-draft')}${cardHtml(runtime, item)}
             <p class="ah-why" role="status">${runtime.deps._t('감정가가 낮아 출품할 수 없습니다.')}</p>
-            <div class="ah-stand-actions"><button type="button" data-ah-cancel>${runtime.deps._t('취소')}</button></div></article>`;
+            <div class="ah-stand-actions"><button type="button" class="psd-btn" data-ah-cancel>${runtime.deps._t('취소')}</button></div></article>`;
     }
     return `<article class="ah-stand is-draft">${headHtml(runtime, itemArtHtml(runtime, item), itemName(runtime, item), '출품 준비', 'is-draft')}${cardHtml(runtime, item)}
         <p class="ah-stand-fair"><span>${runtime.deps._t('감정가')}</span>${priceTag(runtime, quote.currency, quote.fairNow)}</p>
         <label class="ah-count-label" for="ah-ask">${runtime.deps._t('출품가 ({name})', { name: runtime.deps.shopView.currencyName(quote.currency) })}</label>
         <input id="ah-ask" type="number" inputmode="numeric" min="${quote.askMin}" max="${quote.askMax}" step="1" value="${esc(runtime, draft.ask)}" data-ah-ask>
         <div class="ah-ask-terms" data-ah-ask-terms aria-live="polite">${askTermsHtml(runtime, quote, Number(draft.ask))}</div>
-        <div class="ah-stand-actions"><button type="button" class="ah-primary" data-ah-list>${runtime.deps._t('출품')}</button><button type="button" data-ah-cancel>${runtime.deps._t('취소')}</button></div></article>`;
+        <div class="ah-stand-actions"><button type="button" class="psd-btn is-primary ah-primary" data-ah-list>${runtime.deps._t('출품')}</button><button type="button" class="psd-btn" data-ah-cancel>${runtime.deps._t('취소')}</button></div></article>`;
 }
 
 function openLotHtml(runtime, lot) {
@@ -59,7 +59,7 @@ function openLotHtml(runtime, lot) {
     return `<article class="ah-stand is-open">${headHtml(runtime, itemArtHtml(runtime, lot.item), itemName(runtime, lot.item), '판매 중', 'is-open')}${cardHtml(runtime, lot.item)}
         <p class="ah-stand-fair"><span>${runtime.deps._t('출품가')}</span>${priceTag(runtime, lot.currency, lot.ask)}</p>
         <p class="ah-stand-left">${runtime.deps._t('남은 판매 기회 {count}회', { count: left })}</p>
-        <div class="ah-stand-actions"><button type="button" data-ah-withdraw="${lot.id}">${runtime.deps._t('회수')}</button></div></article>`;
+        <div class="ah-stand-actions"><button type="button" class="psd-btn" data-ah-withdraw="${lot.id}">${runtime.deps._t('회수')}</button></div></article>`;
 }
 
 function soldLotHtml(runtime, lot) {
@@ -67,12 +67,12 @@ function soldLotHtml(runtime, lot) {
     return `<article class="ah-stand is-sold">${headHtml(runtime, `<span class="ah-art is-coin">${runtime.deps.shopView.coinHtml(lot.currency)}</span>`, runtime.deps.auctionHouse.lotName(lot.name), '판매 완료', 'is-sold')}
         <p class="ah-stand-buyer">${runtime.deps._t('구매자 {name}', { name: esc(runtime, sellerName(runtime, lot.buyer)) })}</p>
         <dl class="ah-receipt">${row('판매가', lot.gross)}${row('수수료', lot.fee, ' is-fee')}${row('받을 금액', lot.net, ' is-total')}</dl>
-        <div class="ah-stand-actions"><button type="button" class="ah-primary" data-ah-claim="${lot.id}">${runtime.deps._t('대금 수령')}</button></div></article>`;
+        <div class="ah-stand-actions"><button type="button" class="psd-btn is-primary ah-primary" data-ah-claim="${lot.id}">${runtime.deps._t('대금 수령')}</button></div></article>`;
 }
 
 function expiredLotHtml(runtime, lot) {
     return `<article class="ah-stand is-expired">${headHtml(runtime, itemArtHtml(runtime, lot.item), itemName(runtime, lot.item), '기간 끝남', 'is-expired')}${cardHtml(runtime, lot.item)}
-        <div class="ah-stand-actions"><button type="button" class="ah-primary" data-ah-claim="${lot.id}">${runtime.deps._t('장비 회수')}</button></div></article>`;
+        <div class="ah-stand-actions"><button type="button" class="psd-btn is-primary ah-primary" data-ah-claim="${lot.id}">${runtime.deps._t('장비 회수')}</button></div></article>`;
 }
 
 function emptyHtml(runtime, index) {
@@ -97,7 +97,7 @@ export function standsViewHtml(runtime) {
         else if (draft && index === lots.length) stands.push(draftHtml(runtime, draft));
         else stands.push(emptyHtml(runtime, index));
     }
-    const all = claimable(runtime).length >= 2 ? `<div class="ah-mine-bar"><button type="button" class="ah-primary" data-ah-claim-all>${runtime.deps._t('모두 수령')}</button></div>` : '';
+    const all = claimable(runtime).length >= 2 ? `<div class="ah-mine-bar"><button type="button" class="psd-btn is-primary ah-primary" data-ah-claim-all>${runtime.deps._t('모두 수령')}</button></div>` : '';
     return `<div class="ah-mine">${all}<div class="ah-stands">${stands.join('')}</div></div>`;
 }
 

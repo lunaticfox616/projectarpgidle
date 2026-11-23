@@ -1,15 +1,19 @@
 /**
- * 경매장 아이템 칸 입력 칸 아래의 추천: 이름 칸은 매물이 가질 수 있는 베이스 이름과 고유 이름, 옵션 줄의 칸은 매물 줄이 가질 수 있는 능력치
- * 이름(플레이어의 언어). 적다가 SUGGEST_MS 쉬면 적은 낱말을 모두 가진 것을 SUGGEST_ROWS개까지 보이고(그 말로 시작하는 것 먼저), 하나를 누르면
- * 그 칸을 채운다(검색하지 않는다). 추천 상자는 칸 옆의 data-ah-suggest 상자이고, 고르기, Escape, 칸 밖 누르기, 검색이 닫는다.
+ * 경매장 아이템 칸 검색 상자의 자동완성. 상자 하나에 적으면 SUGGEST_MS 뒤에 적은 낱말을 모두 가진 옵션 이름(매물 줄이 가질 수 있는 능력치,
+ * 플레이어의 언어)과 아이템 이름(베이스 이름과 고유 이름)을 함께 보인다: 그 말로 시작하는 것이 먼저, 옵션 OPTION_ROWS개와 이름 NAME_ROWS개까지
+ * (한쪽이 모자라면 다른 쪽이 채운다). 줄마다 옵션인지 이름인지 표시가 붙고 적은 글자는 굵게 보인다. 고르면 옵션은 옵션 조건 칩으로 붙고 상자가
+ * 비고, 이름은 상자를 채운다(둘 다 고른 뒤에 부르는 쪽이 검색한다). 화살표 키로 줄을 옮기고 Enter로 고른다. 추천 상자는 칸 옆의
+ * data-ah-suggest 상자이고, 고르기, Escape, 칸 밖 누르기, 검색이 닫는다. 옵션 조건이 다 차면 이름만 보인다.
  */
 import { esc, tr } from './auction-house-format.mjs';
-import { liveQuery, statRows, pickOptionStat } from './auction-house-conditions.mjs';
+import { liveQuery, statRows, addOption, optionRoom } from './auction-house-conditions.mjs';
 
-const SUGGEST_MS = 120;
-const SUGGEST_ROWS = 8;
+const SUGGEST_MS = 90;
+const OPTION_ROWS = 6;
+const NAME_ROWS = 4;
+const KIND_LABELS = Object.freeze({ option: '옵션', name: '이름' });
 
-/** The names for the name box in the player's language, made again when the language or the names the save may see change: [{ value, label, low }]. */
+/** The names for the box in the player's language, made again when the language or the names the save may see change: [{ value, label, low }]. */
 function nameRows(runtime) {
     const locale = runtime.deps.i18n.locale, kept = runtime.nameRows, names = runtime.deps.auctionHouse.searchNames(runtime.deps.game);
     if (kept && kept.locale === locale && kept.count === names.length) return kept.list;
@@ -18,38 +22,55 @@ function nameRows(runtime) {
     return runtime.nameRows.list;
 }
 
-/** The option names as suggestion rows: [{ value (stat id), label, low }]. */
+/** The option names that can still be added: [{ value (stat id), label, low }] ([] when the option conditions are full). */
 function optionRows(runtime) {
-    return statRows(runtime).list.map(row => ({ value: row.id, label: row.label, low: row.low }));
+    if (!optionRoom(runtime)) return [];
+    const chosen = new Set(liveQuery(runtime).options.map(row => row.stat));
+    return statRows(runtime).list.filter(row => !chosen.has(row.id)).map(row => ({ value: row.id, label: row.label, low: row.low }));
 }
 
-/** Up to SUGGEST_ROWS rows holding every word of text, those starting with it first; none for empty text. */
-function matchRows(runtime, rows, text) {
+/** The rows of list holding every word, those starting with the whole text first. */
+function hitsOf(list, low, words) {
+    const hits = list.filter(row => words.every(word => row.low.includes(word)));
+    return [...hits.filter(row => row.low.startsWith(low)), ...hits.filter(row => !row.low.startsWith(low))];
+}
+
+/** The suggestions for text: options then names ([{ kind, value, label, low }]); a side that has fewer leaves its rows to the other. */
+function matchRows(runtime, text) {
     const low = text.trim().toLocaleLowerCase(runtime.deps.i18n.locale), words = low.split(/\s+/).filter(Boolean);
-    if (!words.length) return [];
-    const hits = rows.filter(row => words.every(word => row.low.includes(word)));
-    return [...hits.filter(row => row.low.startsWith(low)), ...hits.filter(row => !row.low.startsWith(low))].slice(0, SUGGEST_ROWS);
+    if (!words.length) return { rows: [], low };
+    const options = hitsOf(optionRows(runtime), low, words), names = hitsOf(nameRows(runtime), low, words), total = OPTION_ROWS + NAME_ROWS;
+    const optionCount = Math.min(options.length, Math.max(OPTION_ROWS, total - names.length)), nameCount = Math.min(names.length, total - optionCount);
+    return { rows: [...options.slice(0, optionCount).map(row => ({ ...row, kind: 'option' })), ...names.slice(0, nameCount).map(row => ({ ...row, kind: 'name' }))], low };
+}
+
+/** label with the typed text in bold where it stands in one piece. */
+function markHtml(runtime, row, low) {
+    const at = low ? row.low.indexOf(low) : -1;
+    if (at < 0 || row.low.length !== row.label.length) return esc(runtime, row.label);
+    return `${esc(runtime, row.label.slice(0, at))}<b>${esc(runtime, row.label.slice(at, at + low.length))}</b>${esc(runtime, row.label.slice(at + low.length))}`;
 }
 
 /** The suggestion box next to input (its wrapper's data-ah-suggest), or null. */
 function boxOf(input) { return input.closest('.ah-name-box')?.querySelector('[data-ah-suggest]') || null; }
 
-/** Fills input's box with the rows for its text (target 'name' or 'option:index'); hidden when nothing matches. */
-function showSuggest(runtime, input, target) {
+/** Fills input's box with the rows for its text; hidden when nothing matches. */
+function showSuggest(runtime, input) {
     const box = boxOf(input);
     if (!box || !input.isConnected) return;
-    const rows = matchRows(runtime, target === 'name' ? nameRows(runtime) : optionRows(runtime), input.value);
-    box.innerHTML = rows.map(row => `<button type="button" role="option" data-ah-suggest-pick="${esc(runtime, row.value)}" data-ah-suggest-for="${esc(runtime, target)}">${esc(runtime, row.label)}</button>`).join('');
+    const { rows, low } = matchRows(runtime, input.value);
+    box.innerHTML = rows.map(row => `<button type="button" role="option" class="ah-sg is-${row.kind}" tabindex="-1" data-ah-suggest-pick="${esc(runtime, row.value)}" data-ah-suggest-for="${row.kind}"><small>${esc(runtime, tr(runtime, KIND_LABELS[row.kind]))}</small><span>${markHtml(runtime, row, low)}</span></button>`).join('');
     box.hidden = !rows.length;
+    input.setAttribute('aria-expanded', String(rows.length > 0));
 }
 
-/** Shows input's suggestions SUGGEST_MS after the last keystroke (target: 'name' or 'option:index'). */
-export function scheduleSuggest(runtime, input, target) {
+/** Shows input's suggestions SUGGEST_MS after the last keystroke. */
+export function scheduleSuggest(runtime, input) {
     const window = runtime.deps.window;
     if (runtime.suggestTimer) window.clearTimeout(runtime.suggestTimer);
     runtime.suggestTimer = window.setTimeout(() => {
         runtime.suggestTimer = 0;
-        showSuggest(runtime, input, target);
+        showSuggest(runtime, input);
     }, SUGGEST_MS);
 }
 
@@ -57,18 +78,39 @@ export function scheduleSuggest(runtime, input, target) {
 export function hideSuggest(runtime, root) {
     if (runtime.suggestTimer) runtime.deps.window.clearTimeout(runtime.suggestTimer);
     runtime.suggestTimer = 0;
-    for (const box of root ? root.querySelectorAll('[data-ah-suggest]') : []) box.hidden = true;
+    for (const box of root ? root.querySelectorAll('[data-ah-suggest]') : []) {
+        box.hidden = true;
+        box.closest('.ah-name-box')?.querySelector('input')?.setAttribute('aria-expanded', 'false');
+    }
 }
 
-/** A picked suggestion fills its box: the name, or an option row's stat. */
+/** The shown suggestion marked by the arrow keys, or null. */
+export function activeSuggest(input) {
+    const box = boxOf(input);
+    return box && !box.hidden ? box.querySelector('.is-active') : null;
+}
+
+/** An arrow key in the box: marks the next (step 1) or the previous (step -1) shown suggestion, wrapping. Returns whether one was marked. */
+export function moveSuggest(input, step) {
+    const box = boxOf(input), rows = box && !box.hidden ? [...box.querySelectorAll('[data-ah-suggest-pick]')] : [];
+    if (!rows.length) return false;
+    const at = rows.findIndex(row => row.classList.contains('is-active')), next = at < 0 ? (step > 0 ? 0 : rows.length - 1) : (at + step + rows.length) % rows.length;
+    rows.forEach((row, index) => { row.classList.toggle('is-active', index === next); row.setAttribute('aria-selected', String(index === next)); });
+    rows[next].scrollIntoView({ block: 'nearest' });
+    return true;
+}
+
+/** A picked suggestion: an option becomes an option condition and the box empties; a name fills the box. Returns whether the conditions
+ * changed. */
 export function pickSuggest(runtime, el) {
-    const target = el.getAttribute('data-ah-suggest-for'), value = el.getAttribute('data-ah-suggest-pick'), input = el.closest('.ah-name-box')?.querySelector('input');
-    const [part, index] = String(target).split(':');
-    if (part === 'name') liveQuery(runtime).name = value;
-    else if (part === 'option') pickOptionStat(runtime, Number(index), value);
-    else return;
-    const row = part === 'option' ? liveQuery(runtime).options[Number(index)] : null;
-    if (input) input.value = row ? row.text : value;
+    const kind = el.getAttribute('data-ah-suggest-for'), value = el.getAttribute('data-ah-suggest-pick'), input = el.closest('.ah-name-box')?.querySelector('input');
+    const query = liveQuery(runtime);
+    if (kind === 'option') {
+        if (!addOption(runtime, value)) return false;
+        query.name = '';
+    } else if (kind === 'name') query.name = value;
+    else return false;
+    if (input) input.value = query.name;
     hideSuggest(runtime, el.closest('.ah-gear'));
-    input?.focus({ preventScroll: true });
+    return true;
 }
