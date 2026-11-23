@@ -10,6 +10,7 @@ export function openPanel(runtime) {
 
 export function refresh(runtime) {
     runtime.state.signature = '';
+    runtime.state.hudSignature = '';
     render(runtime);
     (0, runtime.deps.updateStaticUI)();
 }
@@ -264,7 +265,7 @@ export function abandonMessage(runtime, run) {
 }
 
 export function toggleAuto(runtime, on) {
-    ledger(runtime).autoMap = !!on;
+    ledger(runtime).autoMap = !!on && runtime.deps.atlas.autoUnlocked(runtime.deps.game);
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }

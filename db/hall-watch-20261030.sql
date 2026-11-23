@@ -67,6 +67,10 @@ $$;
 -- 먼저 거르므로 따로 두지 않는다(표식만 붙인 줄이 검사를 비켜 가지 않게). 잿불 배율(emberScale)은 잿불 타락한 장비(burned)에서만 본다.
 -- 복합 옵션의 둘째 수치(extraStats)와 고유 장비의 줄(고유마다 정한 범위)은 표에 없어 기존 범위 검사로 간다.
 -- 표는 RLS만 켜고 정책이 없어 보안 정의자 함수(quote_hall_item, create_hall_listing)에서만 보인다: authenticated로 도는 곳에서 부르면 빈 표로 보여 검사가 꺼진다.
+create table if not exists public.hall_transfer_rules (base_id text primary key, slot text not null, mods text[] not null);
+alter table public.hall_transfer_rules enable row level security;
+revoke all on public.hall_transfer_rules from anon, authenticated;
+
 create or replace function public.hall_affix_table_rejects(item_data jsonb)
 returns boolean language plpgsql stable set search_path = public as $$
 declare
@@ -76,6 +80,18 @@ declare
     burned boolean := lower(coalesce(item_data ->> 'burned', 'false')) = 'true';
 begin
     if coalesce(item_data ->> 'rarity', '') <> 'rare' or not exists (select 1 from public.hall_affix_table) then return false; end if;
+    if exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) s
+               where s ->> 'craftSource' in ('transferStone','artManual','balanceWeight','wardCord')
+               group by s ->> 'craftSource' having count(*) > 1) then return true; end if;
+    if exists (
+        select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) s
+        where s ->> 'craftSource' = 'transferStone' and not exists (
+            select 1 from public.hall_transfer_rules r join public.hall_affix_table a on a.mod_id = any(r.mods)
+            where r.base_id = item_data ->> 'baseId' and r.slot = slot_name and a.stat_id = s ->> 'id'
+              and a.mod_id = coalesce(nullif(s ->> 'sourceModId',''),a.mod_id)
+              and a.tier = public.hall_number(s -> 'tier',0,0,100)
+              and jsonb_typeof(s -> 'val') = 'number'
+        )) then return true; end if;
     return exists (
         select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) line
          where jsonb_typeof(line -> 'val') = 'number' and jsonb_typeof(line -> 'tier') = 'number'

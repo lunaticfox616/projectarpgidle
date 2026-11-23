@@ -7,11 +7,12 @@ import { atlasSessionAbandon, atlasSessionDefeat, atlasSessionLeave, atlasSessio
 import { atlasSessionFinish } from './atlas-run-completion.mjs';
 import { atlasSessionOnKill, atlasSessionOnChaos20 } from './atlas-run-drops.mjs';
 import { atlasSessionLastPortal, atlasSessionDepartureBlock } from './atlas-run-access.mjs';
+import { atlasSessionEnterPassage } from './atlas-passages.mjs';
 
 /** One rule/cache owner; callers supply state explicitly. No DOM, storage or current-game lookup. */
 export function createAtlasRun(deps) {
     const env = { deps };
 
     return Object.freeze({ open: (...args) => atlasSessionOpen(env, ...args), openPinnacle: (...args) => atlasSessionOpenPinnacle(env, ...args), openEndgame: (...args) => atlasSessionOpenEndgame(env, ...args), openMemory: (...args) => atlasSessionOpenMemory(env, ...args), openBoard: (...args) => atlasSessionOpenBoard(env, ...args), reenter: (...args) => atlasSessionReenter(env, ...args), abandon: (...args) => atlasSessionAbandon(env, ...args), finish: (...args) => atlasSessionFinish(env, ...args), defeat: (...args) => atlasSessionDefeat(env, ...args), leave: (...args) => atlasSessionLeave(env, ...args), travel: (...args) => atlasSessionTravel(env, ...args), onKill: (...args) => atlasSessionOnKill(env, ...args), onChaos20: (...args) => atlasSessionOnChaos20(env, ...args), recoverClosedMap: (...args) => atlasSessionRecoverClosedMap(env, ...args), lastPortal: (...args) => atlasSessionLastPortal(env, ...args),
-    blockReason: (...args) => atlasSessionDepartureBlock(env, ...args) });
+    enterPassage: (owner,type) => atlasSessionEnterPassage(env,owner,type), blockReason: (...args) => atlasSessionDepartureBlock(env, ...args) });
 }

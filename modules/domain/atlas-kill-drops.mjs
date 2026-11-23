@@ -61,9 +61,8 @@ export function atlasCoreExtraMap(env, state, random = Math.random) {
 
 /** A fragment drops and shows from its loop: its own minLoop, else its content room's (data/atlas.js fragments, encounters). */
 export function atlasCoreFragmentOpen(env, fragment, loop, owner) {
-    const room = fragment.encounter ? env.deps.ATLAS.encounters[fragment.encounter] : null;
-    if (room && room.unlock && !env.deps.contentProgression.holds(room.unlock, owner, Number(loop) || 1)) return false;
-    return (Number(loop) || 1) >= Math.max(fragment.minLoop || 0, (room && room.minLoop) || 0);
+    return (Number(loop) || 1) >= (fragment.minLoop || 0) &&
+        (!fragment.encounter || env.deps.atlasEncounters.isOpen(fragment.encounter, loop, owner));
 }
 
 /** Elites and bosses in a map sometimes drop a fragment (one open this loop); like maps it waits in the run until the boss falls. */

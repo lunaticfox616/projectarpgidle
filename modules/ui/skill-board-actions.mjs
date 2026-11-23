@@ -140,15 +140,11 @@ export function currentKind(runtime) {
     return runtime.state.pickerKind;
 }
 
-/** @param {'active'|'mobility'|'summon'|'support'|'sealed'} kind the board slot whose gems the picker lists next, or the sealed runes
-* @param {boolean} [stay] the slot dialog opens over the board, so the phone does not scroll to the list */
-export function pick(runtime, kind, stay) {
+/** Select a library category without moving the page or the slot dialog's opener. */
+export function pick(runtime, kind) {
     runtime.state.pickerKind = kind;
     runtime.deps.document.getElementById('skill-tab-equip').dataset.picking = kind;
     (0, runtime.deps.updateStaticUI)();
-    // 휴대폰: 보드 아래의 목록이 화면 밖이면 그쪽으로 데려간다.
-    const list = runtime.deps.document.querySelector('#skill-tab-equip .skill-picker');
-    if (list && !stay && runtime.deps.uiDisplay.matches('(max-width: 1080px)')) list.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 export function openEngrave(runtime, index) {

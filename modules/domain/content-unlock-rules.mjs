@@ -6,6 +6,10 @@ export function contentKind(def) {
     return def.cost > 0 ? 'paid' : 'auto';
 }
 
+export function contentFormerLoop(def) {
+    return def.formerLoop || def.loopV17 || def.loopV18 || def.minLoop;
+}
+
 /** What must be open first: the row it grows from (after), then any other prerequisite (requires). */
 export function contentParents(def) {
     return [...new Set([def.after, ...(def.requires || [])].filter(Boolean))];
@@ -23,10 +27,10 @@ export function contentRequirements(env, id, owner) {
 export function contentMeetsUsageGate(def, owner) {
     // 해금 루프를 늦춘 콘텐츠(def.hardMinLoop, 뜨개질 2026-10-22): 저장에 남은 구매·상속·자동·레거시 기록이 있어도 그 루프 전에는 닫는다.
     // 기록은 지우지 않으므로 루프가 닿으면 그대로 다시 열린다.
-    if (def.hardMinLoop && !(owner.season >= def.minLoop)) return false;
+    if (def.hardMinLoop && !(owner.season >= def.hardMinLoop)) return false;
     if (def.id !== 'battleTrials') return true;
     const state = owner.contentProgression;
-    return owner.season >= def.minLoop && !!state
+    return owner.season >= contentFormerLoop(def) && !!state
         && (state.unlocked.includes('trials') || state.inherited.includes('trials'));
 }
 
@@ -68,7 +72,7 @@ export function contentEarlierRowsOpen(env, def, owner) {
 export function contentHolds(env, id, owner, loop = null) {
     const def = env.definitions.get(id);
     if (!def) return false;
-    return contentIsTreeRecord(env, owner?.contentProgression) ? contentHeldInRecord(owner.contentProgression, id) : contentReachedLoop(owner, loop) >= (def.formerLoop || def.minLoop);
+    return contentIsTreeRecord(env, owner?.contentProgression) ? contentHeldInRecord(owner.contentProgression, id) : contentReachedLoop(owner, loop) >= contentFormerLoop(def);
 }
 
 export function contentIsTreeRecord(env, state) { return !!state && Number(state.version) >= env.LEDGER_VERSION; }
@@ -88,7 +92,7 @@ export function contentRank(env, series, owner) {
 
 /** Natural loot only: discovery prerequisites and shared combat keys must not depend on paid growth. */
 export function contentCanDropCurrency(env, key, owner) {
-    const unlocks = env.deps.ORB_DB[env.deps.getCanonicalCurrencyKey(key)]?.dropUnlocks;
+    const unlocks = env.deps.getCurrencyInfo(env.deps.getCanonicalCurrencyKey(key)).dropUnlocks;
     return !unlocks || unlocks.some(id => contentIsUnlocked(env, id, owner));
 }
 

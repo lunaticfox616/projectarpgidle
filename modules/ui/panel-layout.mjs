@@ -17,6 +17,7 @@ export class PanelLayout {
         let battleBtn = this.deps.document.getElementById('btn-tab-battle');
         if ([tabBattle, leftPane, battleColumn, battleBtn].some(element => !element)) return;
         let isMobileBattle = this.deps.uiDisplay.matches(`(max-width: ${this.deps.MOBILE_BATTLE_BREAKPOINT}px)`);
+        this.dockBattleActions(battleColumn, isMobileBattle);
         this.deps.document.body.classList.toggle('mobile-battle-tab', isMobileBattle);
         battleBtn.style.display = isMobileBattle ? 'flex' : 'none';
         if (isMobileBattle) {
@@ -26,6 +27,45 @@ export class PanelLayout {
         } else {
             if (this.docked || battleColumn.parentElement !== leftPane) leftPane.appendChild(battleColumn);
             this.docked = false;
+        }
+    }
+
+    dockBattleActions(column, isMobile) {
+        this.dockPlayerEffects(column, isMobile);
+        const belowField = isMobile && !this.deps.uiDisplay.battleHudAtSide;
+        const actions = column.querySelector('.combat-zone-actions');
+        const target = column.querySelector(belowField ? '.combat-panel' : '.combat-zone-row');
+        if (actions && target && actions.parentElement !== target) target.appendChild(actions);
+        this.dockVitals(column, isMobile, belowField);
+    }
+
+    dockVitals(column, isMobile, belowField) {
+        const header = column.querySelector('.mobile-battle-vitals');
+        if (!header) return;
+        const headerParent = isMobile && !belowField ? column.querySelector('.player-hud') : column;
+        if (header.parentElement !== headerParent) {
+            if (headerParent === column) column.querySelector('.combat-panel').before(header);
+            else headerParent.prepend(header);
+        }
+        if (header.hidden === !isMobile) return;
+        header.hidden = !isMobile;
+        const name = column.querySelector('.player-hud-identity-row');
+        const health = column.querySelector('.player-health-frame');
+        if (isMobile) header.append(name, health);
+        else {
+            column.querySelector('.player-hud-left-wing').prepend(name);
+            column.querySelector('#act-exploration-panel').before(health);
+        }
+    }
+
+    dockPlayerEffects(column, isMobile) {
+        const sheet = column.querySelector('#mobile-effects-sheet');
+        const strip = column.querySelector('#ui-player-ailments-under');
+        if (!sheet || !strip) return;
+        if (isMobile && strip.parentElement !== sheet) sheet.appendChild(strip);
+        if (!isMobile && strip.parentElement === sheet) {
+            sheet.hidePopover?.();
+            sheet.after(strip);
         }
     }
 

@@ -1,4 +1,24 @@
 import { atlasCoreNormalizeBonus } from './atlas-bonuses.mjs';
+import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
+
+function restorePassages(raw) {
+    if (!raw) return {};
+    const tried = atlasCoreRoomIds(raw.tried), sites = [], seen = new Set();
+    for (const row of (Array.isArray(raw.sites) ? raw.sites : []).slice(0,100)) {
+        if (!row || !Object.hasOwn(atlasExpeditions,row.type) || seen.has(row.type) || !tried.includes(row.host)) continue;
+        if (![row.gx,row.gy].every(n => Number.isSafeInteger(n) && n >= 0)) continue;
+        seen.add(row.type);
+        sites.push({type:row.type,host:row.host,gx:row.gx,gy:row.gy,used:row.used === true});
+    }
+    return {passages:{tried,sites,countdowns:restoreCountdowns(raw.countdowns,tried)}};
+}
+
+function restoreCountdowns(value,tried) {
+    if (!value || typeof value !== 'object') return {};
+    const entries=Object.entries(value).slice(0,100).filter(([id,n])=>
+        /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(id) && !Object.hasOwn(Object.prototype,id) && !tried.includes(id) && Number.isInteger(n) && n>=0 && n<3);
+    return Object.fromEntries(entries);
+}
 
 // ---------------------------------------------------------------- save boundary and the loop
 export function atlasCoreFragmentIds(env, value, limit) { return (Array.isArray(value) ? value : []).filter(id => env.FRAGMENTS.has(id)).slice(0, limit); }
@@ -11,11 +31,11 @@ export function atlasCoreNormalizeRun(env, raw, validMap) {
     const map = raw && validMap(raw.map);
     if (!map) return null;
     const bonus = atlasCoreNormalizeBonus(env, raw.bonus), portals = Math.floor(Number(raw.portals));
-    return { map, portals: portals >= 1 && portals <= env.deps.ATLAS.portals + bonus.portals ? portals : 1,
+    return { map, ...restorePassages(raw.passages), portals: portals >= 1 && portals <= env.deps.ATLAS.portals + bonus.portals ? portals : 1,
         drops: (Array.isArray(raw.drops) ? raw.drops : []).map(validMap).filter(Boolean).slice(0, env.deps.ATLAS.stashCap),
         found: atlasCoreFragmentIds(env, raw.found, env.deps.ATLAS.fragmentRules.held), fragments: atlasCoreFragmentIds(env, raw.fragments, env.deps.ATLAS.fragments.length),
         spent: atlasCoreFragmentIds(env, raw.spent, env.deps.ATLAS.fragments.length), cleared: atlasCoreRoomIds(raw.cleared), bonus,
-        encounters: atlasCoreRoomTypes(env, raw.encounters), golden: atlasCoreRoomTypes(env, raw.golden),
+        encounters: atlasCoreRoomTypes(env, raw.encounters), challengeDoors: raw.challengeDoors === true, golden: atlasCoreRoomTypes(env, raw.golden),
         returnZoneId: Number.isInteger(raw.returnZoneId) && raw.returnZoneId >= 0 ? raw.returnZoneId : null,
         endgame: env.deps.atlasEndgame.normalizeRun(raw.endgame),
         objects: env.deps.actExplorationState.objects.restoreAtlas(raw.objects) };

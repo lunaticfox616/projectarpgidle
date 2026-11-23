@@ -186,6 +186,15 @@ class ActExplorationView {
         return precise ? {gx:gx-.5,gy:gy-.5} : {gx:Math.floor(gx),gy:Math.floor(gy)};
     }
 
+    passageAt(owner,point) {
+        const run=owner.actExploration;
+        if (run?.zoneId !== 'atlas_map' || run.source.pocket) return null;
+        const cell=this.cellAt(owner,point,true);
+        if (!cell) return null;
+        return owner.atlas.run?.passages?.sites.find(site => !site.used && Math.abs(cell.gx-site.gx)<=.58 &&
+            cell.gy>=site.gy-1 && cell.gy<=site.gy+.5);
+    }
+
     /** Discovered ground is clear within the sight radius and dims with distance past it (≤40%). Undiscovered ground is not a wall
      * of black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
     fogAlpha(discovered,distance,sight) {
@@ -298,5 +307,5 @@ class ActExplorationView {
 
 export function createActExplorationView(deps) {
     const instance = new ActExplorationView(deps);
-    return {projection: instance.projection.bind(instance),background: instance.background.bind(instance),appendScenery: instance.appendScenery.bind(instance),waitingEnemies: instance.waitingEnemies.bind(instance),inSight: instance.inSight.bind(instance),drawScenery: instance.drawScenery.bind(instance),bossRoomGlow: instance.bossRoomGlow.bind(instance),cellAt: instance.cellAt.bind(instance)};
+    return {passageAt: instance.passageAt.bind(instance),projection: instance.projection.bind(instance),background: instance.background.bind(instance),appendScenery: instance.appendScenery.bind(instance),waitingEnemies: instance.waitingEnemies.bind(instance),inSight: instance.inSight.bind(instance),drawScenery: instance.drawScenery.bind(instance),bossRoomGlow: instance.bossRoomGlow.bind(instance),cellAt: instance.cellAt.bind(instance)};
 }

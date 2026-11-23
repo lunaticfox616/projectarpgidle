@@ -74,7 +74,8 @@ export function controlsHtml(runtime) {
 export function selectionOpen(runtime) { return !!runtime.deps.document.getElementById('loop-hero-select-overlay')?.classList.contains('active'); }
 
 export function screenFree(runtime) { return runtime.deps.gameplayStarted && !(0, runtime.deps.isStartupOverlayOpen)() && !(0, runtime.deps.isLoadingOverlayOpen)() && !(0, runtime.deps.isRewardOpen)()
-        && !runtime.deps.document.getElementById('game-dialog-overlay')?.classList.contains('active') && !runtime.deps.worldTreeBarkUi.barkDialogOpen(); }
+        && !runtime.deps.document.getElementById('game-dialog-overlay')?.classList.contains('active') && !runtime.deps.worldTreeBarkUi.barkDialogOpen()
+        && !runtime.deps.loopCinematic?.holdsHeroSelection(); }
 
 export function armed(runtime) { return !!(runtime.deps.game.pendingLoopReady || runtime.deps.game.pendingLoopDecision) && runtime.deps.game.settings.autoLoop && !runtime.deps.game.loopGateOffline
         && !runtime.deps.document.hidden && runtime.deps.loopSettlementUi.dismissedReadyLoop !== runtime.deps.game.season && !(0, runtime.deps.getHeldGearLoopBlockReason)(); }

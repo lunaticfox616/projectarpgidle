@@ -1,5 +1,6 @@
+import { confirmFinish } from './weapon-finishes.mjs';
 import { selected, workspaceRestoreGoal, workspaceUseState, held, esc, signature, matches, workspaceAutoReason, workspaceGoalChoice, workspaceSetGoal, workspaceSaveGoals, workspaceArmedOmen, workspaceGoalOptions, workspaceCoin } from './crafting-workspace-selection.mjs';
-import { workspaceItemHtml, workspaceMethodsHtml, workspaceGoalHtml, workspaceCostText, workspaceActionHtml, workspaceResultHtml, workspaceAffixValue } from './crafting-workspace-markup.mjs';
+import { workspaceItemHtml, workspaceMethodsHtml, workspaceGoalHtml, workspaceCostText, workspaceActionHtml, workspaceResultHtml, workspaceAffixValue, workspaceFoldButton } from './crafting-workspace-markup.mjs';
 
 export function workspaceOpenInventory(ctx, inspect='', craftingOnly=false) {
     if(ctx.state.auto){workspaceStopAuto(ctx, '재화 인벤토리를 열어 자동 사용을 멈췄어요.');workspaceRender(ctx);}
@@ -11,6 +12,7 @@ export function workspacePickResource(ctx, key) {
         const materials=ctx.deps.document.getElementById('cl-materials');materials.open=true;
         (0, ctx.deps.renderFossilWorkbench)(selected(ctx));materials.scrollIntoView({block:'nearest'});return;
     }
+    ctx.state.finishChoice={};
     ctx.state.recipe=ctx.state.recipes.find(row=>row.key===key);ctx.state.mode=ctx.deps.game.sporeCraftModes[key]||'none';
     workspaceRender(ctx);
 }
@@ -54,9 +56,11 @@ export function workspaceRender(ctx, reveal=false, controls) {
     if(!workspaceShown(ctx)){if(ctx.state.auto)workspaceStopAuto(ctx, '');return;}
     if(!item){workspacePaintEmpty(ctx);return;}
     const state=workspaceUseState(ctx), stopped=held(ctx);
-    const html=`<div class="cl-heading">${ctx.state.adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">${(0, ctx.deps._t)('재화 인벤토리')}</button></div>
-            <div class="cl-workspace">${workspaceItemHtml(ctx)}<div class="cl-controls">${workspaceMethodsHtml(ctx, state,stopped)}${workspaceGoalHtml(ctx)}<div class="cl-action"><small>${esc(ctx, workspaceCostText(ctx))}</small>
-            ${workspaceActionHtml(ctx, state,stopped)}<span class="cl-block cl-error" role="status">${!state.enabled?`<span class="px-center">${esc(ctx, state.reason)}</span>`:''}</span></div></div></div>${workspaceResultHtml(ctx)}`;
+    const goals=workspaceGoalHtml(ctx);
+    const goalLabel=ctx.state.recipe.kind==='value'?(0, ctx.deps._t)('목표 옵션'):(0, ctx.deps._t)('목표 옵션 및 자동 사용');
+    const html=`<div class="cl-workspace">${workspaceItemHtml(ctx)}<div class="cl-controls">${workspaceMethodsHtml(ctx, state,stopped)}
+            <div class="cl-use-cost"><small>${esc(ctx, workspaceCostText(ctx))}</small><span class="cl-block cl-error" role="status">${!state.enabled?`<span class="px-center">${esc(ctx, state.reason)}</span>`:''}</span></div>
+            ${goals?workspaceFoldButton('advanced', goalLabel):''}<div id="cl-advanced">${goals}<div class="cl-action">${workspaceActionHtml(ctx, state,stopped)}</div></div></div></div>${workspaceResultHtml(ctx)}`;
     workspaceReplaceMarkup(ctx, html,reveal);
     if(reveal)ctx.state.root.querySelector('.cl-item').classList.add('just-crafted');
     workspaceShowDialogs(ctx, reveal,stopped);
@@ -72,7 +76,9 @@ export function workspaceShowDialogs(ctx, reveal, stopped) {
 export function workspaceReplaceMarkup(ctx, html, reveal) {
     if(html===ctx.state.renderKey&&!reveal)return;
     const focusId=ctx.state.root.querySelector(':focus')?.id;
+    const expanded=Array.from(ctx.state.root.querySelectorAll('.cl-fold-toggle[aria-expanded="true"]'), button=>button.id);
     ctx.state.root.innerHTML=html;ctx.state.renderKey=html;
+    for(const id of expanded)ctx.state.root.querySelector('#'+id)?.setAttribute('aria-expanded','true');
     if(focusId)ctx.state.root.querySelector('#'+focusId)?.focus({preventScroll:true});
 }
 
@@ -119,16 +125,31 @@ export async function workspaceCraft(ctx) {
     let completed=false;
     try {
         const result=await workspaceExecuteCraft(ctx);
-        completed=result===true||Object.entries(before).some(([key,value])=>value>ctx.deps.game.currencies[key]);
+        completed=craftCompleted(ctx,result,before);
         if(!completed){ctx.state.notice='제작 조건을 확인하세요.';return false;}
         ctx.state.last=ctx.deps.craftingResultLedger.commit(token,item);ctx.state.count++;ctx.state.notice='';ctx.state.acknowledged='';
         if(!ctx.deps.equipmentCrafting.pendingChoice(ctx.deps.game))(0, ctx.deps.playUiFeedbackSound)('craftSuccess');
-        Object.entries(before).forEach(([key,value])=>{const used=value-ctx.deps.game.currencies[key];if(used>0)ctx.state.spent[key]=(ctx.state.spent[key]||0)+used;});
+        recordSpent(ctx,before);
         (0, ctx.deps.queueImportantSave)(180);return true;
     } finally {ctx.state.busy=false;workspaceRender(ctx, completed);}
 }
 
+function craftCompleted(ctx,result,before) {
+    if(ctx.state.recipe.kind==='finish')return result===true;
+    return result===true||Object.entries(before).some(([key,value])=>value>ctx.deps.game.currencies[key]);
+}
+
+function recordSpent(ctx,before) {
+    const spent=ctx.state.spent, recipe=ctx.state.recipe;
+    if(recipe.kind==='finish'){spent[recipe.key]=(spent[recipe.key]||0)+1;return;}
+    for(const [key,value] of Object.entries(before)){
+        const used=value-ctx.deps.game.currencies[key];
+        if(used>0)spent[key]=(spent[key]||0)+used;
+    }
+}
+
 export function workspaceExecuteCraft(ctx) {
+    if(ctx.state.recipe.kind==='finish')return confirmFinish(ctx);
     if(ctx.state.recipe.kind==='fossil')return (0, ctx.deps.applyFossilChaosCraft)(ctx.state.recipe.key);
     const actions={enchantedHoney:ctx.deps.applyEnchantedHoneyToSelectedItem,venomStinger:ctx.deps.applyVenomStingerToSelectedItem,voidChisel:ctx.deps.applyVoidChiselToSelectedItem,ouroboros:ctx.deps.applyWoodsmanTouchToSelectedItem,burningEmberBranch:ctx.deps.emberCorruptionUi.use};
     if(actions[ctx.state.recipe.key])return actions[ctx.state.recipe.key]();
@@ -184,6 +205,11 @@ export function workspaceChange(ctx, event) {
 
 /** The spore and omen selects; false for any other control. */
 export function workspaceSetMethodOption(ctx, target) {
+    if(target.dataset.finishField) {
+        const field = target.dataset.finishField;
+        ctx.state.finishChoice = {...ctx.state.finishChoice,[field]:field==='variant'?target.value:Number(target.value)};
+        return true;
+    }
     if(target.id==='cl-mode'){ctx.state.mode=target.value;ctx.deps.game.sporeCraftModes[ctx.state.recipe.key]=ctx.state.mode;return true;}
     if(target.id==='cl-omen'){workspaceArmOmen(ctx, target.value);return true;}
     return false;
@@ -303,6 +329,8 @@ export function workspaceWire(ctx) {
 }
 
 export async function workspaceHandleClick(ctx, event) {
+    const fold=event.target.closest('.cl-fold-toggle');
+    if(fold){fold.setAttribute('aria-expanded', String(fold.getAttribute('aria-expanded')!=='true'));return;}
     try {await workspaceClick(ctx, event);}
     catch(error){ctx.deps.console.error('Crafting action failed',error);ctx.state.notice=(0, ctx.deps._t)('제작 실패: {message}', { message: error.message });ctx.state.busy=false;workspaceRender(ctx);}
 }

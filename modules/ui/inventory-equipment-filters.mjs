@@ -52,7 +52,11 @@ export function setEquipmentInventoryView(runtime, key, value) {
 export function syncEquipmentMobilePane(runtime) {
     const pane = equipmentMobilePane(runtime.deps.game);
     const workspace = runtime.deps.document.querySelector('#item-tab-equip .equipment-workspace');
-    if (workspace) workspace.dataset.mobilePane = pane;
+    if (!workspace || workspace.dataset.mobilePane === pane) return;
+    workspace.dataset.mobilePane = pane;
+    for (const button of workspace.querySelectorAll('.eqw-pane-switch [data-pane]')) {
+        button.setAttribute('aria-pressed', String(button.dataset.pane === pane));
+    }
 }
 
 export function setEquipmentMobilePane(runtime, pane) {

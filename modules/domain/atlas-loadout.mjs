@@ -10,7 +10,7 @@ export function atlasCoreSetLoadout(env, state, ids) {
 export function atlasCoreActiveFragments(env, state, rooms = Infinity) {
     let free = rooms;
     return state.atlas.loadout.slice(0, atlasCoreSlots(env, state)).filter(id => (state.atlas.fragments[id] || 0) > 0
-        && (!env.FRAGMENTS.get(id).encounter || free-- > 0));
+        && (!env.FRAGMENTS.get(id).encounter || (env.deps.atlasEncounters.isOpen(env.FRAGMENTS.get(id).encounter, state.season, state) && free-- > 0)));
 }
 
 /** One of each active fragment; the keep passive may save one. `spent` is what really left the stock (cancel refunds it). */

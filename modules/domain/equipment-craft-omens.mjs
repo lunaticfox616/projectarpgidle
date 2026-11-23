@@ -1,4 +1,4 @@
-import { craftBasicRule, craftFilterSporeMods, craftKeptOnReroll, craftStoredAffixKind, craftAffixKind, craftGetSource } from './equipment-craft-rules.mjs';
+import { craftLegalAddPool, craftBasicRule, craftFilterSporeMods, craftKeptOnReroll, craftStoredAffixKind, craftAffixKind, craftGetSource } from './equipment-craft-rules.mjs';
 
 /** The affix a spore mode guarantees for action on item, or null (spore mode off, or nothing of its family is open): picked by
  * weight among the open affixes in the spore's family, counted against the result's rarity (새싹 transmute and alteration: magic,
@@ -7,7 +7,8 @@ import { craftBasicRule, craftFilterSporeMods, craftKeptOnReroll, craftStoredAff
 export function craftSporePool(env, item, action, mode, omen = null) {
     if (mode === 'none' || !craftBasicRule(env, action)) return [];
     const base = env.rerollActions.includes(action) ? { ...item, stats: (item.stats || []).filter(stat => craftKeptOnReroll(item, stat) || !craftOnOmenSide(env, item, stat, omen)) } : item;
-    return craftFilterOmenMods(craftFilterSporeMods(env, env.deps.getOpenAffixMods(base, craftBasicRule(env, action).rarity), mode), omen);
+    const pool = craftBasicRule(env,action).kind === 'add' ? craftLegalAddPool(env,item) : env.deps.getOpenAffixMods(base, craftBasicRule(env,action).rarity);
+    return craftFilterOmenMods(craftFilterSporeMods(env, pool, mode), omen);
 }
 
 export function craftPickSporeMod(env, item, action, mode, omen = null) {
@@ -60,7 +61,7 @@ export function craftSideRollReason(env, item, action, omen, sporeMode) {
     const label = omen.side === 'prefix' ? '접두어' : '접미어';
     const kept = env.rerollActions.includes(action) ? item.stats.filter(stat => craftKeptOnReroll(item, stat) || !craftOnOmenSide(env, item, stat, omen)) : item.stats;
     if (sporeMode !== 'none' && kept.some(stat => craftGetSource(env, stat) === 'spore')) return '보존되는 수확 옵션이 있어 수확 제작을 함께 쓸 수 없습니다.';
-    const pool = craftFilterOmenMods(env.deps.getOpenAffixMods({ ...item, stats: kept }, 'rare'), omen);
+    const pool = craftFilterOmenMods(env.rerollActions.includes(action) ? env.deps.getOpenAffixMods({ ...item, stats: kept }, 'rare') : craftLegalAddPool(env,item), omen);
     if (!pool.length) return env.deps._t('{label}에 새로 부여할 수 있는 옵션이나 빈자리가 없습니다.', { label });
     return sporeMode !== 'none' && !craftFilterSporeMods(env, pool, sporeMode).length ? env.deps._t('{label}에 선택한 수확 계열 옵션을 부여할 수 없습니다.', { label }) : '';
 }
@@ -116,7 +117,7 @@ export function craftWeighOmenPool(env, item, pool, omen, picked = []) {
 
 /** The line an added craft (regal, exalted) picks: an open mod of item, on 허기's side, weighed by 엮음. */
 export function craftPickAddMod(env, item, omen) {
-    return env.deps.pickWeightedMod(craftWeighOmenPool(env, item, env.deps.getOpenAffixMods(item, 'rare'), omen));
+    return env.deps.pickWeightedMod(craftWeighOmenPool(env, item, craftLegalAddPool(env,item), omen));
 }
 
 /** The row 전정 가위 cuts among removable rows ({ index, stat }): with 가지치기 the lowest tier among tiered lines (a fixed line,

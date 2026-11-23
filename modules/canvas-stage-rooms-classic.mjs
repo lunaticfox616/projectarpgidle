@@ -9,6 +9,7 @@ const effects = {
 };
 
 const native = createStageRoomsView({
+    get _t() { return _t; }, get ATLAS() { return ATLAS; },
     get actExplorationDoors() { return actExplorationDoors; },
     get actExplorationRooms() { return actExplorationRooms; },
     get uiDisplay() { return uiDisplay; },

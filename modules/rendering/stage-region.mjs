@@ -10,6 +10,8 @@
  * 조각 그림은 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다. 받지 못한 그림은 다시 받고(js/stage-asset-retry.js), 그동안 status는
  * 'pending'이라 방은 어둠으로 기다린다. 예전 무대(벽돌 벽 같은)로 떨어지지 않는다(2026-11-11 사용자). 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
  */
+import { atlasChallenges, challengeType } from '../data/atlas-challenges.mjs';
+
 class StageRegion {
     constructor(deps) {
         this.deps = deps;
@@ -90,8 +92,11 @@ class StageRegion {
     /** 그 방의 그림 파일과 배율(그림 1px의 화면 크기). 배율은 그 지도의 기준 방(map.frame)에 맞춘 하나다: 좁거나 얕은 방에서도 풍경과
      * 구조물의 크기가 같다. 판(고정 전장)은 제 크기다. */
     roomPictureFit(map, room, dot) {
-        const region = this.regionOfMap(map), frame = map.frame || { columns: room.x1 - room.x0 + 1, rows: room.y1 - room.y0 + 1 };
-        return { region, file: this.roomPictureName(map.region, region, room) + '.png', scale: this.deps.stageRegionFit.scale(region, frame.columns, frame.rows) * dot };
+        const id = room.host && atlasChallenges[challengeType(room.id)]?.[0];
+        const theme = id && this.deps.stageRegionFit.of(id);
+        const ready = theme && this.pictureLoaded(this.regionPicture(this.roomPictureName(id, theme, room) + '.png'));
+        const region = ready ? theme : this.regionOfMap(map), frame = map.frame || { columns: room.x1 - room.x0 + 1, rows: room.y1 - room.y0 + 1 };
+        return { region, file: this.roomPictureName(ready ? id : map.region, region, room) + '.png', scale: this.deps.stageRegionFit.scale(region, frame.columns, frame.rows) * dot };
     }
 
     /** 화면 배율로 옮겨 둔 방 그림. 2026-10-30 사용자 "맵들이 이상하게 찌그러져보이고": 2px 격자로 그린 방 그림을 1.7배 같은 배율에 보간 없이

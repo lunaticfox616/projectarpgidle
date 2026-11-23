@@ -233,7 +233,6 @@
         <div class="loading-caption" id="loading-caption">Syncing Timeline</div>
     </div>
 </div>
-<div id="loop-rewrite-overlay" class="loop-rewrite-overlay"></div>
 <div id="tutorial-overlay" class="tutorial-overlay">
     <div class="tutorial-card">
         <div class="tutorial-kicker" id="tutorial-kicker" data-i18n>새 콘텐츠 발견!</div>
@@ -307,20 +306,22 @@
     <div class="tutorial-card deathlog-card">
         <div class="tutorial-kicker" data-i18n>사망 기록</div>
         <div class="tutorial-title" id="deathlog-title" data-i18n>사망 보고서</div>
-        <div class="tutorial-body" id="deathlog-body"></div>
-        <div class="deathlog-hints" id="deathlog-hints" hidden></div>
-        <div class="deathlog-panel">
-            <div class="deathlog-subtitle" id="deathlog-damage-title" data-i18n>최근 3초 피해 요약</div>
-            <div class="deathlog-tabs" role="tablist" aria-label="사망 원인 분류" data-i18n-attr="aria-label">
-                <button type="button" class="deathlog-tab active" data-deathlog-view="element" role="tab" aria-selected="true" data-i18n>속성별</button>
-                <button type="button" class="deathlog-tab" data-deathlog-view="monster" role="tab" aria-selected="false" data-i18n>몬스터별</button>
+        <div class="deathlog-scroll">
+            <div class="tutorial-body" id="deathlog-body"></div>
+            <div class="deathlog-hints" id="deathlog-hints" hidden></div>
+            <div class="deathlog-panel">
+                <div class="deathlog-subtitle" id="deathlog-damage-title" data-i18n>최근 3초 피해 요약</div>
+                <div class="deathlog-tabs" role="tablist" aria-label="사망 원인 분류" data-i18n-attr="aria-label">
+                    <button type="button" class="deathlog-tab active" data-deathlog-view="element" role="tab" aria-selected="true" data-i18n>속성별</button>
+                    <button type="button" class="deathlog-tab" data-deathlog-view="monster" role="tab" aria-selected="false" data-i18n>몬스터별</button>
+                </div>
+                <div class="deathlog-list" id="deathlog-damage-list"></div>
             </div>
-            <div class="deathlog-list" id="deathlog-damage-list"></div>
+            <label class="deathlog-setting" data-i18n>
+                <input type="checkbox" id="chk-death-notice-inline">
+                사망 시 알림 표시
+            </label>
         </div>
-        <label class="deathlog-setting" data-i18n>
-            <input type="checkbox" id="chk-death-notice-inline">
-            사망 시 알림 표시
-        </label>
         <div class="tutorial-actions">
             <button autofocus data-death-close data-i18n>확인</button>
         </div>
@@ -346,6 +347,7 @@
         <h2 style="display:none;" data-i18n>플레이어</h2>
     </div>
 
+    <div class="mobile-battle-vitals" hidden><img class="mobile-hero-portrait" alt=""></div>
     <div class="panel combat-panel" style="position: relative;">
         <h2 style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3d3d5c; padding-bottom: 5px;">
             <span style="font-size: 12px; font-weight: normal; color: var(--copy-bright); flex: 1; text-align: center;" id="ui-combat-zone" data-i18n>액트 1: 뿌리끝 성소</span>
@@ -401,11 +403,20 @@
                 </div>
                 <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden data-i18n-attr="aria-label">
                     <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" data-i18n-attr="aria-label"></canvas>
-                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기" data-tip="탐험 지도 크게 보기" onclick="actExplorationUi.expand()" hidden data-i18n-attr="aria-label data-tip"></button>
+                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기" data-tip="탐험 지도 크게 보기" onclick="actExplorationUi.expand()" hidden data-i18n-attr="aria-label data-tip"><span class="mobile-hud-map-caption"><span data-i18n>지도</span><b id="mobile-map-progress"></b></span></button>
                 </section>
                 <div class="player-hud-skill-rack" aria-label="현재 장착 룬" data-i18n-attr="aria-label">
+                    <span class="mobile-hud-rune-label" data-i18n>장착 룬</span>
                     <div id="ui-combat-skill-gems" class="player-hud-skill-slots"></div>
                 </div>
+                <button type="button" id="mobile-effects-toggle" popovertarget="mobile-effects-sheet" aria-haspopup="dialog">
+                    <span class="mobile-effects-caption" data-i18n>상태</span>
+                    <span class="mobile-effects-value"><strong><span class="mobile-effects-first"></span><span data-i18n>효과 없음</span></strong><b></b></span>
+                </button>
+                <section id="mobile-effects-sheet" popover="auto" role="dialog" aria-labelledby="mobile-effects-heading">
+                    <header><strong id="mobile-effects-heading" data-i18n>활성 상태이상 및 효과</strong><button type="button" popovertarget="mobile-effects-sheet" popovertargetaction="hide" data-i18n>닫기</button></header>
+                    <p class="mobile-effects-empty" data-i18n>효과 없음</p>
+                </section>
                 <div id="ui-player-ailments-under" class="combat-effect-strip player-combat-effect-strip" aria-label="활성 상태이상 및 효과" data-i18n-attr="aria-label"></div>
             </div>
             <div id="ui-ocean-oxygen-box" class="combat-hud-row combat-hud-row-oxygen player-hud-oxygen" style="display:none;">
@@ -425,6 +436,7 @@
                 <div id="move-area" style="text-align: center; margin-bottom: 10px; display: flex; flex-direction: column; min-height: 0;">
                     <div id="battlefield-wrap" class="battlefield-wrap">
                         <canvas id="battlefield-canvas"></canvas>
+                        <div id="atlas-wheel-refuge" hidden></div>
                         <div class="battlefield-caption" id="ui-battlefield-caption" data-i18n>전장을 스캔 중...</div>
                     </div>
                     <div id="side-encounter-hud" hidden></div>
@@ -791,7 +803,7 @@
         </div>
 
         <div id="ui-class-locked" class="content-passive-entry" style="margin-top: 30px;">
-            <span data-i18n>루프 3부터 해금에서 전직을 열면, 액트 3 클리어 후 전직 시련에 도전합니다. 첫 시련을 통과하면 전직을 고릅니다.</span>
+            <span data-i18n>루프 5부터 해금에서 전직을 열면, 액트 3 클리어 후 전직 시련에 도전합니다. 첫 시련을 통과하면 전직을 고릅니다.</span>
             <button type="button" id="ui-class-trial-link" onclick="contentUnlockUi.open('battleTrials')" data-i18n>전직 시련 보기</button>
         </div>
     </div>
@@ -824,6 +836,7 @@
             <section id="stump-board-section" class="stump-box-pane">
                 <div id="stump-box-board"></div>
                 <div id="stump-cube" class="stump-cube"></div>
+                <details class="cl-exchange" data-exchange="wardCord" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>금줄 꼬기</summary><div></div></details>
                 <div id="stump-box-summary" class="stump-box-summary"></div>
             </section>
             <section id="stump-storage-section" class="stump-box-pane">
@@ -838,7 +851,7 @@
 
     
     <div id="tab-items" class="tab-content">
-        <div class="subtab-row">
+        <div class="subtab-row gear-item-routes">
             <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')"><span class="px-center" data-i18n>장비 창</span></button>
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')"><span class="px-center" data-i18n>제작실</span></button>
             <button class="subtab-btn" id="btn-item-tab-knitting" onclick="switchItemSubtab('item-tab-knitting')" style="display:none;"><span class="px-center" data-i18n>뜨개질</span></button>
@@ -854,6 +867,10 @@
                         <div id="ui-equipment-aux" class="equipment-aux" hidden></div>
                     </section>
                     <section class="eqw-card eqw-summary-card">
+                        <div class="eqw-pane-switch" role="group" aria-label="장비 창" data-i18n-attr="aria-label">
+                            <button type="button" data-pane="inventory" aria-pressed="true" aria-controls="ui-inventory-list" onclick="equipmentWindowUi.toggleLoadout('inventory')" data-i18n>가방</button>
+                            <button type="button" data-pane="loadout" aria-pressed="false" aria-controls="ui-equip-list" onclick="equipmentWindowUi.toggleLoadout('loadout')" data-i18n>장착 장비</button>
+                        </div>
                         <div id="ui-equipment-loadout-summary" class="equipment-loadout-summary" aria-label="장착 장비 요약" data-i18n-attr="aria-label"></div>
                     </section>
                 </section>
@@ -867,9 +884,10 @@
                     <p id="ui-inventory-page-label" class="inventory-search-status" aria-live="polite" hidden></p>
                     <!-- 2026-10-19 사용자: 쪽 단추는 가방 위, 가방 오른쪽은 도구 줄(정리, 분석, 필터, 해체, 복구). 단추와 창은 js/equipment-window-ui.js. 2026-10-24 사용자: 판단을 분석으로. -->
                     <nav id="ui-equipment-inventory-pages" class="equipment-inventory-pages" aria-label="장비 인벤토리 페이지" data-i18n-attr="aria-label"></nav>
+                    <button type="button" id="eqw-bag-tools" aria-expanded="false" aria-controls="eqw-bag-toolbar" onclick="this.setAttribute('aria-expanded', String(this.getAttribute('aria-expanded') !== 'true'))" data-i18n>가방 도구</button>
                     <div class="equipment-inventory-grid-shell">
                         <div class="inventory-grid equipment-inventory-grid" id="ui-inventory-list"></div>
-                        <div class="eqw-rail" role="toolbar" aria-label="가방 도구" data-i18n-attr="aria-label">
+                        <div id="eqw-bag-toolbar" class="eqw-rail" role="toolbar" aria-label="가방 도구" data-i18n-attr="aria-label">
                             <details class="eqw-rail-menu" id="eqw-arrange-menu">
                                 <summary class="eqw-rail-tool" data-icon="down" aria-label="빈칸 정리" data-tip="빠르게 두 번 누르면 마지막에 고른 기준으로 바로 정리합니다." data-i18n-attr="aria-label data-tip"><span data-i18n>정리</span></summary>
                                 <div class="eqw-rail-panel">
@@ -920,7 +938,8 @@
 
         <div id="item-tab-craft" class="subtab-content">
             <section id="crafting-workspace"></section>
-            <details id="cl-materials" ontoggle="if(this.open) renderFossilWorkbench()"><summary data-i18n>수확/화석 정제</summary><div id="ui-craft-spore-actions"></div><section id="fossil-materials"><div id="ui-fossil-material-actions" class="craft-actions"></div></section></details>
+            <details id="cl-materials" ontoggle="if(this.open) renderFossilWorkbench()"><summary data-i18n>수확/화석 정제</summary><div id="ui-craft-spore-actions"></div><section id="fossil-materials"><div id="ui-fossil-material-actions" class="craft-actions"></div>
+                <details class="cl-exchange" id="finish-exchange-fossil" data-exchange="transferStone" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>전이석 교환</summary><div></div><small data-i18n>봉인편린은 루프 6부터 고대 미궁에서 획득합니다.</small></details></section></details>
         </div>
 
         <div id="item-tab-knitting" class="subtab-content"></div>
@@ -1053,6 +1072,7 @@
         </div>
 
         <div id="map-tab-underworld" class="subtab-content">
+            <details class="cl-exchange" data-exchange="balanceWeight" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>천칭의 추 교환</summary><div></div></details>
             <h2 data-i18n>지하계</h2>
             <div class="map-grid" id="ui-underworld-list"></div>
             <div id="ui-underworld-panel" class="underworld-panel"></div>
@@ -1092,9 +1112,10 @@
 
     </div>
 
-    <div id="tab-skills" class="tab-content">
+    <div id="tab-skills" class="tab-content" data-rune-pane="library">
         <div class="subtab-row">
-            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><span class="px-center" data-i18n>룬</span></button>
+            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip','library')" aria-pressed="true" aria-controls="skill-tab-equip"><span class="px-center"><span class="rune-wide-label" data-i18n>룬</span><span class="rune-phone-label" data-i18n>보유 룬</span></span></button>
+            <button type="button" class="subtab-btn" id="btn-rune-board" hidden onclick="switchSkillSubtab('skill-tab-equip','board')" aria-controls="rune-equipped"><span class="px-center" data-i18n>장착 룬</span></button>
             <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><span class="px-center" data-i18n>각인</span></button>
             <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><span class="px-center" data-i18n>전술</span></button>
         </div>
@@ -1103,11 +1124,11 @@
                  칸을 누르면 룬 칸 창(js/gem-slot-dialog-ui.js)이 뜨고 옆 목록도 그 칸에 낄 수 있는 룬만 보여 준다.
                  목록의 룬을 누르면 상세가 뜬다(js/gem-selection-ui.js). -->
             <div class="skill-board-layout">
-                <div class="skill-board-column">
+                <div class="skill-board-column" id="rune-equipped">
                     <section id="ui-skill-board" class="skill-board" aria-label="장착한 공격 룬과 각인" data-i18n-attr="aria-label"></section>
                     <section id="ui-support-slots" class="support-slots" aria-label="장착한 보조스킬룬" data-i18n-attr="aria-label"></section>
                 </div>
-                <section class="skill-picker" aria-labelledby="ui-skill-picker-title">
+                <section id="rune-library" class="skill-picker" aria-labelledby="ui-skill-picker-title">
                     <!-- 룬 종류 탭(2026-11-09 사용자: 칸을 눌러야만 룬을 볼 수 있었다): 공격, 이동, 소환, 보조, 봉인 목록을 바로 연다(js/skills-ui.js). -->
                     <nav id="ui-skill-picker-tabs" class="skill-picker-tabs" role="tablist" aria-label="룬 종류" data-i18n-attr="aria-label"></nav>
                     <div class="skill-picker-head">
@@ -1120,6 +1141,7 @@
             </div>
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
+            <details class="cl-exchange" data-exchange="artManual" ontoggle="craftingWorkspaceUi.exchange(this)"><summary data-i18n>비전서 제작</summary><div></div></details>
             <div id="ui-gem-enhance-header" class="gem-forge-heading" style="display:none;">
                 <div><span class="skill-panel-kicker" data-i18n>룬 공방</span><h2 data-i18n>룬 성장과 각인 공방</h2></div>
             </div>
@@ -1623,6 +1645,7 @@
 <script defer src="data/constants.js"></script>
 <script defer src="data/level-progression.js"></script>
 <script defer src="data/build-stat-inputs.js"></script>
+<script defer src="data/content-progression.js"></script>
 <script defer src="data/maps.js"></script>
 <script defer src="data/bgm.js"></script>
 <script defer src="data/story-journal.js"></script>
@@ -1687,7 +1710,6 @@
 <script defer src="data/wisp-summons.js"></script>
 <script defer src="data/rewards.js"></script>
 <script defer src="data/talent-cards.js"></script>
-<script defer src="data/content-progression.js"></script>
 <script defer src="data/hotkeys.js"></script>
 <script defer src="data/locales/ko.js"></script>
 <link rel="rignin-language" data-language="en" href="data/locales/en.js?v=20261103-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1&atlas-plate=20261109-1&logfit=20261109-1&wmlocks=20261109-1">
@@ -1922,6 +1944,7 @@
 <script defer src="js/loop-ui.js"></script>
 <script defer src="js/loop-mutation-ui.js"></script>
 <script defer src="js/loop-automation-ui.js"></script>
+<script defer src="js/loop-cinematic-ui.js"></script>
 <script defer src="js/world-tree-bark-ui.js"></script>
 <script defer src="js/endgame-progression-ui.js"></script>
     <script defer src="legal/policies-content.js"></script>

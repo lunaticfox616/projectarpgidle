@@ -13,7 +13,10 @@ class StageSkillKit {
         this.HAND = -58;
         this.lastFace = 1;
 
-        this.kitRamp = (gem, element) => gem.map.ramp || this.deps.STAGE_SKILL_VFX.elementRamp[element] || this.deps.STAGE_SKILL_VFX.elementRamp[gem.meta.el] || 'phys';
+        this.kitRamp = (gem, element) => {
+            const ramps = this.deps.STAGE_SKILL_VFX.elementRamp;
+            return (element !== gem.meta.el && ramps[element]) || gem.map.ramp || ramps[element] || ramps[gem.meta.el] || 'phys';
+        };
         this.kitRef = (value, index = 0) => (Array.isArray(value) ? value[index % value.length] : value);
         this.kitOnGround = ref => { const clip = this.deps.stageSkillVfx.clipOf(ref); return !!clip && clip.an === 'bottom'; };
         this.SIDE = Object.freeze({ west: -1, east: 1 });

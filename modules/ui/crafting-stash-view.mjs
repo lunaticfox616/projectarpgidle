@@ -1,8 +1,9 @@
+import { finishHeld } from '../data/equipment-finishes.mjs';
 /** One slot: the picture, the held count in the corner, and the name, count and short effect on hover (stashTip).
 * data-info-tooltip-anchor: js/ui.js's mousemove guard keeps the card while the pointer stays on the slot. */
 export function stashCellHtml(ctx, key, picked) {
     if (!ctx.deps.craftingCatalogUi.visible(key)) return '<span class="cl-stash-cell is-blank" aria-hidden="true"></span>';
-    const amount = ctx.deps.game.currencies[key] || 0, name = ctx.deps.craftingCatalogUi.name(key), omen = ctx.deps.CRAFT_OMENS.keys.includes(key);
+    const amount = finishHeld(ctx.deps.game.currencies,key), name = ctx.deps.craftingCatalogUi.name(key), omen = ctx.deps.CRAFT_OMENS.keys.includes(key);
     const on = omen ? picked.omen === key : picked.recipe === key;
     const count = amount.toLocaleString(ctx.deps.i18n.locale), held = (0, ctx.deps._t)('보유 {currencies}', { currencies: count });
     return `<button type="button" id="cl-stash-${key}" class="cl-stash-cell${amount ? '' : ' is-empty'}${on ? ' is-on' : ''}" data-theme="${ctx.deps.craftingCatalogUi.theme(key)}"
@@ -15,7 +16,7 @@ export function stashCellHtml(ctx, key, picked) {
 * currency list (craftingCatalogUi.description). The card's edge takes the theme's tone. */
 export function stashTip(ctx, event, key) {
     if (event.pointerType !== 'mouse') return;
-    const amount = ctx.deps.game.currencies[key] || 0;
+    const amount = finishHeld(ctx.deps.game.currencies,key);
     const held = (0, ctx.deps._t)('보유 {currencies}', { currencies: amount.toLocaleString(ctx.deps.i18n.locale) });
     const html = `<div class="cl-stash-tip"><div class="tooltip-title">${ctx.deps.craftingCatalogUi.styledName(key)}</div>`
         + `<div class="tooltip-line cl-stash-tip-held${amount ? '' : ' is-empty'}">${esc(ctx, held)}</div>`

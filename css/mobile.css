@@ -93,16 +93,20 @@
   #mobile-battle-pip.is-collapsed [data-pip-toggle] { padding-inline: 12px; }
   /* A floating preview covers the lower right of the page: scrolling pages get its height below their last row, so that row can
      be lifted above it (the settings reset button sat under it). Docked previews and the bag tab (its own gap below) need none. */
-  body:has(#mobile-battle-pip.mobile-battle-dock[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked)):not(:has(#tab-items.active)) {
+  body:has(#mobile-battle-pip.mobile-battle-dock[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked, .is-map-docked)):not(:has(#tab-items.active)) {
     padding-bottom: calc(clamp(144px, 42vw, 192px) * 9 / 16 + 64px);
   }
-  body:has(#mobile-battle-pip.mobile-battle-dock.is-collapsed[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked)):not(:has(#tab-items.active)) {
+  body:has(#mobile-battle-pip.mobile-battle-dock.is-collapsed[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked, .is-map-docked)):not(:has(#tab-items.active)) {
     padding-bottom: 64px;
   }
   /* The bag's tool rail ends about 40px above the menu: the folded button sits in that gap instead of over 배치 and 복구. */
   body:has(#tab-items.active) #mobile-battle-pip.is-collapsed { bottom: calc(var(--mobile-primary-nav-height, 62px) + env(safe-area-inset-bottom) + 2px); padding: 1px; }
   body:has(#tab-items.active) #mobile-battle-pip.is-collapsed [data-pip-toggle] { min-height: 34px; }
   #mobile-battle-pip.is-tree-docked { position: static; width: auto; padding: 0; border: 0; background: none; box-shadow: none; }
+  #map-explore-atlas:has(> .is-map-docked) { position: relative; }
+  :is(#item-tab-craft,#tab-skills) > #mobile-battle-pip.is-panel-docked { position: static; width: fit-content; margin: 4px 0 0 auto; }
+  #map-explore-atlas:has(> .is-map-docked) .atlas-heading { padding-inline-end: 100px; }
+  #map-explore-atlas > #mobile-battle-pip.is-map-docked { position: absolute; inset: 5px 6px auto auto; width: auto; margin: 0; }
   /* Keep map preparation actions clear of the floating preview, including an explicitly expanded one. */
   #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive, #map-explore-timerift, #map-tab-underworld).has-battle-pip { padding-bottom: 64px; }
   #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive, #map-explore-timerift, #map-tab-underworld).has-battle-pip.is-pip-expanded { padding-bottom: 180px; }

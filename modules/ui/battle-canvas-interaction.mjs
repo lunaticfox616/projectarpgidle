@@ -29,7 +29,7 @@ export class BattleCanvasInteraction {
         const point = this.deps.canvasBox.clientPoint(this.canvas, event.clientX, event.clientY);
         const npc = this.deps.titleCard.npcAt(point);
         if (npc && this.deps.unlockUi.openNpc(npc)) { this.face(point); return; }
-        const door = this.deps.doors.targetAt(point);
+        const door = this.deps.explorationView.passageAt(point) || this.deps.doors.targetAt(point);
         if (door) { this.deps.explorationUi.commandMove(door); return; }
         if (this.deps.explorationUi.lockOnAt(point)) return;
         const cell = this.deps.explorationView.cellAt(point);

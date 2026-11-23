@@ -22,7 +22,7 @@ export class DevTestPanel {
         this.godTimer = null;
         this.speed = 1;
         this.generation = 0;
-        ["isEnabled","el","testInvader","button","section","row","note","log","refresh","chooseClass","equipGem","fitRune","wearTestItem","soundRuneSelect","nextSoundRune","setSetting","toggleGodMode","setSpeed","addLevels","grantStumpBox","giveStumpItems","giveUniqueWards","growStumpBox","setExpansion","setStageSight","setStageRoomSize","startTestBeehive","openTestZone","startTestCosmos","startTestOcean","startTestBoundary","startTestColony","startTestBreach","startTestEcho","startTestAtlas","enterTestZone","travelToAct","gemLabel","gemGroup","gemSelect","classRow","characterSection","monsterRows","stageSection","gemSection","combatSection","spawnCritter","progressSection","status","weaponLabel","mount","init"].forEach(name => { this[name] = this[name].bind(this); });
+        ["isEnabled","el","testInvader","button","section","row","note","log","refresh","chooseClass","equipGem","fitRune","wearTestItem","soundRuneSelect","nextSoundRune","setSetting","toggleGodMode","setSpeed","addLevels","grantStumpBox","giveStumpItems","giveUniqueWards","growStumpBox","setExpansion","setStageSight","setStageRoomSize","startTestBeehive","openTestZone","startTestCosmos","startTestOcean","startTestBoundary","startTestColony","startTestBreach","startTestEcho","startTestAtlas","enterTestZone","travelToAct","gemLabel","gemGroup","gemSelect","classRow","characterSection","monsterRows","stageSection","gemSection","combatSection","spawnCritter","progressSection","loopCineSection","fillLoopCondition","status","weaponLabel","mount","init"].forEach(name => { this[name] = this[name].bind(this); });
         this.testZones = this.createTestZones();
     }
 
@@ -422,6 +422,28 @@ export class DevTestPanel {
         ]);
     }
 
+    // 루프 전환 연출(modules/ui/loop-cinematic-view.mjs): 지금 게임 위에 상태를 바꾸지 않고 틀어 보거나(직업 단계 없이 지금 직업으로 접붙인다),
+    // 게임의 루프 조건 함수로 정산 카드까지 가서 실제 버튼, 초기화, 연출, 해금, 직업 창을 끝까지 해 본다.
+    loopCineSection() {
+        const play = mode => this.note(this.deps.loopCinematic?.preview(mode) ? '루프 연출 재생' : '지금은 틀 수 없습니다');
+        return this.section('루프 연출', [
+            this.row([this.button('첫 루프 연출 보기', () => play('full')), this.button('짧은 연출 보기', () => play('short'))]),
+            this.row([this.button('루프 조건 채우기', this.fillLoopCondition)])
+        ]);
+    }
+
+    /** 이번 루프의 혼돈 목표 층을 깬 것으로 기록하고, 마지막 층을 깰 때 부르는 루프 조건 함수를 부른다. */
+    fillLoopCondition() {
+        const game = this.deps.game, season = game.season || 1, cap = Math.min(20, this.deps.getSeasonAbyssDepthCap(season));
+        if (game.pendingLoopReady || game.pendingLoopDecision || game.pendingLoopHeroSelection) return this.note('이미 루프 정산 중입니다');
+        game.abyssClearedDepths = [...new Set([...(game.abyssClearedDepths || []), cap])];
+        game.loopProgressCurrent.bestAbyssDepth = Math.max(game.loopProgressCurrent.bestAbyssDepth || 0, cap);
+        if (cap >= 20) game.loopProgressCurrent.chaos20Cleared = true;
+        game.maxZoneId = Math.max(game.maxZoneId || 0, this.deps.ABYSS_START_ZONE_ID + cap - 1);
+        this.deps.handleSeasonLoopConditionMet();
+        this.note('루프 조건 채움(혼돈 ' + cap + '층)');
+    }
+
     status() {
         const line = this.root && this.root.querySelector('.dtp-status');
         if (!line) return;
@@ -438,7 +460,7 @@ export class DevTestPanel {
         const panel = this.el('div', { className: 'dtp-panel', hidden: true }, [
             this.el('header', {}, [this.el('strong', { textContent: '🧪 테스트 패널' }), this.button('닫기', () => { panel.hidden = true; })]),
             this.el('p', { className: 'dtp-status' }),
-            this.characterSection(), this.stageSection(), this.gemSection(), this.combatSection(), this.progressSection(),
+            this.characterSection(), this.stageSection(), this.gemSection(), this.combatSection(), this.progressSection(), this.loopCineSection(),
             this.el('p', { className: 'dtp-hint', textContent: '로컬 테스트 전용, 이 세이브에 바로 반영됩니다. 새 게임은 런처 2번(임시 세이브)으로.' })
         ]);
         const toggle = this.button('🧪 테스트', () => { panel.hidden = !panel.hidden; this.status(); }, { className: 'dtp-toggle' });

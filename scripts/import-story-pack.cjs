@@ -29,12 +29,13 @@ const BANNED = /[·・—―]/u;
 const HANGUL = /[가-힣]/u;
 const SCENE_TABLES = ['SUPPLIED_STORY_SCENES', 'STORY_BRIDGE_SCENES'];
 const OTHER_TABLES = ['STORY_JOURNAL_SCENES', 'STORY_QUOTE_PLACEMENT', 'STORY_SCENE_QUOTES'];
-// 게임이 읽는 칸(js/canvas-act-title-card.js, js/content-progression-ui.js, js/loop-ui.js). 장면 표는 id와 순서만 본다.
+// 게임이 읽는 칸(js/canvas-act-title-card.js, js/content-progression-ui.js, js/loop-ui.js, js/loop-cinematic-ui.js). 장면 표는 id와 순서만 본다.
 const FIELDS = Object.freeze({
     STORY_CLASS_ORIGINS: ['label', 'wakeLine', 'spotLine', 'eliteLine', 'bossLines'],
     STORY_ACT_ENCOUNTERS: ['npc', 'stele', 'boss'], STORY_TRIAL_ENCOUNTERS: ['npc', 'stele', 'boss'],
     STORY_ENDGAME_ENCOUNTERS: ['intro', 'half', 'defeat'], STORY_LOOP_MILESTONES: ['narration', 'speaker', 'quote'],
     STORY_NPCS: ['id', 'name', 'title', 'dialogues'],
+    STORY_LOOP_CINEMATIC: ['speaker', 'lines', 'line'], // voice: speaker and its lines in order; unlock: an NPC id and its one line
     npc: ['name', 'bark', 'loopBark', 'classBarks', 'classReplies', 'tone'], stele: ['title', 'bark', 'afterClear'], boss: ['intro', 'half', 'defeat']
 });
 // 게임이 읽지 않아 옮길 때 빼는 표와 칸.
@@ -71,7 +72,9 @@ const COMMENTS = Object.freeze({
         'half at 55% life, defeat when the map is cleared. Each line 50 characters at most (one line of the band on PC).'],
     STORY_ENDGAME_ENCOUNTERS: ["The boss lines of the endgame fights, spoken like an act boss's (key: zone id; an atlas map's apex boss by its",
         'atlasStages id).'],
-    STORY_LOOP_MILESTONES: ['One per unlock (data/content-progression.js CONTENT_UNLOCK_CATALOG id); default closes the loop result.']
+    STORY_LOOP_MILESTONES: ['One per unlock (data/content-progression.js CONTENT_UNLOCK_CATALOG id); default closes the loop result.'],
+    STORY_LOOP_CINEMATIC: ['The loop transition cinematic (js/loop-cinematic-ui.js): voice is the voice over the abyss on the first loop (four lines in order,',
+        'speaker shown as the subtitle tag), unlock the one line over the unlock step (speaker: a STORY_NPCS id, its portrait and name).']
 });
 
 function read(file) {

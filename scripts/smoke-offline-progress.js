@@ -33,7 +33,7 @@ assert.deepStrictEqual(json('game.passiveSpecialization.karma.byEnemy'),{replace
 // A new game counts 3 hours at 30%; each step raises them, and the outside sources stop at the cap.
 run('game = mergeDefaults({})');
 assert.deepStrictEqual(json('[getOfflineProgressConfig(game).recognitionHours, getOfflineProgressConfig(game).baseEfficiencyRate]'), [3, 0.3]);
-run(`game.season = 5; contentProgression.sync();
+run(`game.season = 8; contentProgression.sync();
     game.contentProgression.inherited.push('loopTree', 'stumpStorage1');
     for (const id of ['offlineHours1', 'offlineHours2', 'offlineRate1']) if (!contentProgression.purchase(id).ok) throw new Error(id);`);
 assert.deepStrictEqual(json('[getOfflineProgressConfig(game).recognitionHours, getOfflineProgressConfig(game).baseEfficiencyRate]'), [9, 0.32]);

@@ -3,6 +3,7 @@ import { consumeDomainCommands } from './common/consume-commands.mjs';
 
 const rules = createAtlasRun({
     get ATLAS() { return ATLAS; },
+    get actExplorationMap() { return actExplorationMap; },
     get actExplorationState() { return actExplorationState; },
     get getZone() { return getZone; },
     get getDefeatRecoveryZoneId() { return getDefeatRecoveryZoneId; },
@@ -18,6 +19,17 @@ const rules = createAtlasRun({
     get stumpNursery() { return typeof stumpNursery === 'undefined' ? undefined : stumpNursery; }
 });
 const effects = {
+    atlasSessionEffectStartExpedition(owner, site, home) {
+        owner.actExploration = {source:{pocket:site.type}};
+        try { startEncounterRun(true); }
+        catch (error) {
+            owner.actExploration = home.main;
+            Object.assign(owner.gridPlayer, {gx:home.gx, gy:home.gy});
+            site.used = false;
+            throw error;
+        }
+    },
+    atlasSessionEffectResumeExpedition: () => { resetBattleRuntimeVisuals(); restoreAndRecallSummons(getPlayerStats()); },
     atlasSessionEffectChangeZone: (...args) => changeZone(...args),
     atlasSessionEffectStartMoving: (...args) => startMoving(...args),
     atlasSessionEffectPrepareActExplorationArrival: (...args) => prepareActExplorationArrival(...args),
@@ -36,6 +48,7 @@ const effects = {
     atlasSessionEffectDispatchRuntimeEvent: (...args) => dispatchRuntimeEvent(...args)
 };
 const atlasRun = Object.freeze({
+    enterPassage: type => consumeDomainCommands(rules.enterPassage(game,type), effects),
     open: (...args) => consumeDomainCommands(rules.open(game, ...args), effects),
     openPinnacle: (...args) => consumeDomainCommands(rules.openPinnacle(game, ...args), effects),
     openEndgame: (...args) => consumeDomainCommands(rules.openEndgame(game, ...args), effects),

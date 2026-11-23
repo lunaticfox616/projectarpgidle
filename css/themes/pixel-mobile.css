@@ -41,16 +41,16 @@
   }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-nameplate { max-width: 100%; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-health-frame { height: 22px; }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-hud-meta { inset: calc(100% + 2px) 32% auto 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-hud-meta { inset: calc(100% + 2px) 0 auto; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted > .enemy-combat-effect-strip {
     position: absolute;
     top: calc(100% + 2px);
-    right: 8px;
-    margin: 0;
-    flex-wrap: nowrap;
-    max-width: 28%;
-    overflow-x: auto;
-    scrollbar-width: thin;
+    inset-inline: 0; margin: 0 auto; flex-wrap: wrap; justify-content: center;
+    max-width: 100%; overflow: visible;
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted.has-trait-line > .enemy-combat-effect-strip { top: calc(100% + 21px); }
+  #tab-battle #enemy-area .enemy-card.targeted > .enemy-combat-effect-strip .combat-effect-icon {
+    flex: 0 0 24px; width: 24px; height: 24px;
   }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed {
     border: var(--px-light-border) solid transparent;
@@ -361,5 +361,64 @@
   /* 도구 줄 아래로 여는 칸(화면의 40%, css/mobile.css)이 낮은 트리 밖으로 잘렸다: 트리 높이에서 도구 줄을 뺀 만큼 */
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: size; }
   :root body[data-ui-skin] #tab-char #tree-container :is(.passive-preset-drawer > :not(summary), .passive-investment-summary-body) { max-height: calc(100cqh - 84px); }
+}
+:root body #tab-skills .rune-phone-label { display: none; }
+:root body #tab-items #tab-skills #btn-rune-board[hidden] { display: none; }
+@media (max-width: 1080px) {
+  :root body #tab-skills .rune-phone-label { display: inline; }
+  :root body #tab-skills .rune-wide-label,
+  :root body #tab-skills[data-rune-pane="library"] #rune-equipped,
+  :root body #tab-skills[data-rune-pane="board"] #rune-library { display: none; }
+  :root body #tab-skills #rune-library :is(.skill-picker-tab,.search-action-row button,.search-filter-input) { min-height: 44px; }
+  :root body #tab-items .gear-route-bar:not([hidden]) {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); align-items: stretch;
+    margin: 0 0 8px; padding: 2px 3px; border: 1px solid #625038;
+    background: linear-gradient(#28231e,#161411); box-shadow: inset 0 1px #403629, 0 2px 3px #0008;
+    & > .window-tab-strip:not([hidden]), &.has-item-routes > .gear-item-routes { display: contents; }
+    & > .gear-item-routes, & .window-tab[data-tab-id="tab-items"] { display: none; }
+    & .subtab-btn {
+      position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      min-width: 0; min-height: 46px; height: auto; max-height: none; margin: 0; padding: 3px 4px;
+      border: 0; border-radius: 0; background: transparent; box-shadow: none;
+      color: #c2b59f; text-shadow: none; line-height: 1.2; overflow-wrap: anywhere;
+    }
+    & .gear-item-routes > .subtab-btn::before {
+      content: ""; position: static; border-radius: 0; width: 26px; height: 26px; flex: none; image-rendering: pixelated;
+      background: var(--px-menu-icons) calc(var(--px-icon) * -26px) 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat;
+    }
+    & #btn-item-tab-equip { --px-icon: 6; }
+    & #btn-item-tab-craft::before { background: url('../../assets/ui/currency/pruning-shears.png') center / contain no-repeat; }
+    & #btn-item-tab-knitting { --px-icon: 4; }
+    & .window-tab-icon, & .gear-item-routes > .subtab-btn::before { opacity: .75; }
+    & .subtab-btn:is([aria-current="page"],[aria-selected="true"]) {
+      color: #ffe6ac; background: linear-gradient(0deg,#61452780,#41332444 72%); box-shadow: inset 0 -2px #d9ab60;
+    }
+    & .subtab-btn[aria-current="page"]::before, & [aria-selected="true"] .window-tab-icon { opacity: 1; }
+    & .subtab-btn:focus-visible { outline: 2px solid #f3d392; outline-offset: -3px; }
+  }
+  :root body #tab-items:has(.gear-route-bar) #tab-skills { padding: 0; background: transparent; border: 0; box-shadow: none; }
+  :root body #tab-skills #skill-tab-equip :is(.skill-board,.support-slots,.skill-picker) {
+    background: linear-gradient(155deg,#221e1c,#19171a 75%); border: 1px solid #4e4539; box-shadow: inset 0 1px #302a24;
+  }
+  :root body #tab-items:has(.gear-route-bar) #tab-skills > .subtab-row:not([hidden]) {
+    display: flex; gap: 4px; padding: 0; margin: 0 0 8px; border: 0; background: none; box-shadow: none;
+    & > .subtab-btn { flex: 1; min-width: 0; min-height: 44px; border: 0; border-bottom: 1px solid #40392e; color: #b9ad99; background: #171612; box-shadow: none; }
+    & > .subtab-btn:is(.active:not([aria-pressed="false"]),[aria-pressed="true"]) { color: #f1d09a; border-bottom-color: #b49059; background: #282219; }
+  }
+}
+@media (min-width: 640px) and (max-width: 1080px) and (max-height: 600px) {
+  :root body #tab-skills #rune-library .skill-gem-library:not([hidden]) {
+    grid-template-columns: minmax(180px,30%) minmax(0,1fr); align-items: start;
+    --search-filter-column: 1; --search-results-display: grid;
+    & > .search-result-list { grid-template-columns: repeat(auto-fill,minmax(94px,1fr)); gap: 6px; }
+  }
+  :root body #tab-skills #rune-library #ui-support-list .search-result-list { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 374px) {
+  :root body #tab-items .gear-route-bar:not([hidden]) .subtab-btn { gap: 4px; }
+  :root body #tab-items .gear-route-bar:not([hidden]) .gear-item-routes > .subtab-btn::before,
+  :root body #tab-items .gear-route-bar:not([hidden]) .window-tab-icon {
+    width: 13px; height: 13px; background-size: calc(var(--px-icon-count) * 13px) 13px; background-position: calc(var(--px-icon) * -13px) 0;
+  }
 }
 }

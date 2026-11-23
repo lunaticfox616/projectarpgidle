@@ -38,11 +38,17 @@ function tooltipChoice(runtime, event) {
     if (card) runtime.handlers.showHeroChoiceTooltip(event, card.dataset.classId, card.dataset.experienced === 'true');
 }
 
+/** The class window waits under another full screen; the loop cinematic opens it itself at its class step
+ * (modules/ui/loop-cinematic-flow.mjs enterClass). */
+function selectionBlocked({ deps, handlers }) {
+    return handlers.isLoopHeroSelectOpen() || deps.isStartupOverlayOpen() || deps.isLoadingOverlayOpen() || deps.isDeathOverlayOpen()
+        || !!deps.loopCinematic?.holdsHeroSelection();
+}
+
 function requestSelection(runtime, event) {
-    const { deps, handlers } = runtime, detail = event?.detail;
-    if (!detail || typeof detail.select !== 'function') return;
-    if (handlers.isLoopHeroSelectOpen() || deps.isStartupOverlayOpen() || deps.isLoadingOverlayOpen() || deps.isDeathOverlayOpen()) return;
-    detail.handled = handlers.openLoopHeroSelection(detail.select, detail.options || {});
+    const detail = event?.detail;
+    if (!detail || typeof detail.select !== 'function' || selectionBlocked(runtime)) return;
+    detail.handled = runtime.handlers.openLoopHeroSelection(detail.select, detail.options || {});
 }
 
 function completeSelection({ deps }, event) {

@@ -5,7 +5,7 @@ export function gemEvent(env, cast, [phase, at, duration, extra = {}]) {
     const ground=['clock','wave','mist'].includes(phase);
     return {skillName:cast.name,kind:travel?'travel':'stage',[env.registry.PHASE_KEYS[cast.id]]:phase,at,duration,
         sourceCell:gemCell(cast.source),targetCells:[gemCell(cast.aim)],landingCell:gemCell(cast.aim),
-        stageIndex:cast.index||0,element:cast.stats.sSkill.ele,channelId:cast.key,
+        stageIndex:cast.index||0,element:cast.attackOptions?.forcedElement || cast.stats.sSkill.ele,channelId:cast.key,
         renderLayer:ground?'ground':'foreground',...extra};
 }
 

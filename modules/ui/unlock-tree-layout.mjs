@@ -1,4 +1,5 @@
 import { boardSlotKey, boardFamilyOf, boardIsStep, boardCellWidth, boardReadTree } from './unlock-tree-metrics.mjs';
+import { unknownUnlock } from './unlock-tree-markup.mjs';
 
 export function boardNearRows(runtime, plan, start, side) {
     const list = [];
@@ -68,7 +69,7 @@ export function boardMeasureColumns(runtime, spots) {
     const slots = new Map();
     spots.forEach(spot => {
         const name = `${spot.loop}.${spot.sub}`, slot = slots.get(name) || { loop: spot.loop, sub: spot.sub, w: 0 };
-        slot.w = Math.max(slot.w, boardCellWidth(runtime, spot.def, runtime.state.boardSIZE.maxCard) + runtime.state.boardSIZE.cardGap);
+        slot.w = Math.max(slot.w, Math.max(runtime.state.boardSIZE.unknownWidth, boardCellWidth(runtime, spot.def, runtime.state.boardSIZE.maxCard)) + runtime.state.boardSIZE.cardGap);
         slots.set(name, slot);
     });
     let x = runtime.state.boardSIZE.left;
@@ -98,7 +99,8 @@ export function boardLayout(runtime, height) {
     const cardH = Math.min(pitch - 4, runtime.state.boardSIZE.maxCard), pos = new Map();
     board.spots.forEach((spot, id) => {
         const step = boardIsStep(runtime, spot.def), rowTop = runtime.state.boardSIZE.ruler + spot.row * pitch, y = rowTop + Math.floor(pitch / 2);
-        const w = boardCellWidth(runtime, spot.def, cardH), h = step ? runtime.state.boardSIZE.pipH : cardH, left = spot.col.x + Math.floor((spot.col.w - w) / 2);
+        const w = unknownUnlock(runtime, spot.def) ? runtime.state.boardSIZE.unknownWidth : boardCellWidth(runtime, spot.def, cardH);
+        const h = step ? runtime.state.boardSIZE.pipH : cardH, left = spot.col.x + Math.floor((spot.col.w - w) / 2);
         pos.set(id, { def: spot.def, step, row: spot.row, loop: spot.loop, left, right: left + w, y, top: y - Math.floor(h / 2), w, h, cx: left + Math.floor(w / 2), rowTop, rowBottom: rowTop + pitch, col: spot.col });
     });
     return { board, pos, pitch, cardH, height, fullHeight: Math.max(height, runtime.state.boardSIZE.ruler + board.count * pitch) };

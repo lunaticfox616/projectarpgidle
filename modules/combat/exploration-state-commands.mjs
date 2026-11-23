@@ -71,15 +71,30 @@ function stateReachableBeforeBoss(env, map,cell) {
  * (actExplorationProgress.runMode — offline replay walks even when auto-move is off). */
 export function stateDestination(env, run,from,mode=run.mode) {
     if(run.destination || mode==='manual')return run.destination;
+    const expedition = atlasDestination(env,run,mode);
+    if (expedition) return expedition;
     const sealedChest=env.deps.objects.autoTarget(run);
     return sealedChest ? {gx:sealedChest.gx,gy:sealedChest.gy} : stateNearestPack(env, run,from,mode);
+}
+
+function atlasDestination(env,run,mode) {
+    if (run.zoneId !== 'atlas_map') return null;
+    if (run.source.pocket) {
+        const pack = run.packs.find(row => row.task && (row.task.index < row.task.spots.length || row.aliveIds.length));
+        if (pack) return pack.aliveIds.length ? statePackPosition(env.deps.actExplorationMap.forRun(run), pack) : pack.task.spots[pack.task.index];
+    } else if (mode === 'full') {
+        const site = env.owner.atlas.run?.passages?.sites.find(row => !row.used);
+        if (site) return site;
+    }
+    return null;
 }
 
 /** The pack automatic exploration walks to next: every ordinary pack in 전체 탐색, elites and boss stages in 직행. */
 function stateNearestPack(env, run,from,mode) {
     const map=env.deps.actExplorationMap.forRun(run);
     const blocked=new Set(stateGateSealed(run)?[env.deps.actExplorationMap.index(map,map.gate)]:[]);
-    const candidates=run.packs.filter(pack=>!pack.objectId && pack.aliveIds.length>0 && stateBossReady(run,pack));
+    const candidates=run.packs.filter(pack=>!pack.objectId && pack.aliveIds.length>0 && stateBossReady(run,pack)
+        && (mode==='full' || !pack.roomId.startsWith('bonus-')));
     const ordinary=candidates.filter(pack=>pack.stage===null);
     const wanted=mode==='full' && ordinary.length ? ordinary
         : candidates.filter(pack=>pack.eliteIds.length>0 || pack.stage!==null);

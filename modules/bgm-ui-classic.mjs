@@ -29,6 +29,6 @@ const dispose = installBackgroundMusicControls({
     saveVolume: () => { if (!startupOverlayActive) saveGame({ skipCloudSync: true }); }
 });
 const gameBgm = Object.freeze({
-    sync: () => { syncVolumeControl(); playUiFeedbackSound.unlock(); music.tick(); }, syncControls: syncVolumeControl, dispose
+    sync: () => { syncVolumeControl(); playUiFeedbackSound.unlock(); music.tick(); }, syncControls: syncVolumeControl, hush: music.hush, dispose
 });
 safeExposeGlobals({ gameBgm });

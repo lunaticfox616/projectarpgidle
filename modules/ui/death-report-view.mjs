@@ -260,6 +260,7 @@ export class DeathReportView {
         overlay.showModal();
         // 확인 takes the focus (autofocus); on a short screen that scrolled the card to its end, past the title and the last hit.
         overlay.querySelector('.deathlog-card').scrollTop = 0;
+        overlay.querySelector('.deathlog-scroll').scrollTop = 0;
         this.deps.session.lastTime = Date.now();
     }
 

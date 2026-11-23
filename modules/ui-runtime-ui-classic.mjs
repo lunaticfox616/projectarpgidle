@@ -315,6 +315,7 @@ const heroSelectionView = createHeroSelectionView({
     rules: createHeroSelectionRules({ classes: PLAYER_CLASS_DEFS, talents: HERO_SELECTION_DEFS, order: PLAYER_CLASS_ORDER }),
     get game() { return window.GameModules.state.game; },
     get session() { return window.GameModules.state.session; },
+    get loopCinematic() { return window.GameModules.loopCinematic; },
     get PLAYER_CLASS_DEFS() { return PLAYER_CLASS_DEFS; },
     get HERO_SELECTION_DEFS() { return HERO_SELECTION_DEFS; },
     get PLAYER_CLASS_ORDER() { return PLAYER_CLASS_ORDER; },

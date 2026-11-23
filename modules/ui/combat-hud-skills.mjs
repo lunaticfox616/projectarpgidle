@@ -29,7 +29,8 @@ export function renderCombatSkillSlot(runtime, entry) {
     let key = entry.hotkey ? (0, runtime.deps.escapeHTML)(entry.hotkey) : '';
     let keyAttrs = key ? ` aria-keyshortcuts="${key}"` : '';
     let keyCap = key ? `<i class="combat-hud-key" aria-hidden="true">${key}</i>` : '';
-    return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${gemName}" data-slot-kind="${entry.kind}"${keyAttrs} data-info-tooltip-anchor="1" aria-label="${runtime.state.COMBAT_SKILL_SLOT_LABELS[entry.kind]}, ${name}">${art}${cooldown}${keyCap}</button>`;
+    let role = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(runtime.state.COMBAT_SKILL_SLOT_LABELS[entry.kind]));
+    return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${gemName}" data-slot-kind="${entry.kind}"${keyAttrs} data-info-tooltip-anchor="1" aria-label="${role}, ${name}">${art}${cooldown}${keyCap}<span class="mobile-hud-rune-name" aria-hidden="true">${name}</span></button>`;
 }
 
 export function bindCombatSkillSlot(runtime, button) {

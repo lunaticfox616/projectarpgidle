@@ -28,6 +28,7 @@ const tutorialView = createTutorialView({
     get isMobilePrimaryNavigationEnabled() { return isMobilePrimaryNavigationEnabled; },
     get backgroundCombatRuntime() { return backgroundCombatRuntime; },
     get window() { return window; },
+    get loopCinematic() { return window.GameModules.loopCinematic; },
     get activeTutorialStep() { return activeTutorialStep; },
     set activeTutorialStep(value) { activeTutorialStep = value; },
     get contentProgression() { return contentProgression; },

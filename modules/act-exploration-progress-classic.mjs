@@ -31,6 +31,7 @@ const deps={
     get blessingGreed(){return window.GameModules.combat.supports.blessingGreed;}
 };
 const effects={get queueImportantSave(){return queueImportantSave;},get addBattleFx(){return addBattleFx;},get dispatchRuntimeEvent(){return dispatchRuntimeEvent;},get collectExplorationFloorLoot(){return collectExplorationFloorLoot;}};
+effects.enterAtlasPassage = type => atlasRun.enterPassage(type);
 function present(iterator){
     let step=iterator.next();
     while(!step.done){const command=step.value;step=iterator.next(effects[command.kind](...command.args));}

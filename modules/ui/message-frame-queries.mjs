@@ -12,7 +12,7 @@ export function shownTab(runtime, frame) {
 
 /** On screen now: a PC frame's tab, or on phones the tab picked on the battle screen's log panel while the fight is shown. */
 export function isFrameTabVisible(runtime, tab) {
-    if (!runtime.state.mounted) return runtime.state.phoneTab === tab && !!runtime.deps.document.getElementById('tab-battle')?.classList.contains('active');
+    if (!runtime.state.mounted) return runtime.state.phoneTab === tab && !runtime.deps.document.body.classList.contains('combat-log-collapsed') && !!runtime.deps.document.getElementById('tab-battle')?.classList.contains('active');
     return runtime.state.FRAMES.some(frame => shownTab(runtime, frame) === tab);
 }
 

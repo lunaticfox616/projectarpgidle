@@ -20,11 +20,11 @@ function initialize(runtime) {
     runtime.state.discoveredBy = Object.freeze({
         'map-explore-chaos': () => Math.min(runtime.deps.game.maxZoneId, (0, runtime.deps.getVisibleHuntingMapCapZoneId)()) >= runtime.deps.ABYSS_START_ZONE_ID || (0, runtime.deps.getDeepChaosEntryState)().open,
         'map-explore-root-boss': () => bosses(runtime).length > 0,
-        'map-explore-beehive': () => runtime.deps.game.season >= 8,
-        'map-explore-voidrift': () => runtime.deps.game.season >= 9,
-        'map-explore-colony': () => runtime.deps.game.season >= 15,
+        'map-explore-beehive': () => runtime.deps.contentProgression.isUnlocked('beehive'),
+        'map-explore-voidrift': () => runtime.deps.contentProgression.isUnlocked('voidrift'),
+        'map-explore-colony': () => runtime.deps.contentProgression.isUnlocked('colony'),
         'map-explore-beyond': () => !!runtime.deps.game.beyondBoundary?.unlocked,
-        'map-explore-timerift': () => runtime.deps.game.season >= runtime.deps.TIME_RIFT_UNLOCK_LOOP,
+        'map-explore-timerift': () => runtime.deps.contentProgression.isUnlocked('timerift'),
         'map-explore-labyrinth': () => runtime.deps.game.season >= 3,
         'map-explore-meteor': () => !!runtime.deps.game.meteorSite?.unlocked,
         'map-explore-trials': () => trials(runtime).length > 0

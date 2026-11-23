@@ -4,7 +4,7 @@ export function getUiCombatEffectPresentation(runtime, key) {
 
 export function renderCombatEffectIcon(runtime, options) {
     let visual = getUiCombatEffectPresentation(runtime, options.key);
-    let label = options.label || visual.label;
+    let label = (0, runtime.deps._t)(options.label || visual.label);
     let safeKey = String(options.key || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '') || 'unknown';
     let sprite = Math.max(0, Math.min(48, Math.floor(Number(visual.sprite) || 0)));
     let spriteX = ((sprite % 7) / 6 * 100).toFixed(4);

@@ -467,10 +467,9 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
 
     const panel = page.locator('.equipment-preset-panel');
     expect(failures).toEqual([]);
-    // 휴대폰은 요약의 "장착 장비 ▾"를 펼쳐야 장착 칸과 세팅이 보인다(2026-10-10 장비창 개편).
-    const loadoutToggle = page.locator('.eqw-mini-toggle');
+    const loadoutToggle = page.locator('.eqw-pane-switch [data-pane="loadout"]');
     const openLoadout = async () => {
-        if (await loadoutToggle.isVisible() && await loadoutToggle.getAttribute('aria-expanded') !== 'true') await loadoutToggle.click();
+        if (await loadoutToggle.isVisible()) await loadoutToggle.click();
     };
     await openLoadout();
     await expect(panel).toBeVisible();
@@ -495,6 +494,8 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     }, initial);
     await expect(panel.locator('.equipment-preset-slot').first()).not.toHaveClass(/applied/);
     const inventoryItems = page.locator('#ui-inventory-list .equipment-grid-item');
+    const bagTab = page.locator('.eqw-pane-switch [data-pane="inventory"]');
+    if (await bagTab.isVisible()) await bagTab.click();
     // 칸에는 표시가 하나만 나온다(분석의 +N%가 있으면 세팅 대신): 세팅 포함은 칸의 이름(aria-label)으로 찾는다
     const protectedItem = page.locator('#ui-inventory-list .equipment-grid-item[aria-label*="장비 세팅에 포함"]');
     await expect(protectedItem).toHaveCount(1);

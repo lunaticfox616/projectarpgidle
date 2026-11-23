@@ -101,7 +101,7 @@ export function skillBuildSkillHitSequence(env, skillName, skill, targetEntries)
     if (profile.kind === 'slam') {
         return [
             { kind: 'slamPrimary', label: '강타', delayMs: 0, damageMultiplier: Math.max(0, 1 - profile.damageMultiplier), targets },
-            { kind: 'slamAftershock', label: '여진', delayMs: profile.delayMs, damageMultiplier: profile.damageMultiplier, targets }
+            { kind: 'slamAftershock', label: '여진', delayMs: profile.delayMs, damageMultiplier: profile.damageMultiplier * (skill.artAftershockMul || 1), targets }
         ];
     }
     return [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];

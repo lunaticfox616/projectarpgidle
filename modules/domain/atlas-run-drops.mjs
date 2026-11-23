@@ -1,9 +1,38 @@
 import { atlasSessionNotify } from './atlas-run-events.mjs';
+import { atlasChallenges, challengeType } from '../data/atlas-challenges.mjs';
+import { discoverPassage } from './atlas-passages.mjs';
+
+/** Combat-local effect. Body, life and attack rate are already persisted with the enemy. */
+function challengeFoeFell(owner, enemy) {
+    if (enemy.critter || !enemy.explorationPack?.startsWith('bonus-')) return;
+    const pack = owner.actExploration?.packs.find(row => row.key === enemy.explorationPack);
+    const rule = atlasChallenges[challengeType(pack?.roomId)];
+    if (!rule) return;
+    const others = [...owner.enemies, ...pack.waiting].filter(row => row.id !== enemy.id && row.hp > 0 && row.explorationPack === pack.key);
+    if (enemy.isElite && rule[2] === 'rally') others.forEach(row => { row.damageMul *= .65; });
+    if (!enemy.isElite) affectCaptain(others.find(row => row.isElite), rule[2]);
+}
+
+function affectCaptain(captain, effect) {
+    if (!captain) return;
+    if (effect === 'swarm') captain.attackSpeedVar *= 1.12;
+    if (effect === 'drain') captain.hp = Math.min(captain.maxHp, captain.hp + Math.ceil(captain.maxHp * .12));
+    if (effect === 'fracture') captain.hp = Math.max(1, captain.hp - Math.ceil(captain.maxHp * .12));
+    if (effect === 'ebb') captain.attackTimer = Math.min(captain.attackTimer, 0);
+    if (effect === 'flare') captain.damageMul *= 1.15;
+    if (effect === 'regrow') captain.regenRate += .003;
+}
 
 /** 처치 전리품(grantEnemyLoot의 보관 안): 지도석 · 각인 드롭, 그리고 콘텐츠 방을 비운 처치면 그 방의 보상.
  * 맵 안의 지도석 · 각인은 보스를 잡을 때까지 런이, 방 보상 재화는 넓은 맵 전리품 보관이 들고 있다. */
 export function* atlasSessionOnKill(env, owner, enemy) {
     const zone = env.deps.getZone(owner.currentZoneId);
+    if (zone?.pocket) return;
+    if (zone?.type === 'atlasMap') yield* discoverPassage(env, owner, zone, enemy);
+    yield* recordKillDrops(env,owner,zone,enemy);
+}
+
+function* recordKillDrops(env,owner,zone,enemy) {
     const dice = env.deps.atlasBoard.onKill(owner, enemy, zone);
     if (dice) (yield { kind: 'atlasSessionEffectQueueImportantSave', args: [220] });   // 알림 없이 쌓인다(2026-11-10 사용자)
     (yield* atlasSessionGiveBearerOmen(env, enemy));
@@ -28,8 +57,10 @@ export function* atlasSessionGiveBearerOmen(env, enemy) {
 
 /** A kill that empties an ordinary room: the room stays empty for the rest of the map; a content room names its reward. */
 export function atlasSessionEmptyRoom(env, owner, enemy) {
+    challengeFoeFell(owner, enemy);
     const pack = env.deps.atlasEncounters.emptiedPack(owner, enemy);
     if (!pack || pack.stage !== null || pack.objectId) return null;
+    if (owner.atlas.run.cleared.includes(pack.roomId) && challengeType(pack.roomId)) return null;
     env.deps.atlas.markCleared(owner, pack.roomId);
     return Object.hasOwn(env.deps.ATLAS.encounters, pack.encounter || '') ? pack.encounter : null;
 }
@@ -37,7 +68,8 @@ export function atlasSessionEmptyRoom(env, owner, enemy) {
 export function* atlasSessionClearRoom(env, owner, zone, room, maps) {
     const rewards = env.deps.atlasEncounters.rewards(zone, room, owner.atlas.run.bonus, Math.random);
     for (const [key, amount] of rewards) (yield { kind: 'atlasSessionEffectAwardEnemyLootCurrency', args: [key, amount] });
-    if (Math.random() < env.deps.ATLAS.encounters[room].mapChance) maps.push(...env.deps.atlas.extraMap(owner));
+    const needsFallback = !rewards.length && (zone.pocket === room || zone.exploration?.challenges?.includes(room));
+    if (needsFallback || Math.random() < env.deps.ATLAS.encounters[room].mapChance) maps.push(...env.deps.atlas.extraMap(owner));
     // 묘목장(12번 루프 39): 그 지역 색의 씨앗(그루터기 함 보관함으로, 소식은 그 함이 알린다). 묘목장 보상 패시브와
     // 황금 방이 하나씩 더 준다(js/atlas-encounters.js nurseryGifts).
     if (room === 'nursery' && typeof env.deps.stumpNursery === 'object') (yield* atlasSessionGiveNurseryGifts(env, owner, zone));

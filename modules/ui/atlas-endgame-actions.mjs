@@ -131,6 +131,7 @@ export function followupHtml(runtime, view) {
 /** The awakening card follows the state (once, by seenTutorials): an awakening in background replay or an old save still gets it.
 * Called from atlasUi.render on every static refresh; the card opens the atlas's late view. */
 export function noticeAwakened(runtime) {
+    if (runtime.deps.atlas.autoUnlocked(runtime.deps.game)) runtime.deps.contentUnlockUi.announceJourney('atlas-wheel-auto');
     if (!runtime.deps.atlasEndgame.awakened(runtime.deps.game)) return;
     runtime.deps.contentUnlockUi.announceJourney('atlas-late');
 }

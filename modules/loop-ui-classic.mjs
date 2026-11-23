@@ -39,7 +39,6 @@ const loopSettlementUi = createLoopSettlementView({
     get getAvailableLoopAdvancePaths() { return typeof getAvailableLoopAdvancePaths === 'undefined' ? undefined : getAvailableLoopAdvancePaths; }
 });
 safeExposeGlobals({ loopSettlementUi,
-    playLoopRewriteEffect: loopSettlementUi.playLoopRewriteEffect,
     togglePastLoopMilestones: loopSettlementUi.togglePastLoopMilestones,
     canShowCombatLoopAdvanceButton: loopSettlementUi.canShowCombatLoopAdvanceButton,
     updateLoopDecisionOverlayUi: loopSettlementUi.updateLoopDecisionOverlayUi,

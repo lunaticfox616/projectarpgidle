@@ -49,6 +49,7 @@ export function mountMergedTabGroup(runtime, groupKey) {
     hostPane.className = 'merged-subtab-pane';
     hostPane.dataset.tabId = group.launcher;
     Array.from(host.childNodes).forEach(node => hostPane.appendChild(node));
+    if (groupKey === 'gear') bindGearRoutes(runtime, hostPane);
     panels.appendChild(hostPane);
     group.tabs.filter(tab => tab.id !== group.launcher).forEach(tab => {
         let source = runtime.deps.document.getElementById(tab.id);
@@ -60,6 +61,15 @@ export function mountMergedTabGroup(runtime, groupKey) {
     shell.append(nav, panels);
     host.replaceChildren(shell);
     return shell;
+}
+
+function bindGearRoutes(runtime, hostPane) {
+    const routes = hostPane.querySelector('.gear-item-routes');
+    listenView(runtime, routes, 'click', event => {
+        if (event.target.closest('button') && routes.closest('.gear-route-bar[data-owner="tab-skills"]')) {
+            runtime.handlers.switchMergedTabSubtab('gear', 'tab-items');
+        }
+    }, true);
 }
 
 export function renderMergedTabPanels(runtime, groupKey) {
@@ -129,11 +139,44 @@ export function renderMergedTabStrip(runtime, groupKey) {
     let selectedId = getSelectedMergedTabId(runtime, groupKey), visibleTabs = group.tabs.filter(runtime.handlers.isMergedTabAvailable), many = visibleTabs.length > 1;
     let html = many ? visibleTabs.map(tab => mergedTabButtonHtml(runtime, groupKey, tab, selectedId)).join('') : '';
     let titleHost = mergedTabTitleHost(runtime, root);
+    if (groupKey === 'gear') syncGearRouteBar(runtime, nav, selectedId, visibleTabs, titleHost);
     root.classList.toggle('ui-window-tabbed', !!titleHost && many);
     nav.classList.add('window-tab-strip');
     // 창 머리에 탭이 놓이면 본문의 줄은 비운다
     setMergedTabStripHtml(runtime, titleHost, html, many);
     setMergedTabStripHtml(runtime, nav, titleHost ? '' : html, many && !titleHost);
+}
+
+/** Share the original destination buttons between both panes on phones. Restore their desktop hosts on resize. */
+function syncGearRouteBar(runtime, strip, selected, available, titleHost) {
+    const shell = strip.closest('.merged-tab-shell');
+    const routes = shell.querySelector('.gear-item-routes');
+    const items = shell.querySelector('.merged-subtab-pane[data-tab-id="tab-items"]');
+    let bar = shell.querySelector(':scope > .gear-route-bar');
+    if (titleHost || !runtime.deps.uiDisplay.matches('(max-width: 1080px)')) {
+        if (bar) { items.prepend(routes); bar.replaceWith(strip); }
+        return;
+    }
+    if (!bar) {
+        bar = runtime.deps.document.createElement('nav');
+        strip.before(bar);
+        bar.className = 'gear-route-bar';
+        bar.append(routes, strip);
+    }
+    bar.setAttribute('aria-label', runtime.deps._t('장비'));
+    bar.dataset.owner = selected;
+    bar.classList.toggle('has-item-routes', available.some(tab => tab.id === 'tab-items'));
+    bar.hidden = !bar.classList.contains('has-item-routes') && available.length <= 1;
+    markGearRouteSelection(routes);
+}
+
+export function markGearRouteSelection(routes) {
+    if (!routes.parentElement.classList.contains('gear-route-bar')) return;
+    const items = routes.parentElement.dataset.owner === 'tab-items';
+    for (const button of routes.children) {
+        const value = items && button.classList.contains('active') ? 'page' : 'false';
+        if (button.getAttribute('aria-current') !== value) button.setAttribute('aria-current', value);
+    }
 }
 
 export function setMergedTabStripHtml(runtime, host, html, shown) {

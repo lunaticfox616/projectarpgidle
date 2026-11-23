@@ -13,7 +13,7 @@ class BackgroundMusic {
         this.buffers = new Map(); this.positions = new Map(); this.warned = new Set();
         this.output = null; this.current = null; this.loading = null;
         this.bossUntil = 0; this.bossTrack = 'boss'; this.duckUntil = 0;
-        this.pendingTimers = new Set(); this.disposed = false;
+        this.pendingTimers = new Set(); this.disposed = false; this.hushed = false;
     }
 
     failure(label, error) {
@@ -104,7 +104,7 @@ class BackgroundMusic {
     syncLevel(context) {
         const now = this.environment.now(), ducked = now < this.duckUntil;
         const settle = ducked ? .05 : now - this.duckUntil < DUCK_RELEASE_MS ? .4 : .08;
-        const level = this.inputs.audible() ? LEVEL * this.inputs.volume() / 100 * (ducked ? DUCK_LEVEL : 1) : 0;
+        const level = this.inputs.audible() && !this.hushed ? LEVEL * this.inputs.volume() / 100 * (ducked ? DUCK_LEVEL : 1) : 0;
         this.output.gain.setTargetAtTime(level, context.currentTime, settle);
     }
 
@@ -122,6 +122,14 @@ class BackgroundMusic {
         const relevel = () => { const context = this.inputs.context(); if (context && this.output) this.syncLevel(context); };
         relevel();
         this.schedule(relevel, ms + 20);
+    }
+
+    /** Silences the music while a full-screen scene plays its own (the loop cinematic), and gives it back after. */
+    hush(on) {
+        if (this.disposed) return;
+        this.hushed = !!on;
+        const context = this.inputs.context();
+        if (context && this.output) this.syncLevel(context);
     }
 
     tick() {
@@ -161,6 +169,6 @@ class BackgroundMusic {
 export function createBackgroundMusic(catalog, inputs, environment) {
     const music = new BackgroundMusic(catalog, inputs, environment);
     return Object.freeze({
-        tick: () => music.tick(), duck: ms => music.duck(ms), leaveZone: () => music.leaveZone(), dispose: () => music.dispose()
+        tick: () => music.tick(), duck: ms => music.duck(ms), hush: on => music.hush(on), leaveZone: () => music.leaveZone(), dispose: () => music.dispose()
     });
 }

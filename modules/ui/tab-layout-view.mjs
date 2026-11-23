@@ -14,8 +14,7 @@ class TabLayoutView {
         this.renderedOwner = null;
         this.selectedPlatform = null;
         this.defaultOrder = Array.from(this.deps.document.querySelectorAll('.tab-header .tab-btn')).map(button => button.id);
-        /** The phone dock's order before the player moves anything (2026-11-07 사용자): 전투, 캐릭터, 스킬트리, 장비, 그루터기 함, 지도, 루프,
-             * 기록, then the 전체 button. Tabs past what fits stay in the full menu. */
+        /** Order of the full phone menu before the player rearranges tabs. */
         this.mobileDefaultOrder = Object.freeze(['btn-tab-battle', 'btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-stump', 'btn-tab-map',
         'btn-tab-season', 'btn-tab-journal', 'btn-tab-trade']);
         /** Short names for a menu cell four characters wide (the PC HUD menu, the phone dock); the full name stays on the button. */
@@ -66,8 +65,8 @@ class TabLayoutView {
     // The order is the player's (long press and drag, js/ui.js commitMobileDockOrder) before mobileDefaultOrder; battle may move too.
     mobilePrimaryIds(layout = this.deps.game.settings.tabLayouts.mobile) {
         const preferred = layout.tabOrder.filter(id => layout.tabPlacement[id] === 'top');
-        // 스킬룬은 장비 단추로 열린다(2026-10-13): 그 자리에는 스킬트리가 선다
-        const defaults = this.mobileDefaultOrder.filter(id => id === 'btn-tab-battle' || layout.tabPlacement[id] !== 'bottom');
+        // Keep the common destinations under the thumb; explicit pins take priority.
+        const defaults = ['btn-tab-battle', 'btn-tab-items', 'btn-tab-map'].filter(id => id === 'btn-tab-battle' || layout.tabPlacement[id] !== 'bottom');
         const ordered = [...new Set([...preferred, ...defaults])].filter(id => id === 'btn-tab-battle' || this.isDockable(id));
         const fit = Math.max(3, Math.min(7, Math.floor(this.deps.document.documentElement.clientWidth / 52) - 2));
         const shortcuts = ordered.filter(id => id !== 'btn-tab-battle').slice(0, fit);

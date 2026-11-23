@@ -153,13 +153,13 @@ class KillLoot {
         }
     }
     *hiveKey(state, enemy, mapping, context) {
-        if (!((state.season || 1) >= 8 && mapping && this.deps.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002))) return;
+        if (!(mapping && this.deps.content.canDropCurrency('hiveKey', state) && this.deps.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002))) return;
         this.delivery.awardCurrency(state, 'hiveKey', 1);
         if (state.settings.showLootLog) yield { action: 'hiveKey', deferred: context.deferred };
     }
     *colonyTrace(state, zone, context) {
         const deep = isDeepChaosLootZone(zone);
-        if (!((state.season || 1) >= 15 && (deep || state.currentZoneId === 'beehive_run' || state.currentZoneId === 'grand_breach_run'))) return;
+        if (!(deep || state.currentZoneId === 'beehive_run' || state.currentZoneId === 'grand_breach_run') || !this.deps.content.canDropCurrency('colonyTrace', state)) return;
         const chance = deep ? 0.00075 : state.currentZoneId === 'grand_breach_run' ? 0.001125 : 0.0005;
         if (this.deps.random() >= chance) return;
         this.delivery.awardCurrency(state, 'colonyTrace', 1);

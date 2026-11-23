@@ -40,8 +40,14 @@ export function tutorialWaitsForTitleCard(runtime) {
     return typeof runtime.deps.actTitleCard === 'object' && typeof runtime.deps.actTitleCard.busy === 'function' && runtime.deps.actTitleCard.busy();
 }
 
+/** 루프 정산과 직업 선택, 루프 연출 중의 알림(연출 속 해금 카드 포함)은 그것이 끝난 뒤에 뜬다. */
+function loopPresentationHolds(runtime) {
+    const game = runtime.deps.game;
+    return !!(game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision || runtime.deps.loopCinematic?.onScreen());
+}
+
 export function isTutorialPresentationBlocked(runtime) {
-    if (runtime.deps.game.pendingLoopHeroSelection || runtime.deps.game.pendingLoopReady || runtime.deps.game.pendingLoopDecision) return true;
+    if (loopPresentationHolds(runtime)) return true;
     // 방치 전투를 되돌리는 중이거나 그 결과 창이 열려 있으면 이야기 · 안내 카드는 결과를 닫은 뒤에 뜬다(두 판이 겹쳤다).
     if (runtime.deps.backgroundCombatRuntime.processing || runtime.deps.document.getElementById('background-combat-result-overlay')) return true;
     if (tutorialWaitsForTitleCard(runtime) || tutorialYieldsToMenus(runtime) || tutorialWaitsForReward(runtime)) return true;
@@ -316,7 +322,10 @@ export function coachOpenGuidePane(runtime, action) {
     if (action.guide.open) return action.guide.open();
     if (action.notice.key === 'tutorial_passive_tree_unlock') runtime.deps.contentUnlockUi.select('passiveTree');
     if (action.notice.tabId === 'tab-items') coachOpenEquipment(runtime);
-    if (action.notice.tabId === 'tab-skills') (0, runtime.deps.switchSkillSubtab)('skill-tab-equip');
+    if (action.notice.tabId === 'tab-skills') {
+        const board = ['tutorial_support_equip', 'tutorial_rune_engrave'].includes(action.notice.key);
+        (0, runtime.deps.switchSkillSubtab)('skill-tab-equip', board ? 'board' : 'library');
+    }
 }
 
 export function coachOpenEquipment(runtime) {

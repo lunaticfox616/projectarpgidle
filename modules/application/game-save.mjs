@@ -119,6 +119,7 @@ export class GameSave {
 
     /** Recover an empty ordinary encounter, without restarting a completed sky allowance. */
     resumeEmptyEncounterAfterLoad(zone) {
+        if (this.owner.game.atlas?.wheelHub) { this.owner.game.combatHalted = true; return; }
         if (this.owner.game.actExploration || this.owner.game.settings.mapCompleteAction === 'stop' || (0, this.deps.isSkyTowerAtRewardLimit)(zone)) return;
         if (this.owner.game.enemies.length === 0 && this.owner.game.encounterPlan.length === 0) this.owner.game.combatHalted = false;
     }

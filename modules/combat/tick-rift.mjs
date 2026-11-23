@@ -3,9 +3,8 @@
 /** From loop 9 in void rift zones, an open rift's wave: reinforcements arrive, and when all came and fell the rift closes with its
  * rewards and maybe opens the grand breach. ui: { say (addLog), enterGrand (the grand breach auto entry) } from the tick. */
 export function* tickTickVoidRiftWave(env, zone) {
-    if ((env.owner.season || 1) < 9 || !env.deps.isVoidRiftCombatZone(zone)) return;
-    const v = env.owner.voidRift || (env.owner.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
-    if (!v.active) return;
+    const v = env.owner.voidRift;
+    if (!v?.active || !env.deps.isVoidRiftCombatZone(zone)) return;
     tickSanitizeVoidRiftWave(env, v);
     if (env.deps.spawnVoidBreachReinforcement(zone, v) && env.owner.settings.showSpawnLog !== false) {
         (yield { kind: 'say', args: [env.deps._t('🕳️ 균열 출현 {spawnedCount}/{totalToSpawn}', { spawnedCount: v.spawnedCount, totalToSpawn: v.totalToSpawn }), 'attack-monster', { noToast: true }] });
