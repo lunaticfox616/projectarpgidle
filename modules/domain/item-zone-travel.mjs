@@ -16,13 +16,13 @@ export function itemFlowGetZoneTravelBlockReason(env, owner, id) {
     const atlasReason = env.deps.atlas.travelReason(owner, id);
     if (atlasReason) return atlasReason;
     if (env.deps.getZone(id)?.type === 'trial' && !env.deps.contentProgression.isUnlocked('battleTrials')) {
-        return '루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
+        return '루프 5부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
     }
     if (owner.pendingLoopReady) {
         return '⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
     }
     if (id === env.deps.LABYRINTH_ZONE_ID) {
-        if (owner.season < 3) return '고대 미궁은 루프3부터 개방됩니다.';
+        if (!env.deps.contentProgression.isUnlocked('labyrinth', owner)) return '고대 미궁을 먼저 해금하세요.';
         if (owner.maxZoneId < 5) return '액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.';
     }
     return null;
@@ -97,8 +97,8 @@ function prepareSeasonBossTravel(env, owner, zone) {
 }
 
 function prepareRiftTravel(env, owner, zone) {
+    if (!env.deps.contentProgression.isUnlocked('timerift', owner)) return env.deps.contentProgression.status('timerift', owner).reason;
     const rift = env.deps.ensureTimeRiftState();
-    if ((owner.season || 1) < env.deps.TIME_RIFT_UNLOCK_LOOP) return env.deps._t('시간의 균열은 루프 {TIME_RIFT_UNLOCK_LOOP}부터 열립니다.', { TIME_RIFT_UNLOCK_LOOP: env.deps.TIME_RIFT_UNLOCK_LOOP });
     const mismatch = zone.riftPhase === 'future' ? itemFlowGetTimeRiftFutureEntryReason(env, owner, rift) : null;
     if (mismatch) return mismatch;
     rift.activePressure = rift.pressure;

@@ -53,7 +53,9 @@ export function loopFlowGetLoopAdvancePathLabel(path) {
 export function loopFlowGetHeldGearLoopBlockReason(env, owner) {
     const stallReason = typeof env.deps.playerStall === 'object' ? env.deps.playerStall.loopBlockReason(owner) : '';
     if (stallReason) return stallReason;
-    return getHeldHallLoopBlockReason(env.deps.hallState, env.deps.hallUserId, env.deps._t);
+    const hallReason = getHeldHallLoopBlockReason(env.deps.hallState, env.deps.hallUserId, env.deps._t);
+    if (hallReason) return hallReason;
+    return typeof env.deps.auctionHouse === 'object' ? env.deps.auctionHouse.loopBlockReason(owner) : '';
 }
 
 export function loopFlowGetSeasonResetBlockReason(env, owner, loopPath) {

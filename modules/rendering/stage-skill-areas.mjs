@@ -8,7 +8,7 @@ class StageSkillAreas {
         this.rulePlayArea = s => this.ruleFillArea(s.map.area, s.area, { face: s.look.face, ramp: s.look.ramp, delay: s.map.swing ? 40 : 0, life: s.long, nextLife: Math.max(300, s.long - 700) });
         this.rulePlayRing = s => this.ruleFillArea(s.map.ring, { ...s.area, radius: 0 }, { face: s.look.face, ramp: s.look.ramp });
         this.rulePlayLand = s => this.deps.stageSkillVfx.play(s.map.land, this.K.at(s.area.centre, 0, this.K.onGround(s.map.land) ? 1 : -30), { face: s.look.face, ramp: s.look.ramp });
-        this.rulePlayMeteor = s => (this.deps.stageRuneRemakes.hasRaw() ? this.deps.stageRuneRemakes.meteorImpact(s) : this.deps.stageSkillVfx.play('mush@fire', this.K.at(s.area.centre, 0, 1), { face: s.look.face, ramp: s.look.ramp }));
+        this.rulePlayMeteor = s => (s.look.ramp === 'fire' && this.deps.stageRuneRemakes.hasRaw() ? this.deps.stageRuneRemakes.meteorImpact(s) : this.deps.stageSkillVfx.play('mush', this.K.at(s.area.centre, 0, 1), { face: s.look.face, ramp: s.look.ramp }));
         this.STAGE_PLAYS = Object.freeze([['suck', this.rulePlaySuck.bind(this)], ['area', this.rulePlayArea], ['ring', this.rulePlayRing], ['area2', this.rulePlayRocks.bind(this)], ['land', this.rulePlayLand], ['seep', this.ruleSeepMist.bind(this)], ['drop', this.rulePlayDrops.bind(this)], ['meteor', this.rulePlayMeteor], ['zone', this.rulePlayZone.bind(this)]]);
     }
 
@@ -82,7 +82,7 @@ class StageSkillAreas {
         if (!s.first) return;
         const pattern = (this.deps.SKILL_DB[s.gem.meta.name] || {}).combatPattern || {};
         const ticksMs = Math.max(1, Number(pattern.groundHits) || 1) * Math.max(0, Number(pattern.groundIntervalMs) || 0);
-        this.deps.stageSkillSpells.fireZone({ at: this.K.at(s.area.centre), radius: s.area.radius, delay: this.ZONE_DELAY, life: Math.max(400, ticksMs + 200 - this.ZONE_DELAY) });
+        this.deps.stageSkillSpells.fireZone({ at: this.K.at(s.area.centre), ramp: s.look.ramp, radius: s.area.radius, delay: this.ZONE_DELAY, life: Math.max(400, ticksMs + 200 - this.ZONE_DELAY) });
     }
 
     /** 닿는 순간의 범위 연출. 여진(강타의 둘째 단계)은 그 범위에 여진 클립을 깐다. */
@@ -113,7 +113,7 @@ class StageSkillAreas {
     rulePlayWindup(gem, event, look) {
         if (!gem.map.fall) return;
         const area = this.ruleAreaOf(event), ms = Math.max(200, event.duration || 360);
-        if (gem.map.meteor && this.deps.stageRuneRemakes.hasRaw()) { this.deps.stageRuneRemakes.meteorFlight(area.centre, look.face, ms); return; }
+        if (gem.map.meteor && look.ramp === 'fire' && this.deps.stageRuneRemakes.hasRaw()) { this.deps.stageRuneRemakes.meteorFlight(area.centre, look.face, ms); return; }
         this.deps.stageSkillVfx.play(gem.map.fall, this.K.at(area.centre, look.face * 150, -360), { face: look.face, ramp: look.ramp, life: ms, move: { dx: -look.face * 150, dy: 320, ms } });
     }
 }

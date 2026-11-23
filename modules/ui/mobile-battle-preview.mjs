@@ -1,18 +1,38 @@
 import { battlePresentationSuspended } from './battle-presentation-gates.mjs';
 import { dockBattlePreview, setBattlePreviewCollapsed } from './mobile-battle-dock.mjs';
 
-const BASE_INTERVAL_MS = 150;
-const BLOCKING_SHEETS = '#passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, .selection-overlay, dialog[open], .tutorial-overlay.active, #background-combat-result-overlay, #tab-settings.active, #tab-traits.active .ascend-detail:not(.is-empty), #tab-items.active .shop-info:not(:empty)';
-const MARKUP = '<button type="button" class="mobile-battle-pip-preview" data-pip-return data-i18n-attr="aria-label" aria-label="전투 화면으로 이동"><canvas width="320" height="180" aria-hidden="true"></canvas></button>'
-    + '<div class="mobile-battle-pip-actions"><button type="button" data-pip-return data-i18n class="mobile-battle-dock-label">전투로</button>'
-    + '<button type="button" data-pip-toggle aria-expanded="true" aria-label="작은 전투 화면 접기">접기</button></div>';
+/** 그리는 간격(ms): 한 장을 그리는 비용(이동 평균)을 MAIN_SHARE로 나눈 만큼 쉬고, MIN과 MAX 사이로 묶는다. 빠른 기기일수록 장수가 오르고
+ * 메인 스레드에서 이 화면이 쓰는 몫은 기기와 상관없이 같다(2026-11-23 사용자 "성능은 유지하면서 프레임 개선": 예전에는 150ms마다 한 장). */
+const FRAME = Object.freeze({ MIN_MS: 50, MAX_MS: 420, FIRST_MS: 150, MAIN_SHARE: 0.04, SMOOTH: 0.2 });
+/** 그림을 누르면 오른쪽 위에 끄기 단추가 이만큼 떠 있다(ms). 떠 있는 동안 그림을 다시 누르면 전투 화면으로 간다. */
+const PEEK_MS = 3000;
+/** 열리면 이 화면을 감추는 창들: (문서, 살아 있는 목록) → 열렸는가. */
+const activeTab = (document, id) => !!document.getElementById(id)?.classList.contains('active');
+const BLOCKING_SHEETS = Object.freeze([
+    document => document.getElementById('passive-mobile-detail')?.hidden === false,
+    document => !!document.getElementById('ui-equipment-inventory-inspector')?.matches(':popover-open'),
+    (document, live) => live.pickers.length > 0,
+    (document, live) => [...live.dialogs].some(dialog => dialog.open),
+    (document, live) => [...live.tutorials].some(overlay => overlay.classList.contains('active')),
+    document => !!document.getElementById('background-combat-result-overlay'),
+    document => activeTab(document, 'tab-settings'),
+    document => activeTab(document, 'tab-traits') && !!document.getElementById('tab-traits').querySelector('.ascend-detail:not(.is-empty)'),
+    document => activeTab(document, 'tab-items') && !!document.getElementById('tab-items').querySelector('.shop-info:not(:empty)')
+]);
+const MARKUP = '<button type="button" class="mobile-battle-pip-preview" data-pip-peek data-i18n-attr="aria-label" aria-label="작은 전투 화면"><canvas width="320" height="180" aria-hidden="true"></canvas></button>'
+    + '<button type="button" class="mobile-battle-pip-close" data-pip-close hidden data-i18n-attr="aria-label" aria-label="작은 전투 화면 끄기"></button>'
+    + '<button type="button" data-pip-toggle aria-expanded="false" data-i18n-attr="aria-label" aria-label="작은 전투 화면 펼치기" data-i18n>전투 보기</button>';
 
-/** Owns one adaptive preview timer and its copy surface, never a combat timer or saved state. */
+/** Owns one adaptive preview timer and its copy surface, never a combat timer. Its only saved effect is the off switch (showMobileBattlePip). */
 export class MobileBattlePreview {
     constructor(deps) {
-        this.deps = deps; this.canvas = null; this.ctx = null; this.handle = null;
-        this.errorReported = false; this.active = true; this.host = null;
-        this.onClick = this.click.bind(this); this.onTick = this.tick.bind(this);
+        this.deps = deps; this.canvas = null; this.ctx = null; this.handle = null; this.peekHandle = null;
+        this.errorReported = false; this.active = true; this.host = null; this.live = null;
+        /** @type {number} 다음 장까지의 간격(ms) */
+        this.interval = FRAME.FIRST_MS;
+        /** @type {number} 한 장을 그리는 비용의 이동 평균(ms) */
+        this.cost = FRAME.FIRST_MS * FRAME.MAIN_SHARE;
+        this.onClick = this.click.bind(this); this.onTick = this.tick.bind(this); this.onPeekEnd = this.hidePeek.bind(this);
     }
 
     ensure() {
@@ -36,23 +56,56 @@ export class MobileBattlePreview {
         return host;
     }
 
-    collapse(host, collapsed) { setBattlePreviewCollapsed(this.deps, host, collapsed); }
+    collapse(host, collapsed) {
+        if (collapsed) this.hidePeek();
+        setBattlePreviewCollapsed(this.deps, host, collapsed);
+    }
 
+    /** 그림: 끄기 단추를 띄운다(떠 있으면 전투 화면으로). 끄기 단추: 설정의 작은 전투 화면을 끈다. 접힌 단추(빽빽한 화면): 펼친다. */
     click(event) {
         if (!this.active) return;
-        const host = this.host, toggle = event.target.closest('[data-pip-toggle]');
-        if (toggle) {
-            const collapsed = !host.classList.contains('is-collapsed');
-            this.collapse(host, collapsed);
-            dockBattlePreview(this.deps, host);
-            if (collapsed) this.stop();
-            else this.refresh();
-        } else if (event.target.closest('[data-pip-return]')) this.deps.switchTab('tab-battle');
+        const target = event.target;
+        if (target.closest('[data-pip-close]')) this.turnOff();
+        else if (target.closest('[data-pip-toggle]')) {
+            this.collapse(this.host, false);
+            dockBattlePreview(this.deps, this.host);
+            this.refresh();
+        } else if (target.closest('[data-pip-peek]')) this.peek();
+    }
+
+    peek() {
+        const close = this.host.querySelector('[data-pip-close]');
+        if (!close.hidden) { this.hidePeek(); this.deps.switchTab('tab-battle'); return; }
+        close.hidden = false;
+        this.peekHandle = this.deps.setTimeout(this.onPeekEnd, PEEK_MS);
+    }
+
+    hidePeek() {
+        if (this.peekHandle !== null) this.deps.clearTimeout(this.peekHandle);
+        this.peekHandle = null;
+        const close = this.host && this.host.querySelector('[data-pip-close]');
+        if (close) close.hidden = true;
+    }
+
+    /** 설정 창의 같은 스위치(chk-mobile-battle-pip)를 끈 것과 같다: 다시 켜면 돌아온다. */
+    turnOff() {
+        this.hidePeek();
+        this.deps.game.settings.showMobileBattlePip = false;
+        const control = this.deps.document.getElementById('chk-mobile-battle-pip');
+        if (control) control.checked = false;
+        this.deps.queueImportantSave(180);
+        this.updateVisibility();
+    }
+
+    /** 이 화면을 가리는 창이 열렸는가. 클래스로 찾는 것은 살아 있는 목록으로 본다: 그리는 장마다 문서 전체를 고르는 선택자로 훑으면 장당 0.8ms가 들었다. */
+    sheetOpen() {
+        const document = this.deps.document;
+        if (!this.live) this.live = { pickers: document.getElementsByClassName('selection-overlay'), dialogs: document.getElementsByTagName('dialog'), tutorials: document.getElementsByClassName('tutorial-overlay') };
+        return BLOCKING_SHEETS.some(open => open(document, this.live));
     }
 
     blocked() {
-        return battlePresentationSuspended(this.deps) || this.deps.document.body.classList.contains('mobile-tab-drawer-open')
-            || !!this.deps.document.querySelector(BLOCKING_SHEETS);
+        return battlePresentationSuspended(this.deps) || this.deps.document.body.classList.contains('mobile-tab-drawer-open') || this.sheetOpen();
     }
 
     updateVisibility(schedule = true) {
@@ -69,8 +122,11 @@ export class MobileBattlePreview {
 
     syncTimer(schedule) {
         if (this.visible()) {
-            if (schedule && this.handle === null) this.handle = this.deps.setTimeout(this.onTick, BASE_INTERVAL_MS);
-        } else this.stop();
+            if (schedule && this.handle === null) this.handle = this.deps.setTimeout(this.onTick, this.interval);
+        } else {
+            this.stop();
+            this.hidePeek();
+        }
     }
 
     visible() {
@@ -86,7 +142,7 @@ export class MobileBattlePreview {
             src.width = this.canvas.width; src.height = this.canvas.height; src.dataset.renderScale = '1';
             this.deps.canvasBox.forget();
         }
-        this.deps.renderBattlefield(true, BASE_INTERVAL_MS);
+        this.deps.renderBattlefield(true, this.interval);
         this.copy();
     }
 
@@ -99,24 +155,27 @@ export class MobileBattlePreview {
         this.ctx.drawImage(src, 0, 0, this.canvas.width, this.canvas.height);
     }
 
+    /** 이번 장의 비용으로 다음 간격을 정한다. */
+    pace(cost) {
+        this.cost += (cost - this.cost) * FRAME.SMOOTH;
+        this.interval = Math.round(Math.min(FRAME.MAX_MS, Math.max(FRAME.MIN_MS, this.cost / FRAME.MAIN_SHARE)));
+    }
+
     tick() {
         this.handle = null;
         if (!this.active) return;
-        let nextDelay = BASE_INTERVAL_MS;
         try {
             this.updateVisibility(false);
             if (!this.visible() || battlePresentationSuspended(this.deps)) return;
             const began = this.deps.now();
             this.refresh();
-            const cost = this.deps.now() - began;
-            if (cost > 16) nextDelay = Math.min(420, Math.round(BASE_INTERVAL_MS + cost * 8));
-            else if (cost > 9) nextDelay = BASE_INTERVAL_MS + 70;
+            this.pace(this.deps.now() - began);
             this.errorReported = false;
         } catch (error) {
             if (!this.errorReported) this.deps.console.error('mobile battle PIP refresh failed:', error);
             this.errorReported = true;
         }
-        if (this.visible() && !battlePresentationSuspended(this.deps)) this.handle = this.deps.setTimeout(this.onTick, nextDelay);
+        if (this.visible() && !battlePresentationSuspended(this.deps)) this.handle = this.deps.setTimeout(this.onTick, this.interval);
     }
 
     start() { this.stop(); this.updateVisibility(); }
@@ -124,7 +183,8 @@ export class MobileBattlePreview {
     dispose() {
         this.active = false;
         this.stop();
+        this.hidePeek();
         if (this.host) this.host.removeEventListener('click', this.onClick);
-        this.host = this.canvas = this.ctx = null;
+        this.host = this.canvas = this.ctx = this.live = null;
     }
 }

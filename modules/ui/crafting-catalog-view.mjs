@@ -1,3 +1,4 @@
+import { finishHeld, finishKeys } from '../data/equipment-finishes.mjs';
 /** 수확 계열의 식물(그 색의 꽃, 열매, 덩굴, 뿌리)이 없을 때의 말. */
 export function sporeShortage(ctx, mode) {
     return (0, ctx.deps._t)('{name} 없음', { name: ctx.deps.stumpBox.harvestPriceName((0, ctx.deps.getSporeCraftPriceKey)(mode)) });
@@ -16,11 +17,11 @@ export function catalogDescription(ctx, key, compact=false) {
 export function catalogActionLabel(ctx, key, state) {
     const blocked=state&&!state.enabled;
     const reason=blocked?(state.reason==='방어구 전용'?state.reason:'사용 불가'):'';
-    return [key===(ctx.state.inspected||ctx.state.active)?'선택 중':'',reason,ctx.deps.game.currencies[key]?'':'보유 없음'].filter(Boolean).join(', ');
+    return [key===(ctx.state.inspected||ctx.state.active)?'선택 중':'',reason,finishHeld(ctx.deps.game.currencies,key)?'':'보유 없음'].filter(Boolean).join(', ');
 }
 
 export function catalogCard(ctx, key) {
-    const def=ctx.deps.ORB_DB[key], amount=ctx.deps.game.currencies[key]||0;
+    const def=ctx.deps.ORB_DB[key], amount=finishHeld(ctx.deps.game.currencies,key);
     const selected=key===(ctx.state.inspected||ctx.state.active);
     const state=ctx.state.useState(key), blocked=state&&!state.enabled;
     return `<button type="button" class="cl-resource ${amount?'':'is-empty'} ${selected?'is-selected':''} ${blocked?'is-unavailable':''}" data-theme="${ctx.state.theme(key)}" data-resource="${key}" aria-pressed="${selected}">
@@ -32,7 +33,7 @@ export function catalogList(ctx) {
     catalogCapture(ctx);
     const query=ctx.state.query.toLocaleLowerCase(ctx.deps.i18n.locale);
     const keys=Object.keys(ctx.deps.ORB_DB).filter(ctx.handlers.listed)
-        .filter(key=>(ctx.state.category==='all'||catalogGroup(ctx, key)===ctx.state.category)&&(!ctx.state.ownedOnly||ctx.deps.game.currencies[key]>0))
+        .filter(key=>(ctx.state.category==='all'||catalogGroup(ctx, key)===ctx.state.category)&&(!ctx.state.ownedOnly||finishHeld(ctx.deps.game.currencies,key)>0))
         .filter(key=>!query||[name(ctx,key),ctx.deps._t(catalogSummary(ctx,key)),ctx.deps._t(ctx.deps.ORB_DB[key].desc)].join(' ').toLocaleLowerCase(ctx.deps.i18n.locale).includes(query));
     ctx.state.dialog.querySelector('.cl-resource-list').innerHTML=keys.map(ctx.handlers.catalogCard).join('')||`<p class="cl-resource-empty">${ctx.deps._t('해당하는 재화가 없습니다.')}</p>`;
     ctx.state.dialog.querySelector('.cl-resource-count').textContent=(0, ctx.deps._t)('{length}종', { length: keys.length });
@@ -45,7 +46,7 @@ export function catalogSelect(ctx, key) {
     const available=ctx.state.recipes.some(row=>row.key===key)||/^(spore|fossil)/.test(key);
     const label=['fossil','fossilPrimal','fossilAncientPrimal'].includes(key)?ctx.deps._t('정제/복원 열기'):ctx.deps._t('제작실에서 선택');
     const state=ctx.state.useState(key), blocked=state&&!state.enabled;
-    detail.innerHTML=`<div><strong>${styledName(ctx, key)}</strong><p>${catalogDescription(ctx, key)}</p>${blocked?`<small class="cl-use-reason">${esc(ctx, state.reason)}</small>`:''}</div>${available?`<button type="button" data-apply ${blocked?'disabled':''}>${label}</button>`:''}`;
+    detail.innerHTML=`<div><strong>${styledName(ctx, key)}</strong><p>${catalogDescription(ctx, key)}</p>${blocked?`<small class="cl-use-reason">${esc(ctx, state.reason)}</small>`:''}</div>${available?`<button type="button" data-apply ${blocked&&!finishKeys.includes(key)?'disabled':''}>${label}</button>`:''}`;
     detail.hidden=false;
     const selectedCard=ctx.state.dialog.querySelector(`[data-resource="${key}"]`);
     if(selectedCard){selectedCard.focus({preventScroll:true});selectedCard.scrollIntoView({block:'nearest',inline:'nearest'});}

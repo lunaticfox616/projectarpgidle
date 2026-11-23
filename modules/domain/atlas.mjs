@@ -14,7 +14,7 @@ import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
 import { atlasCoreDiscard, atlasCoreDiscardCandidates, atlasCoreDiscardBatch, atlasCorePlainMap } from './atlas-inventory.mjs';
 import { atlasCoreTierBand, atlasCoreCombineSet, atlasCoreCombineReason, atlasCoreCombine, atlasCoreCombineAllPlan, atlasCoreCombineAll, atlasCoreOmenChangeReason, atlasCoreChangeOmen } from './atlas-combining.mjs';
 import { atlasCoreCancel, atlasCoreComplete, atlasCoreMarkCleared, atlasCoreKeepLoot, atlasCoreUsePortal, atlasCoreClose } from './atlas-completion.mjs';
-import { atlasCoreNextAuto } from './atlas-auto.mjs';
+import { atlasCoreNextAuto, atlasAutoUnlocked } from './atlas-auto.mjs';
 import { atlasCoreDropFromKill, atlasCoreExtraMap, atlasCoreFragmentFromKill, atlasCoreFragmentOpen, atlasCoreRewardMaps } from './atlas-kill-drops.mjs';
 import { atlasCoreZone, atlasCorePreview, atlasCoreLootTier, atlasCoreEquivalentDepth } from './atlas-zone.mjs';
 import { atlasCoreNormalize } from './atlas-restore.mjs';
@@ -126,6 +126,7 @@ function createAtlasRunApi(env) {
         usePortal: (...args) => atlasCoreUsePortal(env, ...args),
         close: (...args) => atlasCoreClose(env, ...args),
         nextAuto: (...args) => atlasCoreNextAuto(env, ...args),
+        autoUnlocked: atlasAutoUnlocked,
         dropFromKill: (...args) => atlasCoreDropFromKill(env, ...args),
         extraMap: (...args) => atlasCoreExtraMap(env, ...args),
         fragmentFromKill: (...args) => atlasCoreFragmentFromKill(env, ...args),

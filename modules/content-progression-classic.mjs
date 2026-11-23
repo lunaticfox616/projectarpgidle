@@ -3,7 +3,7 @@ import { createContentProgression } from './domain/content-progression.mjs';
 const rules = createContentProgression({
     get _t() { return _t; },
     get CONTENT_UNLOCK_CATALOG() { return CONTENT_UNLOCK_CATALOG; },
-    get ORB_DB() { return ORB_DB; },
+    get getCurrencyInfo() { return getCurrencyInfo; },
     get getCanonicalCurrencyKey() { return getCanonicalCurrencyKey; },
     get CONTENT_UNLOCK_POINT_AWARDS() { return CONTENT_UNLOCK_POINT_AWARDS; },
     get hasSupportGemOwned() { return hasSupportGemOwned; },

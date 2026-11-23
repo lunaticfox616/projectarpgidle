@@ -79,7 +79,7 @@ export function skillGetSkillHitSequenceDpsMultiplier(env, skillName, skill) {
     let configured = skillGetConfiguredSkillDpsMultiplier(skill && skill.combatPattern);
     if (configured !== null) return configured;
     let profile = skillGetSkillHitSequenceProfile(env, skillName, skill || {});
-    if (profile.kind === 'slam') return Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier;
+    if (profile.kind === 'slam') return Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier * (skill.artAftershockMul || 1);
     return skillGetProjectileSequenceDpsMultiplier(env, skill);
 }
 

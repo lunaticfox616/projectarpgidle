@@ -31,6 +31,7 @@ const actExplorationView = {
     inSight: native.inSight,
     drawScenery: (ctx, actor, state) => native.drawScenery(game, ctx, actor, state),
     bossRoomGlow: () => native.bossRoomGlow(game),
-    cellAt: (point, precise) => native.cellAt(game, point, precise)
+    cellAt: (point, precise) => native.cellAt(game, point, precise),
+    passageAt: point => native.passageAt(game, point)
 };
 safeExposeGlobals({ actExplorationView });

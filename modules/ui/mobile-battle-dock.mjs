@@ -4,12 +4,10 @@ const MAP_CONTEXTS = [
     ['timerift', 'map-explore-timerift'], ['underworld', 'map-tab-underworld']
 ];
 
+/** 접힌 모습은 빽빽한 화면이 빌려 쓴다: 그림 대신 전투 보기 단추 하나(누르면 펼친다). 펼친 그림에는 단추가 없다(2026-11-23 사용자: 전투로, 접기 단추 제거). */
 export function setBattlePreviewCollapsed(deps, host, collapsed) {
     host.classList.toggle('is-collapsed', collapsed);
-    const toggle = host.querySelector('[data-pip-toggle]');
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('aria-label', deps._t(collapsed ? '작은 전투 화면 펼치기' : '작은 전투 화면 접기'));
-    toggle.textContent = collapsed ? deps._t('전투 보기') : deps._t('접기');
+    host.querySelector('[data-pip-toggle]').setAttribute('aria-expanded', String(!collapsed));
 }
 
 function syncContext(deps, host, context) {

@@ -1,3 +1,5 @@
+import { showWheelHub } from './atlas-wheel-hub.mjs';
+import { atlasChallenges } from '../data/atlas-challenges.mjs';
 import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, tierStyle, encounterNames, mapName, stonesForNode } from './atlas-view-model.mjs';
 import { deviceCardHtml, stoneNeeded, stoneLock, flowersHtml, chancesHtml, runHtml, pinnacleHtml, stashToolsHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
 import { resultHtml } from './atlas-view-results.mjs';
@@ -23,7 +25,7 @@ export function headerHtml(runtime) {
     const stats = stat('완료', `${st.completed.length}/${total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
         + stat('씨앗', `${st.seeds}/${runtime.deps.ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${runtime.deps.atlas.points(runtime.deps.game)}${free ? (0, runtime.deps._t)(' (남음 {free})', { free }) : ''}`, '#7fd6cf');
     return `<header class="atlas-head"><span class="atlas-stats">${stats}</span>
-            <label class="atlas-auto" data-tip="${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)('자동 지도')}</span>
+            <label class="atlas-auto" data-tip="${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '자동 지도 · 정점 정복 후')}</span>
             <small>${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}</small></label></header>`;
 }
 
@@ -131,15 +133,64 @@ export function hudPortalsHtml(runtime, run) {
 export function updateHud(runtime, zone) {
     const host = runtime.deps.document.getElementById('ui-atlas-combat');
     if (!host) return;
+    if (showWheelHub(runtime, host)) return;
     // The settlement pause still shows the cleared map; the next map's HUD waits until the hero enters it.
     const run = ledger(runtime).run, show = !!run && zone && zone.type === 'atlasMap' && !runtime.deps.actExplorationState.current(runtime.deps.game)?.departure;
     host.toggleAttribute('hidden', !show);
     if (!show) { runtime.state.hudSignature = ''; return; }
-    const key = JSON.stringify([run.map.uid, run.portals, run.encounters]);
+    const field = fieldObjective(runtime,run);
+    const key = JSON.stringify([run.map.uid, run.portals, run.encounters, field]);
     if (key === runtime.state.hudSignature) return;
     runtime.state.hudSignature = key;
     // 지도 이름은 위의 지역 이름과 같고, 주운 지도석과 각인 수는 싸우는 동안 볼 일이 없다(2026-11-06 사용자): 등급, 종류, 방, 징조, 포털만.
-    const rooms = run.encounters.map(type => `<span class="atlas-hud-chip is-room">${(0, runtime.deps.escapeHTML)(encounterNames(runtime, [type], run.golden || []))}</span>`).join('');
+    const fieldChip = fieldMarkup(runtime,zone,field);
+    const rooms = run.encounters.map(type => encounterChip(runtime, run, type)).join('') + fieldChip;
     host.innerHTML = `<span class="atlas-hud-chip atlas-hud-tier" style="${tierStyle(runtime, run.map.tier)}">${(0, runtime.deps._t)('{tier}등급', { tier: run.map.tier })}</span>${hudKindHtml(runtime, run)}${rooms}${omenChipHtml(runtime, run.map)}${hudPortalsHtml(runtime, run)}
             <button type="button" class="combat-action-btn" onclick="atlasUi.openPanel()">${(0, runtime.deps._t)('아틀라스')}</button>`;
+    host.querySelector('[data-atlas-passage]')?.addEventListener('click', () => walkToPassage(runtime));
+}
+
+function fieldMarkup(runtime,zone,field) {
+    if (!field) return '';
+    const label = runtime.deps.escapeHTML(field);
+    return zone.pocket ? '<span class="atlas-hud-chip is-room">'+label+'</span>' :
+        '<button type="button" class="combat-action-btn" data-atlas-passage>'+label+'</button>';
+}
+
+function walkToPassage(runtime) {
+    const owner=runtime.deps.game, run=runtime.deps.actExplorationState.current(owner);
+    const site=owner.atlas.run?.passages?.sites.find(row=>!row.used);
+    if (run?.status==='active' && site && !run.source.pocket) runtime.deps.actExplorationState.selectDestination(run,site);
+}
+
+function fieldObjective(runtime,ledger) {
+    if (!ledger.passages) return '';
+    const run = runtime.deps.game.actExploration, tr = runtime.deps._t;
+    if (run?.source?.pocket) return expeditionObjective(run,tr);
+    const site = ledger.passages.sites.find(row => !row.used);
+    return site ? tr('발견한 입구 · {name}',{name:tr(runtime.deps.ATLAS.encounters[site.type].name)}) : '';
+}
+
+function expeditionObjective(run,tr) {
+    const pack = run.packs.find(row => row.task && (row.aliveIds.length || row.task.index < row.task.spots.length));
+    if (!pack) return tr('{name} 처치',{name:tr(atlasChallenges[run.source.pocket][1])});
+    if (pack.aliveIds.length) return tr('남은 적 {count}',{count:pack.aliveIds.length}) + ' · ' + tr(pack.task.label);
+    return tr(pack.task.label) + ' ' + pack.task.index + '/' + pack.task.spots.length;
+}
+
+function encounterChip(runtime, run, type) {
+    const name = runtime.deps.escapeHTML(encounterNames(runtime, [type], run.golden || []));
+    const challenge = run.challengeDoors && atlasChallenges[type];
+    if (!challenge) return `<span class="atlas-hud-chip is-room">${name}</span>`;
+    const tips = {
+        swarm: runtime.deps._t('호위병이 쓰러질 때마다 우두머리의 공격이 빨라집니다.'),
+        fracture: runtime.deps._t('호위병이 쓰러지면 우두머리의 생명력이 깎입니다.'),
+        drain: runtime.deps._t('우두머리가 쓰러진 호위병의 생명력을 흡수합니다.'),
+        ebb: runtime.deps._t('호위병을 쓰러뜨리면 우두머리의 다음 공격 준비가 늦어집니다.'),
+        flare: runtime.deps._t('호위병이 쓰러질 때마다 우두머리의 타격이 강해집니다.'),
+        regrow: runtime.deps._t('호위병이 쓰러질 때마다 우두머리의 생명력 재생이 강해집니다.'),
+        rally: runtime.deps._t('우두머리를 먼저 쓰러뜨리면 남은 호위병의 공격력이 줄어듭니다.')
+    };
+    const tip = [runtime.deps._t(challenge[1]), tips[challenge[2]], runtime.deps._t('입구가 있는 방을 정리한 뒤 문을 누르세요. 전체 탐색은 자동으로 들어갑니다.')].join(' ');
+    return `<span class="atlas-hud-chip is-room" data-tip="${runtime.deps.escapeHTML(tip)}">${name}</span>`;
 }

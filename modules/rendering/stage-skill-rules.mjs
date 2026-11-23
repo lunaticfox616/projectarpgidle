@@ -1,5 +1,7 @@
 import { createStageSkillAreas } from './stage-skill-areas.mjs';
 
+const castElement = (gem, effect) => effect.element || gem.meta.el;
+
 class StageSkillRules {
     constructor(deps, areas) {
         this.deps = deps;
@@ -334,7 +336,7 @@ class StageSkillRules {
     }
 
     rulePlayEcho(owner, gem, fx) {
-        const element = fx.element || gem.meta.el, ink = this.deps.STAGE_SKILL_VFX.elements[element === 'prism' ? 'light' : element] || this.deps.STAGE_SKILL_VFX.elements.phys;
+        const element = castElement(gem, fx), ink = this.deps.STAGE_SKILL_VFX.elements[element === 'prism' ? 'light' : element] || this.deps.STAGE_SKILL_VFX.elements.phys;
         const look = { face: this.K.heroFace(), element }, ago = this.deps.supports.repeatGapMs;
         const echo = this.deps.stageSkillDraws.echo({ face: look.face, count: 2, ink, bright: this.deps.stageActors.afterimage(ink.c2, ago), faint: this.deps.stageActors.afterimage(ink.c1, ago) });
         this.deps.stageSkillVfx.paint(this.K.at(this.K.heroDrawn()), { life: echo.life }, echo.paint);
@@ -369,7 +371,7 @@ class StageSkillRules {
         this.ruleWindupExtras(gem, fx);
         if (!this.ruleCastsAtHand(gem, fx)) return;
         const hero = this.K.heroSpot(), face = this.K.heroFace(), wind = Math.max(200, Number(fx.impactDelayMs) || 0);
-        this.deps.stageSkillSigil.cast({ spot: hero, face, element: gem.meta.el, ms: wind + 60, hand: this.deps.stageSkillPolish.handSigil(gem) });
+        this.deps.stageSkillSigil.cast({ spot: hero, face, element: castElement(gem, fx), ms: wind + 60, hand: this.deps.stageSkillPolish.handSigil(gem) });
         const summon = gem.meta.kind === 'wisp' ? gem.map.cast : null;
         if (summon) this.deps.stageSkillVfx.play(summon, this.K.at(hero, -face * 34, this.K.onGround(summon) ? -29 : -76), { face, ramp: this.K.ramp(gem, fx.element), delay: wind });
     }

@@ -1,3 +1,12 @@
+export const journalExplorationUnlocks = Object.freeze({
+    beehive_queen: ['beehive', '벌집 원정 보기', 'map-explore-beehive'],
+    void_grand_breach: ['voidrift', '대균열 보기', 'map-explore-voidrift'],
+    labyrinth_10: ['labyrinth', '고대 미궁 보기', 'map-explore-labyrinth'],
+    ocean_500: ['ocean', '심해 보기', 'map-tab-ocean'],
+    time_rift_fusion: ['timerift', '시간의 균열 보기', 'map-explore-timerift'],
+    colony_wave_10: ['colony', '군락지 보기', 'map-explore-colony']
+});
+
 export function getJournalEntryAction(runtime, id) {
     const { deps } = runtime, owner = deps.game;
     if (['level_200', 'passive_star_evolution'].includes(id)) return journalCharacterRoute(runtime, id);
@@ -17,7 +26,7 @@ function journalStoryRoute(runtime, id, { maxZoneId }) {
     const { deps } = runtime;
     if (/^act_\d+$/.test(id) || id === 'immortal') return { label: deps._t('사냥터 보기'), tabId: 'tab-map', subtabId: 'map-explore-hunting' };
     if (['woodsman', 'woodsman_echo'].includes(id)) return journalChaosRoute(runtime, id, maxZoneId);
-    if (id === 'meteor_fall') return deps.game.meteorSite?.unlocked ? { label: deps._t('운석 낙하 지점 보기'), tabId: 'tab-map', subtabId: 'map-explore-meteor' } : null;
+    if (id === 'meteor_fall') return deps.contentProgression.canOpen('map-explore-meteor') && deps.game.meteorSite?.unlocked ? { label: deps._t('운석 낙하 지점 보기'), tabId: 'tab-map', subtabId: 'map-explore-meteor' } : null;
     return null;
 }
 
@@ -30,18 +39,10 @@ function journalChaosRoute({ deps }, id, maxZoneId) {
     return owner.chaosRealm?.unlocked ? { label: deps._t('혼돈계 보기'), tabId: 'tab-map', subtabId: 'map-tab-chaos-realm' } : null;
 }
 
-function journalExplorationRoute({ deps }, id, { loop, maxZoneId }) {
-    const rows = {
-        beehive_queen: [8, '벌집 원정 보기', 'map-explore-beehive'],
-        void_grand_breach: [9, '대균열 보기', 'map-explore-voidrift'],
-        labyrinth_10: [3, '고대 미궁 보기', 'map-explore-labyrinth'],
-        ocean_500: [deps.OCEAN_UNLOCK_LOOP, '심해 보기', 'map-tab-ocean'],
-        time_rift_fusion: [deps.TIME_RIFT_UNLOCK_LOOP, '시간의 균열 보기', 'map-explore-timerift'],
-        colony_wave_10: [15, '군락지 보기', 'map-explore-colony']
-    };
+function journalExplorationRoute({ deps }, id, { maxZoneId }) {
     if (id === 'sky_tower_10') return deps.game.skyTower?.unlocked ? { label: deps._t('창공의 탑 보기'), tabId: 'tab-map', subtabId: 'map-tab-sky' } : null;
-    const row = rows[id];
-    if (!row || !(loop >= row[0]) || (id === 'labyrinth_10' && !(maxZoneId >= 5))) return null;
+    const row = journalExplorationUnlocks[id];
+    if (!row || !deps.contentProgression.canOpen(row[2]) || (id === 'labyrinth_10' && maxZoneId < 5)) return null;
     return { label: deps._t(row[1]), tabId: 'tab-map', subtabId: row[2] };
 }
 

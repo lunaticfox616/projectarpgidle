@@ -10,7 +10,7 @@ export function skillBuildEarthSpikeHitSequence(env, skill, targets, primary, im
     return [
         { kind: 'slamPrimary', label: '내려찍기', delayMs: 0, damageMultiplier: 1 - shock,
             targets: targets.slice(0, 1), aimCell, impactCells: cellGetGridUnitCells(env, primary) },
-        { kind: 'earthSpikes', label: '지진 쐐기', delayMs: skill.aftershockDelayMs, damageMultiplier: shock,
+        { kind: 'earthSpikes', label: '지진 쐐기', delayMs: skill.aftershockDelayMs, damageMultiplier: shock * (skill.artAftershockMul || 1),
             singleRepeat: true, delivery: 'magicCell', targetLimit: skill.targets, targets, aimCell, impactCells }
     ];
 }

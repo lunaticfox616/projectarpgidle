@@ -1,4 +1,5 @@
 import { renderSeasonNode } from './static-season-nodes.mjs';
+import { beyondUnlockPreview } from '../common/unlock-preview.mjs';
 
 export function renderStaticSeason(runtime) {
     let seasonVisible = runtime.deps.game.season > 1 || runtime.deps.game.seasonPoints > 0;
@@ -21,6 +22,7 @@ export function renderStaticSeasonRoadmap(runtime) {
     let roadmapCards = seasonRoadmapKeys.map(seasonNum => {
         let def = runtime.deps.SEASON_CONTENT_ROADMAP[seasonNum];
         if (!def) return '';
+        if (beyondUnlockPreview(seasonNum, runtime.deps.game.season)) return `<div class="season-unknown"><b>${runtime.deps._t('루프 {minLoop}', { minLoop: seasonNum })}</b> ${runtime.deps._t('아직 알 수 없음')}</div>`;
         let unlocked = seasonNum <= runtime.deps.game.season;
         let current = seasonNum === runtime.deps.game.season;
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
@@ -30,9 +32,9 @@ export function renderStaticSeasonRoadmap(runtime) {
         let hiddenStyle = collapsePast && unlocked && !current ? 'display:none;' : '';
         return `<div style="${hiddenStyle}background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
-                <strong style="color:${stateColor};">${(0, runtime.deps._t)(def.title)}</strong><span style="color:${stateColor}; font-size:12px;">${stateText}</span>
+                <strong style="color:${stateColor};">${runtime.deps._t(def.title, { minLoop: seasonNum })}</strong><span style="color:${stateColor}; font-size:12px;">${runtime.deps._t(stateText)}</span>
             </div>
-            <div style="color:var(--copy-bright); font-size:12px; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
+            <div style="color:var(--copy-bright); font-size:12px; line-height:1.5;">• ${reqText}<br>${def.features.map(v => `• ${runtime.deps._t(v)}`).join('<br>')}</div>
         </div>`;
     }).join('');
     (0, runtime.deps.writeHtmlIfChanged)(runtime.deps.document.getElementById('ui-season-content-roadmap'), collapsedRoadmapSummary + roadmapCards

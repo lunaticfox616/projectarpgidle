@@ -45,7 +45,8 @@ export class GameSave {
             .flatMap(preset => Object.values(preset.slots || {}));
         const items = [this.owner.game.inventory, Object.values(this.owner.game.equipment || {}), rift.altarUnique, rift.altarRare,
             this.owner.game.equipmentTemporaryStorage, presets,
-            this.deps.actExplorationLoot.reservedItems(this.owner.game), this.deps.actExplorationState.groundLoot.reservedItems(this.owner.game), this.deps.coreItems.ownedItems(this.owner.game), (this.owner.game.playerStall?.listings || []).map(row => row.item)].flat().filter(Boolean);
+            this.deps.actExplorationLoot.reservedItems(this.owner.game), this.deps.actExplorationState.groundLoot.reservedItems(this.owner.game), this.deps.coreItems.ownedItems(this.owner.game), (this.owner.game.playerStall?.listings || []).map(row => row.item),
+            (Array.isArray(this.owner.game.auction?.lots) ? this.owner.game.auction.lots : []).map(row => row && row.item)].flat().filter(Boolean);
         const jewels=[this.owner.game.jewelInventory,items.flatMap(item=>this.deps.equipmentSockets.jewels(item).map(row=>row.jewel))].flat().filter(Boolean);
         this.owner.session.itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));
     }
@@ -119,6 +120,7 @@ export class GameSave {
 
     /** Recover an empty ordinary encounter, without restarting a completed sky allowance. */
     resumeEmptyEncounterAfterLoad(zone) {
+        if (this.owner.game.atlas?.wheelHub) { this.owner.game.combatHalted = true; return; }
         if (this.owner.game.actExploration || this.owner.game.settings.mapCompleteAction === 'stop' || (0, this.deps.isSkyTowerAtRewardLimit)(zone)) return;
         if (this.owner.game.enemies.length === 0 && this.owner.game.encounterPlan.length === 0) this.owner.game.combatHalted = false;
     }

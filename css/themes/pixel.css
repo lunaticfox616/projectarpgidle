@@ -228,6 +228,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.story-scene-copy, .game-dialog-body) {
   padding: var(--space-1) var(--space-2);
 }
+/* 루프 연출의 대사(css/loop-cinematic.css): 자막과 해금 단계의 한 줄은 갈무리14. 크기는 그 파일이 격자대로 정한다(자막 28/14, 한 줄 15). */
+:root body[data-ui-skin] :is(.loop-cine-line, .loop-cine-say) { font-family: var(--font-pixel-read); font-weight: var(--font-weight-regular); }
 /* 조합법 책(css/stump-box.css .stump-book, 2026-10-29 사용자: 글씨를 게임 글꼴 규칙 크기로): 재료, 결과, 덧붙임은 긴 글 14/15,
    부류 표와 재료/결과/비용 이름표는 짧은 정보 11/12(이름표는 굵게). 조합법 이름도 내용과 같은 14/15(사용자: 제목도 같은 크기) */
 :root body[data-ui-skin] :is(.stump-book-entry-head strong, .stump-book-line > span, .stump-book-note, .stump-book-list li.is-hidden) {
@@ -930,7 +932,7 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 :root body[data-ui-skin] :is(#battle-column, .tab-content) .gem-art-fallback:not([hidden]) { width: 26px; height: 26px; margin: auto; overflow: hidden; color: transparent; font-size: 0;
     background: var(--px-menu-icons) 0 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat; text-shadow: none; image-rendering: pixelated; }
 /* 루프 패시브 노드 설명, 전투 미리보기 이름 */
-:root body[data-ui-skin] :is(.loop-node-tooltip b, .mobile-battle-dock-label) { font-size: 12px; }
+:root body[data-ui-skin] .loop-node-tooltip b { font-size: 12px; }
 /* 도감 칸의 새 항목 표시: 둥근 알약 · 빛 번짐 · 0.68em(8px) 영어 "NEW" 대신 각진 꼬리표 "신규" */
 /* 큰 숫자(최대 생명 · 보호막 · 총 DPS)와 해금 상세 이름은 물마루 24 — 20 · 21px은 반 칸씩 번졌다. */
 :root body[data-ui-skin] :is(#tab-character :is(#ui-es, #ui-maxhp-stat, #ui-total-dps)) { font-family: var(--font-pixel); font-size: 24px; }

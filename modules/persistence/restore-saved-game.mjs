@@ -11,6 +11,11 @@ import { restoreRetiredSystems, finishRestoredSave } from './restore-finish.mjs'
 /** One load owns this transient context. It is never stored or shared with another load.
  * Order is part of the save contract: exploration restoration precedes stored gear and stall escrow checks. */
 export function restoreSavedGame(deps, save) {
+    // The auction preview used ledger 16 with the earlier unlock schedule. Identify it
+    // before defaults add an auction to every save, including those from the other branch.
+    if (save.contentProgression?.version === 16 && save.auction?.version >= 1) {
+        save = { ...save, contentProgression: { ...save.contentProgression, auctionCatalogV16: true } };
+    }
     const context = { save };
     restoreInitialSnapshot(deps, context);
     restoreRuneAndCurrencyMigrations(deps, context);

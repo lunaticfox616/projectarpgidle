@@ -730,4 +730,18 @@ const STORY_ENDGAME_ENCOUNTERS = Object.freeze({
         defeat: '“관측을 종료합니다. 이제 당신은 규율의 굴레를 끊고 새로운 세계로 나아갈 주인입니다.”'
     })
 });
-export { SUPPLIED_STORY_SCENES, STORY_BRIDGE_SCENES, STORY_JOURNAL_SCENES, STORY_QUOTE_PLACEMENT, STORY_SCENE_QUOTES, STORY_CLASS_ORIGINS, STORY_NPCS, STORY_ACT_ENCOUNTERS, STORY_TRIAL_ENCOUNTERS, STORY_LOOP_MILESTONES, STORY_ENDGAME_ENCOUNTERS };
+
+// The loop transition cinematic (js/loop-cinematic-ui.js): voice is the voice over the abyss on the first loop (four lines in order,
+// speaker shown as the subtitle tag), unlock the one line over the unlock step (speaker: a STORY_NPCS id, its portrait and name).
+const STORY_LOOP_CINEMATIC = Object.freeze({
+    voice: Object.freeze({
+        speaker: '어둠 너머의 목소리',
+        lines: Object.freeze(['“여기까지 왔군.”', '“하지만 아직은 얕다. 그 칼로는 뿌리 깊은 곳까지 닿지 못해.”', '“처음부터 다시 올라와라.”', '“몸은 흩어져도, 손에 익은 기억만큼은 남을 테니.”'])
+    }),
+    unlock: Object.freeze({
+        speaker: 'veila',
+        line: '“시간이 되감기는 틈이 열렸습니다.”'
+    })
+});
+
+export { SUPPLIED_STORY_SCENES, STORY_BRIDGE_SCENES, STORY_JOURNAL_SCENES, STORY_QUOTE_PLACEMENT, STORY_SCENE_QUOTES, STORY_CLASS_ORIGINS, STORY_NPCS, STORY_ACT_ENCOUNTERS, STORY_TRIAL_ENCOUNTERS, STORY_LOOP_MILESTONES, STORY_ENDGAME_ENCOUNTERS, STORY_LOOP_CINEMATIC };

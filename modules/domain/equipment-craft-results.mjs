@@ -81,7 +81,7 @@ export function craftChoiceWaitReason(env, state) { return craftPendingChoice(en
 /** Why the fossil craft (js/skills.js applyFossilChaosCraft) cannot run now, or '': the build lock, a waiting pick, then the fossil's
  * own rules (the crafting room checked the first two for it before). */
 export function craftFossilCraftReason(env, state, item, fossil) { return craftBuildLockReason(state) || craftChoiceWaitReason(env, state)
-    || craftGetFossilUseReason(env, item, fossil, state.season, state.currencies); }
+    || craftGetFossilUseReason(env, item, fossil, state); }
 
 /** Puts result index of the waiting pick on its item and ends the pick. Returns the item, or null when nothing waits. */
 export function craftPickChoice(env, state, index) {

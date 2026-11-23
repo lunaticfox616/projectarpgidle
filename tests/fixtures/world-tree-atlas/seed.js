@@ -30,6 +30,15 @@
         if (timer) clearInterval(timer);
         window.GameModules.application.timers.stopCombat();
         game=mergeDefaults({});window.game=game;
+        if(mode==='loop'){
+            game.selectedClassId='warrior';game.heroSelectionInitialized=true;game.pendingLoopHeroSelection=false;
+            game.settings.autoLoop=false;storyJournalUi.setAutoShow(false);game.level=45;
+            tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
+            closeAllWindows();switchTab('tab-battle');updateStaticUI();
+            handleSeasonLoopConditionMet();
+            parent.postMessage({type:'worldtree-lab-status',message:'루프 1 정산 · 실제 저장과 분리'},origin);
+            return;
+        }
         game.season=10;game.level=100;game.maxZoneId=29;game.combatHalted=true;
         game.pendingLoopHeroSelection=false;game.pendingLoopDecision=false;game.pendingLoopReady=false;
         game.selectedClassId='warrior';game.chaosRealm.unlocked=true;game.loopProgressCurrent.chaos20Cleared=true;
@@ -44,6 +53,14 @@
         // This is not a legal-build or difficulty fixture.
         game.equipment['갑옷']={id:99102,name:'탐험 흐름 확인용 갑옷',slot:'갑옷',rarity:'rare',baseStats:[{id:'flatHp',val:100000000}],stats:[{id:'regen',val:20}]};
         game.playerHp=getPlayerHpCap(getPlayerStats());
+        if(mode==='challenge'){
+            game.season=55;game.currentZoneId=29;game.settings.autoMove=false;game.settings.actExplorationMode='direct';
+            const selected=new URL(parent.location.href).searchParams.get('region');
+            const fragment=ATLAS.fragments.find(row=>row.encounter===selected && row.id!=='treasure')?.id || 'hive';
+            atlas.sync(game);game.atlas.fragments[fragment]=1;atlas.setLoadout(game,[fragment]);
+            const reason=atlasRun.open(game.atlas.stash[0].uid);
+            if(reason)throw new Error(reason);
+        }
         if(mode==='complete') {
             // Atlas progress: every tier 1-3 node complete (their neighbours open) and this loop's starter maps in the stash.
             game.atlas.unlocked=true;game.atlas.completed=atlas.nodes.filter(node=>node.tier<=3).map(node=>node.id);atlas.sync(game);
@@ -55,6 +72,26 @@
             game.clearedRootBosses.push('s6_beast_cerberus');game.journalEntries.push('woodsman');
             game.underworldProgress.highestFloor=30;game.skyTower.unlocked=true;game.ocean.unlocked=true;
             game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean));
+        }
+        if(mode==='wheel'){
+            game.season=50;game.currentZoneId=29;atlas.sync(game);
+            game.atlas.stash=['roots_0','trunk_0','canopy_0'].map(id=>({...atlasMaps.create(id,1),uid:game.atlas.nextUid++}));
+            for(const key of ATLAS.pinnacle.tickets) game.currencies[key]=1;
+            const reason=atlasRun.openPinnacle();
+            if(reason)throw new Error(reason);
+            atlasRun.finish(getZone(game.currentZoneId));
+        }
+        if(mode==='finishes'){
+            const weapon=createItemFromBase(BASE_ITEM_DB.find(row=>row.id==='warden_greatsword'),'rare',12);
+            const tiers=[9,2,4,6,5];
+            weapon.stats=['weaponPhysFlatDmg','meleePctDmg','accuracy','aspd','crit'].map((id,i)=>rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id===id),tiers[i],tiers[i]));
+            const ring=createItemFromBase(BASE_ITEM_DB.find(row=>row.slot==='반지'),'rare',8);
+            ring.stats=[rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id==='resAll'),5,5)];
+            game.inventory=[weapon,ring];
+            Object.assign(game.currencies,{fossil:40,sealShard:4,underSilver:12,bossCore:4,catalystLight:4,pruningShears:30,sapBud:20,
+                transferStone:4,artManual_doubleCut:2,artManual_slam:2,balanceWeight_physical:3,balanceWeight_speed:1,wardCord_light:2,wardCord_fire:2});
+            game.runeSpares={'이중 베기':2,'강타':2};
+            game.season=50;
         }
         if(mode==='legal'||mode==='crafted') {
             game=mergeDefaults(snapshot);window.game=game;game.combatHalted=true;
@@ -69,13 +106,17 @@
     }
     function finishSeed(mode) {
         game.heroSelectionInitialized=true;
-        battle=mode==='first';closeAllWindows();reconcileMapPrimaryContentUnlocks(game);updateStaticUI();
+        battle=mode==='first'||mode==='wheel'||mode==='challenge';closeAllWindows();reconcileMapPrimaryContentUnlocks(game);updateStaticUI();
         parent.postMessage({type:'worldtree-view-status',battle},origin);
-        if(mode==='first') switchTab('tab-battle');
+        if(mode==='finishes'){
+            openTabPane('tab-items');switchItemSubtab('item-tab-craft');selectForCrafting(game.inventory[0].id,false);
+            requestAnimationFrame(()=>{document.getElementById('cl-stash-tab-special')?.click(); document.getElementById('cl-stash-transferStone')?.click();});
+        }else if(battle) switchTab('tab-battle');
         else {
             switchTab('tab-map');switchMapSubtab('map-tab-zones');switchMapExploreSubtab('map-explore-worldtree');
         }
         if(mode==='realms')explorationAtlasUi.open();
+        let placeAtDoor=mode==='challenge';
         timer=setInterval(()=>{
             if(document.hidden)return;
             try {
@@ -86,15 +127,22 @@
                 for(let i=0;i<speed;i++) {
                     if(isForegroundGameplayPausedForBackground())break;
                     coreLoop(getCombatTime()+100);
+                    const run=game.actExploration;
+                    if(placeAtDoor && run?.zoneId==='atlas_map' && !run.arrival){
+                        const map=actExplorationMap.forRun(run),host=atlasEncounters.hostRooms(map)[0];
+                        Object.assign(game.gridPlayer,{gx:host.gx,gy:host.gy});
+                        run.visitedRooms=[...new Set([...run.visitedRooms,host.id])];placeAtDoor=false;
+                    }
                 }
                 refreshCombatTickUi();
                 if(pendingHeavyUiRefresh){pendingHeavyUiRefresh=false;updateStaticUI();}
                 if(measurement) measurement.ticks.push(performance.now()-tickStarted);
             } catch(error) {clearInterval(timer);console.error('World tree review failed',error);}
         },100);
-        const message=mode==='first'?'루프 1 · 첫 액트 · 저장 분리':mode==='crafted'?'실제 전투 · T15 상위 제작 · 벌집 열쇠 3개 · 저장 분리'
+        const message=mode==='finishes'?'희귀 대검·반지 · 세공 재료 네 종류':mode==='first'?'루프 1 · 첫 액트 · 저장 분리':mode==='crafted'?'실제 전투 · T15 상위 제작 · 벌집 열쇠 3개 · 저장 분리'
             :mode==='legal'?'실제 전투 · T14 선별 장비 · 벌집 열쇠 3개 · 저장 분리':'실제 전투 · 진행 확인용 강화 장비 · 저장 분리';
         parent.postMessage({type:'worldtree-lab-status',message},origin);
+        if(mode==='challenge')parent.postMessage({type:'worldtree-lab-status',message:'각인 지도 · 적을 눌러 처치한 뒤 열린 바닥 틈을 누르세요. 전체 탐색은 자동으로 입장합니다.'},origin);
     }
     function reviewChase() {
         // 예전에는 9×8 판의 칸 자리로 짠 재현이었다. 그 판은 없어졌고(2026-11-10) 군락지는 제 지도를 걷는다: 군락지가 내놓은 무리를
@@ -129,6 +177,8 @@
         if(event.source!==parent||event.origin!==origin)return;
         if(event.data.type==='worldtree-performance-start')measurePerformance();
         if(event.data.type==='worldtree-lab')seed(event.data.mode,event.data.snapshot);
+        if(event.data.type==='worldtree-loop-ready' && !game.pendingLoopReady && !game.pendingLoopDecision &&
+            !game.pendingLoopHeroSelection && !window.GameModules.loopCinematic.onScreen())handleSeasonLoopConditionMet();
         if(event.data.type==='worldtree-speed')speed=event.data.speed===4?4:1;
         if(event.data.type==='worldtree-atlas')explorationAtlasUi.open();
         if(event.data.type==='worldtree-chase-review')reviewChase();

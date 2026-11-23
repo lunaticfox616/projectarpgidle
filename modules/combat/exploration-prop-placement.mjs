@@ -10,7 +10,7 @@ function propCandidates(env, run,map) {
 
 function propBuildShelves(env, map) {
     const open=propReachable(env, map),out=[];
-    for(const room of map.rooms.filter(r=>['battle','optional'].includes(r.role))) {
+    for(const room of map.rooms.filter(r=>!r.host && ['battle','optional'].includes(r.role))) {
         const cells=propRoomEdges(room).filter(c=>propShelf(env, map,c)&&open.has(propCellKey(c)));
         out.push(...cells.map(c=>({...c,roomId:room.id,optional:room.role==='optional',spacious:room.radiusX>=2&&room.radiusY>=2})));
     }

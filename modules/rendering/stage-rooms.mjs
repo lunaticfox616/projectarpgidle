@@ -1,3 +1,4 @@
+import { drawAtlasPassageFloor } from './atlas-passage-floor.mjs';
 /** 방 단위 무대를 그리는 쪽 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식"). 지도는 js/act-exploration-rooms.js,
  * 문을 지나는 규칙은 js/act-exploration-doors.js에 있고 여기는 그리기만 한다.
  * - 방이 화면보다 좁으면 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다. 짧은 가로 화면에서는 주인공과 공격을 준비하는 적의 머리를 보호한다.
@@ -297,6 +298,7 @@ class StageRoomsView {
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, this.deps.stageDots.span(box.columns * p.tileW), this.deps.stageDots.span(box.rows * p.tileH));
         this.drawChaosHaze(owner, ctx, map, area);
         this.drawSpecialGround(owner, ctx, map, p);
+        drawAtlasPassageFloor(ctx, p, owner, room, this.deps);
         for (const row of this.deps.actExplorationDoors.doorsHere(run)) this.drawDoor(ctx, row, p, run);
         this.drawFrontShade(ctx, view, p, area);
         if (typeof this.deps.stageOcean === 'object') this.deps.stageOcean.back(ctx, view, p, area); // 심해: 먼 입자와 가디언 방의 리프트

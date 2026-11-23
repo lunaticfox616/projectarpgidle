@@ -1,12 +1,14 @@
-import { readyRows, view_parentsOpen, unseenIds, stateOf, headHtml, canvasHtml, overviewHtml, nowLeft } from './unlock-tree-markup.mjs';
+import { readyRows, view_parentsOpen, unseenIds, stateOf, headHtml, canvasHtml, overviewHtml, nowLeft, unknownUnlock } from './unlock-tree-markup.mjs';
 import { goalHtml, detailHtml } from './unlock-tree-detail.mjs';
 import { listenView } from './view-events.mjs';
 import { syncUnlockOwner, releaseUnlockPanel, beginUnlockGesture } from './unlock-tree-lifetime.mjs';
 
 export function settleSelection(runtime) {
-    if (!runtime.state.unlockBoard.has(runtime.state.view_selectedId)) {
+    if (runtime.state.selectionLoop !== runtime.deps.game.season || !runtime.state.unlockBoard.has(runtime.state.view_selectedId)) {
         const ready = readyRows(runtime);
-        runtime.state.view_selectedId = (ready.find(def => !def.rail) || ready[0] || runtime.state.unlockBoard.rows.find(def => def.id === runtime.state.UNLOCK_FAMILIES[0].root)).id;
+        const current = runtime.state.unlockBoard.rows.find(def => def.id === runtime.state.view_selectedId && !unknownUnlock(runtime, def));
+        runtime.state.view_selectedId = (ready.find(def => !def.rail) || ready[0] || current || runtime.state.unlockBoard.rows.find(def => def.id === 'passiveTree')).id;
+        runtime.state.selectionLoop = runtime.deps.game.season;
     }
     return runtime.deps.CONTENT_UNLOCK_CATALOG.find(def => def.id === runtime.state.view_selectedId);
 }
@@ -26,7 +28,8 @@ export function readMarks(runtime) {
 
 export function readPlans(runtime, id) {
     const goalId = runtime.deps.game.contentProgression.plannedUnlockId;
-    const goal = goalId ? runtime.deps.window.GameModules.unlockPlan.read(goalId) : null;
+    const goalDef = runtime.state.boardById.get(goalId);
+    const goal = goalDef && !unknownUnlock(runtime, goalDef) ? runtime.deps.window.GameModules.unlockPlan.read(goalId) : null;
     runtime.state.view_plannedPath = new Set(goal?.valid ? goal.ids : []);
     return { plan: runtime.deps.window.GameModules.unlockPlan.read(id), goal };
 }
@@ -95,7 +98,7 @@ export function scrollToNode(runtime, root, id) {
 
 export function select(runtime, id) {
     syncUnlockOwner(runtime);
-    if (!runtime.state.unlockBoard.has(id)) return;
+    if (!runtime.state.unlockBoard.has(id) || unknownUnlock(runtime, runtime.state.boardById.get(id))) return;
     runtime.state.view_selectedId = id;
     if (!Array.isArray(runtime.deps.game.seenUnlocks)) runtime.deps.game.seenUnlocks = [];
     if (!runtime.deps.game.seenUnlocks.includes(id)) runtime.deps.game.seenUnlocks.push(id);
@@ -118,6 +121,7 @@ export function cycleReady(runtime) {
 
 export function pin(runtime, id) {
     const target = runtime.deps.game.contentProgression.plannedUnlockId === id ? '' : id;
+    if (target && (!runtime.state.unlockBoard.has(target) || unknownUnlock(runtime, runtime.state.boardById.get(target)))) return;
     const keepFocus = runtime.deps.document.activeElement?.matches?.('[data-unlock-goal], [data-unlock-goal-clear]');
     if (!runtime.deps.contentProgression.planTarget(target)) return;
     render(runtime);

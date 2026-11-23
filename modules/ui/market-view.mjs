@@ -15,7 +15,7 @@ export function createMarketView(deps) {
 }
 
 function initialize(runtime) {
-    runtime.state.MARKET_SECTIONS = Object.freeze(['npc', 'stall', 'hall']);
+    runtime.state.MARKET_SECTIONS = Object.freeze(['npc', 'stall', 'hall', 'auction']);
     runtime.state.MARKET_BLACK_FACE = 'assets/stage-npcs/black-market-portrait.webp';
     runtime.state.view_section = 'npc';
 }

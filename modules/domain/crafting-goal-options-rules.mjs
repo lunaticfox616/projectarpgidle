@@ -13,7 +13,8 @@ export function craftGoalRollPool(env, item, recipe, mode, omen) {
     const magic = craftGoalResultRarity(env, item,recipe) === 'magic', cap = magic ? env.deps.EXPLICIT_AFFIX_RULES.magic.prefix + env.deps.EXPLICIT_AFFIX_RULES.magic.suffix : env.deps.EXPLICIT_AFFIX_LINE_CAP;
     if (occupied >= cap) return [];
     // Prefix 3 and suffix 3 (magic 1 and 1): only kinds with room after the kept lines can appear.
-    let pool = env.deps.equipmentCrafting.filterOmenMods(env.deps.getOpenAffixMods({ ...item, stats: kept }, magic ? 'magic' : 'rare'), omen);
+    const candidates = goalCandidates(env,item,recipe,kept,magic);
+    let pool = env.deps.equipmentCrafting.filterOmenMods(candidates, omen);
     // Rerolls fill at most 2 (magic) / 5 (rare) lines. A guaranteed line can replace the last random one.
     const maxRolled = Math.max(kept.length, cap === 2 ? 2 : 5) - occupied;
     if (recipe.kind === 'reroll' && maxRolled <= 0 && mode === 'none') return [];
@@ -22,6 +23,10 @@ export function craftGoalRollPool(env, item, recipe, mode, omen) {
         pool = craftGoalFossilPool(env, item,recipe,pool,maxRolled);
     }
     return pool;
+}
+
+function goalCandidates(env,item,recipe,kept,magic) {
+    return recipe.kind === 'add' ? env.deps.equipmentCrafting.basicAddPool(item) : env.deps.getOpenAffixMods({...item,stats:kept},magic?'magic':'rare');
 }
 
 export function craftGoalFilterSpore(env, pool, item, recipe, ...selection) {

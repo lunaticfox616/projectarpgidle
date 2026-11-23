@@ -2,6 +2,8 @@
 export function renderFossilWorkbench(deps) {
     // 원시 화석 복원 · 잉여 정제는 '해금'의 화석 복원이 연다.
     const restoreOpen = deps.contentProgression.isUnlocked('fossilRestore');
+    const exchange = deps.document.getElementById('finish-exchange-fossil');
+    if (exchange) exchange.hidden = !restoreOpen;
     const materialButtons = [
         { key: 'fossil', restore: false, label: (0, deps._t)('기본 화석 정제'), action: 'applyFossilCraft()' },
         { key: 'fossilPrimal', restore: true, label: (0, deps._t)('원시 화석 복원'), action: "restorePrimalFossil('normal')" },

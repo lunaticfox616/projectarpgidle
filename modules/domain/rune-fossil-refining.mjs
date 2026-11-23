@@ -1,7 +1,7 @@
 
 
 export function* runeFlowPrepareFossilRefinement(env, owner) {
-    if (owner.season < 3) return { refused: true, value: yield { kind: 'runeLog', args: [env.deps._t('미궁 제작은 루프3부터 사용할 수 있습니다.'), 'attack-monster'] } };
+    if (!env.deps.contentProgression.isUnlocked('fossil', owner)) return { refused: true, value: yield { kind: 'runeLog', args: [env.deps._t('화석 제작을 먼저 해금하세요.'), 'attack-monster'] } };
     const have = Math.max(0, Math.floor(owner.currencies.fossil));
     if (have <= 0) return { refused: true, value: yield { kind: 'runeLog', args: [env.deps._t('미궁 화석이 부족합니다.'), 'attack-monster'] } };
     return { refused: false, have };
@@ -11,7 +11,7 @@ export function* runeFlowCompleteFossilRefinement(env, owner, raw, have) {
     if (raw === null) return;
     let count = Math.max(0, Math.min(have, Math.floor(Number(raw))));
     if (!Number.isFinite(count) || count <= 0) return (yield { kind: 'runeLog', args: [env.deps._t('정제 개수가 올바르지 않습니다.'), 'attack-monster'] });
-    if (owner.season < 3 || owner.currencies.fossil < count) return (yield { kind: 'runeLog', args: [env.deps._t('진행도 또는 보유 화석이 변경되었습니다. 정제를 다시 선택하세요.'), 'attack-monster'] });
+    if (!env.deps.contentProgression.isUnlocked('fossil', owner) || owner.currencies.fossil < count) return (yield { kind: 'runeLog', args: [env.deps._t('진행도 또는 보유 화석이 변경되었습니다. 정제를 다시 선택하세요.'), 'attack-monster'] });
     let underworldOnlyFossils = new Set(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']);
     let refinablePool = env.deps.FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key));
     let gained = {};

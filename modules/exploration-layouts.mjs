@@ -6,6 +6,7 @@
  * 맵 id는 그 액트 지도의 id 그대로라 배경 · 관문 그림 · 어둠 색(ACT_EXPLORATION_BACKDROPS)이 그대로 붙는다.
  */
 // 2026-10-06: 콘텐츠 전용 지도(data CONTENT_EXPLORATION_MAPS, 전직 시련 다섯 곳)는 { style:'map', id, seed, arena }로 부른다.
+import { atlasChallenges } from './data/atlas-challenges.mjs';
 const STYLE = 'act', NAMED = 'map';
 const ACTS = 10;
 
@@ -24,6 +25,10 @@ const seedOf = spec => String(spec.seed === undefined ? '' : spec.seed);
  * 판에서 싸우던 콘텐츠. 방 수는 그 콘텐츠의 무리 수가 정한다). */
 const CHAIN_MAX = 30;
 function withArena(out, spec) {
+    if (Object.hasOwn(atlasChallenges, spec.pocket)) out.pocket = spec.pocket;
+    if (!spec.arena && Array.isArray(spec.challenges) && spec.challenges.length) {
+        out.challenges = [...new Set(spec.challenges.filter(type => Object.hasOwn(atlasChallenges, type)))];
+    }
     if (spec.arena === true) out.arena = true;
     if (spec.chain === true) out.chain = true;
     else if (Number.isInteger(spec.chain) && spec.chain >= 1 && spec.chain <= CHAIN_MAX) out.chain = spec.chain;

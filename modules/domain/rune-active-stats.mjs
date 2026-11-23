@@ -1,4 +1,5 @@
 import { runeFlowFitActiveSkillToWeapon } from './rune-weapon-loadout.mjs';
+import { finishBooks } from '../data/equipment-finishes.mjs';
 import { runeFlowGetSkillRuneBonusLevels } from './rune-bonus-levels.mjs';
 import { runeFlowGetSkyEnhancementForSkill } from './rune-engrave-slots.mjs';
 import { runeFlowGetSkyProjectilePatternMode, runeFlowApplyProjectilePatternMode } from './rune-projectile-pattern.mjs';
@@ -32,6 +33,7 @@ export function runeFlowGetActiveSkillStats(env, owner, bonusLevel, allowMobilit
     runeFlowApplyRuneForgeToSkill(env, stats, usesGemProgression ? gem : null, qualityMul);
     if (usesGemProgression && gem.awakened) runeFlowApplyGemAwakenedPerk(stats, env.deps.GEM_AWAKENED_PERKS[owner.activeSkill]);
     if (!usesGemProgression) return stats;
+    applyWeaponArt(owner, stats);
     runeFlowGetSkyEnhancementForSkill(env, owner, owner.activeSkill).forEach(id => {
         const enh = env.deps.GEM_SKY_ENHANCEMENTS[id];
         if (!enh) return;
@@ -46,6 +48,14 @@ export function runeFlowGetActiveSkillStats(env, owner, bonusLevel, allowMobilit
     let projectilePatternMode = runeFlowGetSkyProjectilePatternMode(env, owner, owner.activeSkill);
     if (projectilePatternMode) stats = runeFlowApplyProjectilePatternMode(env, stats, projectilePatternMode, '창공 각인');
     return stats;
+}
+
+function applyWeaponArt(owner, stats) {
+    const line = owner.equipment?.['무기']?.stats?.find(stat => stat.craftSource === 'artManual');
+    if (!line) return;
+    const bonus = Math.max(0, Math.min(24, Number(line.val) || 0)) / 100;
+    if (line.id === finishBooks.doubleCut.stat && owner.activeSkill === finishBooks.doubleCut.rune) stats.repeatHitDamagePct *= 1 + bonus;
+    if (line.id === finishBooks.slam.stat && owner.activeSkill === finishBooks.slam.rune) stats.artAftershockMul = 1 + bonus;
 }
 
 function applyRuneEngravePrimary(stats, enh) {

@@ -32,7 +32,9 @@ export function contentPaceCarryOf(env, state, loop) {
 export function contentLedger(env, state, loop) {
     const unlocked = Array.isArray(state.unlocked) ? state.unlocked : [], inherited = Array.isArray(state.inherited) ? state.inherited : [];
     const version = Number(state.version), before = !(version >= env.SERIES_VERSION), beforeTree = !(version >= env.LEDGER_VERSION);
-    const paid = def => !!def && contentKind(def) === 'paid' && !(before && def.series) && !(beforeTree && def.since === env.LEDGER_VERSION) && !(def.addedIn && !(version >= def.addedIn));
+    const recordedAuction = version === 16 && state.auctionCatalogV16 === true;
+    const existed = def => !def.addedIn || version >= def.addedIn || (recordedAuction && def.id === 'auction');
+    const paid = def => !!def && contentKind(def) === 'paid' && !(before && def.series) && !(beforeTree && def.since === env.LEDGER_VERSION) && existed(def);
     const remaining = env.deps.CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
         sum + (paid(def) && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
     const spent = unlocked.reduce((sum, id) => sum + (paid(env.definitions.get(id)) ? Number((state.paidCosts || {})[id]) || 0 : 0), 0);

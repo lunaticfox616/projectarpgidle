@@ -22,8 +22,19 @@ export function cubeRecipeMakeEquipment(env, slot, tier, rarity, baseId) {
     return env.deps.levelProgression.stampItem(item, level);
 }
 
+/** Trade blocks the new item inherits from the consumed equipment: an item made from a bought auction lot or a hall replica (tradeLocked)
+ * stays unsellable at the stall, the hall and the auction. The recipe itself is never refused for it. */
+const CUBE_INHERITED_TRADE_FLAGS = Object.freeze(['tradeLocked', 'auctionBound', 'hallRelistBlocked']);
+
+export function cubeRecipeInheritTradeLocks(groups, item) {
+    const consumed = groups.flat().map(entry => entry && entry.item).filter(Boolean);
+    for (const flag of CUBE_INHERITED_TRADE_FLAGS) if (consumed.some(source => source[flag])) item[flag] = true;
+}
+
 export function cubeRecipeEquipmentResult(env, groups, item) {
-    return item ? { ok: true, consumed: groups.flat(), outputs: [{ kind: 'equipment', item }] } : { ok: false, reason: env.deps._t('이 부위의 장비를 만들 수 없습니다.') };
+    if (!item) return { ok: false, reason: env.deps._t('이 부위의 장비를 만들 수 없습니다.') };
+    cubeRecipeInheritTradeLocks(groups, item);
+    return { ok: true, consumed: groups.flat(), outputs: [{ kind: 'equipment', item }] };
 }
 
 /** 마법 장비 + 다 자란 씨앗: the same base and tier as a rare item with fresh affixes. */

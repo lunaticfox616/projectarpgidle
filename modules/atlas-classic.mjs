@@ -18,6 +18,7 @@ const rules = createAtlas({
     get ATLAS_ENDGAME() { return ATLAS_ENDGAME; },
     get contentProgression() { return contentProgression; },
     get actExplorationMap() { return actExplorationMap; },
+    get actExplorationDoors() { return actExplorationDoors; },
     get getAbyssZoneTier() { return getAbyssZoneTier; },
     get ATLAS_BOARD() { return ATLAS_BOARD; },
     get actExplorationState() { return actExplorationState; },

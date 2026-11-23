@@ -53,6 +53,7 @@ export class GameStartup {
         this.deps.setLoadingOverlayState(false);
         const localSaveStatus = this.deps.loadGameAtBoot();
         this.deps.playerStallUi.settleSales(Date.now());
+        this.foreground.announceAuction(this.deps.auctionHouse.tick(Date.now()).settled);
         if (localSaveStatus.writable === false) {
             this.deps.setCloudMessage(localSaveStatus.message);
             this.deps.addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');

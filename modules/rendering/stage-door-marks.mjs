@@ -177,8 +177,13 @@ class StageDoorMarks {
      * 방으로 가는 문은 '다음 방', 가 본 방으로 가는 문은 글이 없다. NPC 이름과 같은 글꼴로 화살표 위에 선다. */
     doorLabel(owner, door) {
         if (door.gate) return '보스 방';
-        const run = this.deps.actExplorationState.current(owner), map = run ? this.deps.actExplorationDoors.stageMap(run) : null, to = map && map.rooms[door.to];
-        return to && !run.visitedRooms.includes(to.id) ? '다음 방' : '';
+        const run = this.deps.actExplorationState.current(owner);
+        const map = run && this.deps.actExplorationDoors.stageMap(run);
+        if (!map) return '';
+        const to = map.rooms[door.to];
+        if (to.host) return this.deps.i18n.t(this.deps.ATLAS.encounters[to.id.slice(6)].name);
+        if (map.rooms[door.room].host) return this.deps.i18n.t('돌아가기');
+        return run.visitedRooms.includes(to.id) ? '' : '다음 방';
     }
 
     markLabel(ctx, label, at, colour) {

@@ -143,6 +143,15 @@ function rowLiteral(row) {
     return '(' + [sqlText(row.modId), sqlText(row.statId), row.tier, literal(row.min), literal(row.max), slots].join(', ') + ')';
 }
 
+function transferRows() {
+    const context = buildGameRuntime();
+    return vm.runInContext(`BASE_ITEM_DB.map(base => {
+        const item = createItemFromBase(base,'rare',1);
+        const mods = equipmentCrafting.ordinaryFinishMods(item).filter(mod => mod.type==='suffix');
+        return {base:base.id, slot:base.slot, mods:mods.map(mod=>mod.id).sort()};
+    }).filter(row=>row.mods.length)`,context);
+}
+
 function renderSql(rows) {
     const lines = [
         '-- 전당 추가 옵션 표(2026-10-30). scripts/export-hall-affix-table.cjs가 게임 데이터에서 만든 파일이라 손으로 고치지 않는다.',
@@ -174,6 +183,12 @@ function renderSql(rows) {
         lines.push(rows.slice(start, start + ROWS_PER_INSERT).map(row => '    ' + rowLiteral(row)).join(',\n') + ';');
         lines.push('');
     }
+    lines.push('create table if not exists public.hall_transfer_rules (base_id text primary key, slot text not null, mods text[] not null);',
+        'alter table public.hall_transfer_rules enable row level security;',
+        'revoke all on public.hall_transfer_rules from anon, authenticated;',
+        'truncate table public.hall_transfer_rules;',
+        'insert into public.hall_transfer_rules (base_id,slot,mods) values',
+        transferRows().map(row => '('+[sqlText(row.base),sqlText(row.slot),'array['+row.mods.map(sqlText).join(',')+']::text[]'].join(',')+')').join(',\n')+';', '');
     lines.push('commit;', '');
     return lines.join('\n');
 }

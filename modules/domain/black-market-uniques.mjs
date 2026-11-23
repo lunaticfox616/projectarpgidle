@@ -11,11 +11,15 @@ export function marketTradeGetBlackMarketUniqueBase(env, unique) {
     return env.deps.BASE_ITEM_DB.find(base => base.id === env.deps.UNIQUE_EQUIPMENT_RULES[unique.name].baseId);
 }
 
+/** The goldenRule range the black market asks for a chase (ultraRare) unique of requirement tier reqTier: { min, max }. */
+export function marketTradeBlackMarketChasePriceRange(reqTier) {
+    const tier = Math.max(1, Math.floor(Number(reqTier) || 1)), min = Math.max(30, Math.min(150, Math.floor(tier * 2)));
+    return { min, max: Math.max(min, Math.min(150, Math.floor(tier * 7.5))) };
+}
+
 export function marketTradeRollBlackMarketChaseUniquePrice(reqTier) {
-    let tier = Math.max(1, Math.floor(Number(reqTier) || 1));
-    let minPrice = Math.max(30, Math.min(150, Math.floor(tier * 2)));
-    let maxPrice = Math.max(minPrice, Math.min(150, Math.floor(tier * 7.5)));
-    return minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
+    const { min, max } = marketTradeBlackMarketChasePriceRange(reqTier);
+    return min + Math.floor(Math.random() * (max - min + 1));
 }
 
 export function marketTradeGetBlackMarketUniqueCodexKey(unique) {
@@ -28,11 +32,16 @@ export function marketTradeIsBlackMarketUniqueRegistered(owner, unique) {
     return !!(key && owner.uniqueCodex && owner.uniqueCodex[key]);
 }
 
+/** The goldenRule range the black market asks for an ordinary unique of requirement tier req: { min, max } (the auction never goes under min). */
+export function marketTradeBlackMarketUniquePriceRange(unique, req) {
+    const min = Math.max(1, Math.floor(req / 10));
+    return { min, max: Math.max(min + 1, Math.floor(req / 4) + 1) };
+}
+
 function marketTradeRollBlackMarketOfferPrice(unique, req) {
     if (unique.ultraRare) return marketTradeRollBlackMarketChaseUniquePrice(req);
-    const minPrice = Math.max(1, Math.floor(req / 10));
-    const maxPrice = Math.max(minPrice + 1, Math.floor(req / 4) + 1);
-    return minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
+    const { min, max } = marketTradeBlackMarketUniquePriceRange(unique, req);
+    return min + Math.floor(Math.random() * (max - min + 1));
 }
 
 export function marketTradeCreateBlackMarketUniqueOffer(env, unique, tier, options) {

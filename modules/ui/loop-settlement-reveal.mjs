@@ -1,26 +1,3 @@
-export function playLoopRewriteEffect(runtime) {
-    if (!runtime.active) return;
-    const overlay = runtime.deps.document.getElementById('loop-rewrite-overlay');
-    if (!overlay) return;
-    cancelLoopRewrite(runtime);
-    runtime.state.rewriteOverlay = overlay;
-    overlay.innerHTML = '<div class="rewrite-card"><div class="rewrite-title">세계가 되감기는 중…</div><div class="rewrite-sub">전투의 기억을 간직한 채, 새로운 루프를 시작합니다.</div></div>';
-    runtime.deps.document.body.classList.add('loop-rewrite-active');
-    overlay.classList.remove('active');
-    void overlay.offsetWidth;
-    overlay.classList.add('active');
-    runtime.state.rewriteTimer = runtime.deps.setTimeout(() => cancelLoopRewrite(runtime), 1950);
-}
-
-function cancelLoopRewrite(runtime) {
-    runtime.deps.clearTimeout(runtime.state.rewriteTimer);
-    runtime.state.rewriteTimer = 0;
-    if (!runtime.state.rewriteOverlay) return;
-    runtime.state.rewriteOverlay.classList.remove('active');
-    runtime.deps.document.body.classList.remove('loop-rewrite-active');
-    runtime.state.rewriteOverlay = null;
-}
-
 export function togglePastLoopMilestones(runtime) {
     if (!runtime.active) return;
     const settings = runtime.deps.game.settings;
@@ -99,7 +76,6 @@ export function showFreshReveal(runtime) {
 }
 
 export function cancelSettlementTimers(runtime) {
-    cancelLoopRewrite(runtime);
     (0, runtime.deps.clearTimeout)(runtime.state.freshTimer);
     (0, runtime.deps.clearTimeout)(runtime.state.rollTimer);
     runtime.state.freshTimer = 0;

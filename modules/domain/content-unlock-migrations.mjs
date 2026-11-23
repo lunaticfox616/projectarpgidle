@@ -1,5 +1,5 @@
 import { contentEarnedBy, contentPaceCarryOf, contentCarryOf, contentPaceGap, contentOverflowOf } from './content-unlock-points.mjs';
-import { contentKind, contentParents } from './content-unlock-rules.mjs';
+import { contentKind, contentParents, contentFormerLoop } from './content-unlock-rules.mjs';
 
 export function contentLegacyAccess(def, owner) {
     // These features did not exist in a pre-ledger save; normal progress opens them.
@@ -10,7 +10,7 @@ export function contentLegacyAccess(def, owner) {
     if (def.id === 'journal') return owner.journalEntries.length > 0;
     if (def.gate) return !!owner.unlocks[def.gate];
     if (def.flags) return def.flags.some(flag => owner[flag]);
-    return owner.season >= def.minLoop || ['support','craft','fossil','hall','records'].includes(def.id);
+    return owner.season >= contentFormerLoop(def) || ['support','craft','fossil','hall','records'].includes(def.id);
 }
 
 export function contentRestorePurchases(env, purchased, next, record) {
@@ -30,10 +30,35 @@ export function contentRestorePurchases(env, purchased, next, record) {
  * before the move holding such a purchase below today's loop bought it when purchase() allowed it, so it joins the grandfathered rows and
  * every later load keeps it; restorePurchases measures the others against today's loop and dropped these (룬 각인 vanished at loops 4, 5). */
 export function contentKeepEarlyPurchases(env, purchased, next, record) {
-    if (Number(record.version) >= env.LOOP_MOVE_VERSION) return;
+    const version = record.auctionCatalogV16 ? 15 : Number(record.version) || 0;
+    if (version >= env.LOOP_MOVE_VERSION) return;
+    const saved = new Set([...purchased, ...next.inherited]);
     for (const id of purchased) {
-        if (next.highestLoop < env.definitions.get(id).minLoop && !next.grandfathered.includes(id)) next.grandfathered.push(id);
+        const def = env.definitions.get(id);
+        if (next.highestLoop >= def.minLoop || next.grandfathered.includes(id)) continue;
+        if (next.highestLoop < minimumSavedLoop(def, version)) continue;
+        if (version >= 17 && !contentParents(def).every(key => saved.has(key) || contentKind(env.definitions.get(key)) === 'auto')) continue;
+        next.grandfathered.push(id);
     }
+}
+
+// 장부 16까지는 스킬트리 없이 산 제련·보조스킬룬이 있다. 당시 구매만 인정하고 다른 갈래는 열지 않는다.
+function keepIndependentBranchPurchases(env, purchased, next, version) {
+    if (version >= 17 || purchased.includes('passiveTree') || next.inherited.includes('passiveTree')) return;
+    for (const id of ['craft', 'support']) {
+        const def = env.definitions.get(id);
+        if (purchased.includes(id) && next.highestLoop >= (def.loopV17 || def.minLoop) && !next.grandfathered.includes(id)) next.grandfathered.push(id);
+    }
+}
+
+// Check purchases against the schedule in effect when their ledger was saved.
+function minimumSavedLoop(def, version) {
+    if (version < 14) return 1;
+    if (version >= 18) return def.loopV18 || def.minLoop;
+    const loop = def.loopV17 || def.loopV18 || def.minLoop;
+    if (version >= 16) return loop;
+    if (def.id === 'codex') return 4;
+    return loop <= 5 ? contentFormerLoop(def) : loop;
 }
 
 /** A purchase from before the tree (version 11) stays whatever its new prerequisites are. Later ones need theirs among the saved rows,
@@ -43,6 +68,23 @@ export function contentCanRestoreChoice(env, def, next, version, saved) {
     if (next.highestLoop < def.minLoop) return false;
     if (version < env.LEDGER_VERSION) return true;
     return contentParents(def).every(key => saved.has(key) || next.inherited.includes(key) || contentKind(env.definitions.get(key)) === 'auto');
+}
+
+// A damaged ledger may list a child of a rejected purchase. Remove the entire orphaned branch on the first load.
+function dropUnfundedBranches(env, next, record) {
+    if (!(Number(record.version) >= 17)) return;
+    const exempt = new Set(Array.isArray(record.grandfathered) ? record.grandfathered : []);
+    const held = new Set([...next.inherited, ...next.unlocked]);
+    let before;
+    do {
+        before = held.size;
+        next.unlocked = next.unlocked.filter(id => {
+            if (exempt.has(id) || contentParents(env.definitions.get(id)).every(key => held.has(key) || contentKind(env.definitions.get(key)) === 'auto')) return true;
+            held.delete(id);
+            delete next.paidCosts[id];
+            return false;
+        });
+    } while (held.size !== before);
 }
 
 // Save boundary: old 1P purchases are grandfathered and rows that were free before the tree (def.since) stay free for whoever holds
@@ -103,7 +145,9 @@ export function contentRestore(env, raw, owner, existingSave) {
     contentInheritFormerFreeAccess(record, next, owner);
     const purchases = contentSavedPurchases(env, record);
     contentKeepEarlyPurchases(env, purchases, next, record);
+    keepIndependentBranchPurchases(env, purchases, next, Number(record.version) || 0);
     contentRestorePurchases(env, purchases, next, record);
+    dropUnfundedBranches(env, next, record);
     if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => contentKind(env.definitions.get(id)) !== 'auto')
         && ![...next.unlocked, ...next.inherited].includes('craft')) next.inherited.push('craft');
     next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
@@ -143,7 +187,7 @@ export function contentKeepOverflowOfAddedRows(env, record, next, existingSave) 
 // 루프 1, 2의 저장은 찍어 둔 공허 칸만 루프가 바뀔 때까지 남는다(js/passives.js isVoidSocketHidden).
 export function contentInheritVoidSockets(env, record, next, existingSave) {
     const def = env.definitions.get('voidSocket');
-    if (!(Number(record.version) < def.addedIn) || !existingSave || next.highestLoop < def.minLoop) return;
+    if (!(Number(record.version) < def.addedIn) || !existingSave || next.highestLoop < contentFormerLoop(def)) return;
     if (!next.unlocked.includes(def.id) && !next.inherited.includes(def.id)) next.inherited.push(def.id);
 }
 
@@ -159,7 +203,7 @@ export function contentInheritTreeAccess(env, record, next, existingSave) {
     next.looseContent = true;
     for (const def of env.deps.CONTENT_UNLOCK_CATALOG) {
         const owned = next.unlocked.includes(def.id) || next.inherited.includes(def.id);
-        if (def.since === env.LEDGER_VERSION && !owned && next.highestLoop >= (def.formerLoop || def.minLoop)) next.inherited.push(def.id);
+        if (def.since === env.LEDGER_VERSION && !owned && next.highestLoop >= contentFormerLoop(def)) next.inherited.push(def.id);
     }
     next.graftFloor = Math.max(next.graftFloor, contentOverflowOf(env, record, next.highestLoop));
 }

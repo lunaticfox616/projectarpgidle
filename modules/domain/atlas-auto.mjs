@@ -1,10 +1,15 @@
 import { atlasCoreLockReason, atlasCoreMapDestination } from './atlas-access.mjs';
 import { atlasCoreCompleted } from './atlas-graph.mjs';
 
+/** 시대 재생은 정점 이후에만 가능하다. 이전 시대에서 얻은 자동 입장도 유지한다. */
+export function atlasAutoUnlocked(state) {
+    return !!(state.atlas.endgame.kills.pinnacle || state.atlas.epoch.count || atlasCoreCompleted(state, 'pinnacle'));
+}
+
 /** 자동 지도: 일반 지도와 수호자 지도(수호자는 끄지 않았을 때, 이전 저장도 켜짐: 끄면 뿌리 입장권이 끊긴다).
  * 방금 마친 등급 이하에서 높은 등급, 미완료(지도석이 실제로 여는 노드), 희귀, 먼저 얻은 순. */
 export function atlasCoreNextAuto(env, state, tierCap) {
-    if (!state.atlas.autoMap || atlasCoreLockReason(env, state)) return null;
+    if (!state.atlas.autoMap || !atlasAutoUnlocked(state) || atlasCoreLockReason(env, state)) return null;
     const score = map => [map.tier, Number(!atlasCoreCompleted(state, atlasCoreMapDestination(env, state, map).id)), env.RARITY_RANK[map.rarity], -map.uid];
     const better = (x, y) => { const i = x.findIndex((v, k) => v !== y[k]); return i >= 0 && x[i] > y[i]; };
     const eligible = map => {

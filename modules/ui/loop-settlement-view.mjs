@@ -1,19 +1,16 @@
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { unlockRewardText, summaryHtml, firstPreservationHtml, nextLoopLines, stumpCellLine, loopPointLockText, storyHtml, milestoneLines, resetButtonAttr, stallWarningHtml } from './loop-settlement-markup.mjs';
-import { startReveal, showReveal, advanceReveal, rollLoop, nudgeStallWarning, showFreshReveal, cancelSettlementTimers, playLoopRewriteEffect, togglePastLoopMilestones } from './loop-settlement-reveal.mjs';
+import { startReveal, showReveal, advanceReveal, rollLoop, nudgeStallWarning, showFreshReveal, cancelSettlementTimers, togglePastLoopMilestones } from './loop-settlement-reveal.mjs';
 import { render, updateLoopDecisionOverlayUi } from './loop-settlement-render.mjs';
 import { organize, reopen, canShowCombatLoopAdvanceButton, handleCombatLoopAdvanceButton, handleLoopDecisionAdvanceButton, announceCodexStarter } from './loop-settlement-actions.mjs';
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
 export function createLoopSettlementView(deps) {
     const runtime = { deps, state: {}, handlers: {}, api: null, active: true, listeners: [] };
-    const handlers = { announceCodexStarter, playLoopRewriteEffect, togglePastLoopMilestones, unlockRewardText, summaryHtml, firstPreservationHtml, nextLoopLines, stumpCellLine, loopPointLockText, storyHtml, startReveal, showReveal, advanceReveal, rollLoop, milestoneLines, resetButtonAttr, nudgeStallWarning, stallWarningHtml, render, showFreshReveal, organize, reopen, canShowCombatLoopAdvanceButton, updateLoopDecisionOverlayUi, handleCombatLoopAdvanceButton, handleLoopDecisionAdvanceButton };
+    const handlers = { announceCodexStarter, togglePastLoopMilestones, unlockRewardText, summaryHtml, firstPreservationHtml, nextLoopLines, stumpCellLine, loopPointLockText, storyHtml, startReveal, showReveal, advanceReveal, rollLoop, milestoneLines, resetButtonAttr, nudgeStallWarning, stallWarningHtml, render, showFreshReveal, organize, reopen, canShowCombatLoopAdvanceButton, updateLoopDecisionOverlayUi, handleCombatLoopAdvanceButton, handleLoopDecisionAdvanceButton };
     for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(undefined, runtime);
     initialize(runtime);
-    listenView(runtime, deps.window, 'project-idle:loop-rewrite-started', () => {
-        runtime.handlers.render();
-        runtime.handlers.playLoopRewriteEffect();
-    });
+    listenView(runtime, deps.window, 'project-idle:loop-rewrite-started', () => runtime.handlers.render());
 
     runtime.api = Object.assign(settlementFields(runtime), runtime.handlers, { dispose: () => disposeLoopSettlementView(runtime) });
     for (const id of ['loop-ready-overlay', 'loop-decision-overlay']) {
@@ -33,8 +30,6 @@ function initialize(runtime) {
     runtime.state.rolledLoop = 0;
     runtime.state.rollTimer = 0;
     runtime.state.owner = null;
-    runtime.state.rewriteTimer = 0;
-    runtime.state.rewriteOverlay = null;
 }
 
 function disposeLoopSettlementView(runtime) {

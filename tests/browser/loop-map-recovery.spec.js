@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { pickClass } = require('./helpers');
+const { pickClass, passLoopCinematic } = require('./helpers');
 
 test('discovered map persists and an earned early loop remains actionable after loading', async ({ page }, info) => {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -45,6 +45,7 @@ test('discovered map persists and an earned early loop remains actionable after 
     await expect(advance).toBeVisible();
     await advance.click(); await page.locator('#game-dialog-confirm').click();
     await expect.poll(() => page.evaluate(() => game.season)).toBe(2);
+    await passLoopCinematic(page);
     await pickClass(page, 'warrior');
     await page.waitForFunction(() => !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await expect(map).toBeVisible(); await expect(advance).toBeHidden();

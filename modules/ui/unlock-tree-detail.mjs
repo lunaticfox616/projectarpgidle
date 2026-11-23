@@ -1,5 +1,5 @@
 import { view_cardName, gainOf } from './unlock-tree-labels.mjs';
-import { stateOf } from './unlock-tree-markup.mjs';
+import { stateOf, unknownUnlock } from './unlock-tree-markup.mjs';
 
 export function goalHtml(runtime, plan) {
     if (!plan?.valid) return '';
@@ -60,7 +60,7 @@ export function moreHtml(runtime, def) {
 }
 
 export function nextHtml(runtime, def) {
-    const kids = runtime.state.unlockBoard.rows.filter(row => runtime.deps.contentProgression.parents(row).includes(def.id));
+    const kids = runtime.state.unlockBoard.rows.filter(row => !unknownUnlock(runtime, row) && runtime.deps.contentProgression.parents(row).includes(def.id));
     if (!kids.length) return '<div class="unlock-next"></div>';
     return `<div class="unlock-next"><h5>${(0, runtime.deps._t)('이어지는 해금')}</h5><div>${kids.map(kid => `<button type="button" class="unlock-next-chip fam-${runtime.state.unlockBoard.familyOf(kid)}" data-unlock-select="${kid.id}">
             <span class="unlock-ic"><img src="${runtime.deps.contentUnlockUi.art(kid)}" alt="" loading="lazy"></span><span>${(0, runtime.deps.escapeHTML)(runtime.state.unlockBoard.isStep(kid) ? (0, runtime.deps._t)(kid.name) : view_cardName(runtime, kid))}</span></button>`).join('')}</div></div>`;

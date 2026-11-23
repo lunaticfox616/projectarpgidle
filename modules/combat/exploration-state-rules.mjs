@@ -8,7 +8,8 @@ export function stateCurrent(state) {
 /** Elites of the ordinary rooms still alive: they seal the boss gate. A boss stage's own escort (Cerberus's heads, elites that
  * rise with the boss) never holds its own door. */
 export function stateRemainingElites(run) {
-    return run.packs.reduce((sum,pack)=>sum+(pack.stage===null?pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length:0),0);
+    if (run.source?.pocket) return run.packs.filter(pack => pack.task && (pack.aliveIds.length || pack.task.index < pack.task.spots.length)).length;
+    return run.packs.reduce((sum,pack)=>sum+(pack.stage===null && !pack.roomId.startsWith('bonus-')?pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length:0),0);
 }
 
 /** 보스 관문이 닫혀 있는가: 정예가 남았거나, 그 콘텐츠가 아직 열지 않았다(run.sealed. 대균열의 처치 게이지가 차기 전, 군락지의
@@ -20,7 +21,7 @@ export function stateArrive(env, run,now) {if(run)env.memo.arrivals.set(run,now)
 export function stateInArrivalGrace(env, run,now) {const at=run?env.memo.arrivals.get(run):undefined;return at!==undefined && now>=at && now-at<env.deps.EXPLORATION_ARRIVAL_GRACE_MS;}
 
 /** Rooms that hold a pack: every room but the entry, the boss room (its stages) and monster-free paths. */
-export function statePackRooms(map) {return map.rooms.filter(room=>!['entry','boss','path'].includes(room.role));}
+export function statePackRooms(map) {return map.rooms.filter(room=>!room.host && !['entry','boss','path'].includes(room.role));}
 
 export function statePackPosition(map,pack) {return pack.anchor || map.rooms.find(row=>row.id===pack.roomId);}
 

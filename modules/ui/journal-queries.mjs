@@ -1,4 +1,5 @@
-import { getJournalEntryAction } from './journal-navigation.mjs';
+import { getJournalEntryAction, journalExplorationUnlocks } from './journal-navigation.mjs';
+import { beyondUnlockPreview } from '../common/unlock-preview.mjs';
 
 export function getJournalEntryAvailability(runtime, entry, unlockedIds) {
     const unlocked = new Set(Array.isArray(unlockedIds) ? unlockedIds : []);
@@ -11,16 +12,18 @@ export function getJournalEntryAvailability(runtime, entry, unlockedIds) {
 }
 
 export function getJournalContentUnlockHint({ deps }, id) {
-    const hints = {
-        woodsman: '액트 10 클리어 후 혼돈 입성', beehive_queen: '루프 8 도달', void_grand_breach: '루프 9 도달',
-        labyrinth_10: '루프 3, 액트 5 도달', sky_tower_10: '루프 15, 혼돈 20층 클리어', colony_wave_10: '루프 15 도달'
-    };
-    if (Object.hasOwn(hints, id)) return hints[id];
-    if (id === 'meteor_fall') return deps._t('루프 {METEOR_SITE_UNLOCK_LOOP}, 액트 {METEOR_SITE_UNLOCK_ACT} 도달', { METEOR_SITE_UNLOCK_LOOP: deps.METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT: deps.METEOR_SITE_UNLOCK_ACT });
-    if (id === 'ocean_500') return deps._t('루프 {OCEAN_UNLOCK_LOOP} 도달', { OCEAN_UNLOCK_LOOP: deps.OCEAN_UNLOCK_LOOP });
-    if (id === 'time_rift_fusion') return deps._t('루프 {TIME_RIFT_UNLOCK_LOOP} 도달', { TIME_RIFT_UNLOCK_LOOP: deps.TIME_RIFT_UNLOCK_LOOP });
+    if (id === 'woodsman') return '액트 10 클리어 후 혼돈 입성';
+    const key = journalExplorationUnlocks[id]?.[0] || ({ meteor_fall: 'meteorSite', sky_tower_10: 'sky' })[id];
+    if (key) return journalAreaRequirement(deps, key);
     if (/^rival_/.test(id) || id === 'cosmos_astra' || /^pinnacle_/.test(id)) return '루프 31 도달';
     return '';
+}
+
+function journalAreaRequirement(deps, key) {
+    if (deps.contentProgression.isUnlocked(key)) return key === 'labyrinth' ? deps._t('액트 {act} 완료', { act: 5 }) : '';
+    const def = deps.CONTENT_UNLOCK_CATALOG.find(row => row.id === key);
+    if (beyondUnlockPreview(def.minLoop, deps.game.season)) return deps._t('아직 알 수 없음');
+    return deps.contentProgression.status(key).reason;
 }
 
 export function getJournalLockedHint(runtime, availability, id) {

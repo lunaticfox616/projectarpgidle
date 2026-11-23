@@ -3,17 +3,23 @@
 /** Forced rooms (fragments) first, then the other types — in a random order, so none is starved by the list order — roll
  * their chance (base + passives, × the map region's share) up to the map's limit; never more rooms than the map has ordinary
  * rooms for. context = { awake, loop, region } (a bare boolean is awake): a type with minLoop waits for that loop. */
+import { atlasChallenges } from '../data/atlas-challenges.mjs';
 export function atlasEncounterRoll(env, bonus, forced, random, ...selection) {
     const [capacity = Infinity, context = false, owner] = selection;
     const { awake = false, loop = Infinity, region = null } = context && typeof context === 'object' ? context : { awake: !!context };
-    const fixed = [...new Set(forced)].filter(type => Object.hasOwn(env.deps.ATLAS.encounters, type));
+    const pool = initialEncounterPool(env,context);
+    const fixed = [...new Set(forced)].filter(type => pool.includes(type) && atlasEncounterIsOpen(env, type, loop, owner));
     const limit = atlasEncounterRoomLimit(env, bonus, loop, owner);
     // 패시브가 없는 종류의 보너스는 0.
-    const passing = late => atlasEncounterShuffledTypes(env.TYPES.filter(type => !fixed.includes(type) && !!env.deps.ATLAS.encounters[type].late === late && atlasEncounterIsOpen(env, type, loop, owner)), random)
+    const passing = late => atlasEncounterShuffledTypes(pool.filter(type => !fixed.includes(type) && !!env.deps.ATLAS.encounters[type].late === late && atlasEncounterIsOpen(env, type, loop, owner)), random)
         .filter(type => random() * 100 < atlasEncounterChance(env, type, bonus, region));
     // 제단(late)은 아틀라스가 깨어난 뒤에만, 콘텐츠 방 자리와 따로 굴린다(js/atlas-endgame.js): 깨어나도 기존 방이 줄지 않는다.
     const altars = awake ? passing(true).slice(0, env.deps.ATLAS.altarLimit) : [];
     return [...fixed, ...passing(false).slice(0, limit), ...altars].slice(0, capacity);
+}
+
+function initialEncounterPool(env,context) {
+    return context?.fieldDiscoveries ? env.TYPES.filter(type => !Object.hasOwn(atlasChallenges, type)) : env.TYPES;
 }
 
 /** Content rooms a map may hold: the base, the passives' extra and one more for each 콘텐츠 방 unlock (data/atlas.js encounterLoopBonus). */
@@ -31,6 +37,7 @@ export function atlasEncounterChance(env, type, bonus, region) {
 /** Whether the type can appear now: a late room waits for its unlock (data/atlas.js encounters unlock: 잿불 터 and the rest). */
 export function atlasEncounterIsOpen(env, type, loop, owner) {
     const rule = env.deps.ATLAS.encounters[type];
+    if (rule.unlock && Array.isArray(owner?.contentProgression?.automatic)) return env.deps.contentProgression.isUnlocked(rule.unlock, owner);
     return (rule.minLoop || 0) <= loop && (!rule.unlock || env.deps.contentProgression.holds(rule.unlock, owner, loop));
 }
 
@@ -44,7 +51,7 @@ export function atlasEncounterShuffledTypes(list, random) {
 }
 
 /** Rooms that can hold content: ordinary ones (not the entry, paths, elite gates or the boss). */
-export function atlasEncounterHostRooms(map) { return map.rooms.filter(room => room.role === 'optional' || room.role === 'battle'); }
+export function atlasEncounterHostRooms(map) { return map.rooms.filter(room => !room.host && (room.role === 'optional' || room.role === 'battle')); }
 
 export function atlasEncounterScore(env, zone, type, room) { return Math.abs(env.deps.hashSeed(`${zone.atlasSeed}:${type}:${room.id}`)); }
 
@@ -54,6 +61,10 @@ export function atlasEncounterRooms(env, zone, map) {
     if (!zone || zone.type !== 'atlasMap') return out;
     const pool = atlasEncounterHostRooms(map);
     for (const type of zone.atlasEncounters) {
+        if (zone.exploration?.challenges?.includes(type) && map.stage) {
+            out['bonus-' + type] = type;
+            continue;
+        }
         const free = pool.filter(room => !out[room.id]);
         if (free.length) out[free.reduce((best, room) => (atlasEncounterScore(env, zone, type, room) > atlasEncounterScore(env, zone, type, best) ? room : best)).id] = type;
     }
@@ -143,13 +154,14 @@ export function atlasEncounterPickKey(env, key, rule, zone, random) {
 /** Room rewards: expected (base + perTier × tier) × (1 + reward passive %), in a golden room × rewardMul plus its golden rows; the
  * fraction rolls one more. A list row gives one key of it (pickKey). Locked currencies are skipped. */
 export function atlasEncounterRewards(env, zone, type, bonus, ...selection) {
-const [random, owner] = selection;
+    const [random, owner] = selection;
     const rule = env.deps.ATLAS.encounters[type], gold = atlasEncounterIsGolden(zone, type);
     const mul = (1 + (bonus[`${type}Reward`] || 0) / 100) * (gold ? env.deps.ATLAS.goldenRoom.rewardMul : 1);
     const rows = rule.rewards.map(([key, base, perTier]) => [key, (base + perTier * zone.atlasTier) * mul]).concat(gold ? rule.golden || [] : []);
-    return rows.map(([key, expected]) => {
+    const minimum = zone.pocket === type || zone.exploration?.challenges?.includes(type) ? 1 : 0;
+    return rows.map(([key, expected], index) => {
         const amount = Math.floor(expected) + Number(random() < expected % 1);
-        return [atlasEncounterPickKey(env, key, rule, zone, random), amount];
+        return [atlasEncounterPickKey(env, key, rule, zone, random), Math.max(index === 0 ? minimum : 0, amount)];
     }).filter(([key, amount]) => amount > 0 && env.deps.contentProgression.canDropCurrency(key, owner));
 }
 

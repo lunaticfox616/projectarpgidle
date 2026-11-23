@@ -20,13 +20,15 @@ export function createUnlockTreeView(deps) {
 }
 
 function initialize(runtime) {
-    runtime.state.UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 24, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
+    runtime.state.UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, unknownWidth: 104, minPitch: 24, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
     runtime.state.UNLOCK_FAMILIES = Object.freeze([
         { id: 'gear', root: 'craft', side: -1, at: 0.22 },
         { id: 'rune', root: 'support', side: 1, at: 0.56 },
         { id: 'growth', root: 'loopTree', side: 1, at: 0.84 }
     ]);
-    runtime.state.UNLOCK_LOOSE_FAMILY = Object.freeze({ passiveTree: 'growth', deepChaos: 'rune' });
+    runtime.state.boardFamilyRoots = new Map(runtime.state.UNLOCK_FAMILIES.map(family => [family.root, family.id]));
+    runtime.state.boardFamilyRoots.set('passiveTree', 'growth');
+    runtime.state.boardFamilyRoots.set('deepChaos', 'rune');
     runtime.state.UNLOCK_UNSEEN_STATES = Object.freeze(new Set(['ready', 'short', 'owned']));
     runtime.state.boardSIZE = runtime.state.UNLOCK_BOARD_SIZE;
     runtime.state.boardById = new Map(runtime.deps.CONTENT_UNLOCK_CATALOG.map(def => [def.id, def]));
