@@ -51,7 +51,10 @@ const rules = new EquipmentHallRules({
 const service = new EquipmentHallService(deps, state, rules);
 const view = new EquipmentHallView(deps, state, service);
 const actions = new EquipmentHallActions(deps, state, service, view);
-window.GameModules.equipmentHall = { state, dispose: () => actions.dispose() };
+// The auction's 다른 플레이어 lots (modules/ui/auction-house-hall.mjs) read the hall rows and buy through the hall's own purchase.
+window.GameModules.equipmentHall = { state, dispose: () => actions.dispose(), isServerReady: () => service.isPlayerExchangeServerReady(),
+    listings: () => service.getPlayerHallListings(), buyBlockReason: listing => service.getHallBuyBlockReason(listing),
+    buyReplica: listingId => actions.buyPlayerHallReplica(listingId) };
 // Existing market/navigation consumers keep these four bridges until their composition is native.
 safeExposeGlobals({
     hallItemIssue: rules.hallItemIssue.bind(rules),

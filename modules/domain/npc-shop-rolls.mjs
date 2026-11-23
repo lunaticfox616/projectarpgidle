@@ -1,4 +1,5 @@
-
+/** NPC shop prices (createNpcShop env.PRICE); the auction floors its NPC gear lots at npcTradeGearWarePrice with these (modules/domain/auction-gear-lots.mjs). */
+export const NPC_SHOP_PRICE = Object.freeze({ normal: 1, magic: 2, rare: 1, tierStep: 4, rareTierStep: 6, attackGem: 3, supportGem: 1 });
 
 export function npcTradeWeighShopMods(env, pool) { return pool.map(mod => env.deps.getAffixTags(mod).includes('resistance')
     ? { ...mod, weight: (Number(mod.weight) || 1) * env.RESISTANCE_WEIGHT } : mod); }

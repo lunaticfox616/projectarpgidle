@@ -22,7 +22,7 @@ export class DevTestPanel {
         this.godTimer = null;
         this.speed = 1;
         this.generation = 0;
-        ["isEnabled","el","testInvader","button","section","row","note","log","refresh","chooseClass","equipGem","fitRune","wearTestItem","soundRuneSelect","nextSoundRune","setSetting","toggleGodMode","setSpeed","addLevels","grantStumpBox","giveStumpItems","giveUniqueWards","growStumpBox","setExpansion","setStageSight","setStageRoomSize","startTestBeehive","openTestZone","startTestCosmos","startTestOcean","startTestBoundary","startTestColony","startTestBreach","startTestEcho","startTestAtlas","enterTestZone","travelToAct","gemLabel","gemGroup","gemSelect","classRow","characterSection","monsterRows","stageSection","gemSection","combatSection","spawnCritter","progressSection","loopCineSection","fillLoopCondition","status","weaponLabel","mount","init"].forEach(name => { this[name] = this[name].bind(this); });
+        ["isEnabled","el","testInvader","button","section","row","note","log","refresh","chooseClass","equipGem","fitRune","wearTestItem","soundRuneSelect","nextSoundRune","setSetting","toggleGodMode","setSpeed","addLevels","grantStumpBox","giveStumpItems","giveUniqueWards","growStumpBox","setExpansion","setStageSight","setStageRoomSize","startTestBeehive","openTestZone","startTestCosmos","startTestOcean","startTestBoundary","startTestColony","startTestBreach","startTestEcho","startTestAtlas","enterTestZone","travelToAct","gemLabel","gemGroup","gemSelect","classRow","characterSection","monsterRows","stageSection","gemSection","combatSection","spawnCritter","progressSection","loopCineSection","fillLoopCondition","status","weaponLabel","mount","init","auctionSection","openTestAuction","nextAuctionBucket","auctionClockAhead","fillAuctionMaterials"].forEach(name => { this[name] = this[name].bind(this); });
         this.testZones = this.createTestZones();
     }
 
@@ -452,6 +452,44 @@ export class DevTestPanel {
         this.note('루프 조건 채움(혼돈 ' + cap + '층)');
     }
 
+    // 경매장(js/auction-house-ui.js): 루프 20 전의 저장에서도 바로 써 보고, 구간을 넘겨 판매와 새 매물을 곧장 보고, 5분씩 넘겨 매물이 놓이고 내려가는 것을 본다.
+    auctionSection() {
+        return this.section('경매장', [this.row([this.button('경매장 열기', this.openTestAuction), this.button('다음 시세 구간', this.nextAuctionBucket),
+            this.button('5분 뒤', this.auctionClockAhead), this.button('재료 채우기', this.fillAuctionMaterials)])]);
+    }
+
+    openTestAuction() {
+        const game = this.deps.game, unlocked = game.contentProgression.unlocked;
+        if (game.season < 20) { game.season = 20; game.contentProgression.highestLoop = Math.max(game.contentProgression.highestLoop, 20); }
+        for (const id of ['market', 'auction']) if (!this.deps.contentProgression.isUnlocked(id, game)) unlocked.push(id);
+        this.deps.contentProgression.sync(game);
+        this.deps.checkUnlocks();
+        this.deps.marketUi.open('auction');
+        this.note('경매장 열기');
+    }
+
+    nextAuctionBucket() { this.moveAuctionClock(this.deps.auctionHouse.rules.bucketMs); }
+
+    auctionClockAhead() { this.moveAuctionClock(300000); }
+
+    // The auction clock is max(now, lastAt): moving lastAt ahead by ms moves the market that far (it stays there until real time passes it).
+    moveAuctionClock(ms) {
+        const state = this.deps.game.auction;
+        if (!this.deps.auctionHouse.isUnlocked(this.deps.game)) return this.note('경매장이 아직 열리지 않았습니다');
+        state.lastAt = Math.max(state.lastAt, Date.now()) + ms;
+        this.deps.auctionHouseUi.render(true);
+        this.refresh();
+        this.note(`시세 구간 ${state.bucket}`);
+    }
+
+    fillAuctionMaterials() {
+        for (const key of this.deps.auctionHouse.rules.materials.keys) this.deps.awardCurrency(key, 50);
+        this.deps.awardCurrency('formlessDew', 500);
+        this.deps.auctionHouseUi.render(true);
+        this.refresh();
+        this.note('재료 50개씩, 이슬 500');
+    }
+
     status() {
         const line = this.root && this.root.querySelector('.dtp-status');
         if (!line) return;
@@ -468,7 +506,7 @@ export class DevTestPanel {
         const panel = this.el('div', { className: 'dtp-panel', hidden: true }, [
             this.el('header', {}, [this.el('strong', { textContent: '🧪 테스트 패널' }), this.button('닫기', () => { panel.hidden = true; })]),
             this.el('p', { className: 'dtp-status' }),
-            this.characterSection(), this.stageSection(), this.gemSection(), this.combatSection(), this.progressSection(), this.loopCineSection(),
+            this.characterSection(), this.stageSection(), this.gemSection(), this.combatSection(), this.progressSection(), this.loopCineSection(), this.auctionSection(),
             this.el('p', { className: 'dtp-hint', textContent: '로컬 테스트 전용, 이 세이브에 바로 반영됩니다. 새 게임은 런처 2번(임시 세이브)으로.' })
         ]);
         const toggle = this.button('🧪 테스트', () => { panel.hidden = !panel.hidden; this.status(); }, { className: 'dtp-toggle' });

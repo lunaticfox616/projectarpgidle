@@ -127,6 +127,7 @@ const deps = {
         playerStallUi.dispose();
         npcRosterUi.dispose();
         marketUi.dispose();
+        auctionHouseUi.dispose();
         shopView.dispose();
     },
     disposeLoopViews: () => {
@@ -193,6 +194,7 @@ const deps = {
     get pendingHeavyUiRefresh() { return pendingHeavyUiRefresh; }, set pendingHeavyUiRefresh(value) { pendingHeavyUiRefresh = value; },
     get performance() { return performance; },
     get playerStallUi() { return playerStallUi; },
+    get auctionHouse() { return auctionHouse; },
     get playerStatCache() { return playerStatCache; },
     pushCloudSaveOnPageExit: function appCallPushCloudSaveOnPageExit(...args) { return pushCloudSaveOnPageExit(...args); },
     recordBackgroundCombatEntry: function appCallRecordBackgroundCombatEntry(...args) { return recordBackgroundCombatEntry(...args); },

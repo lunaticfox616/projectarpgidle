@@ -107,6 +107,23 @@ export function stallRulesLegacyOfflineItems(owner) {
     return [offline.stash, offline.protectedOverflow].flat();
 }
 
+/** Items the save holds outside the stall and the auction (bag, gear, presets, temporary storage, altar, old offline stash,
+ * exploration loot): a listed item whose id is among them is a duplicate. deps: getEquipmentLoadoutOwnedItems, actExplorationLoot,
+ * actExplorationState. The auction restore (modules/domain/auction-restore.mjs) uses the same list. */
+export function stallRulesOwnedOutsideEscrow(deps, owner) {
+    return [deps.getEquipmentLoadoutOwnedItems(owner), owner.equipmentTemporaryStorage,
+        owner.timeRift.altarUnique, owner.timeRift.altarRare,
+        stallRulesLegacyOfflineItems(owner),
+        deps.actExplorationLoot.reservedItems(owner), deps.actExplorationState.groundLoot.reservedItems(owner)].flat().filter(Boolean);
+}
+
+/** The auction (owner.auction, restored after the stall) holds listed gear too: an id it holds is owned elsewhere. A sold lot has no item
+ * in a sound save, so one left in a sold record does not count. */
+export function stallRulesAuctionItems(owner) {
+    const lots = owner.auction && Array.isArray(owner.auction.lots) ? owner.auction.lots : [];
+    return lots.map(row => row && row.status !== 'sold' && row.item);
+}
+
 export function stallRulesRestore(env, owner) {
     const source = owner.playerStall;
     const stall = { ...JSON.parse(JSON.stringify(env.deps.defaultGame.playerStall)), ...(source && typeof source === 'object' ? source : {}) };
@@ -124,10 +141,7 @@ export function stallRulesRestore(env, owner) {
     stall.eventSequence = Math.max(stall.eventSequence, ...stall.history.map(event => Number.isSafeInteger(event.id) ? event.id : 0));
     stallRulesRestoreSales(env, stall, source);
     owner.playerStall = stall;
-    const owned = [env.deps.getEquipmentLoadoutOwnedItems(owner), owner.equipmentTemporaryStorage,
-        owner.timeRift.altarUnique, owner.timeRift.altarRare,
-        stallRulesLegacyOfflineItems(owner),
-        env.deps.actExplorationLoot.reservedItems(owner), env.deps.actExplorationState.groundLoot.reservedItems(owner)].flat().filter(Boolean);
+    const owned = [stallRulesOwnedOutsideEscrow(env.deps, owner), stallRulesAuctionItems(owner)].flat().filter(Boolean);
     const seen = { items: new Set(owned.map(item => item.id)), listings: new Set() };
     stall.listings = (Array.isArray(stall.listings) ? stall.listings : []).filter(row => stallRulesRestoreListing(env, row, owner, seen));
     stall.sequence = Math.max(stall.sequence, ...seen.listings);

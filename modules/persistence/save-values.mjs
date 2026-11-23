@@ -23,7 +23,9 @@ export function outdatedBuildRefusal(message) {
 
 export function cloudSavePrintSource(saveData) {
     const stall = saveData.playerStall && typeof saveData.playerStall === 'object' ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
-    return { ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall };
+    // The auction's watermark moves with every command, like the stall's.
+    const auction = saveData.auction && typeof saveData.auction === 'object' ? { ...saveData.auction, lastAt: 0 } : saveData.auction;
+    return { ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall, auction };
 }
 
 export function printOfSaveText(text) {

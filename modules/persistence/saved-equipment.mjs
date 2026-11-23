@@ -2,8 +2,9 @@ export function savedItemsOf(merged) {
     const offline = merged.offlineProgress || {}, rift = merged.timeRift || {};
     const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
     const listings = ((merged.playerStall || {}).listings || []).map(row => row && row.item);
+    const auctionLots = Array.isArray(merged.auction?.lots) ? merged.auction.lots.map(row => row && row.item) : [];
     return [merged.inventory, Object.values(merged.equipment || {}), merged.equipmentTemporaryStorage, offline.stash, offline.protectedOverflow,
-        rift.altarUnique, rift.altarRare, presets, listings].flat().filter(item => item && typeof item === 'object');
+        rift.altarUnique, rift.altarRare, presets, listings, auctionLots].flat().filter(item => item && typeof item === 'object');
 }
 
 // Only already-equipped pre-level-system items receive grace, until their next removal.
@@ -57,8 +58,9 @@ export function legacySocketStores(merged) {
     const rift = merged.timeRift || {}, offline = merged.offlineProgress || {};
     const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
     const stall = ((merged.playerStall || {}).listings || []).map(row => row && row.item);
+    const auctionLots = Array.isArray(merged.auction?.lots) ? merged.auction.lots.map(row => row && row.item) : [];
     return [merged.inventory, Object.values(merged.equipment || {}), rift.altarUnique, rift.altarRare, offline.stash,
-        offline.protectedOverflow, merged.equipmentTemporaryStorage, presets, stall];
+        offline.protectedOverflow, merged.equipmentTemporaryStorage, presets, stall, auctionLots];
 }
 
 /** Codex, hunt targets and new-entry marks are keyed '부위|이름': a unique whose old name left the code (2026-11-12 renames) is found by

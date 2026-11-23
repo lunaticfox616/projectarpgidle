@@ -30,6 +30,8 @@ export function finishRestoredSave(deps, context) {
     normalizeStoredEquipmentSave(deps, normalized);
     // Escrow identity checks need the migrated exploration loot containers first.
     deps.playerStall.restore(normalized);
+    // The auction escrow after the stall's: its duplicate check reads the restored stall listings.
+    deps.auctionHouse.restore(normalized);
     normalized.craftOmen = (0, deps.normalizeCraftOmen)(normalized.craftOmen);
     normalizeEquipmentCraftChoiceSave(deps, normalized);
     return normalized;

@@ -26,6 +26,7 @@ export function createGameApplication(deps) {
         applySavedPresentation: settings => startup.applySavedPresentation(settings),
         runGameTick: () => foreground.runGameTick(),
         settlePlayerStall: () => foreground.settlePlayerStall(),
+        announceAuction: settled => foreground.announceAuction(settled),
         refreshCombatTickUi: () => foreground.refreshCombatTickUi(),
         notePageExit: () => foreground.notePageExit(),
         syncGameplayTimers: () => timers.sync(),

@@ -56,6 +56,7 @@ export class ForegroundLoop {
                 this.lastHeavyUiRefreshAt = 0;
             }
             this.settlePlayerStall();
+            this.settleAuction();
             if (this.runForegroundCombat(this.deps.performance.now()) === 0) return;
             this.deps.ensureLoopChallengeState();
             let now = Date.now();
@@ -83,6 +84,21 @@ export class ForegroundLoop {
         const pending = stall.listings.filter(row => row.offer).length;
         const paid = this.deps.playerStallUi.settleSales(Date.now());
         if (paid > 0 || sequence !== stall.offerSequence || pending !== stall.listings.filter(row => row.offer).length) this.deps.pendingHeavyUiRefresh = true;
+    }
+
+    /** The auction settles only when its 15-minute bucket turns (one integer compare otherwise), with the stall's visibility guards. */
+    settleAuction() {
+        const away = this.deps.backgroundCombatRuntime;
+        if (this.deps.document.hidden || away.appInactive || away.snapshot || away.processing || away.failed) return;
+        const result = this.deps.auctionHouse.tick(Date.now());
+        this.announceAuction(result.settled);
+        if (result.bucketChanged) this.deps.pendingHeavyUiRefresh = true;
+    }
+
+    /** Sold and expired lots tell the player at once, as a stall sale does (toast, bag mark), without opening the window. */
+    announceAuction(settled) {
+        for (const row of settled) this.deps.addLog(this.deps.auctionHouse.noticeText(row), 'loot-rare', { toast: true });
+        if (settled.length && this.deps.game.noti) this.deps.game.noti.items = true;
     }
 
     refreshCombatTickUi() {

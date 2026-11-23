@@ -26,6 +26,7 @@ const loopSettlementUi = createLoopSettlementView({
     get getHeldGearLoopBlockReason() { return getHeldGearLoopBlockReason; },
     get switchTab() { return switchTab; },
     get playerStall() { return playerStall; },
+    get auctionHouse() { return auctionHouse; },
     get marketUi() { return marketUi; },
     get hasCurrentLoopAbyssRequirementClear() { return typeof hasCurrentLoopAbyssRequirementClear === 'undefined' ? undefined : hasCurrentLoopAbyssRequirementClear; },
     get hasCurrentLoopChaosRequirementClear() { return typeof hasCurrentLoopChaosRequirementClear === 'undefined' ? undefined : hasCurrentLoopChaosRequirementClear; },

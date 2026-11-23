@@ -12,7 +12,7 @@
 | 콘텐츠 진행·해금 | [현재 진행 구조](content-progression.md), 정의는 [해금 카탈로그](../data/content-progression.js) |
 | 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md), 계산에 입력을 더할 때는 그 문서의 작업 규칙 |
 | 나무꾼 전투 잠금, 콘텐츠 시작 거절, 콘텐츠 전용 고유 | [콘텐츠 도전 계약](content-runs.md) |
-| NPC 가판대 | [현재 거래 규칙과 변경 이력](balance-and-player-stall-20260929.md) |
+| NPC 가판대, 경매장 | [현재 거래 규칙과 변경 이력](balance-and-player-stall-20260929.md), [경매장](balance-and-player-stall-20260929.md#경매장-2026-11-22) |
 | 그루터기 함·조합창 | [현재 구조와 초기 설계 이력](stump-cube-game-design.md), [보조 콘텐츠 통합 이력](aux-consolidation-20260930.md) |
 | 루프 밸런스·경험치 | [루프 난이도 곡선 재조율](loop-difficulty-20261006.md), [전투·보상 조정](loop-balance-20261004.md), [몹팩·요구 경험치](pack-balance-20261004.md). 측정치는 해당 실험 조건에 한정 |
 | 저장과 방치 성능 | [방치 성능](offline-performance.md), 두 탭 보호는 [game-tab-guard-ui.js](../js/game-tab-guard-ui.js)의 머리말, 새 판의 저장을 옛 판이 받지 않는 [게임 판 표식](github-publish-20261001.md#게임-판-표식과-옛-판-보호-2026-10-28), 장비 줄의 범위와 이름을 빼고 저장하는 [item-save-slim.js](../js/item-save-slim.js)의 머리말 |

@@ -145,6 +145,7 @@ const deps = {
     get normalizeWorldTreeBark() { return normalizeWorldTreeBark; },
     get passiveRouting() { return passiveRouting; },
     get playerStall() { return playerStall; },
+    get auctionHouse() { return auctionHouse; },
     get rebuildJournalBonusStateForLoad() { return rebuildJournalBonusStateForLoad; },
     get reconcileMapPrimaryContentUnlocks() { return reconcileMapPrimaryContentUnlocks; },
     get repairJournalEntriesFromProgress() { return repairJournalEntriesFromProgress; },
