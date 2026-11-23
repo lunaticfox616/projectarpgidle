@@ -84,17 +84,26 @@
   }
   #mobile-battle-pip canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: var(--radius-sm); box-sizing: border-box; object-fit: contain; }
   #mobile-battle-pip .mobile-battle-pip-preview { display: block; width: 100%; min-height: 0; padding: 0; border: 0; background: var(--color-surface); }
-  #mobile-battle-pip .mobile-battle-pip-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-  #mobile-battle-pip .mobile-battle-pip-actions button { min-height: 44px; padding: 4px; font-size: 12px; line-height: 1.25; }
+  /* 그림을 누르면 오른쪽 위에 뜨는 끄기 단추: 두 획의 X(글꼴에 기대지 않는다). */
+  #mobile-battle-pip .mobile-battle-pip-close {
+    position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; min-height: 0; padding: 0;
+    border: 1px solid var(--color-line-strong); border-radius: var(--radius-sm); background: rgba(10, 8, 12, .78);
+  }
+  #mobile-battle-pip .mobile-battle-pip-close[hidden] { display: none; }
+  #mobile-battle-pip .mobile-battle-pip-close::before,
+  #mobile-battle-pip .mobile-battle-pip-close::after {
+    content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 2px; background: var(--color-text); transform: translate(-50%, -50%) rotate(45deg);
+  }
+  #mobile-battle-pip .mobile-battle-pip-close::after { transform: translate(-50%, -50%) rotate(-45deg); }
+  /* 전투 보기는 빽빽한 화면이 그림 대신 쓰는 접힌 단추다(펼친 그림에는 단추가 없다). */
+  #mobile-battle-pip [data-pip-toggle] { min-height: 44px; padding: 4px 12px; font-size: 12px; line-height: 1.25; }
+  #mobile-battle-pip:not(.is-collapsed) [data-pip-toggle] { display: none; }
   #mobile-battle-pip.is-collapsed { width: auto; }
-  #mobile-battle-pip.is-collapsed .mobile-battle-pip-preview,
-  #mobile-battle-pip.is-collapsed [data-pip-return] { display: none; }
-  #mobile-battle-pip.is-collapsed .mobile-battle-pip-actions { grid-template-columns: 1fr; }
-  #mobile-battle-pip.is-collapsed [data-pip-toggle] { padding-inline: 12px; }
+  #mobile-battle-pip.is-collapsed .mobile-battle-pip-preview { display: none; }
   /* A floating preview covers the lower right of the page: scrolling pages get its height below their last row, so that row can
      be lifted above it (the settings reset button sat under it). Docked previews and the bag tab (its own gap below) need none. */
   body:has(#mobile-battle-pip.mobile-battle-dock[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked, .is-map-docked)):not(:has(#tab-items.active)) {
-    padding-bottom: calc(clamp(144px, 42vw, 192px) * 9 / 16 + 64px);
+    padding-bottom: calc(clamp(144px, 42vw, 192px) * 9 / 16 + 24px);
   }
   body:has(#mobile-battle-pip.mobile-battle-dock.is-collapsed[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked, .is-map-docked)):not(:has(#tab-items.active)) {
     padding-bottom: 64px;
@@ -109,10 +118,9 @@
   #map-explore-atlas > #mobile-battle-pip.is-map-docked { position: absolute; inset: 5px 6px auto auto; width: auto; margin: 0; }
   /* Keep map preparation actions clear of the floating preview, including an explicitly expanded one. */
   #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive, #map-explore-timerift, #map-tab-underworld).has-battle-pip { padding-bottom: 64px; }
-  #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive, #map-explore-timerift, #map-tab-underworld).has-battle-pip.is-pip-expanded { padding-bottom: 180px; }
+  #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive, #map-explore-timerift, #map-tab-underworld).has-battle-pip.is-pip-expanded { padding-bottom: 136px; }
   /* The tree camera owns the lower right corner; detail sheets suspend PiP in the UI controller. */
   body:has(#tab-char.active) #mobile-battle-pip { right: auto; left: max(8px, env(safe-area-inset-left)); }
-  .mobile-battle-dock-label { overflow: hidden; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
   .equipment-loadout-panel,
   .equipment-inventory-panel,
   .gem-target-rail,

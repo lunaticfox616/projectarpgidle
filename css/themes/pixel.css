@@ -930,7 +930,7 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 :root body[data-ui-skin] :is(#battle-column, .tab-content) .gem-art-fallback:not([hidden]) { width: 26px; height: 26px; margin: auto; overflow: hidden; color: transparent; font-size: 0;
     background: var(--px-menu-icons) 0 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat; text-shadow: none; image-rendering: pixelated; }
 /* 루프 패시브 노드 설명, 전투 미리보기 이름 */
-:root body[data-ui-skin] :is(.loop-node-tooltip b, .mobile-battle-dock-label) { font-size: 12px; }
+:root body[data-ui-skin] .loop-node-tooltip b { font-size: 12px; }
 /* 도감 칸의 새 항목 표시: 둥근 알약 · 빛 번짐 · 0.68em(8px) 영어 "NEW" 대신 각진 꼬리표 "신규" */
 /* 큰 숫자(최대 생명 · 보호막 · 총 DPS)와 해금 상세 이름은 물마루 24 — 20 · 21px은 반 칸씩 번졌다. */
 :root body[data-ui-skin] :is(#tab-character :is(#ui-es, #ui-maxhp-stat, #ui-total-dps)) { font-family: var(--font-pixel); font-size: 24px; }

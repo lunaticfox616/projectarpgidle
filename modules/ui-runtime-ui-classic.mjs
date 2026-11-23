@@ -392,6 +392,7 @@ const battlePresentation = createBattlePresentation({
     get tutorialActions() { return tutorialActionUi; },
     get activeTutorial() { return activeTutorial; },
     get switchTab() { return switchTab; },
+    get queueImportantSave() { return queueImportantSave; },
     now: () => performance.now(),
     get setTimeout() { return windowSetTimeout; },
     get clearTimeout() { return windowClearTimeout; },
