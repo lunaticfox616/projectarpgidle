@@ -1,7 +1,7 @@
 /**
  * 경매장 아이템 칸의 검색: 검색 단추(이름 칸의 Enter, 저장한 검색)를 누를 때만 그때의 조건(규칙이 고친 query 하나, 고른 순서)으로 지금 놓인
  * 팔리지 않은 매물의 번호를 한 번 찍어 둔다(runtime.search). 머리만으로 고를 수 있는 검색(종류, 부위, 장비 등급, 판매자만 고르고 새것 순이나
- * 남은 시간 순)은 바로 끝난다. 몸이 필요한 검색(이름, 무기 대분류, 계열, 아이템 Lv., 가격, 옵션 조건, 변형, 장비 아닌 종류의 등급, 몸의 값으로 늘어세우기)은
+ * 남은 시간 순)은 바로 끝난다. 몸이 필요한 검색(이름, 무기 대분류, 계열, 살 수 있는 매물만, 아이템 Lv., 가격, 옵션 조건, 변형, 장비 아닌 종류의 등급, 몸의 값으로 늘어세우기)은
  * 후보의 몸이 다 굴러갈 때까지 기다린 뒤(그동안 미리 굴리기가 후보부터 굴린다) 매물의 검색 값(modules/ui/auction-house-index.mjs)으로 거른다.
  * 값이 다 있으면 거르기와 늘어세우기는 누른 그 자리에서 끝난다. 다른 플레이어의 전시품(출처)은 끝에서 같이 거른다.
  * 찍어 둔 결과는 다시 검색할 때까지 그대로다: 그사이 새로 놓인 매물 가운데 검색에 맞는 수만 센다(countNewLots, 새 매물마다 한 번 거른다).
@@ -20,13 +20,15 @@ const NEVER = () => false;
 export function slotApplies(query) { return query.kind === 'all' || query.kind === 'gear'; }
 
 /**
- * A search view of query (any shape: the rules normalize it) in an order: { query, sort, dir, words, unit, variants } (unit: the dew value of
- * one unit of the price limit's currency; variants: the variants asked for or against). The saved searches are counted with the same view.
+ * A search view of query (any shape: the rules normalize it) in an order: { query, sort, dir, words, unit, variants, purse } (unit: the dew
+ * value of one unit of the price limit's currency; variants: the variants asked for or against; purse: null, or what the hero holds of each
+ * coin when only lots it can pay are wanted). The saved searches are counted with the same view (without a purse).
  */
-export function searchViewOf(runtime, raw, sort = 'newest', dir = -1) {
-    const query = runtime.deps.auctionHouse.normalizeQuery(raw);
+export function searchViewOf(runtime, raw, order = {}) {
+    const query = runtime.deps.auctionHouse.normalizeQuery(raw), shopView = runtime.deps.shopView;
     if (!slotApplies(query)) query.slot = 'all';
-    return { query, sort, dir: dir === 1 ? 1 : -1, words: queryWords(runtime, query.name), unit: runtime.deps.itemAppraisal.unitValue(query.currency), variants: variantRules(query) };
+    return { query, sort: order.sort || 'newest', dir: order.dir === 1 ? 1 : -1, words: queryWords(runtime, query.name), unit: runtime.deps.itemAppraisal.unitValue(query.currency),
+        variants: variantRules(query), purse: order.afford ? Object.fromEntries(shopView.WALLET_ORDER.map(key => [key, shopView.held(key)])) : null };
 }
 
 /** Whether a merchant head passes what a head can tell: source, kind, slot, seller, a gear lot's rarity. */
@@ -42,7 +44,7 @@ const sellerPasses = (want, seller) => !want || (seller[0] === want[0] && seller
 /** Whether the search needs bodies: a body condition, an order by a body value, or a rarity over kinds whose heads do not know it. */
 export function needsBodies(view) {
     const query = view.query;
-    return view.words.length > 0 || !HEAD_SORTS.has(view.sort) || bodyClass(query)
+    return view.words.length > 0 || !HEAD_SORTS.has(view.sort) || bodyClass(query) || !!view.purse
         || query.levelMin !== null || query.levelMax !== null || query.priceMax !== null || query.options.length > 0
         || Object.values(query.variants).some(want => want !== 'any');
 }
@@ -106,7 +108,7 @@ function clockNow(runtime) { return Math.max(runtime.deps.now(), runtime.deps.ga
  * candidate is warm and indexed the result is made here, under stop (default: no limit). */
 export function startSearch(runtime, stop = NEVER) {
     const view = runtime.state.gear;
-    runtime.search = { serial: (runtime.search ? runtime.search.serial : 0) + 1, view: searchViewOf(runtime, view.query, view.sort, view.dir), clock: clockNow(runtime),
+    runtime.search = { serial: (runtime.search ? runtime.search.serial : 0) + 1, view: searchViewOf(runtime, view.query, view), clock: clockNow(runtime),
         phase: 'heads', candidates: [], prefer: null, cursor: 0, kept: [], ids: [], users: new Map(), limit: PAGE_ROWS, progress: { done: 0, total: 0 } };
     if (runtime.headsReady) takeCandidates(runtime, runtime.search);
     if (runtime.search.phase === 'scan') scanCandidates(runtime, runtime.search, stop);

@@ -12,6 +12,8 @@ import { esc, num, tr } from './auction-house-format.mjs';
 import { lotRowHtml, headHtml, badgeHtml, minutesText, leftMinutes } from './auction-house-rows.mjs';
 import { PAGE_ROWS, rowLot, countNewLots } from './auction-house-search.mjs';
 import { liveQuery } from './auction-house-conditions.mjs';
+import { hidePeek } from './auction-house-peek.mjs';
+import { canPay } from './auction-house-format.mjs';
 
 // The first view: how many newest lots and latest trades it shows.
 const LANDING = Object.freeze({ newest: 8, trades: 10 });
@@ -95,6 +97,7 @@ export function paintBoard(runtime, root, force) {
     const board = root.querySelector('[data-ah-board]'), key = boardKey(runtime);
     if (!board || (!force && board.ahKey === key)) return;
     board.ahKey = key;
+    hidePeek(runtime);
     board.innerHTML = '';
     board.classList.toggle('is-recent', runtime.state.gear.mode === 'recent');
     if (runtime.state.gear.mode === 'recent') recentBoard(runtime, board);
@@ -137,9 +140,22 @@ function closeRow(runtime, row, head) {
     row.dataset.ahState = head.phase;
     if (head.phase !== 'sold' && head.phase !== 'bought') return;
     row.classList.add('is-closed');
+    row.removeAttribute('data-ah-cost');
     const price = row.querySelector('.ah-cell-price'), left = row.querySelector('.ah-cell-left');
+    if (price) price.classList.remove('is-short');
     if (price && !row.closest('.is-recent')) price.innerHTML = badgeHtml(runtime, { soldOut: head.phase === 'sold', boughtByMe: head.phase === 'bought' });
     if (left) left.textContent = '';
+}
+
+/** The open rows' prices marked or unmarked as more than the hero holds, only when the purse changed since the last look (board.ahPurse). */
+function patchCosts(runtime, root, rows) {
+    const board = root.querySelector('[data-ah-board]'), purse = runtime.deps.shopView.WALLET_ORDER.map(key => runtime.deps.shopView.held(key)).join(':');
+    if (!board || board.ahPurse === purse) return;
+    board.ahPurse = purse;
+    for (const row of rows) {
+        const [coin, price] = (row.dataset.ahCost || '').split(':'), cell = coin ? row.querySelector('.ah-cell-price') : null;
+        if (cell) cell.classList.toggle('is-short', !canPay(runtime, coin, Number(price)));
+    }
 }
 
 /** The heads of the drawn rows' ids, found in one pass over heads (null for an id no longer listed). */
@@ -160,6 +176,7 @@ export function patchRows(runtime, root, heads) {
         if (head && row.dataset.ahState !== head.phase) closeRow(runtime, row, head);
         if (head && head.phase === 'open') patchLeft(runtime, row, head.expireAt - clock);
     }
+    patchCosts(runtime, root, rows);
 }
 
 /** An open row's minutes left (ms), written only when the shown minute changed. */

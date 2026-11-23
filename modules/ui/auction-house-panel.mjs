@@ -2,14 +2,14 @@
  * 경매장 아이템 칸의 검색대. 위에서부터 분류 줄(전체, 부위 아홉, 이 저장이 연 주얼, 액막이, 부적, 오른쪽 끝에 최근 거래 단추), 무기를 골랐을
  * 때만 서는 무기 대분류 줄(모든 무기와 여섯 대분류, 그림은 그 대분류의 베이스 그림), 검색 줄([이름이나 옵션 검색 상자] [등급] [검색] [조건 n]
  * [저장]), 검색했거나 조건이 있을 때만 서는 상태 줄(왼쪽에 옵션 조건 칩(최소 값 칸과 ✕)과 그 밖의 조건 칩, 오른쪽에 매물 수, 좁은 칸의 정렬
- * 고르기, 조건 지우기), 조건 단추가 여닫는 칸(출처, 아이템 Lv. 최소와 최대, 가격 상한과 재화, 변형). 누르는 조건(분류, 무기, 등급, 출처, 변형, 칩의 ✕, 자동완성 고르기)은 바로
+ * 고르기, 조건 지우기), 조건 단추가 여닫는 칸(출처, 아이템 Lv. 최소와 최대, 가격 상한과 재화, 살 수 있는 매물만, 변형). 누르는 조건(분류, 무기, 등급, 출처, 변형, 칩의 ✕, 자동완성 고르기)은 바로
  * 검색하고, 적는 조건(이름, 수)은 Enter나 검색 단추가 검색한다(modules/ui/auction-house-actions.mjs). 상자는 따로 칠한다: 입력 칸이 있는
- * 검색 줄, 칩 줄, 조건 칸은 적은 값을 뺀 모양이 바뀔 때만 다시 그린다(적던 칸은 다시 초점을 받는다). 최근 거래에서는 분류 줄만 남는다. 판매자 조건은 입력 칸이 없다: 행이나 자세히 칸의 판매자 이름을 누르면 칩으로 붙는다.
+ * 검색 줄, 칩 줄, 조건 칸은 적은 값을 뺀 모양이 바뀔 때만 다시 그린다(적던 칸은 다시 초점을 받는다). 최근 거래에서는 분류 줄만 남는다.
  */
 import { tr, esc, num, paint } from './auction-house-format.mjs';
 import { hallActive } from './auction-house-hall.mjs';
 import { openKinds } from './auction-house-kinds.mjs';
-import { liveQuery, lineChips, panelCount, hasConditions, statName, categoryOf, kindLabel, slotName, VARIANT_LABELS } from './auction-house-conditions.mjs';
+import { liveQuery, lineChips, panelCount, hasConditions, statName, categoryOf, kindLabel, slotName, VARIANT_LABELS, AFFORD_CHIP } from './auction-house-conditions.mjs';
 
 const SOURCES = Object.freeze([['all', '모든 출처'], ['merchant', '상인'], ['user', '다른 플레이어']]);
 const RARITIES = Object.freeze(['normal', 'magic', 'rare', 'unique']);
@@ -73,7 +73,8 @@ function chipsHtml(runtime, values) {
         return `<span class="ah-opt-chip"><span class="ah-opt-label">${esc(runtime, name)}</span><input type="number" inputmode="decimal" class="ah-num" data-ah-opt-min="${index}" value="${esc(runtime, typed(values, row.min))}" placeholder="${esc(runtime, least)}" aria-label="${esc(runtime, `${name} ${least}`)}">
             <button type="button" class="ah-opt-x" data-ah-opt-x="${index}" aria-label="${clear(name)}">✕</button></span>`;
     });
-    const others = lineChips(runtime, query).map(([key, text]) => `<button type="button" class="ah-filter-chip" data-ah-clear="${esc(runtime, key)}" aria-label="${clear(text)}">${esc(runtime, text)}<span aria-hidden="true">✕</span></button>`);
+    const lines = [...lineChips(runtime, query), ...(runtime.state.gear.afford ? [[AFFORD_CHIP[0], tr(runtime, AFFORD_CHIP[1])]] : [])];
+    const others = lines.map(([key, text]) => `<button type="button" class="ah-filter-chip" data-ah-clear="${esc(runtime, key)}" aria-label="${clear(text)}">${esc(runtime, text)}<span aria-hidden="true">✕</span></button>`);
     return [...options, ...others].join('');
 }
 
@@ -103,12 +104,13 @@ function numberBox(runtime, attr, value, placeholder, label) {
     return `<input type="number" inputmode="numeric" min="1" class="ah-num" data-ah-q="${attr}" value="${esc(runtime, value)}" placeholder="${esc(runtime, tr(runtime, placeholder))}" aria-label="${esc(runtime, label)}">`;
 }
 
-/** 아이템 Lv. (minimum and maximum) and 가격 (a maximum in a currency). */
+/** 아이템 Lv. (minimum and maximum) and 가격 (a maximum in a currency, and the 살 수 있는 매물만 switch). */
 function numberFields(runtime, values) {
     const query = liveQuery(runtime), level = tr(runtime, '아이템 Lv.'), price = tr(runtime, '가격'), shopView = runtime.deps.shopView;
-    const currencies = runtime.deps.auctionHouse.searchRules.currencies.map(key => [key, shopView.currencyName(key)]);
+    const currencies = runtime.deps.auctionHouse.searchRules.currencies.map(key => [key, shopView.currencyName(key)]), afford = !!runtime.state.gear.afford;
+    const payable = `<button type="button" class="ah-variant${afford ? ' is-yes' : ''}" data-ah-afford aria-pressed="${afford}">${esc(runtime, tr(runtime, AFFORD_CHIP[1]))}</button>`;
     return `${fieldHtml(runtime, '아이템 Lv.', `${numberBox(runtime, 'levelMin', typed(values, query.levelMin), '최소', `${level} ${tr(runtime, '최소')}`)}<span class="ah-dash" aria-hidden="true">~</span>${numberBox(runtime, 'levelMax', typed(values, query.levelMax), '최대', `${level} ${tr(runtime, '최대')}`)}`)}
-        ${fieldHtml(runtime, '가격', `${numberBox(runtime, 'priceMax', typed(values, query.priceMax), '최대', `${price} ${tr(runtime, '최대')}`)}<select data-ah-q="currency" aria-label="${esc(runtime, price)}">${optionsHtml(runtime, currencies, query.currency)}</select>`)}`;
+        ${fieldHtml(runtime, '가격', `${numberBox(runtime, 'priceMax', typed(values, query.priceMax), '최대', `${price} ${tr(runtime, '최대')}`)}<select data-ah-q="currency" aria-label="${esc(runtime, price)}">${optionsHtml(runtime, currencies, query.currency)}</select>${payable}`, ' is-price')}`;
 }
 
 /** The variant chips, each showing its state (상관없음, 있음, 없음). */

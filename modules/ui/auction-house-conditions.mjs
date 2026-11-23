@@ -106,13 +106,16 @@ export function lineChips(runtime, query) {
     return conditionChips(runtime, query).filter(([key]) => shown.has(chipPart(key)));
 }
 
+/** The chip of the 살 수 있는 매물만 switch (a condition of this screen, not of the query: a saved search does not keep it). */
+export const AFFORD_CHIP = Object.freeze(['afford', '살 수 있는 매물만']);
+
 /** How many conditions the 조건 panel holds now. */
 export function panelCount(runtime, query) {
-    return conditionChips(runtime, query).filter(([key]) => PANEL_KEYS.has(chipPart(key))).length;
+    return conditionChips(runtime, query).filter(([key]) => PANEL_KEYS.has(chipPart(key))).length + (runtime.state.gear.afford ? 1 : 0);
 }
 
-/** Whether query has any condition at all. */
-export function hasConditions(runtime, query) { return conditionChips(runtime, query).length > 0; }
+/** Whether a condition is chosen at all (the query's, or the payable switch). */
+export function hasConditions(runtime, query) { return runtime.state.gear.afford || conditionChips(runtime, query).length > 0; }
 
 /** A saved search's label: its chips' text, or 전체 for a search without conditions. */
 export function querySummary(runtime, query) {

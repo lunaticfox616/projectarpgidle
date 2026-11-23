@@ -9,7 +9,7 @@
 import { esc, priceTag, paint } from './auction-house-format.mjs';
 import { userLotIssue, hallActive } from './auction-house-hall.mjs';
 import { lotKind, lotCardHtml, openKinds } from './auction-house-kinds.mjs';
-import { badgeHtml, sellerHtml, agoText } from './auction-house-rows.mjs';
+import { badgeHtml, sellerText, agoText } from './auction-house-rows.mjs';
 import { rowLot } from './auction-house-search.mjs';
 import { paintBoard, patchRows, paintNewLots } from './auction-house-board.mjs';
 import { paintTools } from './auction-house-panel.mjs';
@@ -41,7 +41,7 @@ function lotCardDetail(runtime, lot) {
 
 function whoHtml(runtime, lot) {
     if (lot.source === 'user') return runtime.deps._t('{name}의 전시', { name: esc(runtime, lot.merchant) });
-    return runtime.deps._t('{name}의 매물', { name: sellerHtml(runtime, lot, 'button') });
+    return runtime.deps._t('{name}의 매물', { name: sellerText(runtime, lot) });
 }
 
 /** The deal part: the price and the buy button with its refusal, or for a lot sold to someone else the price and how long ago it sold. */

@@ -101,9 +101,12 @@ function repaintTools(runtime) {
     if (root) paintTools(runtime, root);
 }
 
-/** A pressed condition (a chip's ✕, a variant chip, an option chip's ✕): it changes and the search runs at once (the panel stays as it is). */
+/** A pressed condition (a chip's ✕, a variant chip, an option chip's ✕, the 살 수 있는 매물만 switch): it changes and the search runs at once
+ * (the panel stays as it is). */
 export function editCondition(runtime, kind, value) {
-    if (kind === 'clear') clearCondition(runtime, value);
+    const view = runtime.state.gear;
+    if (kind === 'afford' || value === 'afford') view.afford = kind === 'afford' && !view.afford;
+    else if (kind === 'clear') clearCondition(runtime, value);
     else if (kind === 'variant') cycleVariant(runtime, value);
     else if (kind === 'option-x') clearCondition(runtime, `option:${value}`);
     runtime.toolsStale = true;
@@ -137,7 +140,7 @@ export function pickFilter(runtime, name, value) {
 /** 조건 지우기: every condition goes and the first view (the saved searches, the newest lots) comes back. */
 export function resetQuery(runtime) {
     const view = runtime.state.gear;
-    Object.assign(view, { query: null, panel: false, sort: 'newest', dir: -1, selected: '' });
+    Object.assign(view, { query: null, panel: false, afford: false, sort: 'newest', dir: -1, selected: '' });
     runtime.search = null;
     runtime.toolsStale = true;
     repaintGear(runtime);
@@ -164,14 +167,6 @@ export function typeOption(runtime, el) {
     const row = liveQuery(runtime).options[Number(el.getAttribute('data-ah-opt-min'))];
     if (row) row.min = el.value === '' ? null : Number(el.value);
     repaintTools(runtime);
-}
-
-/** A seller's name in a row or the detail: that merchant becomes a condition and the search runs. */
-export function addSeller(runtime, id) {
-    const lot = rowLot(runtime, id);
-    if (!lot || lot.source === 'user') return;
-    liveQuery(runtime).seller = lot.seller;
-    findLots(runtime, true);
 }
 
 /** 저장: keeps the chosen conditions in the save (the rules refuse a repeat or a sixth) and saves the game. */

@@ -100,7 +100,7 @@
 /* 조건 칸: 넓으면 검색 줄 아래에 뜨는 상자(목록을 밀지 않는다), 좁으면 제자리에 펴진다. */
 .ah-panel { padding: 10px; border: 1px solid #594931; background: var(--ah-panel); }
 .ah-panel[hidden] { display: none; }
-.ah-panel-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.ah-panel-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 10px; }
 .ah-field { display: grid; gap: 4px; min-width: 0; }
 .ah-field-label { color: var(--color-text-secondary); font-size: 12px; }
 .ah-field-body { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
@@ -174,6 +174,8 @@
 :is(.ah-lot-sub, .ah-cell-level, .ah-cell-options, .ah-cell-left, .ah-cell-ago) { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
 .ah-cell-key { margin-right: 3px; color: #7f776a; font-size: 12px; }
 .ah-cell-price { grid-area: price; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+/* 지금 가진 재화로 못 사는 값 */
+.ah-cell-price.is-short .ah-price b { color: #c9837a; }
 .ah-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
 .ah-tag { padding: 0 4px; border: 1px solid #3a342a; color: #a9a092; font-size: 12px; font-style: normal; line-height: 16px; white-space: nowrap; }
 .ah-tag.is-exceptional { border-color: color-mix(in srgb, #9fe0c0 45%, transparent); color: #9fe0c0; }
@@ -223,10 +225,6 @@
 .ah-detail-card .shop-tooltip { min-width: 0; }
 #market-panel-auction .ah-primary { min-height: 40px; }
 .ah-why { color: #e58a7f; font-size: 12px; line-height: 1.5; }
-/* 판매자 이름: 누르면 그 판매자가 조건이 된다. */
-#market-panel-auction .ah-lot-seller.is-pick { cursor: pointer; }
-#market-panel-auction .ah-lot-seller.is-pick:hover { color: var(--ah-gold); text-decoration: underline; }
-#market-panel-auction button.ah-lot-seller { min-height: 0; padding: 0; border: 0; background: none; color: var(--ah-gold); font-size: 12px; }
 /* 비슷한 거래: 같은 종류, 부위, 등급(고유는 같은 고유)의 최근 거래 셋의 값과 시간. */
 .ah-similar { display: grid; gap: 4px; padding-top: 6px; border-top: 1px solid var(--ah-line); }
 .ah-similar h5 { margin: 0; color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }

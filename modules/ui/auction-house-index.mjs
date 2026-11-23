@@ -3,7 +3,7 @@
  * 바뀌거나 만든 매물을 버리면 비운다). 이름이 언어를 따르므로 몸을 굴리는 규칙이 아니라 이 화면이 만든다: 몸이 다 굴러간 뒤 그림 틀의
  * 예산 안에서 미리 만들고(indexStep), 그 뒤에 온 매물은 검색이 읽을 때 만든다. 그래서 몸이 다 있는 검색은 거르기와 늘어세우기를 한 번에 끝낸다.
  * fields: name(보이는 이름, 베이스 이름, 고유 이름을 소문자로), sortName(보이는 이름), stats(능력치마다 줄에서 가장 큰 값), level(없으면 null),
- * dew(이슬 값), options(옵션 줄 수), variants(변형 열쇠 집합), rarity, family, weapon(무기 대분류, 무기가 아니면 ''). 검색과 저장한 검색의 수 세기는 fieldsPass 하나로 거른다.
+ * dew(이슬 값), coin과 price(값의 재화와 수), options(옵션 줄 수), variants(변형 열쇠 집합), rarity, family, weapon(무기 대분류, 무기가 아니면 ''). 검색과 저장한 검색의 수 세기는 fieldsPass 하나로 거른다.
  */
 import { tr } from './auction-house-format.mjs';
 import { lotKind, lotName, lotLevel, optionCount } from './auction-house-kinds.mjs';
@@ -36,7 +36,7 @@ function lineStats(lot) {
 function makeFields(runtime, lot) {
     const low = text => String(text).toLocaleLowerCase(runtime.deps.i18n.locale), item = lot.item, shown = lotName(runtime, lot);
     const names = [shown, item.baseName ? tr(runtime, item.baseName) : '', lot.unique ? tr(runtime, lot.unique) : ''];
-    return { name: low(names.join('\n')), sortName: shown, stats: lineStats(lot), level: lotLevel(lot), dew: dewValue(runtime, lot), options: optionCount(lot),
+    return { name: low(names.join('\n')), sortName: shown, stats: lineStats(lot), level: lotLevel(lot), dew: dewValue(runtime, lot), coin: lot.currency, price: lot.price, options: optionCount(lot),
         variants: new Set(lot.variants || []), rarity: item.rarity, family: lot.family || '', weapon: lotKind(lot) === 'gear' ? runtime.deps.auctionHouse.weaponOf(item) : '' };
 }
 
@@ -109,12 +109,17 @@ function classPasses(query, fields) {
 
 /**
  * Whether fields pass a search's body conditions. view: { query (normalized), words (queryWords of its name), unit (the dew value of one
- * unit of query.currency), variants (variantRules of the query) }. A lot without a level fails a level bound; a lot without variants fails a
- * required one.
+ * unit of query.currency), variants (variantRules of the query), purse (what the hero held of each coin when the search asked for lots it
+ * can pay, else null) }. A lot without a level fails a level bound; a lot without variants fails a required one.
  */
 export function fieldsPass(view, fields) {
     const query = view.query;
-    if (!view.words.every(word => fields.name.includes(word)) || !classPasses(query, fields)) return false;
-    if (query.priceMax !== null && fields.dew > query.priceMax * view.unit) return false;
+    if (!view.words.every(word => fields.name.includes(word)) || !classPasses(query, fields) || !pricePasses(view, fields)) return false;
     return levelPasses(query, fields.level) && optionsPass(query.options, fields.stats) && variantsPass(view.variants, fields.variants);
+}
+
+/** The price limit (compared in dew) and, when the search asks for it, a price the purse can pay in the lot's own coin. */
+function pricePasses(view, fields) {
+    if (view.query.priceMax !== null && fields.dew > view.query.priceMax * view.unit) return false;
+    return !view.purse || fields.price <= (view.purse[fields.coin] || 0);
 }

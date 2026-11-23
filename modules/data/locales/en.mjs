@@ -11043,6 +11043,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '모든 출처': 'All sources',
         '모든 무기': 'All weapons',
         '분류': 'Category',
+        '살 수 있는 매물만': 'Only lots I can pay for',
         '조건 지우기': 'Clear conditions',
         '새것 순': 'Newest first',
         '가격 낮은 순': 'Lowest price first',

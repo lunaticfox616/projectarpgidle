@@ -30,11 +30,19 @@ export function pct(runtime, factor) {
 /** 'is-up', 'is-down' or '' for a factor. */
 export function trendClass(factor) { return factor > 1 ? 'is-up' : factor < 1 ? 'is-down' : ''; }
 
-/** A price that takes its own room: the coin picture and the amount. */
+/** A price that takes its own room: the coin picture and the amount, with the currency's name as a tip. */
 export function priceTag(runtime, currency, amount, extra = '') {
     const name = runtime.deps.shopView.currencyName(currency);
     return `<span class="ah-price${extra}" data-tip="${esc(runtime, name)}">${runtime.deps.shopView.coinHtml(currency)}<b>${num(runtime, amount)}</b></span>`;
 }
+
+/** A price inside a lot row: no tip of its own (the row shows the item tooltip). */
+export function rowPrice(runtime, currency, amount) {
+    return `<span class="ah-price">${runtime.deps.shopView.coinHtml(currency)}<b>${num(runtime, amount)}</b></span>`;
+}
+
+/** Whether the hero holds amount of currency now. */
+export function canPay(runtime, currency, amount) { return runtime.deps.shopView.held(currency) >= amount; }
 
 /** The family's label (its affix tag's name), translated. */
 export function familyLabel(runtime, family) {

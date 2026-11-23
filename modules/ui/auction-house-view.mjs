@@ -6,9 +6,10 @@
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { renderAuction, stopWork, frameStep, tickStep, dropGeneratedLots } from './auction-house-render.mjs';
 import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearCategory,
-    gearWeapon, pickFilter, pickSort, resetQuery, unpickLot, moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, addSeller, saveQuery, runSaved, deleteSaved,
+    gearWeapon, pickFilter, pickSort, resetQuery, unpickLot, moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, saveQuery, runSaved, deleteSaved,
     repaintGear } from './auction-house-actions.mjs';
 import { pickSuggest, hideSuggest, activeSuggest, moveSuggest } from './auction-house-suggest.mjs';
+import { peekLot, unpeekLot, hidePeek } from './auction-house-peek.mjs';
 
 const TABS = Object.freeze(['gear', 'materials', 'mine']);
 // The selects that search at once: the rarity of the search bar and the source of the panel.
@@ -20,9 +21,10 @@ export function createAuctionHouseView(deps) {
     // saved: the saved searches' counts (modules/ui/auction-house-saved.mjs); myBuys: the merchant lots bought this session (id -> { at, kind },
     // never saved); jobs: rows waiting to be drawn; frame, tick, dropTimer: the pending animation frame, the once-a-second check and the drop
     // of the generated lots (modules/ui/auction-house-render.mjs); suggestTimer: the pending suggestions (modules/ui/auction-house-suggest.mjs);
-    // moreObserver: the watch on the list's end (modules/ui/auction-house-board.mjs).
+    // moreObserver: the watch on the list's end (modules/ui/auction-house-board.mjs); peek: the lot whose tooltip is shown
+    // (modules/ui/auction-house-peek.mjs).
     const runtime = { deps, state: initialState(), api: null, active: true, listeners: [], search: null, index: null, saved: null, myBuys: new Map(), jobs: [], headsReady: false,
-        warmDone: false, refill: false, seen: false, lastWarm: null, observer: null, moreObserver: null, visible: false, detailPhase: '', toolsStale: false, frame: 0, tick: 0, dropTimer: 0,
+        warmDone: false, refill: false, seen: false, lastWarm: null, observer: null, moreObserver: null, peek: null, visible: false, detailPhase: '', toolsStale: false, frame: 0, tick: 0, dropTimer: 0,
         suggestTimer: 0 };
     runtime.frameStep = () => frameStep(runtime);
     runtime.moreStep = () => moreLots(runtime);
@@ -34,6 +36,7 @@ export function createAuctionHouseView(deps) {
         showTab: tab => { if (TABS.includes(tab)) runtime.state.tab = tab; },
         dispose: () => {
             stopWork(runtime, true);
+            hidePeek(runtime);
             if (runtime.dropTimer) deps.window.clearTimeout(runtime.dropTimer);
             if (runtime.suggestTimer) deps.window.clearTimeout(runtime.suggestTimer);
             releaseViewEvents(runtime);
@@ -47,8 +50,9 @@ function initialState() {
     return {
         tab: 'gear', print: '', card: { key: '', html: '' },
         // mode: 'open' (the lots on sale) or 'recent' (the latest trades); query: the search conditions being chosen (made from the rules'
-        // empty query on first use, modules/ui/auction-house-conditions.mjs); panel: whether the 조건 panel is open.
-        gear: { mode: 'open', query: null, panel: false, sort: 'newest', dir: -1, selected: '' },
+        // empty query on first use, modules/ui/auction-house-conditions.mjs); panel: whether the 조건 panel is open; afford: whether a search
+        // keeps only the lots the purse can pay.
+        gear: { mode: 'open', query: null, panel: false, afford: false, sort: 'newest', dir: -1, selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
         mine: { draft: null },
         hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 }
@@ -59,8 +63,6 @@ function initialState() {
  * @type {ReadonlyArray<[string, (runtime: any, value: string, el: Element) => void]>} */
 const CLICKS = Object.freeze([
     ['data-ah-tab', (runtime, value) => { if (TABS.includes(value)) { runtime.state.tab = value; runtime.api.render(true); } }],
-    // A seller's name sits inside its row's button: it is looked up first.
-    ['data-ah-seller', (runtime, value) => addSeller(runtime, value)],
     ['data-ah-suggest-pick', (runtime, value, el) => pickSuggestion(runtime, el)],
     ['data-ah-lot', (runtime, value, el) => selectLot(runtime, value, el)],
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],
@@ -72,6 +74,7 @@ const CLICKS = Object.freeze([
     ['data-ah-unsave', (runtime, value) => deleteSaved(runtime, value)],
     ['data-ah-clear', (runtime, value) => editCondition(runtime, 'clear', value)],
     ['data-ah-variant', (runtime, value) => editCondition(runtime, 'variant', value)],
+    ['data-ah-afford', runtime => editCondition(runtime, 'afford', '')],
     ['data-ah-opt-x', (runtime, value) => editCondition(runtime, 'option-x', value)],
     ['data-ah-reset', runtime => resetQuery(runtime)],
     ['data-ah-unpick', runtime => unpickLot(runtime)],
@@ -123,14 +126,22 @@ function selectMaterial(runtime, key, el) {
 function onClick(runtime, event) {
     const host = event.target.closest?.('#market-panel-auction');
     if (!host || !runtime.active) return;
-    // A click outside a box closes its suggestions.
+    // A click outside a box closes its suggestions; one outside the 조건 panel (and its button) closes the panel.
     if (!event.target.closest('.ah-name-box')) hideSuggest(runtime, host);
+    const closed = runtime.state.gear.panel && !event.target.closest('[data-ah-panel-box], [data-ah-panel]');
+    if (closed) runtime.state.gear.panel = false;
+    if (!runClick(runtime, host, event.target) && closed) repaintGear(runtime);
+}
+
+/** Runs the handler of the first data attribute the clicked node sits in. Returns whether one ran. */
+function runClick(runtime, host, node) {
     for (const [attr, handle] of CLICKS) {
-        const el = event.target.closest(`[${attr}]`);
+        const el = node.closest(`[${attr}]`);
         if (!el || !host.contains(el) || el.disabled) continue;
         handle(runtime, el.getAttribute(attr), el);
-        return;
+        return true;
     }
+    return false;
 }
 
 /** A select of this section changed: the price's currency, the narrow list's order, or a filter that searches at once. */
@@ -180,8 +191,18 @@ function escapeSuggest(runtime, event) {
     return !!box;
 }
 
-function onKeydown(runtime, event) {
-    if (escapeSuggest(runtime, event) || suggestKey(event)) return;
+/** An arrow key on a lot row: the next or the previous drawn row takes the focus and is chosen. Returns whether it was taken. */
+function rowKey(event) {
+    const row = ARROW_STEPS[event.key] ? event.target.closest?.('#market-panel-auction .ah-lot') : null;
+    if (!row) return false;
+    const rows = [...row.closest('[data-ah-board]').querySelectorAll('.ah-lot')], next = rows[rows.indexOf(row) + ARROW_STEPS[event.key]];
+    event.preventDefault();
+    if (next) { next.focus(); next.click(); }
+    return true;
+}
+
+/** Enter in an input of this section presses its box's button (ENTER_KEYS). */
+function enterKey(event) {
     if (event.key !== 'Enter' || !event.target.closest?.('#market-panel-auction input')) return;
     const row = ENTER_KEYS.find(([input]) => event.target.matches(input));
     const button = row && event.target.closest('.ah-ticket, .ah-stand, .ah-gear')?.querySelector(row[1]);
@@ -190,10 +211,18 @@ function onKeydown(runtime, event) {
     button.click();
 }
 
+function onKeydown(runtime, event) {
+    if (!(escapeSuggest(runtime, event) || suggestKey(event) || rowKey(event))) enterKey(event);
+}
+
 function installEvents(runtime) {
     const document = runtime.deps.document;
     listenView(runtime, document, 'click', event => onClick(runtime, event));
     listenView(runtime, document, 'change', event => onChange(runtime, event));
     listenView(runtime, document, 'input', event => onInput(runtime, event));
     listenView(runtime, document, 'keydown', event => onKeydown(runtime, event));
+    // A lot row under the mouse shows the game's item tooltip; scrolling the list takes it away (the row moved from under the pointer).
+    for (const type of ['pointerover', 'pointermove']) listenView(runtime, document, type, event => { if (runtime.active) peekLot(runtime, event); });
+    listenView(runtime, document, 'pointerout', event => unpeekLot(runtime, event));
+    listenView(runtime, document, 'scroll', () => hidePeek(runtime), true);
 }

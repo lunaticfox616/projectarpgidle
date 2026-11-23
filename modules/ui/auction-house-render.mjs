@@ -17,6 +17,7 @@ import { stepSearch, searchPrefer } from './auction-house-search.mjs';
 import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-materials.mjs';
 import { standsViewHtml, claimable } from './auction-house-stands.mjs';
 import { watchHall } from './auction-house-hall.mjs';
+import { hidePeek } from './auction-house-peek.mjs';
 
 const TABS = Object.freeze([['gear', '아이템'], ['materials', '재료'], ['mine', '내 출품']]);
 const MOVERS = 3;
@@ -245,6 +246,7 @@ export function stopWork(runtime, disposing = false) {
 /** The section closed: the work stops and the generated lots are dropped DROP_MS later unless it opens again. */
 function closeSection(runtime) {
     runtime.seen = false;
+    hidePeek(runtime);
     stopWork(runtime);
     if (!runtime.dropTimer) runtime.dropTimer = runtime.deps.window.setTimeout(runtime.dropLots, DROP_MS);
 }
