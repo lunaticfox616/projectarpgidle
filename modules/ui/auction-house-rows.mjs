@@ -1,16 +1,18 @@
 /**
- * 경매장 아이템 칸 목록의 한 행과 머리줄. 넓은 칸은 머리줄이 있는 두 줄 행(그림, 이름과 변형 표시 아래에 판매자 이름과 검색이 맞힌 옵션 줄,
- * 부위, 아이템 레벨, 옵션 수와 계열, 남은 시간, 가격)이고 이름, 아이템 레벨, 옵션, 남은 시간, 가격 머리를 누르면 그 순서로, 다시 누르면 거꾸로
- * 다시 검색한다(가격은 이슬 값으로 비교한다). 좁은 칸도 두 줄 행이고 검색에 옵션 조건이 있을 때만 첫 조건의 줄이 셋째 줄에 선다. 최근 거래
- * 행은 남은 시간 대신 팔린 지 몇 분인지를 보인다(이 세션에 내가 산 매물은 구매함 표시와 산 지 몇 분). 판매자 이름을 누르면 그 판매자가 조건이 된다. 장비 아닌 종류의 부위 칸, 그림, 이름은 그 종류의 것이다(modules/ui/auction-house-kinds.mjs).
+ * 경매장 아이템 칸 목록의 한 행과 머리줄. 넓은 칸은 머리줄이 있는 행(그림, 이름과 변형 표시 아래에 부위(무기는 대분류)와 판매자 이름, 그 아래에
+ * 검색의 옵션 조건이 맞힌 줄들, 아이템 레벨, 옵션 수와 계열, 남은 시간, 가격)이고 이름, 아이템 레벨, 옵션, 남은 시간, 가격 머리를 누르면 그
+ * 순서로, 다시 누르면 거꾸로 다시 검색한다(가격은 이슬 값으로 비교한다). 좁은 칸은 머리줄 없는 두 줄 행이고 맞힌 줄이 있으면 그 아래에 선다
+ * (순서는 상태 줄의 정렬 고르기가 정한다). 최근 거래 행은 남은 시간 대신 팔린 지 몇 분인지를 보인다(이 세션에 내가 산 매물은 구매함 표시와
+ * 산 지 몇 분). 판매자 이름을 누르면 그 판매자가 조건이 된다. 장비 아닌 종류의 부위 글, 그림, 이름은 그 종류의 것이다
+ * (modules/ui/auction-house-kinds.mjs).
  */
 import { tr, esc, num, priceTag, familyLabel, sellerName } from './auction-house-format.mjs';
 import { lotName, lotSlot, lotLevel, optionCount, lotArtHtml } from './auction-house-kinds.mjs';
 import { VARIANT_LABELS } from './auction-house-conditions.mjs';
 
 const COLUMNS = Object.freeze({
-    open: Object.freeze([['art', ''], ['name', '이름'], ['slot', '부위'], ['level', '아이템 Lv.'], ['options', '옵션'], ['left', '남은 시간'], ['price', '가격']]),
-    recent: Object.freeze([['art', ''], ['name', '이름'], ['slot', '부위'], ['level', '아이템 Lv.'], ['options', '옵션'], ['price', '가격'], ['ago', '시간']])
+    open: Object.freeze([['art', ''], ['name', '이름'], ['level', '아이템 Lv.'], ['options', '옵션'], ['left', '남은 시간'], ['price', '가격']]),
+    recent: Object.freeze([['art', ''], ['name', '이름'], ['level', '아이템 Lv.'], ['options', '옵션'], ['price', '가격'], ['ago', '시간']])
 });
 const SORTED = new Set(['name', 'level', 'options', 'left', 'price']);
 const MINUTE_MS = 60000;
@@ -53,19 +55,19 @@ function leftText(runtime, lot) { return lot.source === 'user' || closedLot(lot)
 
 export function agoText(runtime, lot) { return runtime.deps._t('{minutes}분 전', { minutes: num(runtime, Math.max(1, Math.floor(lot.agoMs / MINUTE_MS))) }); }
 
-/** The name cell: the name with its tags, and under it the seller's whole name and the option line the search matched (when it did). */
+/** The name cell: the name with its tags, under it the slot and the seller's whole name, then the option lines the search matched. */
 function nameCellHtml(runtime, lot) {
-    const match = lot.matchLine ? `<em class="ah-match" data-tip="${esc(runtime, lot.matchLine)}">${esc(runtime, lot.matchLine)}</em>` : '';
+    const lines = Array.isArray(lot.matchLines) ? lot.matchLines : [];
+    const matches = lines.length ? `<span class="ah-matches">${lines.map(line => `<em class="ah-match">${esc(runtime, line)}</em>`).join('')}</span>` : '';
     return `<span class="ah-cell-name"><span class="ah-name-line"><strong class="ah-lot-name">${esc(runtime, lotName(runtime, lot))}</strong>${tagsHtml(runtime, lot)}</span>
-        <span class="ah-lot-sub">${sellerHtml(runtime, lot, 'span')}${match}</span></span>`;
+        <span class="ah-lot-sub"><span class="ah-cell-slot">${esc(runtime, lotSlot(runtime, lot))}</span>${sellerHtml(runtime, lot, 'span')}</span>${matches}</span>`;
 }
 
-/** The cells every row has: picture, name (with the seller under it), slot, item level, options. */
+/** The cells every row has: picture, name (with the slot, the seller and the matched lines under it), item level, options. */
 function lotCellsHtml(runtime, lot) {
     const family = optionCount(lot) ? familyLabel(runtime, lot.family) : '';
     const level = lotLevel(lot);
     return `${lotArtHtml(runtime, lot)}${nameCellHtml(runtime, lot)}
-        <span class="ah-cell-slot">${esc(runtime, lotSlot(runtime, lot))}</span>
         <span class="ah-cell-level">${level === null ? '' : `<small class="ah-cell-key">Lv.</small>${num(runtime, level)}`}</span>
         <span class="ah-cell-options"><small class="ah-cell-key">${runtime.deps._t('옵션')}</small>${num(runtime, optionCount(lot))}${family ? `<em class="ah-tag is-family">${esc(runtime, family)}</em>` : ''}</span>`;
 }

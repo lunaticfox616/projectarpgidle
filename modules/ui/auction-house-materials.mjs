@@ -21,9 +21,9 @@ function seenGroups(runtime, rows) {
 
 function groupChipsHtml(runtime, groups, total) {
     const chosen = runtime.state.materials.group;
-    const chip = (id, label, count) => `<button type="button" class="ah-group${chosen === id ? ' is-on' : ''}" data-ah-group="${esc(runtime, id)}" aria-pressed="${chosen === id}">
+    const chip = (id, label, count) => `<button type="button" class="psd-tab ah-group${chosen === id ? ' is-on' : ''}" data-ah-group="${esc(runtime, id)}" aria-pressed="${chosen === id}">
         <span>${trHtml(runtime, label)}</span><small>${num(runtime, count)}</small></button>`;
-    return `<div class="ah-groups" role="group" aria-label="${runtime.deps._t('재료')}">${chip('all', '전체', total)}${groups.map(group => chip(group.id, group.label, group.rows.length)).join('')}</div>`;
+    return `<div class="ah-groups psd-tabs" role="group" aria-label="${runtime.deps._t('재료')}">${chip('all', '전체', total)}${groups.map(group => chip(group.id, group.label, group.rows.length)).join('')}</div>`;
 }
 
 /** The list: every seen row under its group's header for 전체, the chosen group's rows alone otherwise. */
@@ -110,10 +110,10 @@ function sideHtml(runtime, row) {
 
 function countHtml(runtime, row) {
     const view = runtime.state.materials, label = row.bundle > 1 ? '묶음 수' : '개수';
-    const presets = PRESETS.map(value => `<button type="button" data-ah-preset="${value}">${num(runtime, value)}</button>`).join('');
+    const presets = PRESETS.map(value => `<button type="button" class="psd-btn" data-ah-preset="${value}">${num(runtime, value)}</button>`).join('');
     return `<label class="ah-count-label" for="ah-count">${trHtml(runtime, label)}</label>
         <div class="ah-count-row"><input id="ah-count" type="number" inputmode="numeric" min="1" step="1" value="${esc(runtime, view.count)}" data-ah-count>
-        <div class="ah-presets">${presets}<button type="button" data-ah-preset="max">${runtime.deps._t('최대')}</button></div></div>`;
+        <div class="ah-presets">${presets}<button type="button" class="psd-btn" data-ah-preset="max">${runtime.deps._t('최대')}</button></div></div>`;
 }
 
 /** The receipt, the reason line and the execute button for the current quote (repainted alone while the count is typed). The button
@@ -128,7 +128,7 @@ export function receiptHtml(runtime) {
         : `${average}${line('판매가', quote.gross)}${line('수수료', quote.fee, ' is-fee')}${line('받을 이슬', quote.net, ' is-total')}`;
     return `<p class="ah-receipt-units">${units}</p><dl class="ah-receipt">${rows}</dl>
         ${quote.valid ? '' : `<p class="ah-why" role="status">${esc(runtime, quote.reason)}</p>`}
-        <button type="button" class="ah-primary" data-ah-trade="${view.side === 'buy' ? quote.cost : quote.net}" ${quote.valid ? '' : 'disabled'}>${trHtml(runtime, view.side === 'buy' ? '구매' : '판매')}</button>`;
+        <button type="button" class="psd-btn is-primary ah-primary" data-ah-trade="${view.side === 'buy' ? quote.cost : quote.net}" ${quote.valid ? '' : 'disabled'}>${trHtml(runtime, view.side === 'buy' ? '구매' : '판매')}</button>`;
 }
 
 /** The chosen material's past prices: one bar per bucket of the last six hours (one bundle at the first buy step, oldest left, the newest

@@ -1,7 +1,7 @@
 /**
- * 경매장 아이템 칸의 검색 조건을 화면이 다루는 일: 지금 고른 조건(state.gear.query, 규칙의 query 모양에 옵션 줄의 적는 글 text가 붙는다)의
- * 칩 글(조건마다 하나, 저장한 검색의 이름도 같은 글로 짓는다), 칩의 ✕로 조건 하나 지우기, 조건 단추의 수, 옵션 줄과 변형의 고치기.
- * 고쳐도 검색하지 않는다: 검색은 검색 단추가 한다.
+ * 경매장 아이템 칸의 검색 조건을 화면이 다루는 일: 지금 고른 조건(state.gear.query, 규칙의 query 모양)의 칩 글(조건마다 하나, 저장한 검색의
+ * 이름도 같은 글로 짓는다), 칩의 ✕로 조건 하나 지우기, 조건 단추의 수, 분류 줄(전체, 부위, 장비 아닌 종류)과 무기 대분류 고르기, 옵션 조건
+ * 더하기와 변형 고치기. 여기서는 조건만 고친다: 검색은 부르는 쪽(modules/ui/auction-house-actions.mjs)이 한다.
  */
 import { tr, num, familyLabel, sellerName } from './auction-house-format.mjs';
 
@@ -10,8 +10,9 @@ export const VARIANT_LABELS = Object.freeze({ exceptional: '특출난 베이스'
 const VARIANT_CYCLE = Object.freeze({ any: 'yes', yes: 'no', no: 'any' });
 const SOURCE_LABELS = Object.freeze({ merchant: '상인', user: '다른 플레이어' });
 const KIND_LABELS = Object.freeze({ gear: '장비' });
-// Chips the 조건 button does not count: the name box and the kind chips stand outside its panel.
-const OUTSIDE_PANEL = new Set(['name', 'kind']);
+// The conditions the 조건 panel holds (the others have their own controls: the search box, the category strip, the rarity select, the option
+// chips).
+const PANEL_KEYS = new Set(['source', 'level', 'price', 'variant']);
 
 /** The conditions being chosen (made once from the rules' empty query). */
 export function liveQuery(runtime) {
@@ -26,7 +27,7 @@ export function statName(runtime, id) {
     return row ? row.label : runtime.deps.getStatName(id);
 }
 
-/** The stats option rows may name with their shown names in the player's language, made once per language: { list: [{ id, label, low }],
+/** The stats option conditions may name with their shown names in the player's language, made once per language: { list: [{ id, label, low }],
  * byId }. */
 export function statRows(runtime) {
     const locale = runtime.deps.i18n.locale, kept = runtime.statRows;
@@ -39,9 +40,18 @@ export function statRows(runtime) {
     return runtime.statRows;
 }
 
-function kindLabel(runtime, kind) {
+export function kindLabel(runtime, kind) {
     const row = runtime.deps.auctionHouse.rules.kinds.lots.find(entry => entry.kind === kind);
     return tr(runtime, KIND_LABELS[kind] || (row ? row.label : kind));
+}
+
+/** A slot's shown name (the game's own label: the shield slot reads 완갑). */
+export function slotName(runtime, slot) { return runtime.deps.getItemSlotDisplayLabel({ slot }, tr(runtime, slot)); }
+
+/** A weapon category's shown name ('' for an unknown one). */
+export function weaponName(runtime, id) {
+    const row = runtime.deps.auctionHouse.searchRules.weapons.find(entry => entry.id === id);
+    return row ? tr(runtime, row.name) : '';
 }
 
 function levelText(runtime, query) {
@@ -55,19 +65,20 @@ function optionText(runtime, row) {
     return row.min === null ? name : runtime.deps._t('{name} {min} 이상', { name, min: num(runtime, row.min) });
 }
 
-/** The head chips of a query: name, kind, slot, rarity, source, family. */
+/** The head chips of a query: name, kind, slot, weapon category, rarity, source, family. */
 function headChips(runtime, query) {
     const chips = [];
     if (query.name) chips.push(['name', runtime.deps._t('이름 {name}', { name: query.name })]);
-    if (query.kind !== 'all') chips.push(['kind', kindLabel(runtime, query.kind)]);
-    if (query.slot !== 'all') chips.push(['slot', runtime.deps.getItemSlotDisplayLabel({ slot: query.slot }, tr(runtime, query.slot))]);
+    if (query.kind !== 'all' && query.slot === 'all') chips.push(['kind', kindLabel(runtime, query.kind)]);
+    if (query.slot !== 'all' && query.weapon === 'all') chips.push(['slot', slotName(runtime, query.slot)]);
+    if (query.weapon !== 'all') chips.push(['weapon', weaponName(runtime, query.weapon)]);
     if (query.rarity !== 'all') chips.push(['rarity', tr(runtime, runtime.deps.ITEM_RARITY_LABELS[query.rarity])]);
     if (query.source !== 'all') chips.push(['source', tr(runtime, SOURCE_LABELS[query.source])]);
     if (query.family) chips.push(['family', familyLabel(runtime, query.family)]);
     return chips;
 }
 
-/** The body chips of a query: level, price, each option row with a stat, each variant asked for or against, the seller. */
+/** The body chips of a query: level, price, each option condition, each variant asked for or against, the seller. */
 function bodyChips(runtime, query) {
     const chips = [], _t = runtime.deps._t;
     if (query.levelMin !== null || query.levelMax !== null) chips.push(['level', levelText(runtime, query)]);
@@ -86,10 +97,22 @@ export function conditionChips(runtime, query) {
     return [...headChips(runtime, query), ...bodyChips(runtime, query)];
 }
 
+const chipPart = key => String(key).split(':')[0];
+
+/** The chips the line under the search bar shows: the conditions without a control of their own on screen (source, family, level, price,
+ * variants, seller). The option conditions stand in the same line as chips with a minimum box (modules/ui/auction-house-panel.mjs). */
+export function lineChips(runtime, query) {
+    const shown = new Set(['source', 'family', 'level', 'price', 'variant', 'seller']);
+    return conditionChips(runtime, query).filter(([key]) => shown.has(chipPart(key)));
+}
+
 /** How many conditions the 조건 panel holds now. */
 export function panelCount(runtime, query) {
-    return conditionChips(runtime, query).filter(([key]) => !OUTSIDE_PANEL.has(key)).length;
+    return conditionChips(runtime, query).filter(([key]) => PANEL_KEYS.has(chipPart(key))).length;
 }
+
+/** Whether query has any condition at all. */
+export function hasConditions(runtime, query) { return conditionChips(runtime, query).length > 0; }
 
 /** A saved search's label: its chips' text, or 전체 for a search without conditions. */
 export function querySummary(runtime, query) {
@@ -97,15 +120,29 @@ export function querySummary(runtime, query) {
     return chips.length ? chips.map(([, text]) => text).join(', ') : tr(runtime, '전체');
 }
 
-/** Clears the condition of chip key from the live query (nothing is searched). */
+/** Clears the condition of chip key from the live query. */
 export function clearCondition(runtime, key) {
     const query = liveQuery(runtime), [part, sub] = String(key).split(':');
-    const reset = { name: '', kind: 'all', slot: 'all', rarity: 'all', source: 'all', family: '', seller: null };
+    const reset = { name: '', kind: 'all', slot: 'all', weapon: 'all', rarity: 'all', source: 'all', family: '', seller: null };
     if (part === 'level') Object.assign(query, { levelMin: null, levelMax: null });
     else if (part === 'price') query.priceMax = null;
     else if (part === 'option') query.options.splice(Number(sub), 1);
     else if (part === 'variant' && sub in query.variants) query.variants[sub] = 'any';
     else if (Object.prototype.hasOwnProperty.call(reset, part)) query[part] = reset[part];
+    if (query.slot === 'all') query.weapon = 'all';
+}
+
+/** The category strip's value of a query: 'all', 'slot:{slot}', 'kind:{kind}'. */
+export function categoryOf(query) {
+    if (query.slot !== 'all') return `slot:${query.slot}`;
+    return query.kind === 'all' ? 'all' : `kind:${query.kind}`;
+}
+
+/** Puts a category strip value in the live query (a slot is a piece of gear; another category drops the weapon category). */
+export function setCategory(runtime, value) {
+    const query = liveQuery(runtime), [part, key] = String(value).split(':');
+    if (part === 'slot') Object.assign(query, { kind: 'gear', slot: key, weapon: 'all' });
+    else Object.assign(query, { kind: part === 'kind' ? key : 'all', slot: 'all', weapon: 'all' });
 }
 
 /** A variant chip of the panel: 상관없음, 있음, 없음 in turn. */
@@ -114,27 +151,13 @@ export function cycleVariant(runtime, key) {
     if (key in variants) variants[key] = VARIANT_CYCLE[variants[key]] || 'any';
 }
 
-/** Adds an empty option row (at most the rules' four). */
-export function addOptionRow(runtime) {
+/** Whether another option condition fits (the rules keep four). */
+export function optionRoom(runtime) { return liveQuery(runtime).options.length < runtime.deps.auctionHouse.searchRules.options; }
+
+/** Adds stat as an option condition (once, while there is room). Returns whether it was added. */
+export function addOption(runtime, stat) {
     const options = liveQuery(runtime).options;
-    if (options.length < runtime.deps.auctionHouse.searchRules.options) options.push({ stat: '', min: null, text: '' });
-}
-
-/** An option row's typed name: the stat whose shown name it is exactly (case aside), else none until a suggestion is picked. */
-export function typeOptionName(runtime, index, text) {
-    const row = liveQuery(runtime).options[index];
-    if (!row) return;
-    const low = text.trim().toLocaleLowerCase(runtime.deps.i18n.locale), hit = statRows(runtime).list.find(entry => entry.low === low);
-    Object.assign(row, { text, stat: hit ? hit.id : '' });
-}
-
-/** Puts a picked stat in option row index. */
-export function pickOptionStat(runtime, index, id) {
-    const row = liveQuery(runtime).options[index];
-    if (row && statRows(runtime).byId.has(id)) Object.assign(row, { stat: id, text: statName(runtime, id) });
-}
-
-/** The text an option row's box shows: what was typed, else its stat's name. */
-export function optionBoxText(runtime, row) {
-    return typeof row.text === 'string' && (row.text || !row.stat) ? row.text : statName(runtime, row.stat);
+    if (!optionRoom(runtime) || !statRows(runtime).byId.has(stat) || options.some(row => row.stat === stat)) return false;
+    options.push({ stat, min: null });
+    return true;
 }

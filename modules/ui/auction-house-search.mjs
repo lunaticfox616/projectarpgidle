@@ -1,13 +1,13 @@
 /**
  * 경매장 아이템 칸의 검색: 검색 단추(이름 칸의 Enter, 저장한 검색)를 누를 때만 그때의 조건(규칙이 고친 query 하나, 고른 순서)으로 지금 놓인
  * 팔리지 않은 매물의 번호를 한 번 찍어 둔다(runtime.search). 머리만으로 고를 수 있는 검색(종류, 부위, 장비 등급, 판매자만 고르고 새것 순이나
- * 남은 시간 순)은 바로 끝난다. 몸이 필요한 검색(이름, 계열, 아이템 Lv., 가격, 옵션 조건, 변형, 장비 아닌 종류의 등급, 몸의 값으로 늘어세우기)은
+ * 남은 시간 순)은 바로 끝난다. 몸이 필요한 검색(이름, 무기 대분류, 계열, 아이템 Lv., 가격, 옵션 조건, 변형, 장비 아닌 종류의 등급, 몸의 값으로 늘어세우기)은
  * 후보의 몸이 다 굴러갈 때까지 기다린 뒤(그동안 미리 굴리기가 후보부터 굴린다) 매물의 검색 값(modules/ui/auction-house-index.mjs)으로 거른다.
  * 값이 다 있으면 거르기와 늘어세우기는 누른 그 자리에서 끝난다. 다른 플레이어의 전시품(출처)은 끝에서 같이 거른다.
  * 찍어 둔 결과는 다시 검색할 때까지 그대로다: 그사이 새로 놓인 매물 가운데 검색에 맞는 수만 센다(countNewLots, 새 매물마다 한 번 거른다).
  */
 import { userLots } from './auction-house-hall.mjs';
-import { statLineText } from './auction-house-kinds.mjs';
+import { statLineTexts } from './auction-house-kinds.mjs';
 import { lotFields, fieldsOf, fieldsPass, queryWords, variantRules, searchIndex } from './auction-house-index.mjs';
 
 /** Rows a result shows at first and adds per 더 보기. */
@@ -42,9 +42,14 @@ const sellerPasses = (want, seller) => !want || (seller[0] === want[0] && seller
 /** Whether the search needs bodies: a body condition, an order by a body value, or a rarity over kinds whose heads do not know it. */
 export function needsBodies(view) {
     const query = view.query;
-    return view.words.length > 0 || !!query.family || !HEAD_SORTS.has(view.sort) || (query.rarity !== 'all' && query.kind !== 'gear')
+    return view.words.length > 0 || !HEAD_SORTS.has(view.sort) || bodyClass(query)
         || query.levelMin !== null || query.levelMax !== null || query.priceMax !== null || query.options.length > 0
         || Object.values(query.variants).some(want => want !== 'any');
+}
+
+/** Whether a query asks for a class only a body tells: a family, a weapon category, a rarity over kinds whose heads do not know it. */
+function bodyClass(query) {
+    return !!query.family || query.weapon !== 'all' || (query.rarity !== 'all' && query.kind !== 'gear');
 }
 
 /** Each order's key of a lot's fields and head (a hall show has no times: it goes last on the time orders). */
@@ -208,14 +213,13 @@ function testArrival(runtime, search, head) {
 }
 
 /** The lot of a row id: a hall show of the result, or the merchant lot priced now (its body rolled when missing), with the line of the
- * search's first option row and, for a sold lot or one I bought this session, agoMs. null when it is gone from the list's batches. */
+ * search's option conditions (matchLines) and, for a sold lot or one I bought this session, agoMs. null when it is gone from the list's batches. */
 export function rowLot(runtime, id) {
     const search = runtime.search, user = search && search.users.get(id);
     if (user) return user;
     const lot = runtime.deps.auctionHouse.lot(runtime.deps.game, id, runtime.deps.now());
     if (!lot) return null;
-    const first = search && search.view.query.options[0];
-    lot.matchLine = first ? statLineText(runtime, lot, first.stat) : '';
+    lot.matchLines = search ? statLineTexts(runtime, lot, search.view.query.options.map(row => row.stat)) : [];
     const mine = runtime.myBuys.get(id);
     if (mine) lot.agoMs = clockNow(runtime) - mine.at;
     else if (lot.soldAt !== null) lot.agoMs = clockNow(runtime) - lot.soldAt;
