@@ -164,6 +164,25 @@ function chainLink(cells, a, b) {
     const [first, second] = cells[a].col + cells[a].row <= cells[b].col + cells[b].row ? [a, b] : [b, a];
     return { from: first, to: second, side: cells[first].row === cells[second].row ? 'east' : 'south' };
 }
+
+/** A discovered regional activity is a cul-de-sac. A map's seed fixes its doorway for every portal and reload. */
+function withAtlasChambers(plan, types, rng) {
+    if (!plan || !types?.length) return plan;
+    const cells = plan.cells.slice(), links = plan.links.slice(), used = new Set();
+    for (const type of types) {
+        const hosts = plan.cells.flatMap((cell, index) => {
+            if (cell.role === 'boss' || cell.role === 'entry') return [];
+            return freeCellsAround(cells, cell, false).map(spot => ({ index, spot }));
+        });
+        const fresh = hosts.filter(host => !used.has(host.index));
+        const { index, spot } = pickOne(rng, fresh.length ? fresh : hosts);
+        used.add(index);
+        cells.push({ id: 'bonus-' + type, role: 'optional', col: spot.col, row: spot.row, host: cells[index].id });
+        links.push(chainLink(cells, index, cells.length - 1));
+    }
+    const left = Math.min(...cells.map(cell => cell.col)), top = Math.min(...cells.map(cell => cell.row));
+    return { cells: cells.map(cell => ({ ...cell, col: cell.col - left, row: cell.row - top })), links };
+}
 function chainPlan(base) {
     const total = base.rooms.length, wide = chainWide(total), cells = [], links = [];
     for (let index = 0; index < total; index++) {
@@ -241,6 +260,7 @@ function contentRegion(plans, zone) {
 }
 /** 구역의 무대 그림(data/stage-regions.js의 지역 이름). 정해 둔 것이 없으면 그 구역이 빌려 걷는 액트 지도의 그림이다. */
 function regionForZone(rules, zone, where) {
+    if (zone.expeditionRegion) return zone.expeditionRegion;
     const ancient = atlasRegion(rules.readAtlas, zone);
     if (ancient) return ancient;
     if (where.act) return actRegionName(where.act);
@@ -254,5 +274,5 @@ export function createRoomPlans(plans, seeded, readAtlas) {
     return Object.freeze({ parse: parsePlanLines, text: planLines, valid: validPlanKey, countsOf: roleCounts,
         build: buildRoomPlan.bind(null, rules), choose: chooseRoomPlan.bind(null, rules),
         region: regionForZone.bind(null, rules), oceanRegion: oceanRegion.bind(null, plans),
-        random: semiRandomPlan.bind(null, rules) });
+        chambers: withAtlasChambers, random: semiRandomPlan.bind(null, rules) });
 }

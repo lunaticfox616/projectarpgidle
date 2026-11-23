@@ -21,10 +21,8 @@ const storyJournalUi = createStoryJournalView({
     get hasCurrentLoopChaosAccess() { return typeof hasCurrentLoopChaosAccess === 'undefined' ? undefined : hasCurrentLoopChaosAccess; },
     get getCosmosCapstoneProgress() { return window.getCosmosCapstoneProgress; },
     get ABYSS_START_ZONE_ID() { return ABYSS_START_ZONE_ID; },
-    get OCEAN_UNLOCK_LOOP() { return OCEAN_UNLOCK_LOOP; },
-    get TIME_RIFT_UNLOCK_LOOP() { return TIME_RIFT_UNLOCK_LOOP; },
-    get METEOR_SITE_UNLOCK_LOOP() { return METEOR_SITE_UNLOCK_LOOP; },
-    get METEOR_SITE_UNLOCK_ACT() { return METEOR_SITE_UNLOCK_ACT; },
+    get contentProgression() { return contentProgression; },
+    get CONTENT_UNLOCK_CATALOG() { return CONTENT_UNLOCK_CATALOG; },
     get switchTab() { return switchTab; },
     get switchMapSubtab() { return switchMapSubtab; },
     get switchMapExploreSubtab() { return switchMapExploreSubtab; }

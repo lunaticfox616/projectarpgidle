@@ -4,6 +4,7 @@ import { killEnterAutomaticMapInterruptionAfterClear } from './clear-interruptio
 
 // Explicit current owner and combat services; yielded presentation commands are applied by the entry adapter.
 export function* flowStartMoving(env, isTown) {
+    if (env.owner.atlas) env.owner.atlas.wheelHub = false;
     env.deps.cosmosRouteRuntime.reconcileDeparture(env.owner);
     // End a run left behind before its floor owner clears unreleased loot and opens the destination.
     env.deps.holdZoneBoundRuns();

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { pickClass, revealLoopScreen } = require('./helpers');
+const { pickClass, revealLoopScreen, passLoopCinematic } = require('./helpers');
 
 test('loop settlement shows real progress and preserves preparation and deferral', async ({ page }, testInfo) => {
     const errors = [];
@@ -49,6 +49,7 @@ test('loop settlement shows real progress and preserves preparation and deferral
     expect(await page.evaluate(() => game.seasonPoints)).toBe(1);
     expect(await page.evaluate(() => contentProgression.balance())).toBe(2);
     await expect(ready).not.toBeVisible();
+    await passLoopCinematic(page);
     await expect(page.locator('#loop-hero-select-overlay')).toBeVisible();
     await pickClass(page, 'warrior');
     await page.waitForFunction(() => !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);

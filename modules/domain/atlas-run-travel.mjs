@@ -1,5 +1,6 @@
 import { atlasSessionInMap, atlasSessionReturnZone, atlasSessionInsideMap } from './atlas-run-access.mjs';
 import { atlasSessionNotify } from './atlas-run-events.mjs';
+import { restoreMainMap } from './atlas-passages.mjs';
 
 /** A content's return or a finished departure left the hero in a map that has closed since: back to the frontier. */
 export function* atlasSessionRecoverClosedMap(env, owner) {
@@ -40,11 +41,13 @@ export function* atlasSessionLeave(env, owner, reason) {
 
 /** changeZone의 마지막 단계: 맵을 떠나면 포털 하나, 그리고 도착지를 현재 지역으로. */
 export function* atlasSessionTravel(env, owner, zone) {
+    owner.atlas.wheelHub = false;
     if (zone.id !== env.deps.ATLAS.zoneId) (yield* atlasSessionLeave(env, owner, 'travel'));
     owner.currentZoneId = zone.id;
 }
 
 export function* atlasSessionSpendPortal(env, owner, reason) {
+    if (owner.actExploration?.source?.pocket) restoreMainMap(owner);
     const portal = env.deps.atlas.usePortal(owner);
     if (!portal) return;
     (yield* atlasSessionNotify(env, { kind: portal.closed ? 'failed' : 'portal', reason, portals: portal.portals || 0 }));

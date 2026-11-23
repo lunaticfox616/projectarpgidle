@@ -23,7 +23,7 @@ function roomPlaceRooms(env, plan, order, grow) {
         const x0 = rule.gap / 2 + index * (slot + rule.gap) + (slot - width) / 2, y0 = rule.top;
         rooms.set(cellIndex, Object.freeze({ id: cell.id, role: cell.role, index, x0, y0, x1: x0 + width - 1, y1: y0 + depth - 1,
             gx: x0 + (width - 1) / 2, gy: y0 + (depth - 1) / 2, radiusX: (width - 1) / 2, radiusY: (depth - 1) / 2,
-            at: Object.freeze([cell.col, cell.row]), mirror: roomRoomMirrored(cell) }));
+            at: Object.freeze([cell.col, cell.row]), mirror: roomRoomMirrored(cell), host: cell.host }));
     });
     return rooms;
 }

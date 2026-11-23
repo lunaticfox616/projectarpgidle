@@ -1,5 +1,7 @@
 import { workspacePickResource, workspaceAcknowledgeGoal, workspaceAutoStep, workspaceChoiceHtml, workspaceChoiceClick, workspaceChange, workspaceHandleClick, workspaceVisibilityChanged, workspaceRender, workspaceOpenInventory, workspaceStopAuto, imprintMark, workspaceClearSpore, workspaceCraft, workspaceShowGoalDialog, workspaceEngrave, workspaceRestore } from './crafting-workspace-controller.mjs';
 import { workspaceResourceState, workspaceGoalReachable } from './crafting-workspace-selection.mjs';
+import { finishKeys } from '../data/equipment-finishes.mjs';
+import { finishSelection, renderFinishExchange } from './weapon-finishes.mjs';
 import { workspaceAffixHtml, workspaceSporeOption } from './crafting-workspace-markup.mjs';
 import { studyTagHtml, workspaceFilterStudy, workspaceShowStudy } from './crafting-simulator-view.mjs';
 
@@ -14,12 +16,15 @@ export function createCraftingWorkspace(deps) {
     const handlers = { workspacePickResource, workspaceResourceState, workspaceAffixHtml, workspaceSporeOption, workspaceGoalReachable, workspaceAcknowledgeGoal, workspaceAutoStep, studyTagHtml, workspaceFilterStudy, workspaceChoiceHtml, workspaceChoiceClick, workspaceChange, workspaceHandleClick, workspaceVisibilityChanged, workspaceRender, workspaceOpenInventory, workspaceStopAuto, imprintMark };
     for (const [name, handler] of Object.entries(handlers)) ctx.handlers[name] = handler.bind(undefined, ctx);
     initialize(ctx);
+    ctx.handlers.finishSelection = key => finishSelection(ctx,key);
     ctx.api = { render:ctx.handlers.workspaceRender, openInventory:ctx.handlers.workspaceOpenInventory, stopAuto:ctx.handlers.workspaceStopAuto, imprintMark: ctx.handlers.imprintMark };
+    ctx.api.exchange = panel => renderFinishExchange(ctx,panel);
     return ctx.api;
 }
 
 function initialize(ctx) {
     ctx.state.recipes = [
+        ...finishKeys.map(key => ({key, kind:'finish', label:ctx.deps._t(ctx.deps.ORB_DB[key].name)})),
         ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:ctx.deps.equipmentCrafting.basicRule(ctx.deps.equipmentCrafting.resolveAction(key,'normal'))?.kind||({goldenRule:'value',blightSpore:'reset'})[key]||'special',label:(0, ctx.deps._t)(ctx.deps.ORB_DB[key].name)})),
         ...ctx.deps.FOSSIL_DB.map(row=>({key:row.key,kind:'fossil',label:row.name}))
     ];
@@ -27,7 +32,7 @@ function initialize(ctx) {
     ctx.state.current = null;
     ctx.state.owner = null;
     ctx.state.goal = undefined;
-    ctx.state.recipe = ctx.state.recipes[0];
+    ctx.state.recipe = ctx.state.recipes.find(row => row.key === 'magicBud');
     ctx.state.mode = 'none';
     ctx.state.extras = '';
     ctx.state.renderKey = '';

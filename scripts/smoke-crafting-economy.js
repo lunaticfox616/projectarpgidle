@@ -139,6 +139,28 @@ assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, tr
         if(preview.rows.length||!preview.reason)failures.push('unregistered currency advertised a fallback pool');
         return failures;})()`);
     assert.deepStrictEqual(Array.from(studyFailures),[],'research candidates and rehearsal must agree for every registered basic currency/root');
+    // Paid methods occupy a surviving line, including after restoring or reloading a crafted weapon.
+    const finishRun=require('./lib/replay-fixture')(823).run;
+    finishRun(`game.season=50;game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+        const weapon=createItemFromBase(BASE_ITEM_DB.find(row=>row.id==='warden_greatsword'),'rare',12);
+        const vals=[9,2,4,6,5];
+        weapon.stats=['weaponPhysFlatDmg','meleePctDmg','accuracy','aspd','crit'].map((id,i)=>rollAffixValueInTierRange(MOD_DB.find(m=>m.id===id),vals[i],vals[i]));
+        game.inventory=[weapon];Object.assign(game.currencies,{fossil:20,sealShard:2,bossCore:1,underSilver:3,catalystLight:1});
+        game.runeSpares={'이중 베기':1};
+        const heldWeapon=()=>game.inventory.find(row=>row.id===weapon.id);
+        const exchange=(key,v)=>equipmentCrafting.exchangeFinish(game,key,v,true).ok;
+        const useFinish=(key,variant,low,high)=>equipmentCrafting.applyFinish(game,heldWeapon(),key,{variant,low,high}).ok;`);
+    assert.strictEqual(finishRun("exchange('transferStone','plain') && exchange('transferStone','plain') && !exchange('transferStone','plain')"),true);
+    assert.strictEqual(finishRun("exchange('artManual','doubleCut') && !exchange('artManual','doubleCut') && exchange('balanceWeight','physical') && exchange('wardCord','light')"),true);
+    assert.strictEqual(finishRun("useFinish('transferStone','plain',2) && !useFinish('transferStone','plain',3) && equipmentCrafting.affixCounts(heldWeapon()).prefix===3"),true);
+    assert.strictEqual(finishRun("useFinish('balanceWeight','physical',1,0) && heldWeapon().stats[0].tier===8 && heldWeapon().stats[1].tier===6"),true);
+    assert.strictEqual(finishRun("useFinish('artManual','doubleCut',0) && useFinish('wardCord','light',3) && equipmentCrafting.basicAddPool(heldWeapon()).every(mod=>!getAffixTags(mod).includes('light'))"),true);
+    finishRun('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.strictEqual(finishRun("heldWeapon().stats.filter(s=>s.craftSource).length===4 && equipmentCrafting.storedAffixKind(heldWeapon(),heldWeapon().stats[2])==='prefix' && game.currencies.transferStone===1"),true);
+    finishRun(`for(const stat of heldWeapon().stats)stat.lockedByHoney=stat.craftSource!=='transferStone';
+        game.currencies.pruningShears=1;selectForCrafting(heldWeapon().id,false);useCurrency('pruningShears');
+        heldWeapon().stats.forEach(stat=>{delete stat.lockedByHoney;});`);
+    assert.strictEqual(finishRun("heldWeapon().stats.length===4 && useFinish('transferStone','plain',3) && game.currencies.transferStone===0"),true);
     // A ward's wallet-only shards are part of the recovery price, including after saving/loading the record.
     assert.strictEqual(runGame(`(()=>{
         game=mergeDefaults({season:40,loopCount:39});window.game=game;game.inventory=[];game.currencies.colonyShard=0;

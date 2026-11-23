@@ -1,4 +1,5 @@
 import { packMarkExplorationPackShape, packMarkExplorationAlertPack } from './exploration-pack-rules.mjs';
+import { atlasChallenges } from '../data/atlas-challenges.mjs';
 
 // c.owner is the current game state, supplied for each call; deps are legacy domain services.
 /** 무리의 한 자리에 설 적. 그 자리에 따로 정한 배역(role: 케르베로스의 머리와 몸통)이 있으면 그 표식으로 만들고, 만든 뒤 꾸민다. */
@@ -23,6 +24,11 @@ export function packCreateActExplorationPack(c, zone, room, stage, {encounter = 
         const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:c.deps.atlasEncounters.hasOwnLook(encounter),packVisualId:roster[index]};
         const enemy=packCreateExplorationPackEnemy(c, zone,marker,index,cast[index]);
         packTuneExplorationEncounterEnemy(c, enemy,encounter,zone);
+        if (room.host && index === 0) {
+            enemy.name = atlasChallenges[encounter][1];
+            enemy.maxHp = Math.ceil(enemy.maxHp * 2);
+            enemy.hp = enemy.maxHp;
+        }
         if(stage!==null && zone.atlasStages)c.deps.atlasEndgame.tuneStage(enemy,zone,stage);
         if(stage!==null && zone.memoryTier)c.deps.memoryDungeon.tuneBoss(enemy,zone.memoryTier);
         if(stage!==null && typeof c.deps.bossVariants==='object')c.deps.bossVariants.dress(enemy);

@@ -1,3 +1,5 @@
+import { finishHeld, finishEffectText } from '../data/equipment-finishes.mjs';
+import { finishControls } from './weapon-finishes.mjs';
 import { esc, selected, matches, workspaceCoin, workspaceGoalChoice, workspaceGoalTags, workspaceGoalOptions, workspaceArmedOmen, workspaceSporeReason, workspaceSideEffect, workspaceUsedOmen, workspaceAutoReason } from './crafting-workspace-selection.mjs';
 
 export function workspaceAffixValue(ctx, stat, value, exactRange=false) {
@@ -46,8 +48,9 @@ export function workspaceAffixHtml(ctx, stat, index) {
     const changed=ctx.state.last && JSON.stringify(prior)!==JSON.stringify((0, ctx.deps.copyCraftResultStat)(stat));
     const hit=ctx.state.goal.rules.some(rule=>ctx.deps.equipmentLootPolicy.lineMatchesRule(stat,rule));
     const quality=workspaceAffixQuality(ctx, stat,changed);
+    const effect=finishEffectText(stat,ctx.deps._t);
     return `<li class="cl-affix ${hit?'is-target':''} ${changed?'is-changed':''} ${quality}" data-affix="${index}">
-            <div><span style="--cl-affix-tone:${(0, ctx.deps.getItemStatToneColor)(stat.id)}">${esc(ctx, stat.statName||(0, ctx.deps.getStatName)(stat.id))} <span class="cl-affix-value${workspaceMaxRollClass(ctx, stat)}"><b>+${esc(ctx, workspaceAffixValue(ctx, stat,stat.val))}</b> <span class="cl-affix-range">${esc(ctx, workspaceAffixRange(ctx, stat))}</span></span></span>
+            <div><span style="--cl-affix-tone:${(0, ctx.deps.getItemStatToneColor)(stat.id)}">${effect?esc(ctx,effect):`${esc(ctx, stat.statName||(0, ctx.deps.getStatName)(stat.id))} <span class="cl-affix-value${workspaceMaxRollClass(ctx, stat)}"><b>+${esc(ctx, workspaceAffixValue(ctx, stat,stat.val))}</b> <span class="cl-affix-range">${esc(ctx, workspaceAffixRange(ctx, stat))}</span></span>`}</span>
             <span class="cl-tier">${(0, ctx.deps.getItemAffixTierHtml)(stat)}${ctx.deps.itemInfluencesUi.lineBadgeHtml(selected(ctx),stat)}</span></div>
             <small>${workspaceAffixNotes(ctx, stat,prior,{changed,hit,quality})}</small></li>`;
 }
@@ -121,7 +124,7 @@ export function workspaceEncroachmentHtml(ctx, item) {
 /** 재화 보관함과 고른 재화. 오른쪽 아래에도 사용 단추가 있다(2026-11-08 사용자: 목표 조건을 많이 달면 아래 단추까지 내려가야 했다). */
 export function workspaceMethodsHtml(ctx, state, stopped) {
     return `<section class="cl-methods"><div id="cl-currency-picker"><div class="cl-section-title"><span>${(0, ctx.deps._t)('재화 보관함')}</span><button type="button" id="cl-method-select" data-command="methods" aria-haspopup="dialog">${(0, ctx.deps._t)('제작 방법 선택')}</button><button type="button" id="cl-inventory-open" data-command="inventory" aria-haspopup="dialog">${(0, ctx.deps._t)('재화 인벤토리')}</button></div>${ctx.deps.craftingStashUi.html({recipe:ctx.state.recipe.key,omen:workspaceArmedOmen(ctx)?.key||''})}</div>
-            <p class="cl-method-note" data-theme="${ctx.deps.craftingCatalogUi.theme(ctx.state.recipe.key)}"><span class="cl-method-heading"><strong>${(0, ctx.deps._t)('선택 중 &ensp; {styledName}', { styledName: ctx.deps.craftingCatalogUi.styledName(ctx.state.recipe.key) })}</strong><small>${(0, ctx.deps._t)('보유 {currencies}', { currencies: ctx.deps.game.currencies[ctx.state.recipe.key] })}</small></span>${ctx.deps.craftingCatalogUi.description(ctx.state.recipe.key)}</p>${workspaceSporeHtml(ctx)}${workspaceOmenHtml(ctx)}
+            <p class="cl-method-note" data-theme="${ctx.deps.craftingCatalogUi.theme(ctx.state.recipe.key)}"><span class="cl-method-heading"><strong>${(0, ctx.deps._t)('선택 중 &ensp; {styledName}', { styledName: ctx.deps.craftingCatalogUi.styledName(ctx.state.recipe.key) })}</strong><small>${(0, ctx.deps._t)('보유 {currencies}', { currencies: finishHeld(ctx.deps.game.currencies,ctx.state.recipe.key) })}</small></span>${ctx.deps.craftingCatalogUi.description(ctx.state.recipe.key)}</p>${ctx.state.recipe.kind==='finish'?finishControls(ctx):workspaceSporeHtml(ctx)+workspaceOmenHtml(ctx)}
             <div class="cl-method-use">${workspacePrimaryButtonHtml(ctx, state,stopped)}</div></section>`;
 }
 
@@ -204,6 +207,7 @@ export function workspacePrimaryButtonHtml(ctx, state, stopped) {
 }
 
 export function workspaceActionHtml(ctx, state, stopped) {
+    if(ctx.state.recipe.kind==='finish')return '';
     const button=workspacePrimaryButtonHtml(ctx, state,stopped);
     if(ctx.state.auto||!['reroll','add','fossil'].includes(ctx.state.recipe.kind))return button;
     return button+workspaceAutoControlsHtml(ctx, state);

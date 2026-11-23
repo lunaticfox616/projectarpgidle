@@ -47,7 +47,7 @@ export function craftTargetStep(runtime) {
     const cards = runtime.deps.game.inventory.filter(runtime.handlers.canUseBud).map(item => `${runtime.state.craftPicker} ${spareCard(runtime, item)}`);
     const openers = slots.length ? ['#craft-target-equip-open', '#craft-target-inventory-open'] : ['#craft-target-inventory-open'];
     return runtime.handlers.step(1, 2, '제작할 일반 장비를 고르세요. 착용 중인 장비와 가방의 장비를 모두 고를 수 있습니다.',
-        [...slots, ...cards, ...openers], shown(runtime, runtime.state.craftPicker) ? `${runtime.state.craftPicker} .craft-picker-head` : undefined);
+        [...slots, ...cards, ...openers, '#cl-toggle-item-options[aria-expanded="false"]'], shown(runtime, runtime.state.craftPicker) ? `${runtime.state.craftPicker} .craft-picker-head` : undefined);
 }
 
 export function craftStep(runtime) {

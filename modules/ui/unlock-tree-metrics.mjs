@@ -2,8 +2,8 @@ import { view_cardName, cardGain, upgradeEffect } from './unlock-tree-labels.mjs
 
 export function boardFamilyOf(runtime, def) {
     let row = def;
-    while (row.after && !runtime.state.UNLOCK_LOOSE_FAMILY[row.id]) row = runtime.state.boardById.get(row.after);
-    return runtime.state.UNLOCK_LOOSE_FAMILY[row.id] || runtime.state.UNLOCK_FAMILIES.find(family => family.root === row.id).id;
+    while (row.after && !runtime.state.boardFamilyRoots.has(row.id)) row = runtime.state.boardById.get(row.after);
+    return runtime.state.boardFamilyRoots.get(row.id);
 }
 
 export function boardCardWidth(runtime, def, height) {

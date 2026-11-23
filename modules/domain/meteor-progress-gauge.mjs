@@ -21,7 +21,7 @@ function trackSkyRiftOrigin(st, zone) {
 
 export function* meteorTryUnlockMeteorContentByProgress(env, owner) {
     let st = meteorEnsureMeteorSiteState(env, owner);
-    if (st.unlocked || !env.deps.getMeteorSiteUnlockReady(owner)) return false;
+    if (st.unlocked || !env.deps.contentProgression.isUnlocked('meteorSite', owner)) return false;
     st.unlocked = true;
     (yield { kind: 'progressLog', args: [env.deps._t('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.'), 'loot-unique'] });
     return true;

@@ -1,12 +1,16 @@
 import { createEquipmentCrafting } from './domain/equipment-crafting.mjs';
 
 const rules = createEquipmentCrafting({
+    get EQUIPMENT_DROP_SLOTS() { return EQUIPMENT_DROP_SLOTS; },
+    get gemDropRewards() { return gemDropRewards; },
+    get contentProgression() { return contentProgression; },
     get _t() { return _t; },
     get EXPLICIT_AFFIX_LINE_CAP() { return EXPLICIT_AFFIX_LINE_CAP; },
     get getItemExplicitOptionCount() { return getItemExplicitOptionCount; },
     get findStoredEquipmentAffix() { return findStoredEquipmentAffix; },
     get EXPLICIT_AFFIX_RULES() { return EXPLICIT_AFFIX_RULES; },
     get getOpenAffixMods() { return getOpenAffixMods; },
+    get getAvailableMods() { return getAvailableMods; },
     get pickWeightedMod() { return pickWeightedMod; },
     get getCraftTierRangeForItem() { return getCraftTierRangeForItem; },
     get rollAffixValueInTierRange() { return rollAffixValueInTierRange; },

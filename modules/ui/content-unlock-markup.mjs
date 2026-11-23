@@ -3,7 +3,7 @@ export function view_art(runtime, def) { return 'assets/' + (def.art || 'ui/curr
 export function view_listed(runtime, loop) { return runtime.deps.CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop && !row.series); }
 
 export function roadmapAdditions(runtime, loop) {
-    return (runtime.deps.SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|아틀라스:|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문|세계수 껍질/.test(text));
+    return runtime.deps.SEASON_CONTENT_ROADMAP[loop]?.features || [];
 }
 
 export function entryReward(runtime, def, status) {

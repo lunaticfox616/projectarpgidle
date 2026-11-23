@@ -1,5 +1,11 @@
 
 
+import { cordTag, finishBooks } from '../data/equipment-finishes.mjs';
+
+export function ordinaryFinishMod(mod) {
+    return mod && ['prefix','suffix'].includes(mod.type) && !mod.regions && !mod.influences && !mod.compound?.length && !mod.fixedValue;
+}
+
 /** Read explicit origin or known legacy flags; never infer origin from an affix value/tier. */
 export function craftGetSource(env, stat) {
     if (!stat) return undefined;
@@ -38,7 +44,7 @@ export function craftGetBlockReason(env, item, source, reroll = false, retainedM
     if (item.corrupted) return '타락한 아이템은 제작할 수 없습니다.';
     const existing = (item.stats || []).filter(stat => craftGetSource(env, stat) === source);
     if (!existing.length) return '';
-    if (!reroll || source === 'transplant') return env.deps._t('이미 {labels} 옵션이 있어 추가할 수 없습니다.', { labels: env.labels[source] });
+    if (!reroll || source === 'transplant') return env.deps._t('이미 {labels} 옵션이 있어 추가할 수 없습니다.', { labels: env.deps._t(env.labels[source]) });
     const locked = existing.some(stat => stat.id !== retainedMarker && craftKeptOnReroll(item, stat));
     return locked ? env.deps._t('잠긴 {labels} 옵션이 있어 재련할 수 없습니다.', { labels: env.labels[source] }) : '';
 }
@@ -70,10 +76,10 @@ export function craftGetRiftHarvestBlockReason(env, item) {
     return reason || (env.deps.getItemExplicitOptionCount(item) >= env.deps.EXPLICIT_AFFIX_LINE_CAP ? '옵션이 가득 차 있습니다.' : '');
 }
 
-export function craftGetFossilUseReason(env, item, fossil, season, currencies) {
-    if ((season || 1) < 3) return '미궁 제작은 루프3부터 사용할 수 있습니다.';
+export function craftGetFossilUseReason(env, item, fossil, owner) {
+    if (!env.deps.contentProgression.isUnlocked('fossil', owner)) return '화석 제작을 먼저 해금하세요.';
     if (!fossil) return '존재하지 않는 화석입니다.';
-    if ((currencies[fossil.key] || 0) <= 0) return env.deps._t('{name}이 부족합니다.', { name: fossil.name });
+    if ((owner.currencies[fossil.key] || 0) <= 0) return env.deps._t('{name}이 부족합니다.', { name: fossil.name });
     if (!item) return '먼저 아이템을 선택하세요.';
     return craftGetFossilBlockReason(env, item, fossil.key);
 }
@@ -93,7 +99,14 @@ export function craftAffixKind(mod) {
 export function craftStoredAffixKind(env, item, stat) {
     if (stat && stat.isEchoMod && ['prefix', 'suffix', 'special'].includes(stat.echoKind)) return stat.echoKind;
     if (!stat || stat.fossilExclusive || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore || stat.oceanBenchOptionId) return 'special';
-    return craftAffixKind(env.deps.findStoredEquipmentAffix(item, stat));
+    const mod = env.deps.findStoredEquipmentAffix(item, stat);
+    return storedFinishKind(item, stat, mod) || craftAffixKind(mod);
+}
+
+function storedFinishKind(item, stat, mod) {
+    if (cordTag(stat) && ['prefix','suffix'].includes(stat.finishSide)) return stat.finishSide;
+    if (stat.craftSource === 'artManual' && item.slot === '무기' && Object.values(finishBooks).some(book => book.stat === stat.id)) return 'prefix';
+    return stat.craftSource === 'transferStone' && mod?.type === 'suffix' && ordinaryFinishMod(mod) ? 'prefix' : '';
 }
 
 /** A line a full reroll keeps: honey and rift locks. */
@@ -171,7 +184,14 @@ export function craftBasicRule(env, action) { return env.basicRules[action]; }
 
 export function craftBasicFits(env, item, action) {
     const rule=craftBasicRule(env, action);
+    if (rule?.kind === 'add' && item.stats.some(stat => cordTag(stat)) && !craftLegalAddPool(env,item).length) return false;
     return !!rule && item.rarity===rule.source && (rule.kind!=='add'||env.deps.getItemExplicitOptionCount(item)<env.deps.EXPLICIT_AFFIX_LINE_CAP);
+}
+
+export function craftLegalAddPool(env, item) {
+    const pool = env.deps.getOpenAffixMods(item, 'rare');
+    const tag = cordTag(item.stats.find(stat => cordTag(stat)));
+    return tag ? pool.filter(mod => !env.deps.getAffixTags(mod).includes(tag)) : pool;
 }
 
 /** Why the build may not change now, or '': the woodsman fight puts gear and bag back to its snapshot every tick (not the wallet),

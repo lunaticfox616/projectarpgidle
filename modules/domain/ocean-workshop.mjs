@@ -1,4 +1,5 @@
 import { OCEAN_WORKBENCH_OPTIONS, SEA_GIFT_RANDOM_ORB_KEYS, SEA_GIFT_RECIPES, SEA_GIFT_ITEM_EFFECT_TYPES } from '../data/ocean-workshop.mjs';
+import { finishRules } from '../data/equipment-finishes.mjs';
 
 /** Fish stock belongs to owner.ocean; selection and rendering belong to the caller.
  * Retired recipes are absent, so old UI requests fail without spending fish. */
@@ -55,6 +56,7 @@ function workshopGetSeaGiftLineCap(deps, item) {
 /** 메아리 줄은 원본과 같은 종류다. 그 종류에 자리가 없으면 같은 종류의 줄만 바꿔 끼울 수 있다. */
 function workshopGetSeaGiftEchoTargets(deps, item, editableIdx, srcIdx) {
     const targetsForSource = index => {
+        if (['artManual','wardCord'].includes(item.stats[index].craftSource)) return [];
         const kind = deps.equipmentCrafting.storedAffixKind(item, item.stats[index]), room = deps.equipmentCrafting.affixRoom(item);
         const others = editableIdx.filter(target => target !== index);
         if (!room || kind === 'special' || room[kind] > 0) return others;
@@ -134,7 +136,7 @@ function workshopMakeSeaGiftEchoLine(deps, src, kind) {
     delete echo.fossilExclusive;
     delete echo.fossilExclusiveDrop;
     delete echo.fossilExclusiveSpore;
-    if (echo.craftSource === 'fossil') delete echo.craftSource;
+    if (['fossil','temper','press','prune'].includes(echo.craftSource) || Object.hasOwn(finishRules, echo.craftSource)) delete echo.craftSource;
     echo.echoKind = kind;
     echo.echoOf = src.statName || deps.getStatName(src.id);
     echo.isEchoMod = true;

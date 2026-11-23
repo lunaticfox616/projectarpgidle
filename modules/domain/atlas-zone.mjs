@@ -1,5 +1,7 @@
 import { atlasCoreBonusOf } from './atlas-bonuses.mjs';
 import { atlasCoreActiveFragments } from './atlas-loadout.mjs';
+import { atlasChallenges } from '../data/atlas-challenges.mjs';
+import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
 
 // ---------------------------------------------------------------- the combat zone of the open map
 export function atlasCoreEquivalentDepth(env, tier) { return env.deps.ATLAS.difficulty.baseDepth + (tier - 1) * env.deps.ATLAS.difficulty.depthPerTier; }
@@ -9,7 +11,20 @@ export function atlasCoreZone(env, state) {
     const run = state.atlas && state.atlas.run;
     if (!run) return null;
     if (!env.zones.has(run)) env.zones.set(run, atlasCoreBuildZone(env, run));
-    return env.zones.get(run);
+    const base = env.zones.get(run), type = state.actExploration?.source?.pocket;
+    if (!type || !Object.hasOwn(atlasExpeditions, type)) return base;
+    const scene = state.actExploration;
+    if (!env.zones.has(scene)) env.zones.set(scene, expeditionZone(env, base, type));
+    return env.zones.get(scene);
+}
+
+function expeditionZone(env, base, type) {
+    const [region, captain, , body] = atlasChallenges[type], rule = env.deps.ATLAS.encounters[type];
+    return { ...base, name: rule.name, pocket: type, expeditionRegion: region, atlasKind: 'expedition',
+        bossName: captain, bossVisualId: body, atlasStages: null, memoryTier: 0,
+        atlasEncounters: [], atlasCleared: [], trialHazard: null,
+        exploration: { style: 'act', act: base.exploration.act, seed: base.exploration.seed + '/' + type,
+            chain: atlasExpeditions[type].length, bossStages: 1, pocket: type } };
 }
 
 /** A node's boss rules: late fights carry their own (stages, life, damage). */
@@ -29,6 +44,11 @@ export function atlasCoreEncounterRooms(env, map) { return env.deps.atlasEncount
 /** The supply chests of a map (js/exploration-objects.js chestGrade): silver and gold odds up by chestGrade %, chestExtra more
  * chests and, with chestMinGrade (보급 각인), no wooden ones. */
 export function atlasCoreChestRules(bonus) { return { grade: Number(bonus.chestGrade) || 0, extra: Number(bonus.chestExtra) || 0, min: Number(bonus.chestMinGrade) > 0 ? 1 : 0 }; }
+
+function runExplorationSpec(env, run) {
+    const spec = atlasCoreExplorationSpec(env, run.map);
+    return run.challengeDoors ? { ...spec, challenges: run.encounters.filter(type => Object.hasOwn(atlasChallenges, type)) } : spec;
+}
 
 export function atlasCoreBuildZone(env, run) {
     const { map, bonus } = run, node = env.BY_ID.get(map.node), fx = env.deps.atlasMaps.effects(map), depth = atlasCoreEquivalentDepth(env, map.tier);
@@ -50,7 +70,7 @@ export function atlasCoreBuildZone(env, run) {
         packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
         atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, bossVisualId: run.board ? null : node.bossVisualId,
         atlasCleared: run.cleared,
-        atlasKind: node.kind, memoryTier: map.memory || 0, exploration: atlasCoreExplorationSpec(env, map), ...env.deps.atlasEndgame.zoneExtras(run, node),
+        atlasKind: node.kind, memoryTier: map.memory || 0, exploration: runExplorationSpec(env, run), ...env.deps.atlasEndgame.zoneExtras(run, node),
         ...env.deps.lootOmens.zoneFields(map),
         ...(run.board ? { name: `${env.deps.ATLAS_BOARD.text.title}: ${run.board.name}`, boardBoss: run.board.boss,
             bossName: run.board.boss ? env.deps.ATLAS_BOARD.text.boss.name : node.boss,

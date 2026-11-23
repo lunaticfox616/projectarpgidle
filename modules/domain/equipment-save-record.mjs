@@ -6,6 +6,8 @@ export function equipmentSaveNormalizeItem(env, item) {
     if (!equipmentSaveRenameAndExpandItemLines(env, item)) return null;
     if (typeof env.deps.bagItems === 'object' && env.deps.bagItems.ownShape(item)) return env.deps.bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
     equipmentSaveNormalizeItemStatCollections(env, item);
+    // Early test builds stored lifetime charges. Only the provenance on a surviving affix now occupies the craft.
+    delete item.weaponFinishMask;
     equipmentSaveNormalizeItemAbyssSockets(env, item);
     // Corruption socket (2026-10-05): only its shape is kept; a jewel already in it is never dropped.
     equipmentSaveNormalizeItemCorruptionSocket(item);
@@ -23,6 +25,7 @@ export function equipmentSaveNormalizeItem(env, item) {
     equipmentSaveMigrateWeaponBaseDamage(env, item);
     equipmentSaveMigrateEquipmentAffixBalance(env, item);
     equipmentSaveNormalizeItemHallFlags(item);
+    env.deps.equipmentCrafting.restoreFinishSlots(item);
     if (!item.id) item.id = env.deps.allocateItemId();
     return env.deps.levelProgression.stampItem(item);
 }

@@ -21,10 +21,11 @@ export function atlasCoreBegin(env, state, uid, returnZoneId, ...entry) {
 export function atlasCoreStartRun(env, state, map, returnZoneId, random) {
     const rooms = atlasCoreEncounterRooms(env, map), { used, spent } = atlasCoreUseFragments(env, state, rooms, random), bonus = env.deps.lootOmens.runBonus(atlasCoreBonusOf(env, state, used), map);
     const forced = used.map(id => env.FRAGMENTS.get(id).encounter).filter(Boolean);
+    const fieldDiscoveries = rooms > 0 && env.deps.actExplorationDoors.session();
     const encounters = env.deps.atlasEncounters.roll(bonus, forced, random, rooms, { awake: env.deps.atlasEndgame.awakened(state), loop: state.season,
-        region: (env.BY_ID.get(map.node) || {}).region });
+        fieldDiscoveries, region: (env.BY_ID.get(map.node) || {}).region }, state);
     state.atlas.run = { map, portals: env.deps.ATLAS.portals + bonus.portals, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
-        encounters, golden: env.deps.atlasEncounters.golden(encounters, bonus, map.uid),
+        encounters, ...(fieldDiscoveries ? { passages: { tried: [], sites: [] } } : {}), golden: env.deps.atlasEncounters.golden(encounters, bonus, map.uid),
         returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null, endgame: env.deps.atlasEndgame.runExtra(state, env.BY_ID.get(map.node), random) };
 }
 

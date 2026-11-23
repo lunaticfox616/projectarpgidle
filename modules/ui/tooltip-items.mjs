@@ -1,3 +1,4 @@
+import { finishEffectText } from '../data/equipment-finishes.mjs';
 import { getItemSlotDisplayLabel, getItemDropRegionLineHtml, getUniqueEffectApplicationHint, getItemStatRollRangeHtml, getHoneyLockBadgeHtml } from './tooltip-item-details.mjs';
 import { getItemBaseBadgesHtml, itemExplicitAffixHeaderHtml, getItemAffixTierHtml } from './tooltip-item-shell.mjs';
 import { dismissItemTooltipNow, hideItemTooltip } from './tooltip-core.mjs';
@@ -103,6 +104,11 @@ function appendItemExplicitStats(runtime, html, context) {
             let tierText = getItemAffixTierHtml(runtime, stat);
             let rangeText = `${getItemStatRollRangeHtml(runtime, stat)}${tierText}`;
             let honeyLockText = getHoneyLockBadgeHtml(runtime, stat) + runtime.deps.emberCorruptionUi.scaleBadgeHtml(stat) + runtime.deps.itemInfluencesUi.lineBadgeHtml(item, stat);
+            const effect = finishEffectText(stat, runtime.deps._t);
+            if (effect) {
+                html += '<div class="tooltip-line">'+runtime.deps.escapeHTML(effect)+tierText+honeyLockText+'</div>';
+                return;
+            }
             let label = itemTooltipAffixLabel(runtime, stat, statKey);   // the stat name goes through the language pack (2026-11-03)
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {

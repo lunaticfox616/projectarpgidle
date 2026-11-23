@@ -24,6 +24,7 @@ const loopAutomationUi = createLoopAutomationView({
     get isRewardOpen() { return isRewardOpen; },
     get worldTreeBarkUi() { return worldTreeBarkUi; },
     get getHeldGearLoopBlockReason() { return getHeldGearLoopBlockReason; },
+    get loopCinematic() { return window.GameModules.loopCinematic; },
     get setInterval() { return typeof setInterval === 'undefined' ? undefined : windowSetInterval; }
 });
 safeExposeGlobals({ loopAutomationUi });

@@ -1,3 +1,5 @@
+import { CONTENT_UNLOCK_CATALOG } from './content-progression.mjs';
+
 const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
     width: 912,
     height: 624,
@@ -69,8 +71,8 @@ const GRAND_BREACH_ENCOUNTER = Object.freeze({
         ].map(pairs=>Object.freeze(pairs.map(Object.freeze))))})
 });
 
-// 운석 낙하 지점: 루프 7에서 액트 7에 닿으면 하늘 균열 게이지가 차기 시작한다.
-const METEOR_SITE_UNLOCK_LOOP = 7;
+// 운석 낙하 지점의 해금 루프는 해금판과 공유한다.
+const METEOR_SITE_UNLOCK_LOOP = CONTENT_UNLOCK_CATALOG.find(row => row.id === 'meteorSite').minLoop;
 
 const METEOR_SITE_UNLOCK_ACT = 7;
 
@@ -93,7 +95,7 @@ const METEOR_CONSTELLATION_POOL = Object.freeze([
     Object.freeze({ stat: 'crit', label: '치명타 확률', val: 2 })
 ]);
 
-const OCEAN_UNLOCK_LOOP = 11;
+const OCEAN_UNLOCK_LOOP = CONTENT_UNLOCK_CATALOG.find(row => row.id === 'ocean').minLoop;
 /** 심해 자동 재잠수(설정 autoRediveOcean): 리프트도 가디언 처치도 물고기도 없이 떠오른 잠수가 missLimit번 이어지면 멈춘다. */
 const OCEAN_AUTO_REDIVE = Object.freeze({ missLimit: 3 });
 /** 심해 전투(2026-10-19 사용자 결정 A+B, js/passives.js applyOceanKill). A: 수심은 시간이 아니라 쓰러뜨린 몬스터만큼 내려간다(정예는
@@ -306,7 +308,7 @@ const LOOP_MUTATION = Object.freeze({
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
 //  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 희귀 옵션이 더 많이 남는다.
 //  - 융합 유물은 황금률, 잿불가지, 축복의 꽃잎 외의 제작 재화를 받지 않는다.
-const TIME_RIFT_UNLOCK_LOOP = 13;
+const TIME_RIFT_UNLOCK_LOOP = CONTENT_UNLOCK_CATALOG.find(row => row.id === 'timerift').minLoop;
 const TIME_RIFT_PAST_ZONE_ID = 'time_rift_past';
 const TIME_RIFT_FUTURE_ZONE_ID = 'time_rift_future';
 const TIME_RIFT_MAX_PRESSURE = 10;
@@ -324,70 +326,26 @@ const TIME_RIFT_OPTION_KEEP = Object.freeze([0.25, 0.29, 0.33, 0.37, 0.41, 0.45,
 const TIME_RIFT_KEEP_CAP = 4;
 const TIME_RIFT_OPTION_KEEP_PAST_CAP = Object.freeze([0.03, 0.038, 0.046, 0.053, 0.061, 0.069, 0.077, 0.084, 0.092, 0.10]);
 
-// 루프 1~10의 해금 줄은 data/content-progression.js CONTENT_UNLOCK_CATALOG의 minLoop와 맞춘다(2026-10-27).
-const SEASON_CONTENT_ROADMAP = {
-    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬룬 → 전술)'] },
-    2: { title: '루프 2', features: ['해금: 장비 제련 / 보조스킬룬 / 루프 패시브', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
-    3: { title: '루프 3', features: ['해금: 고대 미궁 / 대전 / 전직 / 화석 제작'] },
-    4: { title: '루프 4', features: ['해금: 룬 강화 / 고유 도감'] },
-    5: { title: '루프 5', features: ['해금: 화석 복원'] },
-    6: { title: '루프 6', features: ['해금: 주얼 / 룬 각인'] },
-    7: { title: '루프 7', features: ['해금: 운석 낙하 지점 / 제작 시뮬레이터'] },
-    8: { title: '루프 8', features: ['해금: 벌집 / 부적'] },
-    9: { title: '루프 9', features: ['해금: 공허 균열 / 고급 수확 제작'] },
-    10: { title: '루프 10', features: ['해금: 심화 혼돈 / 재능 / 심화 패시브'] },
-    11: { title: '루프 11', features: ['해금: 심해 / 낚시 / 공허 소켓', '심화: 혼돈 단계 상승'] },
-    12: { title: '루프 12', features: ['그루터기 함: 뿌리 기억 (봉인 칸 +1)', '심화: 혼돈 단계 상승'] },
-    13: { title: '루프 13', features: ['해금: 시간의 균열 (융합 제단)', '그루터기 함: 생육함 (효과 없이 경험치)', '심화: 혼돈 단계 상승'] },
-    14: { title: '루프 14', features: ['심화: 혼돈 단계 상승'] },
-    15: { title: '루프 15', features: ['해금: 군락지 / 군락지 액막이', '조건부 해금: 창공의 탑 (혼돈 20층 클리어)', '전술 조건 해금: 최근 피격'] },
-    16: { title: '루프 16', features: ['심화: 혼돈 단계 상승'] },
-    17: { title: '루프 17', features: ['그루터기 함: 25칸 모두 열림', '심화: 혼돈 단계 상승'] },
-    18: { title: '루프 18', features: ['그루터기 함: 접붙이기 (루프마다 3점)', '심화: 혼돈 단계 상승'] },
-    19: { title: '루프 19', features: ['심화: 혼돈 단계 상승'] },
-    20: { title: '루프 20', features: ['조건부 해금: 코어 (지하계 10층 클리어)', '심화: 혼돈 단계 상승'] },
-    21: { title: '루프 21', features: ['심화: 혼돈 단계 상승'] },
-    22: { title: '루프 22', features: ['심화: 혼돈 단계 상승'] },
-    23: { title: '루프 23', features: ['그루터기 함: 봉인 칸 1 (루프가 바뀌어도 아이템이 사라지지 않음), 포식 (불씨의 흉터)', '심화: 혼돈 단계 상승'] },
-    24: { title: '루프 24', features: ['심화: 혼돈 단계 상승'] },
-    25: { title: '루프 25', features: ['해금: 야생 부적 드랍 (적이 부적을 떨어뜨림)', '조건부 해금: 세계수 아틀라스 (혼돈 20층 클리어)'] },
-    26: { title: '루프 26', features: ['아틀라스: 기억 던전 (보스가 남긴 기억으로 그 보스에게 다시 도전, 1~5단계)', '심화: 혼돈 단계 상승'] },
-    27: { title: '루프 27', features: ['아틀라스: 세계수 기운 (지역 지도 장비에 그 지역 전용 옵션)', '심화: 혼돈 단계 상승'] },
-    28: { title: '루프 28', features: ['심화: 혼돈 단계 상승'] },
-    29: { title: '루프 29', features: ['그루터기 함: 봉인 칸 2', '심화: 혼돈 단계 상승'] },
-    30: { title: '루프 30', features: ['아틀라스: 잿불 터 (타오른 잿불가지로 장비를 한 번 더 타락)', '전환점: 혼돈 루프 요구 심화 40층'] },
-    31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈/우주계 루프 경로 선택', '조건부 해금: 달의 존재, 아리안로드 / 아틀라스 최종 관문'] },
-    32: { title: '루프 32', features: ['아틀라스: 수액 상처 (기폭제로 장비의 품질 속성을 고른 태그로)', '심화: 혼돈 단계 상승'] },
-    33: { title: '루프 33', features: ['보스 변이체 (모든 보스가 드물게 변이체로, 처음 잡은 변이마다 보상, 기억 던전에서 다시 부르기)', '심화: 혼돈 단계 상승'] },
-    34: { title: '루프 34', features: ['아틀라스: 나이테 원정 (길잡이에게서 얻은 주사위로 이동, 지도 보상 누적, 보스 처치로 정산)', '심화: 혼돈 단계 상승'] },
-    35: { title: '루프 35', features: ['그루터기 함: 품질 상한 140%', '심화: 혼돈 단계 상승'] },
-    36: { title: '루프 36', features: ['아틀라스: 시든 정원 (목걸이에 기름 셋을 발라 패시브 노드 하나를 새김)', '심화: 혼돈 단계 상승'] },
-    37: { title: '루프 37', features: ['그루터기 함: 봉인 칸 3', '심화: 혼돈 단계 상승'] },
-    38: { title: '루프 38', features: ['심화: 혼돈 단계 상승'] },
-    39: { title: '루프 39', features: ['아틀라스: 묘목장 (그 지역 색의 씨앗, 불씨의 흉터)', '심화: 혼돈 단계 상승'] },
-    40: { title: '루프 40', features: ['해금: 뜨개질 (같은 실타래를 모아 정해진 보상으로 바꿈)', '심화: 혼돈 단계 상승'] },
-    41: { title: '루프 41', features: ['심화: 혼돈 단계 상승'] },
-    42: { title: '루프 42', features: ['그루터기 함: 고대 씨앗 (공명, 규율에서 어느 색이든, 이웃 접붙이기 +1, 묘목장과 최종 보스)', '심화: 혼돈 단계 상승'] },
-    43: { title: '루프 43', features: ['심화: 혼돈 단계 상승'] },
-    44: { title: '루프 44', features: ['아틀라스: 기억 던전 4, 5단계', '심화: 혼돈 단계 상승'] },
-    45: { title: '루프 45', features: ['그루터기 함: 품질 상한 150%, 접붙이기 6단계', '심화: 혼돈 단계 상승'] },
-    46: { title: '루프 46', features: ['심화: 혼돈 단계 상승'] },
-    47: { title: '루프 47', features: ['심화: 혼돈 단계 상승'] },
-    48: { title: '루프 48', features: ['아틀라스: 목걸이 기름 둘째 자리', '심화: 혼돈 단계 상승'] },
-    49: { title: '루프 49', features: ['심화: 혼돈 단계 상승'] },
-    50: { title: '루프 50', features: ['아틀라스: 지도마다 콘텐츠 방 +1', '심화: 혼돈 단계 상승'] }
-};
-// 루프 50 이후 이정표(2026-10-09): 세계수 껍질(WORLD_TREE_BARK) 한 단계마다 한 줄, 같은 루프의 그루터기 함 해금(data/stump-box.js
-// STUMP_BOX_UNLOCKS)과 아틀라스 콘텐츠 방(data/atlas.js encounterLoopBonus) 줄을 뒤에 붙인다.
-(() => {
-    const extra = { 55: ['그루터기 함: 봉인 칸 4'], 60: ['그루터기 함: 품질 상한 160%, 접붙이기 7단계'], 70: ['그루터기 함: 봉인 칸 5'],
-        75: ['아틀라스: 지도마다 콘텐츠 방 +1 (둘째)'], 80: ['그루터기 함: 품질 상한 170%, 접붙이기 8단계'], 90: ['그루터기 함: 봉인 칸 6'],
-        100: ['그루터기 함: 품질 상한 180%, 접붙이기 9단계'] };
-    WORLD_TREE_BARK.loops.forEach((loop, index) => {
-        const layers = index + 1;
-        const bark = `세계수 껍질 ${layers}단계: 최대 생명력 +${layers * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${layers * WORLD_TREE_BARK.taken}%`;
-        SEASON_CONTENT_ROADMAP[loop] = { title: `루프 ${loop}`, features: [bark, ...(extra[loop] || [])] };
-    });
+// 해금 이름과 시점은 구매·탐험과 같은 카탈로그에서 읽는다. 세계 진행 이정표만 따로 적는다.
+const SEASON_CONTENT_ROADMAP = (() => {
+    const world = {
+        1: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬룬 → 전술)'],
+        2: ['그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'],
+        15: ['전술 조건 해금: 최근 피격'], 17: ['그루터기 함: 25칸 모두 열림'],
+        25: ['조건부 해금: 세계수 아틀라스 (혼돈 20층 클리어)'], 30: ['전환점: 혼돈 루프 요구 심화 40층'],
+        31: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈/우주계 루프 경로 선택', '조건부 해금: 달의 존재, 아리안로드 / 아틀라스 최종 관문']
+    };
+    const rows = {};
+    const last = Math.max(...CONTENT_UNLOCK_CATALOG.map(def => def.minLoop), ...WORLD_TREE_BARK.loops);
+    for (let loop = 1; loop <= last; loop++) {
+        const features = CONTENT_UNLOCK_CATALOG.filter(def => loop > 1 && def.minLoop === loop && (!('series' in def) || def.series === 'stumpSeal' || def.series === 'stumpQuality')).map(def => def.name);
+        features.push(...(world[loop] || []));
+        if (loop >= 11 && loop <= 50 && ![15, 25, 30, 31].includes(loop)) features.push('심화: 혼돈 단계 상승');
+        const layers = WORLD_TREE_BARK.loops.indexOf(loop) + 1;
+        if (layers) features.push(`세계수 껍질 ${layers}단계: 최대 생명력 +${layers * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${layers * WORLD_TREE_BARK.taken}%`);
+        if (features.length) rows[loop] = { title: '루프 {minLoop}', features };
+    }
+    return rows;
 })();
 
 const SEASON_BOSS_ZONES = [

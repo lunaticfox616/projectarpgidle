@@ -5,6 +5,7 @@ const native = createStageDoorMarks({
     get actExplorationDoors() { return actExplorationDoors; },
     get actExplorationMap() { return actExplorationMap; },
     get STAGE_REGIONS() { return STAGE_REGIONS; },
+    get ATLAS() { return ATLAS; },
     get stageAssetRetry() { return stageAssetRetry; },
     get STAGE_ROOMS() { return STAGE_ROOMS; },
     get document() { return document; },

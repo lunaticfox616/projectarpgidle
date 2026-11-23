@@ -3,6 +3,18 @@ import { UNIQUE_DB } from './items.mjs';
 // Columns: name, baseId, required level, strength, dexterity, intelligence.
 // Zero attributes are deliberate: introductory and universal jewellery stay accessible.
 const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
+    ['나이테의 파수','warden_greatsword',37,75,0,0],
+    ['산맥의 단면','bigtree_maul',45,96,0,0],
+    ['매복자의 접칼','hunter_axe',9,12,12,0],
+    ['가시의 서명','venom_kris',61,65,75,0],
+    ['되짚는 제비','windlash_bow',17,0,34,0],
+    ['천둥의 표적','hawk_longbow',61,0,122,0],
+    ['빈 둥지의 울림','pact_familiar_wand',13,0,0,26],
+    ['뇌운의 굴절','storm_rod',61,0,0,122],
+    ['벌지기의 연막병','cracked_flask',13,0,15,15],
+    ['역병의 마개','toxin_flask',61,0,70,70],
+    ['잔불의 기도','kindling_censer',17,18,0,18],
+    ['조종을 울리는 자','bellringer_censer',74,80,0,88],
     ['첫 계약','apprentice_familiar_wand',1,0,0,0],
     ['무리의 서약','spirit_call_wand',13,0,0,25],
     ['묘지종 사령 오브','gravebind_scepter',29,0,0,55],

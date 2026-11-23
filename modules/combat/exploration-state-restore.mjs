@@ -1,5 +1,7 @@
 import { stateValidate, stateValidSource, stateValidateDeparture } from './exploration-state-validation.mjs';
 import { stateArrive, stateValidCell } from './exploration-state-rules.mjs';
+import { stateValidateEnemyBody } from './exploration-state-pack-validation.mjs';
+import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
 
 export function stateCreate(env, where,packs,now=0) {
     const run=where.source ? {version:1,act:null,source:env.deps.explorationLayouts.normalize(where.source),bossStages:where.bossStages,zoneId:where.zoneId}
@@ -98,6 +100,7 @@ export function stateRestore(env, state) {
         return null;
     }
     stateValidate(env, run,state.enemies);stateValidCell(env, env.deps.actExplorationMap.forRun(run),state.gridPlayer);
+    if (run.source?.pocket) validateExpeditionHome(env, state, run);
     if(run.zoneId==='s6_beast_cerberus') {
         const map=env.deps.actExplorationMap.forRun(run);
         run.packs.filter(pack=>pack.stage!==null).forEach(pack=>stateJoinCerberus(env, pack,state.enemies,map));
@@ -110,4 +113,42 @@ export function stateRestore(env, state) {
     const ids=run.packs.flatMap(pack=>pack.aliveIds);
     state.nextEnemyId=Math.max(state.nextEnemyId,...ids.map(id=>id+1));
     return run;
+}
+
+function validateExpeditionHome(env, state, run) {
+    const home = run.home, parent = home?.main, uid = state.atlas?.run?.map.uid;
+    if (!matchingParent(parent,run,uid)) throw Error('도전 구역의 복귀 지도가 잘못되었습니다.');
+    stateValidate(env,parent,[]);
+    stateValidCell(env,env.deps.actExplorationMap.forRun(parent),home);
+    const map = env.deps.actExplorationMap.forRun(run);
+    const ids = new Set(parent.packs.concat(run.packs).flatMap(pack => pack.aliveIds));
+    for (const pack of run.packs.filter(row => row.stage === null)) {
+        const recipe = atlasExpeditions[run.source.pocket][Number(pack.roomId.slice(1))-1];
+        validateTask(env,map,pack.task,recipe);
+        validateReinforcements(env,map,pack,ids);
+    }
+    for (const id of ids) state.nextEnemyId = Math.max(state.nextEnemyId,id+1);
+}
+
+function matchingParent(parent,run,uid) {
+    return parent?.zoneId === run.zoneId && parent.source?.seed === 'atlas:' + uid && !parent.source.pocket &&
+        parent.status === 'active' && run.source.seed === parent.source.seed + '/' + run.source.pocket;
+}
+
+function validateTask(env,map,task,recipe) {
+    if (!recipe || !Array.isArray(task?.spots) || task.spots.length !== recipe[2] || !Number.isInteger(task.index) || task.index<0 || task.index>task.spots.length) throw Error('도전 구역 목표 기록이 잘못되었습니다.');
+    task.label=recipe[0];task.duration=recipe[3];
+    task.elapsed=Math.min(task.duration,Math.max(0,Number(task.elapsed)||0));
+    for (const cell of task.spots) stateValidCell(env,map,cell);
+}
+
+function validateReinforcements(env,map,pack,seen) {
+    const troops=pack.task.reinforcements;
+    if (troops===undefined) return;
+    if (!Array.isArray(troops) || troops.length>9 || pack.aliveIds.length) throw Error('도전 구역의 증원 기록이 잘못되었습니다.');
+    for (const enemy of troops) {
+        if (!Number.isSafeInteger(enemy?.id) || seen.has(enemy.id) || enemy.explorationPack!==pack.key) throw Error('도전 구역 증원 식별자가 잘못되었습니다.');
+        stateValidateEnemyBody(env,map,enemy);
+        seen.add(enemy.id);
+    }
 }

@@ -1,4 +1,11 @@
 @layer features{.cl-catalog nav button[hidden]{display:none}
+.cl-exchange{margin-block:8px;border-top:1px solid #6b573a;color:#e8dbbc}
+.cl-exchange summary{padding:10px 4px;color:#e6c580;cursor:pointer}
+.cl-exchange>div,.cl-finish-options{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px}
+.cl-finish-options strong,.cl-finish-options small{flex-basis:100%}
+.cl-finish-options label,.cl-exchange label{min-width:0;max-width:100%}
+.cl-finish-options select,.cl-exchange select{max-width:100%;min-height:36px;font:inherit}
+.cl-exchange .cl-error{color:#ffaaa6}
 .cl-addon-note{margin:6px 0 10px;padding:var(--space-1) var(--space-2);font-size:12px;line-height:1.65;color:#d0c9b8;border-left:2px solid transparent}
 .cl-addon-note.is-shortage{color:#ffb0b0;background:#321d20;border-left-color:#e36c73}
 #crafting-workspace .cl-error{color:#ffaaaa;font-size:12px;line-height:1.65;padding:var(--space-1) var(--space-2);background:#351d22;border:1px solid #a34c57;border-radius:4px}

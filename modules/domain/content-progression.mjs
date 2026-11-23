@@ -9,7 +9,7 @@ function createContentProgressChecks(deps) {
     return {
         tactics: owner => [['액트 3 클리어', deps.hasCombatTacticsUnlockProgress(owner)]],
         trials: owner => [['액트 3 클리어', owner.maxZoneId >= 3 || owner.completedTrials.length > 0]],
-        meteor: owner => [['루프 7에서 액트 7 클리어', owner.maxZoneId >= 7]],
+        meteor: owner => [['액트 7 클리어', owner.maxZoneId >= 7]],
         deepChaos: owner => [['혼돈 20층 클리어', deps.hasCurrentLoopChaos20Clear(owner)]],
         chaosRealm: owner => [['나무꾼에게 10% 피해 후 전투 종료', !!owner.chaosRealm.unlocked, 'outside-chaos']],
         underworld: deps.getUnderworldUnlockChecks,
