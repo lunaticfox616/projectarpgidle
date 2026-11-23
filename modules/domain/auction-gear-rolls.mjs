@@ -11,7 +11,7 @@
  */
 import { AUCTION_HOUSE } from '../data/auction-house.mjs';
 import { createSeededRng } from '../common/numbers.mjs';
-import { marketTradeGetBlackMarketUniquePool, marketTradeCreateBlackMarketUniqueOffer, marketTradeBlackMarketUniquePriceRange } from './black-market-uniques.mjs';
+import { marketTradeGetBlackMarketUniquePool, marketTradeCreateBlackMarketUniqueOffer } from './black-market-uniques.mjs';
 import { createEquipmentDropVariants } from './loot-variants.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
@@ -95,13 +95,13 @@ export function auctionUniquePool(env, zone) {
     return env.uniquePools.get(tier);
 }
 
-/** The unique named name at zone's tier, made by name: { item, offer: { price, min } } in goldenRule, or null when it is not in the pool
- * or the game refuses to make it. */
+/** The unique named name at zone's tier, made by name: { item, offer: { price (goldenRule, as the black market asks), reqTier } }, or null when
+ * it is not in the pool or the game refuses to make it. */
 export function auctionRollUnique(env, zone, name) {
     const deps = env.deps, tier = Number(zone.tier) || 1, unique = auctionUniquePool(env, zone).find(row => row.name === name);
     if (!unique) return null;
     const offer = marketTradeCreateBlackMarketUniqueOffer({ deps }, unique, tier), item = deps.generateUniqueItem(offer.reqTier, offer.slot, offer.name);
-    return item ? { item, offer: { price: offer.price, min: marketTradeBlackMarketUniquePriceRange(unique, offer.reqTier).min } } : null;
+    return item ? { item, offer: { price: offer.price, reqTier: offer.reqTier } } : null;
 }
 
 /** The drop variants (modules/domain/loot-variants.mjs) with the tables corruption reads. */

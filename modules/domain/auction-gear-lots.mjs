@@ -4,11 +4,15 @@
  * 굴려도, 다시 불러와도 같다. 둘 중 나은 매물은 아이템을 두 번 굴려 품질 배율이 높은 쪽을 쓴다. 생성이 올린 아이템 번호는 되돌린다(미리보기 규칙).
  * 값: 일반, 마법, 희귀의 기준 = max(감정 marketValue, NPC 장비 상점이 그 등급에 매기는 값 x gear.premium[등급])에 옵션 궁합과 줄 값
  * (gear.synergy, auctionLotQuality, 마법과 희귀만), 변형 배율(gear.variants)을 곱하고 베이스와 퀄리티의 값(auctionBaseWorth)을 더한 값(이슬)이고, 그 크기에 따라 새싹, 이슬, 황금률 가운데
- * 하나로 판다(gear.priceIn, 감정의 단위표로 나눈다). 고유는 황금률이고
- * 기준은 암거래상이 그 고유에 부른 값(콘텐츠 고유는 그 매물의 값) x 굴림 배율(gear.uniqueRoll, auctionUniqueRollQuality)이다. price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 계열 시세는 매물이 태어난
- * 구간의 것이라(그 구간의 서버 보정은 목록이 보는 동안 저장에 남는다) 값은 매물이 머무는 동안 바뀌지 않는다. 둘 다 그 등급의 바닥
- * (gear.floor, 고유는 암거래상의 가장 싼 값도) 이상이고 price는 기준 x 0.82(가장 싼 흔들림) 아래로 내려가지 않는다.
- * 바닥에 걸려 시세보다 싸지 않은 bargain은 'npc'로 낸다(화면은 둘을 나누지 않는다). 산 장비를 분해해도 남는 것이 없다.
+ * 하나로 판다(gear.priceIn, 감정의 단위표로 나눈다). 고유의
+ * 기준은 암거래상이 그 고유에 부른 값(황금률, 콘텐츠 고유는 그 매물의 값)을 이슬로 친 값 x 요구 단계의 몫(gear.uniqueWorth: 낮은 단계의 흔한
+ * 고유는 이슬 몇십 개, 콘텐츠 고유는 줄이지 않는다) x 굴림 배율(gear.uniqueRoll, auctionUniqueRollQuality)이고, 같은 gear.priceIn으로 이슬이나
+ * 황금률로 판다(auctionUniqueValue). price = pay(기준 x 계열 시세 x 흔들림), fairPrice = pay(기준 x 계열 시세). 계열 시세는 매물이 태어난
+ * 구간의 것이라(그 구간의 서버 보정은 목록이 보는 동안 저장에 남는다) 값은 매물이 머무는 동안 바뀌지 않는다. 둘 다 바닥(일반, 마법, 희귀는
+ * gear.floor; 고유는 분해해 평균으로 받는 값 + 1, auctionSalvageFloor, 콘텐츠 고유는 암거래상의 가장 싼 값도) 이상이고 price는 기준 x 0.82
+ * (가장 싼 흔들림) 아래로 내려가지 않는다.
+ * 바닥에 걸려 시세보다 싸지 않은 bargain은 'npc'로 낸다(화면은 둘을 나누지 않는다). 산 일반, 마법, 희귀는 분해해도 남는 것이 없고, 산 고유는
+ * 평균으로 남는 것이 없다(운이 좋은 한 번은 남을 수 있다).
  * 산 장비는 새 번호, tradeLocked, auctionBound를 받는다: 가판대, 전당, 경매장 어디서도 다시 팔 수 없다.
  * 묶음은 장비 매물 뒤에 주얼, 액막이, 부적 매물(modules/domain/auction-kind-lots.mjs, 번호 gear.batch부터)을 더 갖는다: 같은 매물 주사위, 같은
  * 판매자, 값은 이슬. 구매는 닫힌 종류를 그 까닭으로 거절한다. 목록과 미리 굴리기는 modules/domain/auction-lot-list.mjs.
@@ -26,6 +30,7 @@ import { AUCTION_BATCH_LOTS, auctionRollKind, auctionKindValue, auctionKindFamil
 import { auctionBatchRecord, auctionFillHeads } from './auction-lot-heads.mjs';
 import { auctionContentHeadOf, auctionContentVisible, auctionRollContentUnique } from './auction-content-lots.mjs';
 import { auctionMaterialBase } from './auction-materials.mjs';
+import { acquireGetItemSalvageRewardProfile } from './equipment-salvage-rewards.mjs';
 
 const GEAR = AUCTION_HOUSE.gear;
 // Tries of a gear body before it gives up (a try that makes nothing the appraisal can price draws again from the same stream).
@@ -46,17 +51,39 @@ export function auctionVariantMultiplier(env, item) {
 
 /** The base value of a lot in its currency and the floors under it: { currency, base, least (fairPrice floor), quality }. */
 export function auctionLotValue(env, entry, family) {
-    const { item, rarity, offer } = entry;
-    if (rarity === 'unique') {
-        const least = Math.max(GEAR.floor.unique, offer.min), roll = auctionUniqueRollQuality(item), rule = GEAR.uniqueRoll;
-        return { currency: 'goldenRule', base: offer.price * (1 + rule.span * roll ** rule.power), least, quality: { synergy: 0, roll, multiplier: 1 } };
-    }
+    const { item, rarity } = entry;
+    if (rarity === 'unique') return auctionUniqueValue(env, entry);
     const unitOf = env.deps.itemAppraisal.unitValue, quality = rarity === 'normal' ? { synergy: 0, roll: 0, multiplier: 1 } : auctionLotQuality(env, item, family);
     const dew = Math.max(env.deps.itemAppraisal.quote(item).marketValue, auctionShopPrice(env, item) * GEAR.premium[rarity]) * quality.multiplier * auctionVariantMultiplier(env, item)
         + auctionBaseWorth(env, item);
     // The dearer the lot, the larger its coin (gear.priceIn); the rarity's floor (buds) is carried into that coin, rounded up.
-    const currency = GEAR.priceIn.find(row => dew >= row.from).coin, unit = unitOf(currency);
+    const currency = auctionCoinOf(dew), unit = unitOf(currency);
     return { currency, base: dew / unit, least: auctionPay(GEAR.floor[rarity] * unitOf('magicBud') / unit), quality };
+}
+
+/** The coin a value of dew is sold in (gear.priceIn: the first row it reaches). */
+function auctionCoinOf(dew) { return GEAR.priceIn.find(row => dew >= row.from).coin; }
+
+/** A unique lot's value: the offer's golden rule price x the share of its requirement tier (gear.uniqueWorth: an ordinary unique of a low tier
+ * drops everywhere and is weak; a content unique's offer has no tier and keeps its whole price) x the roll multiplier (gear.uniqueRoll), in the
+ * coin of gear.priceIn. Its floor is what salvaging it pays on average (auctionSalvageFloor) and the offer's own least price. */
+function auctionUniqueValue(env, entry) {
+    const { item, offer } = entry, unitOf = env.deps.itemAppraisal.unitValue, golden = unitOf('goldenRule');
+    const roll = auctionUniqueRollQuality(item), rule = GEAR.uniqueRoll, worth = GEAR.uniqueWorth;
+    const share = offer.reqTier ? Math.min(1, offer.reqTier / worth.fullTier) ** worth.power : 1;
+    const dew = offer.price * golden * share * (1 + rule.span * roll ** rule.power), least = Math.max(auctionSalvageFloor(env, item), (offer.min || 0) * golden);
+    // A unique whose value is under its floor sells at the floor, so the floor picks the coin too.
+    const currency = auctionCoinOf(Math.max(dew, least)), unit = unitOf(currency);
+    return { currency, base: dew / unit, least: auctionPay(least / unit), quality: { synergy: 0, roll, multiplier: 1 } };
+}
+
+/** What salvaging item pays on average in dew, rounded up, + 1 (the game's own salvage profile; a stall coin at the appraisal's unit, any
+ * other reward at Veila's price): on average a bought lot is never worth salvaging. */
+function auctionSalvageFloor(env, item) {
+    const deps = env.deps, profile = acquireGetItemSalvageRewardProfile({ deps }, item);
+    const unitOf = key => (deps.PLAYER_STALL_RULES.currencies.includes(key) ? deps.itemAppraisal.unitValue(key) : auctionMaterialBase(key));
+    const sure = Object.entries(profile.guaranteed).reduce((sum, [key, amount]) => sum + amount * unitOf(key), 0);
+    return Math.ceil(profile.chances.reduce((sum, row) => sum + row.chance * row.amount * unitOf(row.key), sure) - AUCTION_HOUSE.epsilon) + 1;
 }
 
 /** What upgrading into base baseId costs in dew (the game's getBaseUpgradeCost, its golden rule counted as dew) and the base's chain
@@ -260,8 +287,8 @@ export function auctionLotPhase(lot, clock, bought) {
 }
 
 /**
- * Lot row ({ lot: head and body, bought }) priced at its birth bucket's factors (gear in the coin of gear.priceIn, uniques goldenRule, the other kinds formlessDew), never
- * below the rarity's floor (gear.floor, a unique also the black market's cheapest price; kinds.*.floor) nor the lot's base x gear.bargain[0],
+ * Lot row ({ lot: head and body, bought }) priced at its birth bucket's factors (gear in the coin of gear.priceIn, the other kinds formlessDew), never
+ * below its floor (gear.floor, a unique's average salvage; kinds.*.floor) nor the lot's base x gear.bargain[0],
  * with where it stands at clock.
  * @returns {{id: string, birthBucket: number, index: number, kind: 'gear'|'jewel'|'ward'|'talisman', item: object, rarity: string,
  *   variants: string[], family: string,
