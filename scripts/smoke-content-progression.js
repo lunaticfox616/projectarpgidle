@@ -7,9 +7,18 @@ vm.runInContext(require('fs').readFileSync(require('path').join(__dirname, '../j
 const run = code => vm.runInContext(code, runtime);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 const catalog = json('CONTENT_UNLOCK_CATALOG');
-const mainLoops = catalog.filter(row => !row.series && !['battleTrials','fishing'].includes(row.id) && row.minLoop >= 2 && row.minLoop <= 55)
+const mainLoops = catalog.filter(row => !row.series && !['battleTrials','fishing','auction'].includes(row.id) && row.minLoop >= 2 && row.minLoop <= 55)
     .map(row => row.minLoop).sort((a, b) => a - b);
 assert.deepEqual(mainLoops, Array.from({ length: 54 }, (_, i) => i + 2), 'one new main unlock per loop through loop 55');
+const auction = catalog.find(row => row.id === 'auction');
+assert.deepEqual([auction.minLoop, auction.cost, auction.after], [20, 2, 'market'], 'auction is an optional market service at loop 20');
+for (const [season, paidCosts] of [[3, {craft:2, market:1}], [20, {craft:2, market:1, auction:2}]]) {
+    const raw = {season, auction:{version:2}, contentProgression:{version:16, highestLoop:season, unlocked:Object.keys(paidCosts), paidCosts}};
+    run(`game=mergeDefaults(${JSON.stringify(raw)})`);
+    assert.deepEqual(json('game.contentProgression.paidCosts'), paidCosts);
+    run('game=mergeDefaults(JSON.parse(serializeSaveState(game)))');
+    assert.deepEqual(json('game.contentProgression.paidCosts'), paidCosts, 'auction-preview purchases survive a second load at their original prices');
+}
 for (const row of catalog) {
     for (const id of [row.after, ...(row.requires || [])].filter(Boolean)) {
         assert(catalog.find(parent => parent.id === id).minLoop <= row.minLoop, row.id + ' must be reachable after its predecessors');

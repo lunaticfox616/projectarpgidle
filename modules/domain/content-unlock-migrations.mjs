@@ -30,7 +30,7 @@ export function contentRestorePurchases(env, purchased, next, record) {
  * before the move holding such a purchase below today's loop bought it when purchase() allowed it, so it joins the grandfathered rows and
  * every later load keeps it; restorePurchases measures the others against today's loop and dropped these (룬 각인 vanished at loops 4, 5). */
 export function contentKeepEarlyPurchases(env, purchased, next, record) {
-    const version = Number(record.version) || 0;
+    const version = record.auctionCatalogV16 ? 15 : Number(record.version) || 0;
     if (version >= env.LOOP_MOVE_VERSION) return;
     const saved = new Set([...purchased, ...next.inherited]);
     for (const id of purchased) {
