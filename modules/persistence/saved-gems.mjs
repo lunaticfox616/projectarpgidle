@@ -80,7 +80,7 @@ export function normalizeGemEnhanceTargetSave(deps, merged) {
 }
 
 /** Removed support runes (data/skills.js RETIRED_SUPPORT_GEMS) leave every saved place before validation: their record, the run's
- * rune rewards, rune rows on the floor and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
+ * rune rewards, rune rows on the floor, in the held boss loot and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
  * SUPPORT_GEM_DB below. A saved row naming one failed the exploration loot check and with it the whole load. Idempotent. */
 export function dropRetiredSupportGems(deps, merged) {
     const retired = name => deps.RETIRED_SUPPORT_GEMS.includes(name);
@@ -90,6 +90,7 @@ export function dropRetiredSupportGems(deps, merged) {
     const run = merged.actExploration;
     if (run?.loot && Array.isArray(run.loot.gems)) run.loot.gems = run.loot.gems.filter(row => !(row && row.kind === 'support' && retired(row.name)));
     filterRows(run, 'groundLoot');
+    filterRows(run?.bossLoot, 'pendingLoot');
     filterRows(merged.colony, 'pendingLoot');
     filterRows(merged.voidRift?.grandRun, 'pendingLoot');
     Object.values(merged.npcShops && typeof merged.npcShops === 'object' ? merged.npcShops : {}).forEach(shop => filterRows(shop, 'offers'));

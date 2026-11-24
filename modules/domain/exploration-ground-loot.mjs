@@ -34,6 +34,13 @@ function partOfBossFight(pack,cache) {
     return pack.roomId===cache.roomId && (pack.key===cache.packKey || pack.stage!==null || pack.invader);
 }
 
+/** The held boss loot takes a drop only from an enemy whose pack is in that fight. Other rooms' drops and drops with no enemy stay on the floor. */
+function heldByBossFight(run,source) {
+    const cache=run.bossLoot, key=source?.explorationPack;
+    const pack=cache && key ? run.packs.find(row=>row.key===key) : null;
+    return !!pack && partOfBossFight(pack,cache);
+}
+
 function underDoorSeal(map, cell) {
     return map.doors.some(door => {
         const dx = Math.abs(cell.gx - door.cell.gx), dy = cell.gy - door.cell.gy;
@@ -67,15 +74,21 @@ function validators(deps) {
     };
 }
 
-/** Restore-only settlement uses the supplied state, never the live wallet or its UI. */
+/** A floor equipment row's pickup options: the filter and auto-salvage it dropped under, and its guaranteed keep. */
+export const equipmentPickupOptions = row => ({ ignoreFilter: !row.filterOnPickup, ignoreAutoSalvage: !!row.ignoreAutoSalvage, guaranteedKeep: row.guaranteed });
+
+/** Restore-only settlement uses the supplied state, never the live wallet or its UI. Gear and jewels take the live pickup's
+ * filter, auto-salvage and bag rules for that state (deps.restoredPickup); a restore never puts gear on. */
 function restoredRewards(deps) {
     return {
-        equipment: (state, row) => { state.inventory = (state.inventory || []).concat(row.item); if (state.noti) state.noti.items = true; },
+        equipment: (state, row) => {
+            if (deps.restoredPickup.equipment(state, row.item, { ...equipmentPickupOptions(row), skipAutoEquip: true }) && state.noti) state.noti.items = true;
+        },
         currency: (state, row) => {
             if (row.currency === 'condensedSkyPower') state.skyTower.condensedPower = (state.skyTower.condensedPower || 0) + row.count;
             else state.currencies[row.currency] = (state.currencies[row.currency] || 0) + row.count;
         },
-        jewel: (state, row) => { deps.bagItems.put(deps.bagItems.asJewel(row.item), state, true); },
+        jewel: (state, row) => { deps.restoredPickup.jewel(state, row.item); },
         core: (state, row) => { deps.coreItems.keep(row.item, state); },
         talisman: (state, row) => { deps.talismans.receiveWild(state, { talisman: row.item, overflow: row.overflow }); },
         stump: (state, row) => { deps.stumpBox.receiveDrop(state, row.item); },
@@ -113,16 +126,18 @@ class ExplorationGroundLoot {
         }
         return cell;
     }
-    lay(state, run, row) {
+    /** @returns {boolean} whether the boss fight holds the row instead of the floor. source: the dropping enemy, if any. */
+    lay(state, run, row, source) {
         this.deps.receipts.floorRow(state, row);
-        this.storeRow(run,row);
+        return this.storeRow(run,row,source);
     }
-    storeRow(run,row) {
-        if (run.bossLoot) { run.bossLoot.pendingLoot.push(row); return; }
+    storeRow(run,row,source) {
+        if (heldByBossFight(run,source)) { run.bossLoot.pendingLoot.push(row); return true; }
         Object.assign(row,this.clearOfDoors(run,row));
         row.dropAt=this.dropTurn(run);
         if (row.currency) this.addCurrencyLot(run,row);
         else floor(run).push(row);
+        return false;
     }
     addCurrencyLot(run,row) {
         const target=floor(run),now=this.deps.now();
@@ -134,18 +149,19 @@ class ExplorationGroundLoot {
         for (const earlier of rest) {settled.count+=earlier.count;target.splice(target.indexOf(earlier),1);}
         target.push(row);
     }
+    /** cell: the dropping enemy (or a plain cell). The place methods report whether the boss fight held the row. */
     place(state, run, cell, item, { highlight = false, guaranteed = false, filterOnPickup=false, ignoreAutoSalvage=false } = {}) {
-        this.lay(state, run, { gx: cell.gx, gy: cell.gy, item, highlight: !!highlight, guaranteed: !!guaranteed,filterOnPickup,ignoreAutoSalvage });
+        return this.lay(state, run, { gx: cell.gx, gy: cell.gy, item, highlight: !!highlight, guaranteed: !!guaranteed,filterOnPickup,ignoreAutoSalvage }, cell);
     }
     placeItem(state, run, cell, kind, { item, overflow }) {
-        this.lay(state, run, kind === 'talisman' ? { gx: cell.gx, gy: cell.gy, kind, item, overflow } : { gx: cell.gx, gy: cell.gy, kind, item });
+        return this.lay(state, run, kind === 'talisman' ? { gx: cell.gx, gy: cell.gy, kind, item, overflow } : { gx: cell.gx, gy: cell.gy, kind, item }, cell);
     }
-    placeLeaf(state, run, cell, leaf) { this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf }); }
-    placeYarn(state, run, cell, yarn) { this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'yarn', yarn }); }
-    placeRune(state, run, cell, gem) { this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'rune', gem }); }
+    placeLeaf(state, run, cell, leaf) { return this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf }, cell); }
+    placeYarn(state, run, cell, yarn) { return this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'yarn', yarn }, cell); }
+    placeRune(state, run, cell, gem) { return this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'rune', gem }, cell); }
     placeCurrency(state, run, at, currency, count) {
         this.deps.receipts.currency(state, currency, count);
-        this.storeRow(run,{gx:at.gx,gy:at.gy,currency,count});
+        return this.storeRow(run,{gx:at.gx,gy:at.gy,currency,count},at);
     }
     take(run, test) {
         const taken = rows(run).filter(test);
@@ -187,8 +203,14 @@ class ExplorationGroundLoot {
         const run=state.actExploration;
         return run?.zoneId===zoneId ? run.bossLoot || null : null;
     }
-    reserve(state, row) {
-        const owner = this.encounterOwner(state);
+    /** The record that holds this payout, or null. An encounter owner holds every payout; the boss fight only its own drops. */
+    holderOf(state, source) {
+        const owner = this.encounterOwner(state), run = state.actExploration;
+        return owner && owner===run?.bossLoot && !heldByBossFight(run,source) ? null : owner;
+    }
+    /** source: the dropping enemy, if any. */
+    reserve(state, row, source) {
+        const owner = this.holderOf(state, source);
         if (!owner) return false;
         const held = row && groundLootKind(row) === 'equipment' ? { highlight: false, guaranteed: false, ...row } : row;
         if (!this.validPendingRow(held)) throw Error('잘못된 원정 보류 전리품');
@@ -216,12 +238,11 @@ class ExplorationGroundLoot {
         }
         return cells;
     }
+    /** Loot already on the floor stays there; only the fight's own drops are held from here on. */
     beginBoss(run,pack,joining) {
         if (run.bossLoot || !pack) return;
         if (joining && !joining.some(enemy=>enemy.isBoss)) return;
-        const map=this.deps.maps.forRun(run);
-        const nearby=this.take(run,row=>roomForDrop(map,row,this.deps.rooms)?.id===pack.roomId);
-        run.bossLoot={roomId:pack.roomId,packKey:pack.key,pendingLoot:nearby};
+        run.bossLoot={roomId:pack.roomId,packKey:pack.key,pendingLoot:[]};
     }
     finishBoss(state,run,cell) {
         const cache=run.bossLoot;

@@ -47,7 +47,7 @@ export function* atlasSessionTravel(env, owner, zone) {
 }
 
 export function* atlasSessionSpendPortal(env, owner, reason) {
-    if (owner.actExploration?.source?.pocket) restoreMainMap(owner);
+    if (owner.actExploration?.source?.pocket) restoreMainMap(env, owner);
     const portal = env.deps.atlas.usePortal(owner);
     if (!portal) return;
     (yield* atlasSessionNotify(env, { kind: portal.closed ? 'failed' : 'portal', reason, portals: portal.portals || 0, refund: portal.refund || null }));

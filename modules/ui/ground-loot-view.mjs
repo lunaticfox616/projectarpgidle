@@ -394,16 +394,16 @@ class GroundLootView {
             pile.rows.forEach(row => this.landedFloorIds.add(this.floorRowKey(row)));
         }
         for (const id of this.landedFloorIds) if (!liveRows.has(id)) this.landedFloorIds.delete(id);
-        this.retireFloorPiles(live,run);
+        this.retireFloorPiles(live);
     }
 
-    retireFloorPiles(live,run) {
+    /** A pile leaves the floor only by pickup or with its run: the boss fight never takes rows that already lie there. */
+    retireFloorPiles(live) {
         for (const [key, entry] of this.floorPiles) {
             if (live.has(key)) continue;
             this.floorChanged = true;
             this.floorPiles.delete(key); entry.floor = false; entry.marker.inert = true;
-            if (run?.bossLoot) this.remove(entry);
-            else this.absorb(entry);
+            this.absorb(entry);
         }
     }
 

@@ -79,9 +79,12 @@ export function* atlasSessionEnterPassage(env, owner, type) {
     return true;
 }
 
-export function restoreMainMap(owner) {
+/** Back from an expedition (cleared, a defeat or a portal). The expedition's floor and held boss loot are paid as at any map's
+ * departure (filters, auto-salvage, bag capacity), before the main map takes its place. */
+export function restoreMainMap(env, owner) {
     const home = owner.actExploration?.home;
     if (!home) return false;
+    env.deps.actExplorationProgress.depart(owner);
     owner.actExploration = home.main;
     owner.actExploration.motionTimeMs = 0;
     owner.actExploration.mode = owner.settings.autoMove === false ? 'manual' : owner.settings.actExplorationMode;

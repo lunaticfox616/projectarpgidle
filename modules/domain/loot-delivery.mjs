@@ -1,4 +1,4 @@
-import { groundLootKind } from './exploration-ground-loot.mjs';
+import { groundLootKind, equipmentPickupOptions } from './exploration-ground-loot.mjs';
 
 /** Deliver already rolled rewards. No DOM, logging, FX or event dispatch; callers consume notices in order.
  * The inventory/currency ports still belong to their existing owners. A caller must use the same active state as those ports.
@@ -14,7 +14,7 @@ class LootDelivery {
     holdEquipment(state, enemy, item, options, { highlight, guaranteed }) {
         if (guaranteed || item.rarity === 'unique') return false;
         return this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, item, highlight: !!highlight, guaranteed,
-            filterOnPickup: !options?.ignoreFilter, ignoreAutoSalvage: !!options?.ignoreAutoSalvage }, state);
+            filterOnPickup: !options?.ignoreFilter, ignoreAutoSalvage: !!options?.ignoreAutoSalvage }, state, enemy);
     }
     keepEquipment(state, enemy, item, options) {
         this.deps.normalizeItem(item);
@@ -23,22 +23,22 @@ class LootDelivery {
         if (this.holdEquipment(state, enemy, item, options, { highlight, guaranteed })) return { status: 'floor' };
         const run = this.floorFor(state, enemy);
         if (run) {
-            this.deps.floor.place(run, enemy, item, { highlight: !!highlight, guaranteed,
+            const held = this.deps.floor.place(run, enemy, item, { highlight: !!highlight, guaranteed,
                 filterOnPickup: !options?.ignoreFilter, ignoreAutoSalvage: !!options?.ignoreAutoSalvage });
-            return { status: 'floor', celebrate: !run.bossLoot, highlight };
+            return { status: 'floor', celebrate: !held, highlight };
         }
         if (!this.deps.addItemToInventory(item, options)) return { status: null };
         return { status: 'kept', receipt: { item, itemKind: 'equipment', highlight } };
     }
     placeItem(state, enemy, kind, { item, overflow }) {
-        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, kind, item, overflow }, state)) return true;
+        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, kind, item, overflow }, state, enemy)) return true;
         const run = this.floorFor(state, enemy);
         if (!run) return false;
         this.deps.floor.placeItem(run, enemy, kind, item, overflow);
         return true;
     }
     placeRune(state, enemy, gem) {
-        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, kind: 'rune', gem }, state)) return true;
+        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, kind: 'rune', gem }, state, enemy)) return true;
         const run = this.floorFor(state, enemy);
         if (!run) return false;
         this.deps.floor.placeRune(run, enemy, gem);
@@ -47,7 +47,7 @@ class LootDelivery {
     keepCurrency(state, enemy, key, amount) {
         const award = this.deps.resolveCurrencyAward(key, amount, 'drop');
         if (award.refused || award.gain <= 0) return { gain: 0, floor: false };
-        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, currency: award.key, count: award.gain }, state))
+        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, currency: award.key, count: award.gain }, state, enemy))
             return { gain: award.gain, floor: true };
         const run = this.floorFor(state, enemy);
         if (run) {
@@ -95,7 +95,7 @@ class LootDelivery {
         const id = this.deps.knitting.rollKill(state, zone, enemy);
         if (!id) return null;
         this.deps.knitting.markDrop(state, id);
-        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, kind: 'yarn', yarn: id }, state)) return null;
+        if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, kind: 'yarn', yarn: id }, state, enemy)) return null;
         const run = this.floorFor(state, enemy);
         if (!run) return id;
         this.deps.floor.placeYarn(run, enemy, id);
@@ -110,8 +110,7 @@ class LootDelivery {
         for (let index = 0; index < length; index++) if (index in rows) yield* this.receiveRow(state, rows[index]);
         const fresh = rows.filter(row => groundLootKind(row) === 'equipment' && this.deps.moments.isNewUnique(row.item, state)).map(row => row.item.id);
         const kept = rows.filter(row => groundLootKind(row) === 'equipment'
-            && this.deps.addItemToInventory(row.item, { ignoreFilter: !row.filterOnPickup, ignoreAutoSalvage: !!row.ignoreAutoSalvage,
-                guaranteedKeep: row.guaranteed })).map(row => row.item);
+            && this.deps.addItemToInventory(row.item, equipmentPickupOptions(row))).map(row => row.item);
         if (kept.length || currencies.length) yield { event: 'floor-loot-collected', detail: {
             items: kept, fresh: fresh.filter(id => kept.some(item => item.id === id)),
             currencies: currencies.map(row => ({ key: row.currency, count: row.count })) } };

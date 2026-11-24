@@ -189,6 +189,14 @@ const acquisition = Object.freeze({ ...acquisitionRules,
     salvageBagItems: (...args) => consumeDomainCommands(acquisitionRules.salvageBagItems(game, ...args), acquisitionEffects),
     confirmedSalvageTargets: (...args) => acquisitionRules.confirmedSalvageTargets(game, ...args)
 });
+// A load settles a stale floor into the state it is restoring: the live pickup's filter, auto-salvage and bag rules for that
+// state, without the live session's log, unlock check or runtime event (js/exploration-ground-loot.js restoredRewards).
+const restoreEffects = { acquisitionSalvageText: () => '', acquisitionLog: () => undefined, acquisitionUnlocks: () => undefined,
+    acquisitionEvent: () => undefined, acquisitionIsLiveOwner: () => false };
+const restoredPickup = Object.freeze({
+    equipment: (owner, item, options) => consumeDomainCommands(acquisitionRules.addItemToInventory(owner, item, options), restoreEffects),
+    jewel: (owner, jewel) => consumeDomainCommands(acquisitionRules.receiveJewelDrop(owner, jewel), restoreEffects)
+});
 const refinementRules = createEquipmentRefinement({
     get getItemExplicitOptionCount() { return rules.getItemExplicitOptionCount; },
     get EXPLICIT_AFFIX_LINE_CAP() { return EXPLICIT_AFFIX_LINE_CAP; },
@@ -373,6 +381,7 @@ exposeFileGlobals({
     isChaosInfuserUnlocked: refinement.isChaosInfuserUnlocked,
     addItemToInventory: acquisition.addItemToInventory,
     receiveJewelDrop: acquisition.receiveJewelDrop,
+    restoredPickup,
     getChaosInfuserOptionsForItem: production.getChaosInfuserOptionsForItem,
     isChaosInfusionEligibleItem: production.isChaosInfusionEligibleItem,
     getChaosInfusionCost: production.getChaosInfusionCost,

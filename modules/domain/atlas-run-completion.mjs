@@ -49,7 +49,7 @@ function* finishExpedition(env, owner, zone) {
     const maps = [], room = zone.pocket;
     // Rewards normally run inside the kill receipt; use the same receipt for the expedition award.
     const rewards = yield {kind:'atlasSessionEffectCaptureAtlasCompletion', args:[owner, atlasSessionClearRoom(env, owner, zone, room, maps)]};
-    restoreMainMap(owner);
+    restoreMainMap(env, owner);
     yield {kind:'atlasSessionEffectResumeExpedition', args:[]};
     yield* atlasSessionNotify(env, {kind:'drops', room, maps, rewards, fragments:[], golden:env.deps.atlasEncounters.isGolden(zone,room)});
     yield {kind:'atlasSessionEffectQueueImportantSave', args:[100]};
