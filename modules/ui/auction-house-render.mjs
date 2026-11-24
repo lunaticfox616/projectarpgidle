@@ -98,6 +98,13 @@ export function paintTabs(runtime, root) {
         if (button) paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, id, label));
     }
     if (root) root.dataset.tab = runtime.state.tab;
+    // 칸 안의 동작(시세 칩, 재료 칩, 출품할 장비 고르기)이 탭을 바꿔도 그 줄의 고른 표시가 따라간다(경매장이 보일 때만: 그 줄에는 가판대와 전당도 있다)
+    const panel = runtime.deps.document.getElementById('market-panel-auction');
+    if (row && panel && !panel.hidden) for (const button of row.querySelectorAll('[data-market-section]')) {
+        const chosen = button.dataset.ahTab === runtime.state.tab;
+        button.setAttribute('aria-selected', String(chosen));
+        button.tabIndex = chosen ? 0 : -1;
+    }
 }
 
 const VIEWS = Object.freeze({ gear: gearViewHtml, materials: materialsViewHtml, mine: standsViewHtml });
