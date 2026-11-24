@@ -11333,7 +11333,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '🗺️ 시작 육분의를 켰습니다. T{tier} 지침 {count}개를 얻었습니다.': '🗺️ Activated the Starting Sextant. Gained {count} T{tier} Alidades.',
         // ── 2026-11-24 아틀라스 개편 D2: 지침 이름과 T 등급 ──
         ", T{tier} 이상": ", T{tier} or above",
-        "뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.": "Requires one of each of the four Shadow Root Tickets (Fire, Cold, Lightning, Chaos). Regional guardians drop them."
+        "뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.": "Requires one of each of the four Shadow Root Tickets (Fire, Cold, Lightning, Chaos). Regional guardians drop them.",
         '재료 {count}종': '{count} materials',
         '이 칸 줍기': 'Collect this pile',
     })
