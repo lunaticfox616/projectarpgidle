@@ -74,7 +74,8 @@
 /** Initial serializable save shape. Keep field names and default values stable across runtime migration. */
 const DEFAULT_GAME_BLUEPRINT = {
     // 세계수 아틀라스 (js/atlas.js normalize): unlocked/completed/bonus/autoMap survive loops; stash/run reset each loop.
-    // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted}; run: the open map {map,portals,drops,returnZoneId}.
+    // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted} (grants may exceed ATLAS.stashCap); run: the open map
+    // {map,portals,dew,drops,returnZoneId} (dew: a 형체 없는 이슬 entry). lastResult also lists granted/refund stones and 장비 상자.
     // sextant: 시작 육분의 activated this epoch (opens the four tier 1 maps). A map item's tier is its chart tier 1..10 (js/atlas.js gameTier).
     // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
     // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).

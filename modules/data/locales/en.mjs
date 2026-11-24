@@ -11259,6 +11259,16 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '시작 육분의는 이미 켜져 있습니다.': 'The Starting Sextant is already active.',
         '보관함이 가득 찼습니다.': 'The storage is full.',
         '🗺️ 시작 육분의를 켰습니다. {tier}등급 지도석 {count}개를 얻었습니다.': '🗺️ Activated the Starting Sextant. Gained {count} tier {tier} map stones.',
+        '형체없는 이슬은 일반 지도에만 쓸 수 있습니다.': 'Formless Dew can only be used on ordinary maps.',
+        '형체없는 이슬이 없습니다.': 'You have no Formless Dew.',
+        '새 지도석 {count}개를 얻었습니다.': 'Gained {count} new map stones.',
+        '포털이 모두 닫혀 {tier}등급 지도석 1개를 돌려받았습니다.': 'All portals closed. A tier {tier} map stone was returned.',
+        '지침 획득: {maps}': 'Alidades gained: {maps}',
+        '지침 반환: {map}': 'Alidade returned: {map}',
+        '장비 {count}개 더': '{count} more gear',
+        '장비 상자': 'Gear Box',
+        '장비 상자 {count}개': 'Gear Boxes: {count}',
+        '형체없는 이슬 사용': 'Use Formless Dew'
     })
 });
 

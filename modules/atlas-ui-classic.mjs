@@ -58,6 +58,7 @@ const atlasUi = createAtlasView({
     get atlasPassivesUi() { return atlasPassivesUi; },
     get atlasEpochUi() { return atlasEpochUi; },
     get memoryDungeonUi() { return memoryDungeonUi; },
-    get atlasBoardUi() { return atlasBoardUi; }
+    get atlasBoardUi() { return atlasBoardUi; },
+    get showGameToast() { return typeof showGameToast === 'undefined' ? undefined : showGameToast; }
 });
 safeExposeGlobals({ atlasUi });

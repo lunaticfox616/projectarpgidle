@@ -11,6 +11,12 @@ export function atlasCoreBonusOf(env, state, fragmentIds = []) { return { ...atl
 // ---------------------------------------------------------------- the map device
 export function atlasCoreSlots(env, state) { return env.deps.ATLAS.fragmentRules.slots + atlasCoreBonusOf(env, state).slots; }
 
+/** 지도 하나의 포털 수: 보통 ATLAS.portals, 형체 없는 이슬 입장은 dewEntry.portals(적어도 1), 둘 다 런의 portals 효과를 더한다. */
+export function atlasCorePortalCap(env, dew, bonus) {
+    const rules = env.deps.ATLAS;
+    return dew ? Math.max(1, rules.dewEntry.portals + bonus.portals) : rules.portals + bonus.portals;
+}
+
 export function atlasCoreNormalizeBonus(env, raw) {
     const bonus = atlasCoreZERO(env);
     for (const key of Object.keys(bonus)) {

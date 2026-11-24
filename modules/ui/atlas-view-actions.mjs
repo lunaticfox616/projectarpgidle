@@ -1,5 +1,5 @@
 import { render } from './atlas-view-screen.mjs';
-import { viewOpen, ledger, selectedMap, mapName, sortedStash, sumOf, tierCounts, nodeName, heldLate } from './atlas-view-model.mjs';
+import { viewOpen, ledger, selectedMap, mapName, sortedStash, sumOf, tierCounts, nodeName, heldLate, stoneForNode, dewChoice } from './atlas-view-model.mjs';
 
 export function openPanel(runtime) {
     if (!runtime.deps.document.getElementById('tab-map').classList.contains('active')) (0, runtime.deps.switchTab)('tab-map');
@@ -42,8 +42,7 @@ export function selectNode(runtime, id, reveal = false) {
     runtime.state.selectedNode = id;
     runtime.state.selectedRegion = node.region || 'trunk';
     // 고른 지도석이 이 노드에 맞지 않으면 맞는 지도석(같은 등급, 수호자는 그 수호자의 것)으로 바꾸고, 없으면 비운다.
-    const atlas = runtime.deps.atlas, game = runtime.deps.game;
-    if (!atlas.matchesNode(game, selectedMap(runtime), node)) runtime.state.selectedUid = ledger(runtime).stash.find(map => atlas.matchesNode(game, map, node))?.uid ?? null;
+    runtime.state.selectedUid = stoneForNode(runtime, node)?.uid ?? null;
     render(runtime);
     if (reveal) revealNodeDetail(runtime);
 }
@@ -224,11 +223,18 @@ export function toggleFragment(runtime, id) {
 export function open(runtime) {
     const map = selectedMap(runtime);
     if (!map) return;
-    const reason = runtime.deps.atlasRun.open(map.uid, runtime.state.selectedNode ?? undefined);
+    const reason = runtime.deps.atlasRun.open(map.uid, runtime.state.selectedNode ?? undefined, dewChoice(runtime, map).on);
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
-    runtime.state.selectedUid = null;
+    // 이슬 선택은 한 번의 입장에만 쓴다: 다음 지도석이 모르게 이슬을 쓰지 않게.
+    Object.assign(runtime.state, { selectedUid: null, useDew: false });
     refresh(runtime);
     (0, runtime.deps.switchTab)('tab-battle');
+}
+
+/** 입장 도크의 형체없는 이슬 사용 켜고 끄기(지갑에 이슬이 없으면 단추가 꺼져 있다). */
+export function toggleDew(runtime) {
+    runtime.state.useDew = runtime.state.useDew !== true;
+    render(runtime);
 }
 
 /** 시작 육분의를 켠다(시대마다 한 번): 1등급 지도 넷이 열리고 일반 1등급 지도석을 받는다. */

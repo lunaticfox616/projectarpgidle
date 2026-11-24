@@ -50,6 +50,25 @@ export function atlasCoreNormalizeResultMemory(env, raw, failed) {
     return { foughtTier, newBest: !failed && foughtTier > 0 && raw.newBest === true, ticket };
 }
 
+/** A given stone on the result card: { node, tier } of a chart map (the first clear's new maps, the last portal's refund). */
+export function atlasCoreNormalizeGivenStone(env, raw) {
+    const node = raw && env.BY_ID.get(raw.node);
+    return node?.kind === 'map' ? { node: node.id, tier: node.tier } : null;
+}
+
+/** 장비 상자 on the result card: how many were opened, how many items they gave and the notable ones (the loot receipt's item rows). null: none. */
+export function atlasCoreNormalizeBoxes(env, raw) {
+    const count = Math.floor(Number(raw && raw.count));
+    if (!(count >= 1)) return null;
+    return { count: Math.min(9, count), total: Math.max(0, Math.min(99, Math.floor(Number(raw.total) || 0))), items: env.deps.combatLootReceipts.cleanItems(raw.items) };
+}
+
+/** What the clear or the failure gave besides loot (presentation only: loading it never grants anything). */
+function normalizeGiven(env, raw, failed) {
+    const granted = failed || !Array.isArray(raw.granted) ? [] : raw.granted.slice(0, env.MAP_NODES.length).map(row => atlasCoreNormalizeGivenStone(env, row)).filter(Boolean);
+    return { granted, boxes: failed ? null : atlasCoreNormalizeBoxes(env, raw.boxes), refund: failed ? atlasCoreNormalizeGivenStone(env, raw.refund) : null };
+}
+
 export function atlasCoreNormalizeResult(env, raw) {
     if (!raw || !env.BY_ID.has(raw.nodeId) || !['complete', 'failed'].includes(raw.outcome)) return null;
     const count = value => Math.max(0, Math.min(env.deps.ATLAS.stashCap, Math.floor(Number(value) || 0)));
@@ -59,5 +78,5 @@ export function atlasCoreNormalizeResult(env, raw) {
         lostFragments: Math.min(env.deps.ATLAS.fragmentRules.held, count(raw.lostFragments)),
         lostMaterials: failed ? atlasCoreNormalizeResultMaterials(env, raw.lostMaterials, env.deps.ATLAS_ENDGAME.itemCap * 10) : [],
         seed: !failed && raw.seed === true, seeds: Math.min(env.deps.ATLAS.seeds.max, count(raw.seeds)), endgame: failed ? null : atlasCoreNormalizeResultEndgame(env, raw.endgame),
-        loot: atlasCoreNormalizeLoot(env, raw.loot), memory: atlasCoreNormalizeResultMemory(env, raw.memory, failed) };
+        loot: atlasCoreNormalizeLoot(env, raw.loot), memory: atlasCoreNormalizeResultMemory(env, raw.memory, failed), ...normalizeGiven(env, raw, failed) };
 }

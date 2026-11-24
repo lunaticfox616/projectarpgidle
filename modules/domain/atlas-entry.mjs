@@ -1,20 +1,30 @@
 import { atlasCoreBeginReason, atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreMapDestination } from './atlas-access.mjs';
 import { atlasCoreEncounterRooms } from './atlas-zone.mjs';
 import { atlasCoreUseFragments } from './atlas-loadout.mjs';
-import { atlasCoreBonusOf, atlasCoreZERO } from './atlas-bonuses.mjs';
+import { atlasCoreBonusOf, atlasCoreZERO, atlasCorePortalCap } from './atlas-bonuses.mjs';
 import { atlasCoreEffectiveTier } from './atlas-graph.mjs';
 
 /** Consumes the map (and its fragments): from here the run owns it — portals, content rooms, drops held until the boss falls.
- * entry: [random, nodeId]. The run takes the chosen node (or, without one, where the stone goes: atlasCoreMapDestination) for its
- * terrain, boss and completion, and the stone's rarity, mods, quality and omen. */
+ * entry: [random, nodeId, dew]. The run takes the chosen node (or, without one, where the stone goes: atlasCoreMapDestination) for its
+ * terrain, boss and completion, and the stone's rarity, mods, quality and omen. dew: a 형체 없는 이슬 entry (one more dew, 1 portal,
+ * 2 장비 상자; atlasCoreDewReason). */
 export function atlasCoreBegin(env, state, uid, returnZoneId, ...entry) {
-    const [random = Math.random, nodeId] = entry;
-    const reason = atlasCoreBeginReason(env, state, uid, nodeId);
+    const [random = Math.random, nodeId, dew = false] = entry;
+    const reason = atlasCoreBeginReason(env, state, uid, nodeId, dew);
     if (reason) return reason;
     const [map] = state.atlas.stash.splice(state.atlas.stash.findIndex(stone => stone.uid === uid), 1);
     const destination = nodeId === undefined ? atlasCoreMapDestination(env, state, map).id : nodeId;
     atlasCoreStartRun(env, state, { ...map, node: destination }, returnZoneId, random);
+    if (dew) atlasCoreUseDew(env, state);
     return '';
+}
+
+/** 이슬 입장: 지갑에서 이슬을 내고 런은 이슬 포털 수로 시작한다(취소하면 atlasCoreCancel이 돌려준다). */
+export function atlasCoreUseDew(env, state) {
+    const run = state.atlas.run;
+    state.currencies.formlessDew -= env.deps.ATLAS.dewEntry.cost;
+    run.dew = true;
+    run.portals = atlasCorePortalCap(env, true, run.bonus);
 }
 
 /** The last result stays on screen while the next map runs (자동 지도 chains maps). */
@@ -24,7 +34,7 @@ export function atlasCoreStartRun(env, state, map, returnZoneId, random) {
     const fieldDiscoveries = rooms > 0 && env.deps.actExplorationDoors.session();
     const encounters = env.deps.atlasEncounters.roll(bonus, forced, random, rooms, { awake: env.deps.atlasEndgame.awakened(state), loop: state.season,
         fieldDiscoveries, region: (env.BY_ID.get(map.node) || {}).region }, state);
-    state.atlas.run = { map, portals: env.deps.ATLAS.portals + bonus.portals, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
+    state.atlas.run = { map, portals: atlasCorePortalCap(env, false, bonus), dew: false, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
         encounters, ...(fieldDiscoveries ? { passages: { tried: [], sites: [] } } : {}), golden: env.deps.atlasEncounters.golden(encounters, bonus, map.uid),
         returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null, endgame: env.deps.atlasEndgame.runExtra(state, env.BY_ID.get(map.node), random) };
 }
@@ -47,7 +57,7 @@ export function atlasCoreBeginBoard(env, state, returnZoneId) {
     if (!board) return '주사위를 굴려 지도 칸에 도착하세요.';
     const map = env.deps.atlasMaps.create(board.node, board.tier);
     map.uid = state.atlas.nextUid++;
-    state.atlas.run = { map, portals: 1, drops: [], found: [], fragments: [], spent: [], cleared: [], bonus: atlasCoreZERO(env),
+    state.atlas.run = { map, portals: 1, dew: false, drops: [], found: [], fragments: [], spent: [], cleared: [], bonus: atlasCoreZERO(env),
         encounters: [], golden: [], returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null,
         endgame: env.deps.atlasEndgame.normalizeRun(null), board };
     return '';

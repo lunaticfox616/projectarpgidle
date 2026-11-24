@@ -27,6 +27,12 @@ export function atlasCoreStamp(env, state, map, random, bonus) {
     return map;
 }
 
+/** 주는 지도석(시작 육분의, 첫 완료로 새로 열린 지도, 포털 환급): 그 지도를 가리키는 일반 지도석, 품질 없음, 기운은 떨어진 지도석처럼 붙는다. */
+export function atlasCoreGrantStone(env, state, nodeId, tier, random) {
+    const map = env.deps.atlasMaps.create(nodeId, tier, 'normal', random);
+    return Object.assign(map, { omen: env.deps.lootOmens.roll(state, random), uid: state.atlas.nextUid++ });
+}
+
 /** A boss of a map whose fight tier is 13+ (seeds and corruption count) in a region whose old guardian is open sometimes drops
  * that guardian's map. The old guardians are closed until stage C, so nothing drops now. */
 export function atlasCoreGuardianDrop(env, state, map, random, bonus) {

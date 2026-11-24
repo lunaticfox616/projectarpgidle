@@ -106,7 +106,7 @@ export function mapCardHtml(runtime, map, extra, nodeId = map.node) {
 }
 
 export function runHtml(runtime, run) {
-    const total = run.board ? 1 : runtime.deps.ATLAS.portals + run.bonus.portals, late = heldLate(runtime, run);
+    const total = run.board ? 1 : runtime.deps.atlas.portalCap(run), late = heldLate(runtime, run);
     const portals = Array.from({ length: total }, (_, i) => `<i class="${i < run.portals ? 'is-on' : ''}"></i>`).join('');
     const inside = runtime.deps.atlas.inMap(runtime.deps.game), rooms = run.encounters.length ? `<p class="atlas-encounters">콘텐츠 방: ${encounterNames(runtime, run.encounters, run.golden || [])}</p>` : '';
     return `<section class="atlas-device is-running" aria-label="${(0, runtime.deps._t)('열린 지도')}"><h3>${(0, runtime.deps._t)('열린 지도')}</h3>

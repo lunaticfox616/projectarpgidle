@@ -4,12 +4,13 @@
  * 보물이 터지면 'atlas-find' 이벤트로 알린다(기록과 화면은 UI가).
  */
 import { atlasFindOnAtlasKill } from './atlas-finds-kills.mjs';
-import { atlasFindDressTreasurePack } from './atlas-finds-treasure.mjs';
+import { atlasFindDressTreasurePack, atlasFindOpenGearBoxes } from './atlas-finds-treasure.mjs';
 import { atlasFindReceiveMemoryLeaf } from './atlas-finds-memory.mjs';
 
 /** One rule/cache owner; callers supply state explicitly. No DOM, storage or current-game lookup. */
 export function createAtlasFinds(deps) {
     const env = { deps };
     env.MAP_BOSS_KINDS = new Set(['map', 'guardian']);
-    return Object.freeze({ onAtlasKill: (...args) => atlasFindOnAtlasKill(env, ...args), dressTreasurePack: (...args) => atlasFindDressTreasurePack(env, ...args), receiveMemoryLeaf: (...args) => atlasFindReceiveMemoryLeaf(env, ...args) });
+    return Object.freeze({ onAtlasKill: (...args) => atlasFindOnAtlasKill(env, ...args), dressTreasurePack: (...args) => atlasFindDressTreasurePack(env, ...args), receiveMemoryLeaf: (...args) => atlasFindReceiveMemoryLeaf(env, ...args),
+        openGearBoxes: (...args) => atlasFindOpenGearBoxes(env, ...args) });
 }

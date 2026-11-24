@@ -114,8 +114,15 @@ export function fragmentsHtml(runtime) {
     return `<div class="as-fragments"><p>${(0, runtime.deps._t)('각인 홈')} ${holes}</p><div>${chips || `<span class="atlas-muted">${(0, runtime.deps._t)('가진 각인이 없습니다.')}</span>`}</div></div>`;
 }
 
-export function stoneGoHtml(runtime, map, lock) {
-    return `<span class="as-loaded rarity-${map.rarity}" style="--tone:${stoneTone(runtime, map)}"><b>${map.tier}</b>${(0, runtime.deps._t)(runtime.deps.ATLAS.rarities[map.rarity].name)}</span>${departHtml(runtime, '지도 열기', 'atlasUi.open()', lock)}`;
+/** 형체없는 이슬 사용(개편 A2, 화면은 D 단계가 다시 짠다): 각인 단추와 같은 켜고 끄는 단추, 옆의 수는 가진 이슬. 이슬이 없으면 꺼진다. */
+export function dewHtml(runtime, dew) {
+    if (!dew || !dew.shown) return '';
+    return `<button type="button" class="as-fragment as-dew${dew.on ? ' is-on' : ''}" aria-pressed="${dew.on}" onclick="atlasUi.toggleDew()" ${dew.reason ? 'disabled' : ''}>`
+        + `<span>${(0, runtime.deps._t)('형체없는 이슬 사용')}</span><small>${dew.held}</small></button>`;
+}
+
+export function stoneGoHtml(runtime, map, parts) {
+    return `<span class="as-loaded rarity-${map.rarity}" style="--tone:${stoneTone(runtime, map)}"><b>${map.tier}</b>${(0, runtime.deps._t)(runtime.deps.ATLAS.rarities[map.rarity].name)}</span>${dewHtml(runtime, parts.dew)}${departHtml(runtime, '지도 열기', 'atlasUi.open()', parts.lock)}`;
 }
 
 /** 도크 오른쪽: 열린 지도로 돌아가기, 정점 열기, 고른 지도석으로 열기, 고른 것이 없으면 무엇을 고를지. */
@@ -124,7 +131,7 @@ export function goHtml(runtime, parts) {
     let body = `<small>${parts.needed || (st.stash.length ? (0, runtime.deps._t)('보관함이나 노드에서 지도석을 고르세요.') : (0, runtime.deps._t)('지도석이 없습니다.'))}</small><button class="atlas-primary" disabled>${(0, runtime.deps._t)('지도 열기')}</button>`;
     if (st.run) body = departHtml(runtime, '열린 지도로', 'atlasUi.reenter()', '');
     else if (node && node.kind === 'pinnacle') body = departHtml(runtime, '정점 열기', 'atlasUi.openPinnacle()', runtime.deps.atlas.pinnacleReason(runtime.deps.game) || parts.block);
-    else if (map) body = stoneGoHtml(runtime, map, parts.lock);
+    else if (map) body = stoneGoHtml(runtime, map, parts);
     return `<div class="as-go">${body}</div>`;
 }
 

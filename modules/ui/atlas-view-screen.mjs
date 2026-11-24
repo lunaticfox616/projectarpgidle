@@ -1,6 +1,6 @@
 import { showWheelHub } from './atlas-wheel-hub.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
-import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode } from './atlas-view-model.mjs';
+import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode, stoneForNode, dewChoice } from './atlas-view-model.mjs';
 import { deviceCardHtml, stoneNeeded, stoneLock, flowersHtml, chancesHtml, runHtml, pinnacleHtml, stashToolsHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
 import { resultHtml } from './atlas-view-results.mjs';
 
@@ -88,13 +88,20 @@ export function sheetParts(runtime) {
     const tools = `${stashToolsHtml(runtime, map, busy)}${busy ? `<small>${busy}</small>` : ''}`;
     const lock = map ? stoneLock(runtime, map) : runtime.deps.atlas.lockReason(runtime.deps.game) || block;
     return { node: runtime.state.selectedNode, uid: runtime.state.selectedUid, lock, block, side, tools, after: `${autoOptionsHtml(runtime)}${resultHtml(runtime)}`, mapName: runtime.handlers.mapName,
-        needed: stoneNeeded(runtime, node), matchingStones: target => stonesForNode(runtime, target) };
+        needed: stoneNeeded(runtime, node), matchingStones: target => stonesForNode(runtime, target), dew: dewChoice(runtime, map) };
 }
 
 export function mapsViewHtml(runtime) {
     if (runtime.deps.atlasSheetUi.on()) return runtime.deps.atlasSheetUi.html(sheetParts(runtime));
     return `${journeyHtml(runtime)}<div class="atlas-ancient-entry"><button onclick="atlasUi.setView('late')">${(0, runtime.deps._t)('태양과 달, 피나클')}</button></div>${autoOptionsHtml(runtime)}<div class="atlas-main"><div class="atlas-chart-column">${legendHtml(runtime)}${chartHtml(runtime)}</div><div class="atlas-side">${ledger(runtime).run ? runHtml(runtime, ledger(runtime).run) : deviceHtml(runtime)}${nodeDetailHtml(runtime)}</div></div>
             ${resultHtml(runtime)}${stashHtml(runtime)}`;
+}
+
+/** 고른 노드가 있으면 도크는 그 노드에 맞는 지도석을 스스로 쥔다: 지도를 마친 뒤 받은 지도석, 쓰거나 버려 사라진 지도석도 다시 맞춘다
+ * (예전에는 완료 뒤 맞는 지도석이 있어도 'N등급 지도석이 필요합니다.'가 남았다). */
+export function keepStonePick(runtime) {
+    const node = runtime.deps.atlas.node(runtime.state.selectedNode);
+    if (node && !ledger(runtime).run) runtime.state.selectedUid = stoneForNode(runtime, node)?.uid ?? null;
 }
 
 export function render(runtime) {
@@ -105,7 +112,8 @@ export function render(runtime) {
     runtime.deps.atlasBoard.sync(runtime.deps.game);
     const wallet = [...[...runtime.state.CRAFT_ORDER, ...runtime.deps.ATLAS.pinnacle.tickets].map(key => runtime.deps.game.currencies[key] || 0), ...flowerWallet(runtime)];
     if (!viewOpen(runtime, runtime.state.view)) runtime.state.view = 'maps'; // 다른 저장을 불러와 원정이 닫힌 뒤
-    const key = JSON.stringify([runtime.deps.atlasSheetUi.on(), runtime.state.view, runtime.state.selectedRegion, ledger(runtime), runtime.state.selectedNode, runtime.state.selectedUid, wallet, runtime.deps.atlasRun.blockReason(), runtime.deps.game.currentZoneId, runtime.deps.game.maxZoneId, runtime.deps.game.settings.mapCompleteAction, (0, runtime.deps.getPersistentBuildSignature)(runtime.deps.game)]);
+    keepStonePick(runtime);
+    const key = JSON.stringify([runtime.deps.atlasSheetUi.on(), runtime.state.view, runtime.state.selectedRegion, ledger(runtime), runtime.state.selectedNode, runtime.state.selectedUid, runtime.state.useDew, wallet, runtime.deps.atlasRun.blockReason(), runtime.deps.game.currentZoneId, runtime.deps.game.maxZoneId, runtime.deps.game.settings.mapCompleteAction, (0, runtime.deps.getPersistentBuildSignature)(runtime.deps.game)]);
     if (key === runtime.state.signature && panel.innerHTML) return;
     runtime.state.signature = key;
     const lock = runtime.deps.atlas.lockReason(runtime.deps.game);
@@ -125,7 +133,7 @@ export function hudKindHtml(runtime, run) {
 /** Portals left as lit pips out of the run's portals (a ring map has none: losing or leaving ends it). */
 export function hudPortalsHtml(runtime, run) {
     if (run.board) return `<span class="atlas-hud-chip">${(0, runtime.deps._t)('포털 없음')}</span>`;
-    const total = runtime.deps.ATLAS.portals + run.bonus.portals, tip = (0, runtime.deps._t)('포털 {portals}/{value}', { portals: run.portals, value: total });
+    const total = runtime.deps.atlas.portalCap(run), tip = (0, runtime.deps._t)('포털 {portals}/{value}', { portals: run.portals, value: total });
     const pips = Array.from({ length: total }, (_, index) => `<i${index < run.portals ? ' class="is-on"' : ''}></i>`).join('');
     return `<span class="atlas-hud-chip atlas-hud-portals" data-tip="${(0, runtime.deps.escapeHTML)(tip)}"><small>${(0, runtime.deps._t)('포털')}</small>${pips}</span>`;
 }

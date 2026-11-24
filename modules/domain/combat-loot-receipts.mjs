@@ -17,6 +17,30 @@ class CombatLootReceipts {
         try { return produce(); }
         finally { this.capturedState = previous; }
     }
+    /** Inside an open capture: records produce() in a receipt of its own (a map's 장비 상자 on the result card), then adds that receipt
+     * to the open one, so the map's receipt still holds everything. @returns {object|null} the separate receipt, null outside a capture */
+    captureApart(state, produce) {
+        if (this.capturedState !== state) { produce(); return null; }
+        const outer = state.explorationLoot;
+        this.reset(state);
+        const part = state.explorationLoot;
+        try { produce(); }
+        finally {
+            state.explorationLoot = outer;
+            this.fold(outer, part);
+        }
+        return part;
+    }
+    fold(outer, part) {
+        const add = (into, from) => { for (const [key, n] of Object.entries(from)) into[key] = (into[key] || 0) + n; };
+        add(outer.currencies, part.currencies);
+        add(outer.leaves, part.leaves);
+        add(outer.yarns, part.yarns);
+        outer.equipmentCount += part.equipmentCount;
+        outer.items.push(...part.items);
+        outer.items.sort((a, b) => findRank(b) - findRank(a));
+        outer.items.length = Math.min(HELD_ITEMS, outer.items.length);
+    }
     currency(state, key, amount) {
         if (this.capturedState !== state || !this.deps.currencies[key] || !(amount > 0)) return;
         const receipt = state.explorationLoot;
@@ -85,6 +109,6 @@ class CombatLootReceipts {
 
 export function createCombatLootReceipts(deps) {
     const receipts = new CombatLootReceipts(deps);
-    return Object.fromEntries(['reset', 'capture', 'currency', 'item', 'leaf', 'yarn', 'floorRow', 'normalize', 'cleanItems', 'cleanLeaves', 'cleanYarns']
+    return Object.fromEntries(['reset', 'capture', 'captureApart', 'currency', 'item', 'leaf', 'yarn', 'floorRow', 'normalize', 'cleanItems', 'cleanLeaves', 'cleanYarns']
         .map(name => [name, receipts[name].bind(receipts)]));
 }

@@ -23,8 +23,22 @@ export function viewOpen(runtime, id) { return id !== 'passives' && (id !== 'boa
 
 export function sortedStash(runtime) { return [...ledger(runtime).stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid); }
 
-/** 고른 노드, 고른 것이 없으면 지도석이 갈 곳(js/atlas.js mapDestination). */
-export function selectedDestination(runtime, map) { return runtime.deps.atlas.node(runtime.state.selectedNode) || runtime.deps.atlas.mapDestination(runtime.deps.game, map); }
+/** 고른 노드, 고른 것이 없으면 지도석이 갈 곳(js/atlas.js mapDestination), 갈 곳이 아직 없으면(그 등급의 지도가 닫혔다) 지도석이 가리키는 지도. */
+export function selectedDestination(runtime, map) {
+    return runtime.deps.atlas.node(runtime.state.selectedNode) || runtime.deps.atlas.mapDestination(runtime.deps.game, map) || runtime.deps.atlas.node(map.node);
+}
+
+/** 입장 도크의 형체 없는 이슬 선택: 천문도의 일반 지도석일 때만 보이고(shown), 이슬이 없으면 꺼진다(reason). on: 켜 두었고 쓸 수 있다. */
+export function dewChoice(runtime, map) {
+    const shown = !!map && runtime.deps.atlas.isMapStone(map), reason = shown ? runtime.deps.atlas.dewReason(runtime.deps.game, map) : '';
+    return { shown, held: Math.floor(runtime.deps.game.currencies.formlessDew || 0), reason, on: shown && !reason && runtime.state.useDew === true };
+}
+
+/** 고른 노드에 쓸 지도석: 지금 고른 것이 맞으면 그대로, 아니면 보관함에서 맞는 첫 지도석(같은 천문도 등급, 수호자는 그 수호자의 것), 없으면 null. */
+export function stoneForNode(runtime, node) {
+    const atlas = runtime.deps.atlas, game = runtime.deps.game, picked = selectedMap(runtime);
+    return atlas.matchesNode(game, picked, node) ? picked : ledger(runtime).stash.find(map => atlas.matchesNode(game, map, node)) || null;
+}
 
 /** 그 노드에 쓸 수 있는 보관함 지도석: 같은 등급 지도석(어느 지역에서 얻었든), 수호자는 그 수호자의 지도석. */
 export function stonesForNode(runtime, node) { return ledger(runtime).stash.filter(map => runtime.deps.atlas.matchesNode(runtime.deps.game, map, node)); }

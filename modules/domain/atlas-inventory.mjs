@@ -2,12 +2,15 @@ import { atlasCorePreferredDrops } from './atlas-map-drops.mjs';
 import { atlasCoreRunOpenReason } from './atlas-access.mjs';
 import { atlasCoreIsMapStone } from './atlas-graph.mjs';
 
-/** @returns {number} how many fit; existing stash entries are never replaced. */
+/** Drops and other earned stones: only as many as fit under the cap. @returns {number} how many fit; existing stash entries are never replaced. */
 export function atlasCoreStore(env, state, maps) {
     const room = Math.max(0, env.deps.ATLAS.stashCap - state.atlas.stash.length);
     state.atlas.stash.push(...atlasCorePreferredDrops(env, state, maps, room));
     return Math.min(room, maps.length);
 }
+
+/** 주는 지도석(시작 육분의, 첫 완료로 새로 열린 지도, 포털 환급)은 보관함 한도를 넘어도 들어온다. 한도는 그 뒤의 드랍만 막는다. */
+export function atlasCoreDeliver(state, maps) { state.atlas.stash.push(...maps); }
 
 export function atlasCoreAddFragments(env, state, ids) {
     let stored = 0;

@@ -40,6 +40,9 @@ export function atlasCoreCompleted(state, id) { return state.atlas.completed.inc
 /** 지도 노드의 지도석인지: 지역 수호자 지도석(kind 'guardian')은 일반 희귀도로 떨어져도 버리기와 합치기의 재료가 아니다. */
 export function atlasCoreIsMapStone(env, map) { return env.BY_ID.get(map && map.node)?.kind === 'map'; }
 
+/** 천문도의 일반 지도를 지도석으로 연 런인지: 기억 싸움, 나이테 원정 판, 수호자와 후반 싸움은 아니다(장비 상자, 환급, 이슬 입장은 이 런만). */
+export function atlasCoreChartRun(env, run) { return !!run && !run.board && !run.map.memory && env.BY_ID.get(run.map.node)?.kind === 'map'; }
+
 /** 지도는 부모가 완료됐을 때 열린다(부모는 하나). 1등급 넷의 부모는 시작 육분의다: 켰을 때 열린다. */
 export function atlasCoreMapOpen(state, node) { return node.parent === 'entry' ? state.atlas.sextant === true : atlasCoreCompleted(state, node.parent); }
 

@@ -1,5 +1,4 @@
 import { atlasCoreHasTickets, atlasCoreIsMapStone, atlasCoreEffectiveTier, atlasCoreReachable } from './atlas-graph.mjs';
-import { atlasCoreNodeForTier } from './atlas-map-drops.mjs';
 
 // ---------------------------------------------------------------- availability and the graph
 /** 루프 ATLAS.unlockLoop부터 혼돈 20이 관문이다: 그 뒤 처음 깨면 아틀라스가 영구히 열리고, 지도는 루프마다 이번 루프 혼돈 20을 깬 뒤에 연다. */
@@ -27,27 +26,38 @@ export function atlasCoreDestinationReason(env, state, map) {
     return destination && atlasCoreReachable(env, state, destination.id) ? '' : env.deps._t('입장할 수 있는 지도가 없습니다.');
 }
 
-/** 노드를 고르지 않고 보관함에서 연 지도석이 가는 곳: 수호자는 그 수호자, 지도석은 제 노드(열렸고 등급이 맞으면), 아니면 같은 등급의 열린 노드.
- * 합성, 타락, 씨앗으로 같은 등급의 열린 노드가 없으면 지도석 등급 이하의 열린 노드로 가고 싸움의 세기는 지도석 등급을 따른다. */
+/** 노드를 고르지 않고 보관함에서 연 지도석이 가는 곳: 수호자는 그 수호자, 지도석은 제 노드(열렸고 등급이 맞으면), 아니면 같은 천문도 등급의
+ * 열린 노드. 그 등급의 열린 지도가 없으면 null: 지도석은 보관함에서 기다린다(개편 A2, 아래 등급 지도로 가던 길은 없앴다). */
 export function atlasCoreMapDestination(env, state, map) {
     const source = env.BY_ID.get(map.node);
     if (source?.kind === 'guardian') return source;
     if (source?.kind !== 'map') return null;
     if (atlasCoreMatchesNode(env, state, map, source) && atlasCoreReachable(env, state, source.id)) return source;
-    return env.MAP_NODES.find(node => atlasCoreMatchesNode(env, state, map, node) && atlasCoreReachable(env, state, node.id)) || atlasCoreNodeForTier(env, state, map.tier, () => 0);
+    return env.MAP_NODES.find(node => atlasCoreMatchesNode(env, state, map, node) && atlasCoreReachable(env, state, node.id)) || null;
 }
 
-/** nodeId를 주면 그 노드에 그 지도석을 쓸 수 있는지까지 본다(열리지 않은 지도 노드는 지도석이 맞아도 열지 않는다). */
-export function atlasCoreBeginReason(env, state, uid, nodeId) {
+/** 고른 노드에 그 지도석을 쓸 수 있는지(열리지 않은 지도 노드는 지도석이 맞아도 열지 않는다). */
+function atlasCoreNodeReason(env, state, map, nodeId) {
+    const node = env.BY_ID.get(nodeId);
+    if (!atlasCoreMatchesNode(env, state, map, node)) return env.deps._t('이 지도에 사용할 수 없는 지도석입니다.');
+    return atlasCoreReachable(env, state, node.id) ? '' : env.deps._t('아직 열리지 않은 지도입니다.');
+}
+
+/** 형체 없는 이슬 입장(개편 A2): 천문도의 일반 지도석만, 지갑에 이슬이 있을 때. */
+export function atlasCoreDewReason(env, state, map) {
+    if (!atlasCoreIsMapStone(env, map) || map.memory) return env.deps._t('형체없는 이슬은 일반 지도에만 쓸 수 있습니다.');
+    return (state.currencies.formlessDew || 0) >= env.deps.ATLAS.dewEntry.cost ? '' : env.deps._t('형체없는 이슬이 없습니다.');
+}
+
+/** nodeId를 주면 그 노드에 그 지도석을 쓸 수 있는지까지 본다. dew: 형체 없는 이슬 입장. */
+export function atlasCoreBeginReason(env, state, uid, nodeId, dew = false) {
     const reason = atlasCoreLockReason(env, state);
     if (reason) return reason;
     if (state.atlas.run) return atlasCoreRunOpenReason(state);
     const map = state.atlas.stash.find(entry => entry.uid === uid);
     if (!map) return env.deps._t('보관함에 없는 지도석입니다.');
-    if (nodeId === undefined) return atlasCoreDestinationReason(env, state, map);
-    const node = env.BY_ID.get(nodeId);
-    if (!atlasCoreMatchesNode(env, state, map, node)) return env.deps._t('이 지도에 사용할 수 없는 지도석입니다.');
-    return atlasCoreReachable(env, state, node.id) ? '' : env.deps._t('아직 열리지 않은 지도입니다.');
+    const place = nodeId === undefined ? atlasCoreDestinationReason(env, state, map) : atlasCoreNodeReason(env, state, map, nodeId);
+    return place || (dew ? atlasCoreDewReason(env, state, map) : '');
 }
 
 export function atlasCorePinnacleReason(env, state) {

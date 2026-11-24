@@ -43,6 +43,8 @@ const effects = {
     atlasSessionEffectGenerateEquipmentDrop: (...args) => generateEquipmentDrop(...args),
     atlasSessionEffectGenerateUniqueItem: (...args) => generateUniqueItem(...args),
     atlasSessionEffectGrantAtlasFinds: (...args) => atlasFinds.onAtlasKill(...args),
+    // 장비 상자의 장비는 지도 영수증에 들어가면서 따로도 적힌다(결과 카드의 장비 상자 칸).
+    atlasSessionEffectOpenGearBoxes: (owner, ...args) => combatLootReceipts.captureApart(owner, () => atlasFinds.openGearBoxes(...args)),
     atlasSessionEffectGrantNurseryGift: (...args) => stumpNursery.clearGift(...args),
     atlasSessionEffectAwardEnemyLootCurrency: (...args) => awardEnemyLootCurrency(...args),
     atlasSessionEffectDispatchRuntimeEvent: (...args) => dispatchRuntimeEvent(...args)

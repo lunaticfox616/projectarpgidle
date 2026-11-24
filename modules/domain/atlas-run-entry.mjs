@@ -1,10 +1,11 @@
 import { atlasSessionDepartureBlock, atlasSessionInMap } from './atlas-run-access.mjs';
 
-/** 지도 장치: 지도석을 소모해 지도를 열고 그 맵으로 떠난다(떠나지 못하면 지도석은 보관함으로 돌아간다). nodeId: 고른 노드(없으면 지도석이 갈 곳).
+/** 지도 장치: 지도석을 소모해 지도를 열고 그 맵으로 떠난다(떠나지 못하면 지도석과 이슬은 돌아간다). nodeId: 고른 노드(없으면 지도석이 갈 곳).
+ * dew: 형체 없는 이슬 입장(입장 도크에서만 고른다, 자동 지도와 차륜 거점은 쓰지 않는다).
  * @returns {string} '' when the map opened, otherwise why not. */
-export function* atlasSessionOpen(env, owner, uid, nodeId) {
+export function* atlasSessionOpen(env, owner, uid, nodeId, dew = false) {
     env.deps.atlas.sync(owner);
-    const reason = atlasSessionDepartureBlock(env, owner) || env.deps.atlas.begin(owner, uid, owner.currentZoneId, undefined, nodeId);
+    const reason = atlasSessionDepartureBlock(env, owner) || env.deps.atlas.begin(owner, uid, owner.currentZoneId, undefined, nodeId, dew === true);
     if (reason) return reason;
     return (yield* atlasSessionDepart(env, owner));
 }

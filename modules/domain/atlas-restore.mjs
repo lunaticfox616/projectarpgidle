@@ -20,8 +20,9 @@ function clearedNodes(env, raw) {
     return { done, bonus: atlasCoreNodeList(env, raw.bonus, id => done.includes(id)) };
 }
 
+/** 한도(ATLAS.stashCap)로 자르지 않는다: 주는 지도석(첫 완료, 포털 환급, 시작 육분의)은 한도를 넘어 들어와 있을 수 있다. */
 function restoreStash(env, raw, validMap) {
-    return (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).map(map => stashStone(env, map)).filter(Boolean).slice(0, env.deps.ATLAS.stashCap);
+    return (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).map(map => stashStone(env, map)).filter(Boolean);
 }
 
 /** 예전 저장을 천문도로 옮기고(제자리에서), 옮기기 전의 것 둘을 돌려준다: 이어질 수 없는 열린 지도가 있었는지, 예전 정점을 완료했는지

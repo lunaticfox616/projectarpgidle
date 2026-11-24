@@ -56,7 +56,23 @@ export function resultHtml(runtime) {
     if (!result) return '';
     const done = result.outcome === 'complete', recalled = result.memory?.foughtTier;
     return `<section class="atlas-result${done ? '' : ' is-failed'}" aria-label="${(0, runtime.deps._t)('지난 지도 결과')}"><h3>${(0, runtime.deps.escapeHTML)(nodeName(runtime, result.nodeId))}${recalled ? (0, runtime.deps._t)(' (기억 {recalled}단계)', { recalled }) : ''} ${result.tier}등급 ${done ? (0, runtime.deps._t)('완료') : (0, runtime.deps._t)('실패')}<span>${resultNotes(runtime, result)}</span></h3>
-            ${done ? overflowHtml(runtime, result) : failureHtml(runtime, result)}${resultMemoryHtml(runtime, result)}${resultMaterialsHtml(runtime, result)}${receiptHtml(runtime, result.loot)}</section>`;
+            ${done ? overflowHtml(runtime, result) : failureHtml(runtime, result)}${givenHtml(runtime, result)}${boxesHtml(runtime, result.boxes)}${resultMemoryHtml(runtime, result)}${resultMaterialsHtml(runtime, result)}${receiptHtml(runtime, result.loot)}</section>`;
+}
+
+/** 받은 지도석의 줄: 첫 완료가 연 지도마다 하나(지침 획득), 마지막 포털이 닫혀 돌려받은 하나(지침 반환). */
+export function givenHtml(runtime, result) {
+    const name = row => (0, runtime.deps._t)('{name} {tier}등급', { name: (0, runtime.deps._t)(nodeName(runtime, row.node)), tier: row.tier });
+    const granted = (result.granted || []).map(name).join(', '), refund = result.refund ? name(result.refund) : '';
+    const line = granted ? (0, runtime.deps._t)('지침 획득: {maps}', { maps: granted }) : refund ? (0, runtime.deps._t)('지침 반환: {map}', { map: refund }) : '';
+    return line ? `<p class="atlas-result-given">${(0, runtime.deps.escapeHTML)(line)}</p>` : '';
+}
+
+/** 장비 상자의 칸: 연 상자 수, 그 상자들의 눈에 띄는 장비(이번 판의 발견과 같은 줄), 나머지 장비 수. */
+export function boxesHtml(runtime, boxes) {
+    if (!boxes) return '';
+    const finds = boxes.items.map(row => itemFind(runtime, row).html).join(''), rest = boxes.total - boxes.items.length;
+    const more = rest > 0 ? `<span class="atlas-muted">${(0, runtime.deps._t)('장비 {count}개 더', { count: rest })}</span>` : '';
+    return `<div class="atlas-result-finds" aria-label="${(0, runtime.deps._t)('장비 상자')}"><small>${(0, runtime.deps._t)('장비 상자 {count}개', { count: boxes.count })}</small>${finds}${more}</div>`;
 }
 
 export function lostRewards(runtime, result) {

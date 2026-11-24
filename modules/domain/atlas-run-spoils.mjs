@@ -1,12 +1,20 @@
 import { atlasSessionNotify } from './atlas-run-events.mjs';
 
-/** 수호자의 뿌리 입장권, 정점의 보상은 지도가 끝난 뒤라 바로 지갑으로 간다. */
+/** 수호자의 뿌리 입장권, 정점의 보상은 지도가 끝난 뒤라 바로 지갑으로 간다. 일반 지도의 장비 상자는 그 자리에서 연다. */
 export function* atlasSessionGrantSpoils(env, owner, result, zone) {
     if (result.board) (yield* atlasSessionGrantBoardSpoils(env, owner, result.board, zone));
+    if (result.gearBoxes) (yield* atlasSessionOpenGearBoxes(env, owner, result, zone));
     if (result.ticket) (yield { kind: 'atlasSessionEffectAwardCurrency', args: [result.ticket, 1] });
     for (const [key, amount] of result.rewards || []) (yield { kind: 'atlasSessionEffectAwardCurrency', args: [key, amount] });
     if (result.endgame) (yield* atlasSessionGrantEndgameSpoils(env, result.endgame, result.tier));
     if (result.memory && result.memory.spoils) (yield* atlasSessionGrantMemorySpoils(env, result.memory.spoils, result.tier, zone));
+}
+
+/** 장비 상자(개편 A2): 지도 보스 보상을 상자 수만큼 더 굴리고(js/atlas-finds.js openGearBoxes, 런의 지도석 uid로 정한 굴림), 그 상자들만의
+ * 영수증(combatLootReceipts.captureApart, 지도 영수증 밖이면 null)을 결과 카드에 남긴다. */
+export function* atlasSessionOpenGearBoxes(env, owner, result, zone) {
+    const opened = (yield { kind: 'atlasSessionEffectOpenGearBoxes', args: [owner, zone, result.gearBoxes, result.boxSeed] });
+    env.deps.atlas.keepBoxes(owner, opened);
 }
 
 export function* atlasSessionGrantBoardSpoils(env, owner, spoils, zone) {

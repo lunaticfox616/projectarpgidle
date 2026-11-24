@@ -25,6 +25,16 @@ export function returnText(runtime, detail) {
     return ' → 특수 도전을 마치고 원래 사냥터로 돌아갑니다.';
 }
 
+/** 받은 지도석 알림(토스트): 첫 완료가 연 지도의 지도석, 마지막 포털이 닫혀 돌려받은 지도석. 방치 정산 중에는 띄우지 않는다. */
+export function stoneToast(runtime, detail) {
+    // 검사 런타임(scripts/lib/replay-fixture.js)에는 토스트가 없다.
+    if (runtime.deps.game.isBackgroundCalculation || typeof runtime.deps.showGameToast !== 'function') return;
+    const granted = detail.kind === 'complete' ? (detail.granted || []).length : 0;
+    const text = granted ? (0, runtime.deps._t)('새 지도석 {count}개를 얻었습니다.', { count: granted })
+        : detail.kind === 'failed' && detail.refund ? (0, runtime.deps._t)('포털이 모두 닫혀 {tier}등급 지도석 1개를 돌려받았습니다.', { tier: detail.refund.tier }) : '';
+    if (text) (0, runtime.deps.showGameToast)(text, { tone: 'reward', duration: 3600 });
+}
+
 export function announce(runtime, detail) {
     const text = {
         passage: () => runtime.deps._t('바닥이 갈라져 {name} 입구가 열렸습니다. 바닥의 틈을 눌러 들어가세요.', {name:runtime.deps._t(runtime.deps.ATLAS.encounters[detail.type].name)}),
@@ -41,6 +51,7 @@ export function announce(runtime, detail) {
     }[detail.kind];
     if (!text) return;
     (0, runtime.deps.addLog)(text(), logClass(runtime, detail));
+    stoneToast(runtime, detail);
     if (detail.kind === 'complete' && (detail.lost || detail.lostFragments)) (0, runtime.deps.addLog)((0, runtime.deps._t)('보관 한도가 가득 차 {detail}를 보관하지 못했습니다.', { detail: lostRewards(runtime, detail).join(', ') }), 'attack-monster');
     if (detail.kind === 'starter' && detail.opened) runtime.deps.contentUnlockUi.announceJourney('map-explore-worldtree');
     runtime.state.signature = '';

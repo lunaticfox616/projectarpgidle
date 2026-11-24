@@ -6,14 +6,14 @@
 import { atlasCoreLateNode, atlasCorePosition, atlasCoreStatus, atlasCoreReachable, atlasCorePoints, atlasCoreBestTier, atlasCoreBestGameTier, atlasCoreEffectiveTier, atlasCoreGameTier, atlasCoreMapGameTier, atlasCoreHasTickets, atlasCoreIsMapStone } from './atlas-graph.mjs';
 import { atlasCoreRenameSavedIds } from './atlas-restore-values.mjs';
 import { atlasCoreDefaults } from './atlas-state.mjs';
-import { atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreBeginReason, atlasCoreMatchesNode, atlasCoreMapDestination } from './atlas-access.mjs';
+import { atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreBeginReason, atlasCoreMatchesNode, atlasCoreMapDestination, atlasCoreDewReason } from './atlas-access.mjs';
 import { atlasCoreSync, atlasCoreSextantReason, atlasCoreActivateSextant } from './atlas-unlock.mjs';
 import { atlasCoreBeginPinnacle, atlasCoreBeginSpecial, atlasCoreBeginMemory, atlasCoreBeginBoard, atlasCoreBegin } from './atlas-entry.mjs';
-import { atlasCoreSlots } from './atlas-bonuses.mjs';
+import { atlasCoreSlots, atlasCorePortalCap } from './atlas-bonuses.mjs';
 import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
 import { atlasCoreDiscard, atlasCoreDiscardCandidates, atlasCoreDiscardBatch, atlasCorePlainMap } from './atlas-inventory.mjs';
 import { atlasCoreTierBand, atlasCoreCombineSet, atlasCoreCombineReason, atlasCoreCombine, atlasCoreCombineAllPlan, atlasCoreCombineAll, atlasCoreOmenChangeReason, atlasCoreChangeOmen } from './atlas-combining.mjs';
-import { atlasCoreCancel, atlasCoreComplete, atlasCoreMarkCleared, atlasCoreKeepLoot, atlasCoreUsePortal, atlasCoreClose } from './atlas-completion.mjs';
+import { atlasCoreCancel, atlasCoreComplete, atlasCoreMarkCleared, atlasCoreKeepLoot, atlasCoreKeepBoxes, atlasCoreUsePortal, atlasCoreClose } from './atlas-completion.mjs';
 import { atlasCoreNextAuto, atlasAutoUnlocked } from './atlas-auto.mjs';
 import { atlasCoreDropFromKill, atlasCoreExtraMap, atlasCoreFragmentFromKill, atlasCoreFragmentOpen, atlasCoreRewardMaps } from './atlas-kill-drops.mjs';
 import { atlasCoreZone, atlasCorePreview, atlasCoreLootTier, atlasCoreEquivalentDepth } from './atlas-zone.mjs';
@@ -149,6 +149,9 @@ function createAtlasRunApi(env) {
         complete: (...args) => atlasCoreComplete(env, ...args),
         markCleared: atlasCoreMarkCleared,
         keepLoot: (...args) => atlasCoreKeepLoot(env, ...args),
+        keepBoxes: (...args) => atlasCoreKeepBoxes(env, ...args),
+        portalCap: run => atlasCorePortalCap(env, run.dew === true, run.bonus),
+        dewReason: (...args) => atlasCoreDewReason(env, ...args),
         usePortal: (...args) => atlasCoreUsePortal(env, ...args),
         close: (...args) => atlasCoreClose(env, ...args),
         nextAuto: (...args) => atlasCoreNextAuto(env, ...args),

@@ -1,4 +1,5 @@
-import { atlasCoreNormalizeBonus } from './atlas-bonuses.mjs';
+import { atlasCoreNormalizeBonus, atlasCorePortalCap } from './atlas-bonuses.mjs';
+import { atlasCoreChartRun } from './atlas-graph.mjs';
 import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
 
 function restorePassages(raw) {
@@ -27,11 +28,17 @@ export function atlasCoreRoomIds(value) { return [...new Set(Array.isArray(value
 
 export function atlasCoreRoomTypes(env, value) { return [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(env.deps.ATLAS.encounters, type)); }
 
+/** The open map's portals (1 .. its cap) and its 형체 없는 이슬 entry flag: only a chart map opened from a stone carries one (older saves: none). */
+function restorePortals(env, raw, map, bonus) {
+    const dew = raw.dew === true && atlasCoreChartRun(env, { map, board: raw.board }), portals = Math.floor(Number(raw.portals));
+    return { portals: portals >= 1 && portals <= atlasCorePortalCap(env, dew, bonus) ? portals : 1, dew };
+}
+
 export function atlasCoreNormalizeRun(env, raw, validMap) {
     const map = raw && validMap(raw.map);
     if (!map) return null;
-    const bonus = atlasCoreNormalizeBonus(env, raw.bonus), portals = Math.floor(Number(raw.portals));
-    return { map, ...restorePassages(raw.passages), portals: portals >= 1 && portals <= env.deps.ATLAS.portals + bonus.portals ? portals : 1,
+    const bonus = atlasCoreNormalizeBonus(env, raw.bonus);
+    return { map, ...restorePassages(raw.passages), ...restorePortals(env, raw, map, bonus),
         drops: (Array.isArray(raw.drops) ? raw.drops : []).map(validMap).filter(Boolean).slice(0, env.deps.ATLAS.stashCap),
         found: atlasCoreFragmentIds(env, raw.found, env.deps.ATLAS.fragmentRules.held), fragments: atlasCoreFragmentIds(env, raw.fragments, env.deps.ATLAS.fragments.length),
         spent: atlasCoreFragmentIds(env, raw.spent, env.deps.ATLAS.fragments.length), cleared: atlasCoreRoomIds(raw.cleared), bonus,
