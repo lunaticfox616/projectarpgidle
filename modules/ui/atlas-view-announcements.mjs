@@ -1,4 +1,4 @@
-import { nodeName, mapName } from './atlas-view-model.mjs';
+import { nodeName, mapName, tierLabel } from './atlas-view-model.mjs';
 import { lostRewards } from './atlas-view-results.mjs';
 
 export function dropsText(runtime, detail) {
@@ -20,7 +20,7 @@ export function returnText(runtime, detail) {
     if (detail.board) return ' → 심재의 나이테에서 다음 길을 고르세요.';
     if (detail.next) return '';
     const kind = runtime.deps.atlas.node(detail.nodeId)?.kind;
-    if (!detail.memory?.spoils && ['map', 'guardian', 'pinnacle'].includes(kind)) return runtime.deps._t(' → 차륜 거점에서 다음 지도석을 고를 수 있습니다.');
+    if (!detail.memory?.spoils && ['map', 'guardian', 'pinnacle'].includes(kind)) return runtime.deps._t(' → 차륜 거점에서 다음 지침을 고를 수 있습니다.');
     if (runtime.deps.game.settings.mapCompleteAction === 'stop') return ' → 완료 후 멈춤 설정으로 전투를 멈춥니다.';
     return ' → 특수 도전을 마치고 원래 사냥터로 돌아갑니다.';
 }
@@ -31,8 +31,8 @@ export function stoneToast(runtime, detail) {
     // 검사 런타임(scripts/lib/replay-fixture.js)에는 토스트가 없다.
     if (runtime.deps.game.isBackgroundCalculation || typeof runtime.deps.showGameToast !== 'function') return;
     const granted = grantedCount(detail);
-    const text = granted ? (0, runtime.deps._t)('새 지도석 {count}개를 얻었습니다.', { count: granted })
-        : detail.kind === 'failed' && detail.refund ? (0, runtime.deps._t)('포털이 모두 닫혀 {tier}등급 지도석 1개를 돌려받았습니다.', { tier: detail.refund.tier }) : '';
+    const text = granted ? (0, runtime.deps._t)('새 지침 {count}개를 얻었습니다.', { count: granted })
+        : detail.kind === 'failed' && detail.refund ? (0, runtime.deps._t)('포털이 모두 닫혀 T{tier} 지침 1개를 돌려받았습니다.', { tier: detail.refund.tier }) : '';
     if (text) (0, runtime.deps.showGameToast)(text, { tone: 'reward', duration: 3600 });
     const dew = detail.kind === 'complete' && detail.stars ? detail.stars.dew : 0;
     if (dew) dewToast(runtime, (0, runtime.deps._t)('형체 없는 이슬 {count}개를 얻었습니다.', { count: dew }));
@@ -50,19 +50,24 @@ export function dewToast(runtime, text) {
     (0, runtime.deps.showGameToast)(text, { tone: 'reward', duration: 3600 });
 }
 
+/** 완료 줄의 등급: 지침으로 연 천문도 지도는 T 등급, 나이테 원정, 기억, 수호자, 후반 싸움은 싸움 등급. */
+function clearTier(runtime, detail) {
+    return tierLabel(runtime, detail.tier, !detail.board && !detail.memory?.spoils && runtime.deps.atlas.node(detail.nodeId)?.kind === 'map');
+}
+
 export function announce(runtime, detail) {
     const text = {
         passage: () => runtime.deps._t('바닥이 갈라져 {name} 입구가 열렸습니다. 바닥의 틈을 눌러 들어가세요.', {name:runtime.deps._t(runtime.deps.ATLAS.encounters[detail.type].name)}),
         expedition: () => runtime.deps._t('{name}에 들어왔습니다. 안쪽의 목표를 마치면 원래 지도로 돌아갑니다.', {name:runtime.deps._t(runtime.deps.ATLAS.encounters[detail.type].name)}),
         board: () => detail.message,
         omen: () => (0, runtime.deps._t)('🔮 뿌리를 품은 몬스터에게서 {name}를 얻었습니다.', { name: (0, runtime.deps._t)(runtime.deps.ORB_DB[detail.key].name) }),
-        complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? (0, runtime.deps._t)(', 첫 완료') : ''}${detail.bonus ? (0, runtime.deps._t)(', 보너스 달성') : ''}${detail.drops ? (0, runtime.deps._t)(', 지도석 {drops}개', { drops: detail.drops }) : ''}`
+        complete: () => `🗺️ ${detail.name} ${clearTier(runtime, detail)} 완료${detail.first ? (0, runtime.deps._t)(', 첫 완료') : ''}${detail.bonus ? (0, runtime.deps._t)(', 보너스 달성') : ''}${detail.drops ? (0, runtime.deps._t)(', 지침 {drops}개', { drops: detail.drops }) : ''}`
             + (detail.ticket ? `, ${(0, runtime.deps._t)(runtime.deps.ORB_DB[detail.ticket].name)}` : '') + (detail.seed ? (0, runtime.deps._t)(', 세계수 씨앗 {seeds}/{max}', { seeds: detail.seeds, max: runtime.deps.ATLAS.seeds.max }) : '')
             + (detail.next ? (0, runtime.deps._t)(' → 다음 지도: {next}', { next: nodeName(runtime, detail.next) }) : returnText(runtime, detail)),
         portal: () => (0, runtime.deps._t)('🌀 {REASON}, 남은 포털 {portals}', { REASON: runtime.state.REASON[detail.reason] || detail.reason, portals: detail.portals }),
         failed: () => (0, runtime.deps._t)('🗺️ {REASON}, 포털이 모두 닫혀 지도가 실패했습니다.', { REASON: runtime.state.REASON[detail.reason] || detail.reason }),
         drops: () => dropsText(runtime, detail),
-        starter: () => detail.opened ? `🌳 세계수 아틀라스가 열렸습니다${detail.count ? (0, runtime.deps._t)(', 지도석 {count}개', { count: detail.count }) : ''}` : (0, runtime.deps._t)('🌳 이번 루프의 지도석 {count}개가 보관함에 들어왔습니다.', { count: detail.count })
+        starter: () => detail.opened ? `🌳 세계수 아틀라스가 열렸습니다${detail.count ? (0, runtime.deps._t)(', 지침 {count}개', { count: detail.count }) : ''}` : (0, runtime.deps._t)('🌳 이번 루프의 지침 {count}개가 보관함에 들어왔습니다.', { count: detail.count })
     }[detail.kind];
     if (!text) return;
     (0, runtime.deps.addLog)(text(), logClass(runtime, detail));

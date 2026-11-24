@@ -58,16 +58,22 @@ export function stoneForNode(runtime, node) {
 /** 그 노드에 쓸 수 있는 보관함 지도석: 같은 등급 지도석(어느 지역에서 얻었든), 수호자는 그 수호자의 지도석. */
 export function stonesForNode(runtime, node) { return ledger(runtime).stash.filter(map => runtime.deps.atlas.matchesNode(runtime.deps.game, map, node)); }
 
-/** 보관함 줄의 이름: 지도 노드의 지도석은 어느 노드에나 쓰므로 노드 이름 대신 지도석이라고 쓴다. */
-export function mapLabel(runtime, map) { return runtime.deps.atlas.isMapStone(map) ? (0, runtime.deps._t)('지도석') : (0, runtime.deps._t)(nodeName(runtime, map.node)); }
+/** 보관함 줄의 이름: 지도 노드의 지침은 어느 노드에나 쓰므로 노드 이름 대신 지침이라고 쓴다. */
+export function mapLabel(runtime, map) { return runtime.deps.atlas.isMapStone(map) ? (0, runtime.deps._t)('지침') : (0, runtime.deps._t)(nodeName(runtime, map.node)); }
 
 export function mapName(runtime, map) {
     const name = (0, runtime.deps._t)(runtime.deps.ATLAS.rarities[map.rarity].name);
-    return runtime.deps.atlas.isMapStone(map) ? (0, runtime.deps._t)('{tier}등급 {name} 지도석', { tier: map.tier, name })
+    return runtime.deps.atlas.isMapStone(map) ? (0, runtime.deps._t)('T{tier} {rarity} 지침', { tier: map.tier, rarity: name })
         : (0, runtime.deps._t)('{node} {tier}등급 {name}', { node: mapLabel(runtime, map), tier: map.tier, name });
 }
 
-export function tierCounts(runtime, made) { return Object.entries(made).sort(([a], [b]) => b - a).map(([tier, count]) => (0, runtime.deps._t)('{tier}등급 {count}개', { tier, count })).join(', '); }
+/** 런의 등급 이름: 천문도 지도는 천문도 등급 T{n}, 수호자, 기억, 나이테, 후반 싸움은 그 싸움 등급. */
+export function tierLabel(runtime, tier, chart) { return chart ? `T${tier}` : (0, runtime.deps._t)('{tier}등급', { tier }); }
+
+/** 지침으로 연 천문도 지도의 런인지(나이테 원정과 기억 싸움은 같은 지도 자리에서 싸움 등급으로 싸운다). */
+export function chartRun(runtime, run) { return !run.board && !run.map.memory && runtime.deps.atlas.isMapStone(run.map); }
+
+export function tierCounts(runtime, made) { return Object.entries(made).sort(([a], [b]) => b - a).map(([tier, count]) => (0, runtime.deps._t)('T{tier} {count}개', { tier, count })).join(', '); }
 
 export function sumOf(runtime, made) { return Object.values(made).reduce((sum, count) => sum + count, 0); }
 

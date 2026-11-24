@@ -5,23 +5,17 @@ import { ledger, selectedMap, mapName, mapTierStyle } from './atlas-view-model.m
 import { craftButtonHtml, flowersHtml, omenHtml } from './atlas-view-map.mjs';
 import { esc, icon } from './atlas-view-pick.mjs';
 
-/** 칸과 줄과 아래 줄의 이름: 천문도 지도의 지침은 T 등급과 희귀도, 예전 수호자의 지도석은 그 이름 그대로. */
-export function stoneTitle(runtime, map) {
-    if (!runtime.deps.atlas.isMapStone(map)) return mapName(runtime, map);
-    return (0, runtime.deps._t)('T{tier} {rarity} 지침', { tier: map.tier, rarity: (0, runtime.deps._t)(runtime.deps.ATLAS.rarities[map.rarity].name) });
-}
-
 /** 칸의 도움말: 이름, 품질과 타락, 기운, 옵션 줄(아이템 툴팁이 뜨는 칸이 아니라 data-tip). */
 export function stoneTip(runtime, map) {
     const omen = map.omen && runtime.deps.lootOmens.describe(map.omen);
     const tags = [map.quality ? (0, runtime.deps._t)('품질 {quality}%', { quality: map.quality }) : '', map.corrupted ? (0, runtime.deps._t)('타락') : ''].filter(Boolean).join(', ');
-    return [stoneTitle(runtime, map), tags, omen ? (0, runtime.deps._t)(omen.name) : '', ...map.mods.map(entry => runtime.deps.atlasMaps.describe(entry))].filter(Boolean).join('\n');
+    return [mapName(runtime, map), tags, omen ? (0, runtime.deps._t)(omen.name) : '', ...map.mods.map(entry => runtime.deps.atlasMaps.describe(entry))].filter(Boolean).join('\n');
 }
 
 export function tileHtml(runtime, map) {
     const omen = map.omen && runtime.deps.lootOmens.describe(map.omen), picked = map.uid === runtime.state.selectedUid;
     return `<button type="button" class="as-tile rarity-${map.rarity}${map.corrupted ? ' is-corrupted' : ''}${map.quality ? ' has-quality' : ''}" style="${mapTierStyle(runtime, map)}" aria-pressed="${picked}"
-            aria-label="${(0, runtime.deps.escapeHTML)(stoneTitle(runtime, map))}" data-tip="${(0, runtime.deps.escapeHTML)(stoneTip(runtime, map))}" onclick="atlasUi.selectMap(${map.uid})">${icon(runtime, 'shard')}${omen ? `<i style="--omen:${omen.tone}"></i>` : ''}</button>`;
+            aria-label="${(0, runtime.deps.escapeHTML)(mapName(runtime, map))}" data-tip="${(0, runtime.deps.escapeHTML)(stoneTip(runtime, map))}" onclick="atlasUi.selectMap(${map.uid})">${icon(runtime, 'shard')}${omen ? `<i style="--omen:${omen.tone}"></i>` : ''}</button>`;
 }
 
 /** 등급마다 한 줄: 천문도 지도의 지침은 높은 등급부터, 예전 수호자의 지도석은 맨 아래 한 줄. */
@@ -36,7 +30,7 @@ export function tierRows(runtime) {
 
 export function rowHtml(runtime, [key, maps]) {
     const head = key === 'guardian' ? `<b class="as-tier is-guardian">${icon(runtime, 'shield')}</b>` : `<b class="as-tier" style="${mapTierStyle(runtime, maps[0])}">T${key}</b>`;
-    const label = key === 'guardian' ? (0, runtime.deps._t)('수호자 지도석') : (0, runtime.deps._t)('T{tier} 지침 {count}개', { tier: key, count: maps.length });
+    const label = key === 'guardian' ? (0, runtime.deps._t)('수호자 지침') : (0, runtime.deps._t)('T{tier} 지침 {count}개', { tier: key, count: maps.length });
     return `<div class="as-tier-row" role="group" aria-label="${(0, runtime.deps.escapeHTML)(label)}">${head}<small>${maps.length}</small><div class="as-tiles">${maps.map(map => tileHtml(runtime, map)).join('')}</div></div>`;
 }
 

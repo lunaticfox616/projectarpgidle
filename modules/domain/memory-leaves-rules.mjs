@@ -82,8 +82,15 @@ export function leafMomentOf() { return 'great'; }
 
 export function leafBonusText(leaf) { return leaf.bonus.label; }
 
+/** 잎의 싸움 등급 문턱을 천문도 등급으로: 그 싸움 등급에 닿는 가장 낮은 T(씨앗 없이). 어느 T도 닿지 않으면 싸움 등급 그대로. */
+function leafTierText(env, minTier) {
+    if (!minTier) return '';
+    const chart = env.deps.ATLAS.gameTiers.findIndex(tier => tier >= minTier) + 1;
+    return chart ? env.deps._t(', T{tier} 이상', { tier: chart }) : env.deps._t(', {minTier}등급 이상', { minTier });
+}
+
 export function leafSourceText(env, leaf) {
-    const source = leaf.source, tier = leaf.minTier ? env.deps._t(', {minTier}등급 이상', { minTier: leaf.minTier }) : '';
+    const source = leaf.source, tier = leafTierText(env, leaf.minTier);
     if (source.node) return `${env.deps.atlas.hosts(source.node).map(id => env.deps._t(env.deps.atlas.node(id).name)).join(', ') || source.node}${tier}`;
     if (source.boss) return env.deps._t('지도 보스{tier}', { tier });
     if (source.golden) return env.deps._t('황금 방{tier}', { tier });

@@ -27,7 +27,7 @@ export function atlasCoreDiscard(state, uid) {
     const reason = atlasCoreRunOpenReason(state);
     if (reason) return reason;
     const index = state.atlas.stash.findIndex(map => map.uid === uid);
-    if (index < 0) return '보관함에 없는 지도석입니다.';
+    if (index < 0) return '보관함에 없는 지침입니다.';
     state.atlas.stash.splice(index, 1);
     return '';
 }

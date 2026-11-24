@@ -64,7 +64,7 @@ class KnittingView {
         const parts = made.currencies.map(([key, n]) => this.deps._t('{name} {n}개', { name: this.deps._t(this.deps.ORB_DB[key].name), n }));
         for (const [color, n] of made.seeds) parts.push(this.deps._t('{color} 씨앗 {n}개', { color: this.deps._t(this.deps.STUMP_BOX_COLORS[color].label), n }));
         if (made.item) parts.push(made.item.name + ' 1개');
-        if (made.mapReward) parts.push(`희귀 지도석 ${made.mapReward.maps.length}개`);
+        if (made.mapReward) parts.push(`희귀 지침 ${made.mapReward.maps.length}개`);
         for (const id of made.yarns) parts.push(this.deps.knitting.row(id).name + ' 1개');
         return parts.join(', ');
     }

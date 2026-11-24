@@ -73,7 +73,7 @@ export function boxesHtml(runtime, boxes) {
 }
 
 export function lostRewards(runtime, result) {
-    return [result.lost && (0, runtime.deps._t)('지도석 {lost}개', { lost: result.lost }), result.lostFragments && (0, runtime.deps._t)('각인 {lostFragments}개', { lostFragments: result.lostFragments }),
+    return [result.lost && (0, runtime.deps._t)('지침 {count}개', { count: result.lost }), result.lostFragments && (0, runtime.deps._t)('각인 {lostFragments}개', { lostFragments: result.lostFragments }),
         ...(result.lostMaterials || []).map(([id, count]) => (0, runtime.deps._t)('{itemName} {count}개', { itemName: runtime.deps.atlasEndgame.itemName(id), count }))].filter(Boolean);
 }
 

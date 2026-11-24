@@ -268,7 +268,7 @@ const ENTRIES = [
     { name: 'unique-hunt', globals: ['game', 'UNIQUE_DB', '_t', 'dispatchRuntimeEvent'] },
     { name: 'salvage-recovery', globals: ['game', 'getCanonicalCurrencyKey', 'ORB_DB', 'WALLET_CURRENCY_INFO', 'dispatchRuntimeEvent', '_t', 'canStoreEquipmentItems'] },
     { name: 'loot-omens', globals: ["contentProgression","atlasEndgame","LOOT_OMENS","hashSeed"] },
-    { name: 'memory-leaves', globals: ["MEMORY_LEAVES","unlockJournalEntry","_t","atlas"] },
+    { name: 'memory-leaves', globals: ["MEMORY_LEAVES","ATLAS","unlockJournalEntry","_t","atlas"] },
     { name: 'colony-wards', globals: ["game","contentProgression","hashSeed","getTranscendentVoidPassiveCount","hasKeystone","normalizeItem","COLONY_WARD_POOL","keepEquipmentDrop","_t","canStoreEquipmentItems","addItemToInventory","equipIntoFirstEmptySlot","COLONY_WARD_RULES","COLONY_WARD_UNIQUES","window"] },
     { name: 'weapon-mastery', globals: ["getWeaponCategoryId","dispatchRuntimeEvent","addStatToBucket","WEAPON_MASTERY","WEAPON_CATEGORIES"] },
     { name: 'stump-nursery', globals: ["contentProgression","stumpBox","dispatchRuntimeEvent","STUMP_BOX_RIPENING","getZone","STUMP_NURSERY","STUMP_BOX_COLORS"] },

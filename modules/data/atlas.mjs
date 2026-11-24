@@ -172,9 +172,9 @@ const ATLAS = Object.freeze({
     // 이름 뒤의 표시는 수치 뒤에 붙는 단위다('on'은 값 없이 이름만). 아틀라스 패시브의 별은 이 합에 들어가지 않는다(지도의 권역마다 따로,
     // js/atlas-passives.js terms).
     effectLabels: Object.freeze({
-        mapDrop: ['지도석 드롭', '%'], mapTierUp: ['높은 등급 지도석', '%p'], mapRarity: ['마법과 희귀 지도석', '%'], mapQuality: ['품질 붙은 지도석', '%p'],
-        starter: ['루프 시작 지도석', '개'], quantity: ['아이템 수량', '%'], rarity: ['아이템 희귀도', '%'], packSize: ['무리마다 몬스터', ''],
-        extraElite: ['전투 방 정예', '%p'], fragmentDrop: ['각인 드롭', '%'], bossMap: ['보스 추가 지도석', '%p'], bossRarity: ['보스 아이템 희귀도', '%'],
+        mapDrop: ['지침 드롭', '%'], mapTierUp: ['높은 등급 지침', '%p'], mapRarity: ['마법과 희귀 지침', '%'], mapQuality: ['품질 붙은 지침', '%p'],
+        starter: ['루프 시작 지침', '개'], quantity: ['아이템 수량', '%'], rarity: ['아이템 희귀도', '%'], packSize: ['무리마다 몬스터', ''],
+        extraElite: ['전투 방 정예', '%p'], fragmentDrop: ['각인 드롭', '%'], bossMap: ['보스 추가 지침', '%p'], bossRarity: ['보스 아이템 희귀도', '%'],
         slots: ['각인 홈', '개'], bossLife: ['보스 생명력과 피해', '%'], encounterExtra: ['지도마다 조우', '개'], goldenRoom: ['황금 방', '%p'],
         chestGrade: ['은빛과 황금 보급 상자', '%'], chestExtra: ['보급 상자', '개'], chestMinGrade: ['보급 상자가 모두 은빛 이상', 'on'],
         memoryDrop: ['보스의 기억', '%'], variantChance: ['보스 변이체', '%p'], omenBearer: ['뿌리를 품은 몬스터', '%']

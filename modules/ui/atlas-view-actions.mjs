@@ -78,9 +78,9 @@ export async function discard(runtime) {
     if (!map) return;
     if (busy) return (0, runtime.deps.addLog)(busy, 'attack-monster');
     const name = mapName(runtime, map);
-    if (!runtime.deps.atlas.plainMap(map) && !await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('{name} 1개를 버릴까요?\n지도석과 제작에 쓴 재화는 돌려받을 수 없습니다.', { name }),
-            { title: (0, runtime.deps._t)('지도석 버리기'), tone: 'danger', confirmLabel: (0, runtime.deps._t)('버리기'), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false })) return;
-    if (selectedMap(runtime) !== map) return (0, runtime.deps.addLog)((0, runtime.deps._t)('선택한 지도석이 바뀌어 버리기를 취소했습니다.'), 'attack-monster');
+    if (!runtime.deps.atlas.plainMap(map) && !await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('{name} 1개를 버릴까요?\n지침과 제작에 쓴 재화는 돌려받을 수 없습니다.', { name }),
+            { title: (0, runtime.deps._t)('지침 버리기'), tone: 'danger', confirmLabel: (0, runtime.deps._t)('버리기'), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false })) return;
+    if (selectedMap(runtime) !== map) return (0, runtime.deps.addLog)((0, runtime.deps._t)('선택한 지침이 바뀌어 버리기를 취소했습니다.'), 'attack-monster');
     const order = sortedStash(runtime), at = order.indexOf(map);
     const reason = runtime.deps.atlas.discard(runtime.deps.game, map.uid);
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
@@ -94,8 +94,8 @@ export async function discard(runtime) {
 export function bulkDiscardFields(runtime) {
     const rules = runtime.deps.ATLAS;
     const rarities = [...Object.entries(rules.rarities).map(([value, rule]) => ({ value, label: (0, runtime.deps._t)(rule.name) })), { value: 'all', label: (0, runtime.deps._t)('전체') }];
-    const tiers = Array.from({ length: rules.starChart.tiers }, (_, index) => ({ value: index + 1, label: (0, runtime.deps._t)('{tier}등급 이하', { tier: index + 1 }) }));
-    return [{ label: (0, runtime.deps._t)('희귀도'), options: rarities }, { label: (0, runtime.deps._t)('지도석 등급'), options: tiers }];
+    const tiers = Array.from({ length: rules.starChart.tiers }, (_, index) => ({ value: index + 1, label: (0, runtime.deps._t)('T{tier} 이하', { tier: index + 1 }) }));
+    return [{ label: (0, runtime.deps._t)('희귀도'), options: rarities }, { label: (0, runtime.deps._t)('지침 등급'), options: tiers }];
 }
 
 /** 보관함의 지도석을 희귀도와 등급으로 골라 한꺼번에 버린다(품질, 타락 포함, 수호자 지도석은 남는다). 고를 때마다 대상 수를 보여 주고,
@@ -106,17 +106,17 @@ export async function bulkDiscard(runtime) {
     let shown = [];
     const picked = await (0, runtime.deps.requestGameDialog)({
         type: 'selects', title: (0, runtime.deps._t)('일괄 버리기'), tone: 'danger', confirmLabel: (0, runtime.deps._t)('버리기'), cancelLabel: (0, runtime.deps._t)('취소'),
-        dismissOnBackdrop: false, message: (0, runtime.deps._t)('조건에 맞는 품질, 타락 지도석도 함께 버립니다. 수호자 지도석은 보관합니다.'), fields: bulkDiscardFields(runtime),
+        dismissOnBackdrop: false, message: (0, runtime.deps._t)('조건에 맞는 품질, 타락 지침도 함께 버립니다. 수호자 지침은 보관합니다.'), fields: bulkDiscardFields(runtime),
         selectionStatus: ([rarity, tier]) => {
             shown = atlas.discardCandidates(runtime.deps.game, rarity, Number(tier));
-            return { text: (0, runtime.deps._t)('버릴 지도석 {count}개', { count: shown.length }), disabled: !shown.length };
+            return { text: (0, runtime.deps._t)('버릴 지침 {count}개', { count: shown.length }), disabled: !shown.length };
         }
     });
     if (!picked) return;
     const removed = atlas.discardBatch(runtime.deps.game, picked[0], Number(picked[1]), shown);
     if (!removed) return (0, runtime.deps.addLog)(atlas.runOpenReason(runtime.deps.game) || (0, runtime.deps._t)('보관함이 바뀌어 정리를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
     if (!selectedMap(runtime)) runtime.state.selectedUid = null;
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 지도석 {count}개를 버렸습니다.', { count: removed }), 'attack-monster');
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 지침 {count}개를 버렸습니다.', { count: removed }), 'attack-monster');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }
@@ -127,15 +127,15 @@ export async function combine(runtime) {
     if (!map) return;
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
     const set = runtime.deps.atlas.combineSet(runtime.deps.game, map.uid);
-    if (set.some(entry => !runtime.deps.atlas.plainMap(entry)) && !await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('제작한 지도석이 함께 합쳐집니다.\n{names}', { names: set.map(runtime.handlers.mapName).join('\n') }),
-            { title: (0, runtime.deps._t)('지도석 합치기'), confirmLabel: (0, runtime.deps._t)('합치기'), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false })) return;
+    if (set.some(entry => !runtime.deps.atlas.plainMap(entry)) && !await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('제작한 지침이 함께 합쳐집니다.\n{names}', { names: set.map(runtime.handlers.mapName).join('\n') }),
+            { title: (0, runtime.deps._t)('지침 합치기'), confirmLabel: (0, runtime.deps._t)('합치기'), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false })) return;
     // 묻는 사이 보관함이 바뀌면 합칠 셋도 바뀔 수 있다: 확인한 셋과 같을 때만 합친다.
     const now = runtime.deps.atlas.combineSet(runtime.deps.game, map.uid);
     if (!now || now.length !== set.length || now.some((entry, at) => entry !== set[at])) return (0, runtime.deps.addLog)((0, runtime.deps._t)('보관함이 바뀌어 합치기를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
     const result = runtime.deps.atlas.combine(runtime.deps.game, map.uid);
     if (result.reason) return (0, runtime.deps.addLog)(result.reason, 'attack-monster');
     pickMap(runtime, result.map);
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ {tier}등급 지도석 {count}개를 합쳐 {name} 지도석을 얻었습니다.', { tier: map.tier, count: result.used.length, name: mapName(runtime, result.map) }), 'loot-normal');
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ T{tier} 지침 {count}개를 합쳐 {name}을 얻었습니다.', { tier: map.tier, count: result.used.length, name: mapName(runtime, result.map) }), 'loot-normal');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }
@@ -144,15 +144,15 @@ export async function combine(runtime) {
 export async function combineAll(runtime) {
     const busy = runtime.deps.atlas.runOpenReason(runtime.deps.game), plan = runtime.deps.atlas.combineAllPlan(runtime.deps.game);
     if (busy) return (0, runtime.deps.addLog)(busy, 'attack-monster');
-    if (!plan.used) return (0, runtime.deps.addLog)((0, runtime.deps._t)('셋씩 합칠 지도석이 없습니다.'), 'attack-monster');
-    const ok = await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('지도석 {used}개를 합쳐 새 지도석 {made}개를 만들까요?\n{list}\n타락, 수호자 지도석은 남습니다.', { used: plan.used, made: sumOf(runtime, plan.made), list: tierCounts(runtime, plan.made) }),
-        { title: (0, runtime.deps._t)('지도석 합치기'), confirmLabel: (0, runtime.deps._t)('합치기'), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false });
+    if (!plan.used) return (0, runtime.deps.addLog)((0, runtime.deps._t)('셋씩 합칠 지침이 없습니다.'), 'attack-monster');
+    const ok = await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('지침 {used}개를 합쳐 새 지침 {made}개를 만들까요?\n{list}\n타락, 수호자 지침은 남습니다.', { used: plan.used, made: sumOf(runtime, plan.made), list: tierCounts(runtime, plan.made) }),
+        { title: (0, runtime.deps._t)('지침 합치기'), confirmLabel: (0, runtime.deps._t)('합치기'), cancelLabel: (0, runtime.deps._t)('취소'), dismissOnBackdrop: false });
     if (!ok) return;
     if (JSON.stringify(runtime.deps.atlas.combineAllPlan(runtime.deps.game)) !== JSON.stringify(plan)) return (0, runtime.deps.addLog)((0, runtime.deps._t)('보관함이 바뀌어 합치기를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
     const result = runtime.deps.atlas.combineAll(runtime.deps.game), made = {};
     for (const map of result.made) made[map.tier] = (made[map.tier] || 0) + 1;
     if (!selectedMap(runtime)) pickMap(runtime, [...result.made].sort((a, b) => b.tier - a.tier)[0]);
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 지도석 {used}개를 합쳐 새 지도석 {made}개를 얻었습니다({list}).', { used: result.used, made: result.made.length, list: tierCounts(runtime, made) }), 'loot-normal');
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 지침 {used}개를 합쳐 새 지침 {made}개를 얻었습니다({list}).', { used: result.used, made: result.made.length, list: tierCounts(runtime, made) }), 'loot-normal');
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }
@@ -193,9 +193,9 @@ export async function goldenFlowerOmen(runtime, color) {
     const map = selectedMap(runtime);
     if (!map) return;
     const choices = runtime.deps.lootOmens.flowerOmens(color, runtime.deps.game, map.omen).map(omen => ({ value: omen.id, label: omen.name, detail: omen.note }));
-    const picked = await (0, runtime.deps.requestGameChoice)({ title: (0, runtime.deps._t)('황금 {label} 꽃', { label: runtime.deps.STUMP_BOX_COLORS[color].label }), message: (0, runtime.deps._t)('지도석에 붙일 기운을 고르세요.'), choices, confirmLabel: (0, runtime.deps._t)('이 기운으로'), cancelLabel: (0, runtime.deps._t)('취소') });
+    const picked = await (0, runtime.deps.requestGameChoice)({ title: (0, runtime.deps._t)('황금 {label} 꽃', { label: runtime.deps.STUMP_BOX_COLORS[color].label }), message: (0, runtime.deps._t)('지침에 붙일 기운을 고르세요.'), choices, confirmLabel: (0, runtime.deps._t)('이 기운으로'), cancelLabel: (0, runtime.deps._t)('취소') });
     if (!picked) return;
-    if (selectedMap(runtime) !== map) return (0, runtime.deps.addLog)((0, runtime.deps._t)('선택한 지도석이 바뀌어 기운 바꾸기를 취소했습니다.'), 'attack-monster');
+    if (selectedMap(runtime) !== map) return (0, runtime.deps.addLog)((0, runtime.deps._t)('선택한 지침이 바뀌어 기운 바꾸기를 취소했습니다.'), 'attack-monster');
     applyFlower(runtime, map, color, picked);
 }
 
@@ -283,8 +283,8 @@ export async function abandon(runtime) {
 export function abandonMessage(runtime, run) {
     const held = run.drops.length + run.found.length, kind = runtime.deps.atlas.node(run.map.node)?.kind;
     // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료, 기억 싸움은 그 기억). 비용 없는 첫 도전은 없다.
-    const offering = run.free ? '' : run.board ? (0, runtime.deps._t)('보관 재화 {lossPctFor}%', { lossPctFor: runtime.deps.atlasBoard.lossPctFor(ledger(runtime).board, run.board.boss) }) : run.map.memory ? (0, runtime.deps._t)('보스의 기억 {memory}단계', { memory: run.map.memory }) : kind === 'pinnacle' ? '바친 입장권' : (runtime.state.RUN_KIND[kind] ? '바친 재료' : '지도석');
-    const lost = [offering, held ? (0, runtime.deps._t)('보류 중인 지도석과 각인 {held}개', { held }) : '', heldLate(runtime, run)].filter(Boolean).join(', ');
+    const offering = run.free ? '' : run.board ? (0, runtime.deps._t)('보관 재화 {lossPctFor}%', { lossPctFor: runtime.deps.atlasBoard.lossPctFor(ledger(runtime).board, run.board.boss) }) : run.map.memory ? (0, runtime.deps._t)('보스의 기억 {memory}단계', { memory: run.map.memory }) : kind === 'pinnacle' ? '바친 입장권' : (runtime.state.RUN_KIND[kind] ? '바친 재료' : '지침');
+    const lost = [offering, held ? (0, runtime.deps._t)('보류 중인 지침과 각인 {held}개', { held }) : '', heldLate(runtime, run)].filter(Boolean).join(', ');
     return `${run.board ? run.board.name : nodeName(runtime, run.map.node)} 지도를 닫을까요?\n손실: ${lost}\n일반 장비와 재화, 바닥 전리품은 남습니다.${run.board ? (0, runtime.deps._t)('\n다음 진입에는 심재 주사위 1개가 필요합니다.') : ''}`;
 }
 

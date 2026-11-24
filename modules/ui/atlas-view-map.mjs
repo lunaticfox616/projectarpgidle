@@ -50,7 +50,7 @@ export function flowersHtml(runtime, map) {
 /** 다시 들어갈 때 내는 것을 가진 수/필요한 수 칩으로: 수호자 지도석, 정점의 뿌리 입장권 4종, 후반 싸움의 재료. */
 export function gateCostChips(runtime, fight) {
     const game = runtime.deps.game, chip = (name, have, need) => `<span class="as-chip ${have >= need ? 'is-on' : 'is-missing'}">${(0, runtime.deps.escapeHTML)(name)} ${have}/${need}</span>`;
-    if (fight.kind === 'guardian') return chip((0, runtime.deps._t)('수호자 지도석'), ledger(runtime).stash.filter(map => map.node === fight.id).length, 1);
-    if (fight.kind === 'pinnacle') return runtime.deps.ATLAS.pinnacle.tickets.map(key => chip(TICKET(runtime, key), Math.floor(game.currencies[key] || 0), 1)).join('');
+    if (fight.kind === 'guardian') return chip((0, runtime.deps._t)('수호자 지침'), ledger(runtime).stash.filter(map => map.node === fight.id).length, 1);
+    if (fight.kind === 'pinnacle') return runtime.deps.ATLAS.pinnacle.tickets.map(key => chip((0, runtime.deps._t)(TICKET(runtime, key)), Math.floor(game.currencies[key] || 0), 1)).join('');
     return runtime.deps.atlasEndgame.def(fight.id).entry.map(([item, need]) => chip((0, runtime.deps._t)(runtime.deps.atlasEndgame.itemName(item)), runtime.deps.atlasEndgame.count(game, item), need)).join('');
 }

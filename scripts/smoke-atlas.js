@@ -876,7 +876,7 @@ for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
 
     // After the first kill: the existing cost, required and spent (a cancel returns it). The stone opens from the stash or the chart pin.
     boss("game.atlas.stash = game.atlas.stash.filter(map => map.node !== 'roots_g');");
-    assert.equal(boss("atlasRun.openGate('rootsGuardian')"), '수호자 지도석이 필요합니다.', 'after the first kill the guardian stone is required');
+    assert.equal(boss("atlasRun.openGate('rootsGuardian')"), '수호자 지침이 필요합니다.', 'after the first kill the guardian stone is required');
     boss("var paid = give('roots_g', 16);");
     assert.deepEqual(read("[atlas.mapDestination(game, game.atlas.stash.find(map => map.uid === paid)).id, atlas.matchesNode(game, game.atlas.stash.find(map => map.uid === paid), atlas.node('rootsGuardian'))]"),
         ['roots_g', true], 'an old guardian stone goes to the mapped guardian');

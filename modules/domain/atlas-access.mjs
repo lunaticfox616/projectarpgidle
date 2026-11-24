@@ -41,7 +41,7 @@ export function atlasCoreMapDestination(env, state, map) {
 /** 고른 노드에 그 지도석을 쓸 수 있는지(열리지 않은 지도 노드는 지도석이 맞아도 열지 않는다). */
 function atlasCoreNodeReason(env, state, map, nodeId) {
     const node = env.BY_ID.get(nodeId);
-    if (!atlasCoreMatchesNode(env, state, map, node)) return env.deps._t('이 지도에 사용할 수 없는 지도석입니다.');
+    if (!atlasCoreMatchesNode(env, state, map, node)) return env.deps._t('이 지도에 사용할 수 없는 지침입니다.');
     return atlasCoreReachable(env, state, node.id) ? '' : env.deps._t('아직 열리지 않은 지도입니다.');
 }
 
@@ -57,7 +57,7 @@ export function atlasCoreBeginReason(env, state, uid, nodeId, dew = false) {
     if (reason) return reason;
     if (state.atlas.run) return atlasCoreRunOpenReason(state);
     const map = state.atlas.stash.find(entry => entry.uid === uid);
-    if (!map) return env.deps._t('보관함에 없는 지도석입니다.');
+    if (!map) return env.deps._t('보관함에 없는 지침입니다.');
     const place = nodeId === undefined ? atlasCoreDestinationReason(env, state, map) : atlasCoreNodeReason(env, state, map, nodeId);
     return place || (dew ? atlasCoreDewReason(env, state, map) : '');
 }
@@ -73,5 +73,5 @@ export function atlasCorePinnacleReason(env, state) {
 
 /** 정점에 다시 들어갈 때 바치는 뿌리 입장권 4종이 모자란 까닭('' = 다 있다). */
 export function atlasCoreTicketReason(env, state) {
-    return atlasCoreHasTickets(env, state) ? '' : '뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.';
+    return atlasCoreHasTickets(env, state) ? '' : env.deps._t('뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.');
 }

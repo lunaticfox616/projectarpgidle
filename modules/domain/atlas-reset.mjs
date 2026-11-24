@@ -11,5 +11,5 @@ export function atlasCoreOnLoopReset(env, state) {
 }
 
 export function atlasCoreTravelReason(env, state, id) {
-    return id === env.deps.ATLAS.zoneId && !state.atlas.run ? '지도 장치에서 지도석을 열어야 들어갈 수 있습니다.' : '';
+    return id === env.deps.ATLAS.zoneId && !state.atlas.run ? '지도 장치에서 지침을 열어야 들어갈 수 있습니다.' : '';
 }

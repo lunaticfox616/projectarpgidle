@@ -75,7 +75,7 @@ const LOOT_OMENS = Object.freeze({
             gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ corrupted: 6 }) }) },
         { id: 'twins', name: '쌍둥이 그림자', note: '같은 장비가 겹쳐 나옵니다', kind: 'gear', weight: 4, tone: '#c8b0e8',
             gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ duplicate: 6, bundle: 6 }) }) },
-        { id: 'maps', name: '지도 제작자', note: '지도석이 많이, 더 좋고 높게 나옵니다', kind: 'bonus', weight: 5, tone: '#d9b066',
+        { id: 'maps', name: '지도 제작자', note: '지침이 많이, 더 좋고 높게 나옵니다', kind: 'bonus', weight: 5, tone: '#d9b066',
             bonus: Object.freeze({ mapDrop: 120, mapRarity: 120, mapQuality: 25, mapTierUp: 20 }) },
         { id: 'fragments', name: '각인 무덤', note: '각인이 자주 나옵니다', kind: 'bonus', weight: 4, tone: '#b8a1df',
             bonus: Object.freeze({ fragmentDrop: 250 }) },
@@ -88,7 +88,7 @@ const LOOT_OMENS = Object.freeze({
         { id: 'dreams', name: '보스의 꿈', note: '보스의 기억과 변이체가 잘 나옵니다', kind: 'bonus', weight: 3, tone: '#a8c0ff', minLoop: 33,
             bonus: Object.freeze({ memoryDrop: 150, variantChance: 15 }) },
         // 제작 뿌리(2026-10-18, data/items.js CRAFT_OMENS): 최종 보스를 하나라도 쓰러뜨린 뒤에 붙는다(needsFallenApex).
-        { id: 'craftOmens', name: '뿌리의 메아리', note: '10등급 이상 지도에서 뿌리를 품은 몬스터가 자주 나옵니다', kind: 'bonus', weight: 3, tone: '#b98cff',
+        { id: 'craftOmens', name: '뿌리의 메아리', note: 'T7 이상 지도에서 뿌리를 품은 몬스터가 자주 나옵니다', kind: 'bonus', weight: 3, tone: '#b98cff',
             needsFallenApex: true, bonus: Object.freeze({ omenBearer: 400 }) }
     ].map(Object.freeze)),
     // 꽃으로 기운 바꾸기(2026-11-02 사용자): 보관함의 다 자란 꽃 하나로 지도석의 기운을 그 꽃 색의 묶음 안에서 다시 굴린다(지금 기운은 빼고, weight대로).

@@ -27,7 +27,7 @@ export function atlasCoreGateLock(env, state, gateId) {
 
 /** 완료한 자리에서 그 싸움의 비용을 낼 수 없는 까닭('' = 낼 수 있다). */
 function atlasCoreGateCostReason(env, state, fight) {
-    if (fight.kind === 'guardian') return atlasCoreGateStone(state, fight) ? '' : env.deps._t('수호자 지도석이 필요합니다.');
+    if (fight.kind === 'guardian') return atlasCoreGateStone(state, fight) ? '' : env.deps._t('수호자 지침이 필요합니다.');
     if (fight.kind === 'pinnacle') return atlasCoreTicketReason(env, state);
     return env.deps.atlasEndgame.offeringReason(state, fight.id);
 }

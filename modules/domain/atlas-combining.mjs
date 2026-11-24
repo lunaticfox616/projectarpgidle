@@ -20,11 +20,11 @@ export function atlasCoreCombineSet(env, state, uid) {
 export function atlasCoreCombineReason(env, state, uid) {
     const busy = atlasCoreRunOpenReason(state), set = atlasCoreCombineSet(env, state, uid), picked = state.atlas.stash.find(map => map.uid === uid);
     if (busy) return busy;
-    if (!picked) return env.deps._t('보관함에 없는 지도석입니다.');
-    if (!atlasCoreIsMapStone(env, picked)) return env.deps._t('수호자 지도석은 합칠 수 없습니다.');
+    if (!picked) return env.deps._t('보관함에 없는 지침입니다.');
+    if (!atlasCoreIsMapStone(env, picked)) return env.deps._t('수호자 지침은 합칠 수 없습니다.');
     if (picked.tier >= env.CHART_TIERS) return env.deps._t('가장 높은 등급이라 합칠 수 없습니다.');
-    if (!set) return env.deps._t('{tier}등급 지도석이 {count}개 있어야 합칩니다.', { tier: picked.tier, count: env.deps.ATLAS.combine.count });
-    return atlasCoreTierOpen(env, state, picked.tier + 1) ? '' : env.deps._t('{tier}등급 노드가 아직 열리지 않았습니다.', { tier: picked.tier + 1 });
+    if (!set) return env.deps._t('T{tier} 지침이 {count}개 있어야 합칩니다.', { tier: picked.tier, count: env.deps.ATLAS.combine.count });
+    return atlasCoreTierOpen(env, state, picked.tier + 1) ? '' : env.deps._t('T{tier} 노드가 아직 열리지 않았습니다.', { tier: picked.tier + 1 });
 }
 
 /** 그 천문도 등급까지 올라왔는지: 그 등급 이상의 지도 노드가 하나라도 열렸으면 된다(2026-11-11 사용자: 위 등급이 열렸는데 합치기가 막히면 안 된다). */
@@ -103,8 +103,8 @@ export function atlasCoreCombineAll(env, state, random = Math.random) {
 
 /** '' when a flower can change this stone's omen, otherwise why not: guardian stones carry none, and corruption closes a stone as it does for crafts. */
 export function atlasCoreOmenChangeReason(env, map) {
-    if (env.BY_ID.get(map.node)?.kind !== 'map') return '지도 노드의 지도석에만 기운이 붙습니다.';
-    return map.corrupted ? '타락한 지도석은 더 바꿀 수 없습니다.' : '';
+    if (env.BY_ID.get(map.node)?.kind !== 'map') return '지도 노드의 지침에만 기운이 붙습니다.';
+    return map.corrupted ? '타락한 지침은 더 바꿀 수 없습니다.' : '';
 }
 
 /** 꽃 하나로 지도석의 기운을 바꾼다(data/loot-omens.js flowers): omenId가 없으면 평범한 꽃으로 다시 굴리고, 있으면 황금 꽃으로 그 기운을 고른다.
@@ -112,7 +112,7 @@ export function atlasCoreOmenChangeReason(env, map) {
 export function atlasCoreChangeOmen(env, state, uid, color, ...selection) {
 const [omenId = null, random = Math.random] = selection;
     const map = state.atlas.stash.find(entry => entry.uid === uid);
-    if (!map) return { reason: env.deps._t('보관함에 없는 지도석입니다.') };
+    if (!map) return { reason: env.deps._t('보관함에 없는 지침입니다.') };
     const reason = atlasCoreOmenChangeReason(env, map);
     if (reason) return { reason };
     const open = env.deps.lootOmens.flowerOmens(color, state, map.omen).some(omen => omen.id === omenId);

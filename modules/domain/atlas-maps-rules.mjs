@@ -39,9 +39,9 @@ export function atlasMapReroll(env, map, rarity, random, count = null) {
 export function atlasMapHasRoom(env, map) { return map.mods.length < atlasMapLimits(env, map).max && atlasMapOpenKinds(env, map, false).length > 0; }
 
 export function atlasMapCraftReason(env, map, key) {
-    if (!env.CRAFTS[key]) return '지도석에 쓸 수 없는 재화입니다.';
-    if (map.corrupted) return '타락한 지도석은 더 바꿀 수 없습니다.';
-    return env.CRAFTS[key].can(map) ? '' : '지금 지도석 상태에는 쓸 수 없습니다.';
+    if (!env.CRAFTS[key]) return '지침에 쓸 수 없는 재화입니다.';
+    if (map.corrupted) return '타락한 지침은 더 바꿀 수 없습니다.';
+    return env.CRAFTS[key].can(map) ? '' : '지금 지침 상태에는 쓸 수 없습니다.';
 }
 
 /** @returns {string} '' when applied, otherwise why not (the map is untouched). */

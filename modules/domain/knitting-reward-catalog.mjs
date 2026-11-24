@@ -57,7 +57,7 @@ export function threadRewardFamilyProblems(env, family, row, implied) {
     if (family === 'yarns') return threadRewardYarnsProblems(env, row);
     if (family === 'maps') {
         const rule = row.reward.maps;
-        return rule.count === 2 && rule.rarity === 'rare' && rule.tierUp === 1 ? [] : [env.deps._t('{id}: 지도석 규격', { id: row.id })];
+        return rule.count === 2 && rule.rarity === 'rare' && rule.tierUp === 1 ? [] : [env.deps._t('{id}: 지침 규격', { id: row.id })];
     }
     return threadRewardEquipmentProblems(env, family, row);
 }

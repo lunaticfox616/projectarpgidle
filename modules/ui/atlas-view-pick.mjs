@@ -196,7 +196,7 @@ export function mapReason(runtime, node) {
 /** 천문도 밖 싸움에 들어갈 수 없는 까닭: 그 싸움의 지도석이 없거나, 지도석으로 열 수 없다. */
 export function fightReason(runtime, id) {
     const map = selectedMap(runtime);
-    if (!map) return (0, runtime.deps._t)('수호자 지도석이 필요합니다.');
+    if (!map) return (0, runtime.deps._t)('수호자 지침이 필요합니다.');
     return runtime.deps.atlas.beginReason(runtime.deps.game, map.uid, id) || runtime.deps.atlasRun.blockReason();
 }
 

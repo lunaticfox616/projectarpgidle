@@ -1,6 +1,6 @@
 import { showWheelHub } from './atlas-wheel-hub.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
-import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode, stoneForNode, runningNode } from './atlas-view-model.mjs';
+import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode, stoneForNode, runningNode, tierLabel, chartRun } from './atlas-view-model.mjs';
 import { omenChipHtml } from './atlas-view-map.mjs';
 import { pickCardHtml, goHtml } from './atlas-view-pick.mjs';
 import { stashCardHtml } from './atlas-view-stash.mjs';
@@ -17,7 +17,7 @@ export function pages(runtime) {
 export function progressLine(runtime) {
     const st = ledger(runtime);
     if (st.run) return (0, runtime.deps._t)('열린 지도: {node}', { node: nodeName(runtime, st.run.map.node) });
-    return (!st.unlocked && runtime.deps.atlas.lockReason(runtime.deps.game)) || (0, runtime.deps._t)('지도석 {length}개, 완료 {length2}곳', { length: st.stash.length, length2: st.completed.length });
+    return (!st.unlocked && runtime.deps.atlas.lockReason(runtime.deps.game)) || (0, runtime.deps._t)('지침 {length}개, 완료 {length2}곳', { length: st.stash.length, length2: st.completed.length });
 }
 
 /** Navigation only: preparing a suggested map never spends its stone or starts combat. */
@@ -31,12 +31,12 @@ export function huntingJourneyAction(runtime) {
 export function mapJourney(runtime) {
     const stash = ledger(runtime).stash, guardians = stash.filter(map => runtime.deps.atlas.node(map.node)?.kind === 'guardian');
     const missing = guardians.find(map => { const ticket = runtime.deps.atlas.node(map.node).ticket; return !ticket || !runtime.deps.game.currencies[ticket]; });
-    if (missing) return { title: (0, runtime.deps._t)('수호자 지도석 준비됨'), text: (0, runtime.deps._t)('{node} {tier}등급', { node: nodeName(runtime, missing.node), tier: missing.tier }),
+    if (missing) return { title: (0, runtime.deps._t)('수호자 지침 준비됨'), text: (0, runtime.deps._t)('{node} {tier}등급', { node: nodeName(runtime, missing.node), tier: missing.tier }),
         action: `atlasUi.selectMap(${missing.uid},true)`, label: (0, runtime.deps._t)('수호자 준비 보기') };
     const maps = [...stash].sort((a, b) => a.tier - b.tier || a.uid - b.uid), map = selectedMap(runtime) || maps[0];
-    if (map) return { title: (0, runtime.deps._t)('지도석 {length}개 준비됨', { length: stash.length }), text: mapName(runtime, map),
+    if (map) return { title: (0, runtime.deps._t)('지침 {length}개 준비됨', { length: stash.length }), text: mapName(runtime, map),
         action: `atlasUi.selectMap(${map.uid},true)`, label: (0, runtime.deps._t)('지도 준비 보기') };
-    return { title: (0, runtime.deps._t)('다음 지도석 모으기'), text: (0, runtime.deps._t)('혼돈 20 이상 보스가 지도석을 줍니다.'),
+    return { title: (0, runtime.deps._t)('다음 지침 모으기'), text: (0, runtime.deps._t)('혼돈 20 이상 보스가 지침을 줍니다.'),
         ...huntingJourneyAction(runtime) };
 }
 
@@ -132,7 +132,7 @@ export function updateHud(runtime, zone) {
     // 지도 이름은 위의 지역 이름과 같고, 주운 지도석과 각인 수는 싸우는 동안 볼 일이 없다(2026-11-06 사용자): 등급, 종류, 방, 징조, 포털만.
     const fieldChip = fieldMarkup(runtime,zone,field);
     const rooms = run.encounters.map(type => encounterChip(runtime, run, type)).join('') + fieldChip;
-    host.innerHTML = `<span class="atlas-hud-chip atlas-hud-tier" style="${mapTierStyle(runtime, run.map)}">${(0, runtime.deps._t)('{tier}등급', { tier: run.map.tier })}</span>${hudKindHtml(runtime, run)}${rooms}${omenChipHtml(runtime, run.map)}${hudPortalsHtml(runtime, run)}
+    host.innerHTML = `<span class="atlas-hud-chip atlas-hud-tier" style="${mapTierStyle(runtime, run.map)}">${tierLabel(runtime, run.map.tier, chartRun(runtime, run))}</span>${hudKindHtml(runtime, run)}${rooms}${omenChipHtml(runtime, run.map)}${hudPortalsHtml(runtime, run)}
             <button type="button" class="combat-action-btn" onclick="atlasUi.openPanel()">${(0, runtime.deps._t)('아틀라스')}</button>`;
     host.querySelector('[data-atlas-passage]')?.addEventListener('click', () => walkToPassage(runtime));
 }
