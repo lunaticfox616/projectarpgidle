@@ -33,6 +33,9 @@ function createContentProgressRoutes(env) {
         // 연다(수령하지 못한 출품이 루프를 막지 않게).
         'tab-trade': owner => contentNpcsMet(owner) || contentIsUnlocked(env, 'market', owner) || contentIsUnlocked(env, 'hall', owner)
             || (Array.isArray(owner?.auction?.lots) && owner.auction.lots.length > 0),
+        // 거래 창의 둘째 화면(경매장, 가판대, 장비 전당이 탭 줄 하나를 쓴다): 셋 가운데 하나가 열리면 연다. 출품이 남아 있을 때도 연다.
+        'tab-auction': owner => contentIsUnlocked(env, 'market', owner) || contentIsUnlocked(env, 'hall', owner) || contentIsUnlocked(env, 'auction', owner)
+            || (Array.isArray(owner?.auction?.lots) && owner.auction.lots.length > 0),
         // 아틀라스와 혼돈계의 최초 개방 기록은 서로 독립적이다.
         'map-explore-worldtree': owner => !!owner.atlas?.unlocked
     };

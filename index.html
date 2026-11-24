@@ -495,7 +495,8 @@
         <div class="tab-btn" id="btn-tab-talent" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-talent')" style="display:none;" data-i18n>재능 <span id="noti-talent" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-stump" data-button-art onclick="switchTab('tab-stump')" style="display:none;" data-i18n>그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" data-button-art data-merged-tab-launcher="gear" onclick="openMergedTabPicker(event,'gear')" data-i18n>장비 <span id="inventory-full-warning" class="inventory-full-warning" data-i18n>가득 참</span><span id="noti-items" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-trade" data-button-art onclick="switchTab('tab-trade')" style="display:none;" data-i18n>거래 <span id="noti-npcs" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-trade" data-button-art data-merged-tab-launcher="trade" onclick="openMergedTabPicker(event,'trade')" style="display:none;" data-i18n>거래 <span id="noti-npcs" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-auction" data-merged-tab-member="1" data-merged-tab-group="trade" onclick="switchTab('tab-auction')" data-i18n>경매장</div>
         <div class="tab-btn" id="btn-tab-map" data-button-art onclick="switchTab('tab-map')" data-i18n>지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" data-merged-tab-member="1" data-merged-tab-group="gear" onclick="switchTab('tab-skills')" data-i18n>스킬룬 <span id="noti-skills" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-journal" data-button-art data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;" data-i18n>기록 <span id="noti-journal" class="noti-dot"></span></div>
@@ -950,18 +951,25 @@
          js/orga-exchange-ui.js), 가판대, 장비 전당, 경매장(js/auction-house-ui.js). 열린 칸만 보인다(js/market-ui.js). 암거래상의 판은 그 창이 열릴 때 창 안으로 옮겨 간다. -->
     <div id="tab-trade" class="tab-content">
         <div class="forge-panel market-shell">
+            <section id="market-panel-npc" aria-label="NPC"><div id="npc-roster-panel"></div>
+                <section id="market-panel-black" aria-label="암거래상" hidden data-i18n-attr="aria-label"></section></section>
+        </div>
+    </div>
+
+    <!-- 거래 창의 둘째 화면(창 머리의 탭 NPC, 경매장으로 오간다): 경매장의 세 칸, 가판대, 장비 전당이 탭 줄 하나를 쓴다 -->
+    <div id="tab-auction" class="tab-content" data-merged-tab-member="1">
+        <div class="forge-panel market-shell">
             <div id="ui-market-panel">
-                <nav class="market-tabs" role="tablist" aria-label="거래" onkeydown="marketUi.moveTab(event)" data-i18n-attr="aria-label">
-                    <button type="button" role="tab" aria-controls="market-panel-npc" data-market-section="npc" aria-selected="true" onclick="marketUi.show('npc')"><span class="px-center">NPC</span></button>
+                <nav id="market-exchange-tabs" class="market-tabs" role="tablist" aria-label="경매장" onkeydown="marketUi.moveTab(event)" data-i18n-attr="aria-label">
+                    <button type="button" role="tab" id="ah-tab-gear" aria-controls="market-panel-auction" data-market-section="auction" data-ah-tab="gear" aria-selected="false" onclick="marketUi.showAuctionTab('gear')" hidden><span class="ah-tab-label"></span></button>
+                    <button type="button" role="tab" id="ah-tab-materials" aria-controls="market-panel-auction" data-market-section="auction" data-ah-tab="materials" aria-selected="false" onclick="marketUi.showAuctionTab('materials')" hidden><span class="ah-tab-label"></span></button>
+                    <button type="button" role="tab" id="ah-tab-mine" aria-controls="market-panel-auction" data-market-section="auction" data-ah-tab="mine" aria-selected="false" onclick="marketUi.showAuctionTab('mine')" hidden><span class="ah-tab-label"></span></button>
                     <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')"><span class="px-center" data-i18n>가판대</span></button>
                     <button type="button" role="tab" aria-controls="market-panel-hall" data-market-section="hall" aria-selected="false" onclick="marketUi.show('hall')"><span class="px-center" data-i18n>장비 전당</span></button>
-                    <button type="button" role="tab" aria-controls="market-panel-auction" data-market-section="auction" aria-selected="false" onclick="marketUi.show('auction')" hidden><span class="px-center" data-i18n>경매장</span></button>
                 </nav>
-                <section id="market-panel-npc" role="tabpanel" aria-label="NPC"><div id="npc-roster-panel"></div>
-                    <section id="market-panel-black" aria-label="암거래상" hidden data-i18n-attr="aria-label"></section></section>
+                <section id="market-panel-auction" role="tabpanel" aria-label="경매장" hidden data-i18n-attr="aria-label"></section>
                 <section id="market-panel-stall" role="tabpanel" aria-label="가판대" hidden data-i18n-attr="aria-label"></section>
                 <section id="market-panel-hall" role="tabpanel" aria-label="장비 전당" hidden data-i18n-attr="aria-label"><div id="map-player-hall"></div></section>
-                <section id="market-panel-auction" role="tabpanel" aria-label="경매장" hidden data-i18n-attr="aria-label"></section>
             </div>
         </div>
     </div>

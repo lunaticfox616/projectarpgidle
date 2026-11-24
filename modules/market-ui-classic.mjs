@@ -5,7 +5,7 @@ const marketUi = createMarketView({
     get contentProgression() { return contentProgression; },
     get game() { return window.GameModules.state.game; },
     get loadPlayerExchange() { return loadPlayerExchange; },
-    get switchTab() { return switchTab; },
+    get switchMergedTabSubtab() { return switchMergedTabSubtab; },
     get window() { return window; },
     get _t() { return _t; },
     get hallItemIssue() { return hallItemIssue; },

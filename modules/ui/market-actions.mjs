@@ -15,19 +15,48 @@ export function openSections(runtime) {
     return runtime.state.MARKET_SECTIONS.filter(id => open[id]);
 }
 
+/** The trade window's screen that holds a section: NPC on the first, the auction, the stall and the hall on the second (js/ui.js MERGED_TAB_GROUPS trade). */
+const screenOf = section => (section === 'npc' ? 'tab-trade' : 'tab-auction');
+
+/** The screen the window's head tabs chose (the first one until the second is chosen). */
+function chosenScreen(runtime) {
+    const chosen = runtime.deps.game.settings && runtime.deps.game.settings.mergedTabSelection && runtime.deps.game.settings.mergedTabSelection.trade;
+    return chosen === 'tab-auction' && runtime.deps.contentProgression.canOpen('tab-auction') ? 'tab-auction' : 'tab-trade';
+}
+
+/** The section the chosen screen shows: NPC on the first screen; on the second the one shown last when it is open, else the first open one
+ * (the auction before the stall before the hall). */
+function shownSection(runtime, open) {
+    if (chosenScreen(runtime) === 'tab-trade') return 'npc';
+    return [runtime.state.view_section, runtime.state.exchange, 'auction', 'stall', 'hall'].find(id => id !== 'npc' && open.includes(id)) || 'stall';
+}
+
+/** Shows a section, changing the window's screen when the section is on the other one. */
 export function show(runtime, section) {
     if (!runtime.state.MARKET_SECTIONS.includes(section)) return;
     runtime.state.view_section = section;
+    if (section !== 'npc') runtime.state.exchange = section;
     if (section === 'hall') (0, runtime.deps.loadPlayerExchange)();
-    renderMarketUI(runtime);
+    // The head tab is switched the way a press on it does (it also redraws this window); the same screen only redraws.
+    if (chosenScreen(runtime) !== screenOf(section)) (0, runtime.deps.switchMergedTabSubtab)('trade', screenOf(section));
+    else renderMarketUI(runtime);
+}
+
+/** Shows a tab of the auction (아이템, 재료, 내 출품): they stand on the second screen's tab row beside the stall and the hall. */
+export function showAuctionTab(runtime, tab) {
+    runtime.deps.auctionHouseUi.showTab(tab);
+    show(runtime, 'auction');
+    runtime.deps.auctionHouseUi.render(true);
 }
 
 export function open(runtime, section) {
-    runtime.state.view_section = runtime.state.MARKET_SECTIONS.includes(section) ? section : runtime.state.view_section;
+    const target = runtime.state.MARKET_SECTIONS.includes(section) ? section : runtime.state.view_section;
     // 루프 정산 카드가 출품 때문에 막힌 루프에서 이 칸을 연다: 내 출품을 바로 보인다.
     if (section === 'auction' && runtime.deps.game.auction.lots.length) runtime.deps.auctionHouseUi.showTab('mine');
-    (0, runtime.deps.switchTab)('tab-trade');
-    show(runtime, runtime.state.view_section);
+    runtime.state.view_section = target;
+    if (target !== 'npc') runtime.state.exchange = target;
+    (0, runtime.deps.switchMergedTabSubtab)('trade', screenOf(target));
+    show(runtime, target);
 }
 
 export function openHallPicker(runtime) {
@@ -91,18 +120,28 @@ export function renderMarketUI(runtime) {
     if (!runtime.active) return;
     const panel = runtime.deps.document.getElementById('ui-market-panel');
     if (!panel) return;
-    const open = runtime.api.openSections();
-    if (!open.includes(runtime.api.section)) runtime.api.section = open[0] || 'npc';
+    const open = runtime.api.openSections(), section = shownSection(runtime, open);
+    runtime.api.section = section;
+    if (section !== 'npc') runtime.state.exchange = section;
     if ((0, runtime.deps.isMarketUnlocked)()) (0, runtime.deps.refreshBlackMarket)(false);
-    panel.style.setProperty('--market-tabs', String(Math.max(1, open.length))); // css/themes/pixel.css .market-tabs
-    for (const button of panel.querySelectorAll('[data-market-section]')) {
-        const id = button.dataset.marketSection, active = id === runtime.api.section;
+    // The sections are shown first: a hidden section draws nothing.
+    for (const id of ['auction', 'stall', 'hall']) runtime.deps.document.getElementById('market-panel-' + id).hidden = id !== section;
+    renderMarketSection(runtime, section);
+    paintExchangeTabs(runtime, panel, open, section);
+}
+
+/** The second screen's tab row: the auction's three tabs (their names and marks are the auction's), the stall and the hall. Only open ones
+ * show; the chosen one is the shown section (for the auction, its shown tab). */
+function paintExchangeTabs(runtime, panel, open, section) {
+    const auctionTab = runtime.deps.auctionHouseUi.shownTab(), buttons = [...panel.querySelectorAll('[data-market-section]')];
+    if (open.includes('auction')) runtime.deps.auctionHouseUi.paintTabLabels();
+    for (const button of buttons) {
+        const id = button.dataset.marketSection, active = id === section && (!button.dataset.ahTab || button.dataset.ahTab === auctionTab);
         button.hidden = !open.includes(id);
         button.setAttribute('aria-selected', String(active));
         button.tabIndex = active ? 0 : -1;
-        runtime.deps.document.getElementById('market-panel-' + id).hidden = !active;
     }
-    renderMarketSection(runtime, runtime.api.section);
+    panel.style.setProperty('--market-tabs', String(Math.max(1, buttons.filter(button => !button.hidden).length))); // css/themes/pixel.css .market-tabs
 }
 
 export function renderMarketSection(runtime, section) {

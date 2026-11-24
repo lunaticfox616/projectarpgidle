@@ -75,11 +75,11 @@ function bandHtml(runtime) {
         <span class="ah-next">${nextChangeText(runtime, pulse.bucket)}</span>`;
 }
 
+/** The frame: the head (market band and purse) and the view. The three tabs stand outside it, on the trade window's tab row
+ * (index.html #market-exchange-tabs, beside the stall and the hall): paintTabs writes their names and marks there. */
 function skeletonHtml(runtime) {
-    const tabs = TABS.map(([id]) => `<button type="button" role="tab" class="psd-tab" id="ah-tab-${id}" aria-controls="ah-view" data-ah-tab="${id}"><span class="ah-tab-label"></span></button>`).join('');
-    return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-top">
-            <nav class="ah-tabs psd-tabs" role="tablist" aria-label="${runtime.deps._t('경매장')}" onkeydown="marketUi.moveTab(event)">${tabs}</nav><div class="ah-band"></div><div class="ah-purse"></div></header>
-        <div class="ah-view" id="ah-view" role="tabpanel"></div></div>`;
+    return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-top"><div class="ah-band"></div><div class="ah-purse"></div></header>
+        <div class="ah-view" id="ah-view"></div></div>`;
 }
 
 function tabLabelHtml(runtime, id, label) {
@@ -89,16 +89,15 @@ function tabLabelHtml(runtime, id, label) {
     return `<span class="px-center">${trHtml(runtime, label)} <small>${lots}/${runtime.deps.auctionHouse.rules.myLots.slots}</small></span>${dot}`;
 }
 
-function paintTabs(runtime, root) {
-    const tab = runtime.state.tab;
+/** Writes the three tabs' names and marks on the trade window's tab row (which one is chosen is the market's to say: the row also holds
+ * the stall and the hall) and, with the section's root, which tab its view shows. */
+export function paintTabs(runtime, root) {
+    const row = runtime.deps.document.getElementById('market-exchange-tabs');
     for (const [id, label] of TABS) {
-        const button = root.querySelector(`[data-ah-tab="${id}"]`), active = id === tab;
-        button.setAttribute('aria-selected', String(active));
-        button.tabIndex = active ? 0 : -1;
-        paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, id, label));
+        const button = row && row.querySelector(`[data-ah-tab="${id}"]`);
+        if (button) paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, id, label));
     }
-    root.querySelector('.ah-view').setAttribute('aria-labelledby', `ah-tab-${tab}`);
-    root.dataset.tab = tab;
+    if (root) root.dataset.tab = runtime.state.tab;
 }
 
 const VIEWS = Object.freeze({ gear: gearViewHtml, materials: materialsViewHtml, mine: standsViewHtml });

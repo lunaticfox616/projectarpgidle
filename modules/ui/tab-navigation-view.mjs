@@ -111,7 +111,7 @@ function initialize(runtime) {
         { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
         { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
         { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-guide', 'tab-records'] },
-        { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-trade'] },
+        { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-trade', 'tab-auction'] },
         { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-settings', 'tab-battle'] }
     ];
     runtime.state.lastTabNotiSignature = '';

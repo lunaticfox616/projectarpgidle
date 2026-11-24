@@ -4,7 +4,7 @@ import { markGearRouteSelection } from './tab-merged-panels.mjs';
 export function runWindowOpenHooks(runtime, tabId, shownId) {
     const { deps } = runtime;
     if (shownId === 'tab-items' && deps.equipmentTriage) deps.equipmentTriage.onOpen();
-    if (tabId === 'tab-trade' && deps.marketUi.section === 'hall') deps.loadPlayerExchange();
+    if ((tabId === 'tab-trade' || tabId === 'tab-auction') && deps.marketUi.section === 'hall') deps.loadPlayerExchange();
     deps.tutorialActionUi.followOpeningTab(shownId);
 }
 

@@ -7,7 +7,7 @@ import { scheduleViewFrame } from './view-frames.mjs';
 export function renderVisibleManagementPanels(runtime, tabIds) {
     if (tabIds.has('tab-talent')) runtime.deps.talentUi.render();
     if (tabIds.has('tab-stump')) runtime.deps.stumpBoxUi.renderStumpBoxTab();
-    if (tabIds.has('tab-trade')) (0, runtime.deps.renderMarketUI)();
+    if (tabIds.has('tab-trade') || tabIds.has('tab-auction')) (0, runtime.deps.renderMarketUI)();
     else (0, runtime.deps.refreshBlackMarket)(false);
 }
 

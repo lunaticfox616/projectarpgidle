@@ -2,6 +2,12 @@
 
 ## 거래 탭과 재화 교환 (2026-11-06, 2026-11-10 갱신)
 
+- 2026-11-24(사용자: 가운데 탭 줄이 자리를 너무 쓴다): 거래 창은 창 머리의 탭 둘로 오가는 두 화면이다(`MERGED_TAB_GROUPS.trade`, 장비와 스킬룬처럼).
+  첫 화면 NPC(`tab-trade`)에는 NPC와 암거래상이, 둘째 화면 경매장(`tab-auction`)에는 탭 줄 하나(`#market-exchange-tabs`)에 경매장의 아이템, 재료, 내 출품과
+  가판대, 장비 전당이 나란히 선다(열린 것만). 예전의 가운데 탭 줄(NPC, 가판대, 장비 전당, 경매장)은 없다. `marketUi.show(칸)`과 `marketUi.open(칸)`은 그대로이고
+  칸이 다른 화면에 있으면 화면도 바꾼다. 가판대의 규칙(손님, 흥정, 정산)은 그대로이고 자리만 경매장 화면으로 옮겼다. PC의 넓은 창에서는 그 탭 줄, 한 줄 시세,
+  지갑이 한 줄에 선다(css/auction-house.css의 subgrid).
+
 - 장비 창의 거래소 칸은 **거래** 창(`tab-trade`, 메뉴 단추는 사용자의 Trade icon.zip, 단축키 R)이 되어 NPC(예전 기록 창의 NPC 탭), 가판대(예전
   나의 가판대), 장비 전당(예전 장비 전당 칸)을 칸으로 담는다. 열린 칸만 보인다(js/market-ui.js). 옛 주소 `item-tab-market`, `item-tab-hall`은
   거래 창으로 간다(js/ui.js switchItemSubtab).
