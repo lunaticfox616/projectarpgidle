@@ -35,7 +35,9 @@ export function headHtml(runtime, { lead, name, plate, sub = [] }) {
 }
 
 /** 칸 하나: 도트 그림, 이름, 값. 별이나 이슬이 수를 바꾸면 기준 → 지금 값. */
-export function statHtml(runtime, name, label, [base, now]) {
+/** @param {any} runtime @param {string} name @param {string} label @param {number[]} pair [기준, 지금 값] */
+export function statHtml(runtime, name, label, pair) {
+    const [base, now] = pair;
     const value = base === now ? esc(runtime, runtime.deps._t('{count}개', { count: now })) : `<s>${esc(runtime, runtime.deps._t('{count}개', { count: base }))}</s><i aria-hidden="true">→</i>${esc(runtime, runtime.deps._t('{count}개', { count: now }))}`;
     return `<div class="as-stat${base === now ? '' : ' is-changed'}">${icon(runtime, name)}<small>${esc(runtime, runtime.deps._t(label))}</small><b>${value}</b></div>`;
 }
@@ -175,7 +177,8 @@ export function pickCardHtml(runtime) {
 }
 
 /** 주 단추. 들어갈 수 없으면 까닭이 단추의 글 자리를 대신한다(단추는 꺼진다). */
-export function goButtonHtml(runtime, { label, params, action, reason, extra = '' }) {
+/** @param {any} runtime @param {{ label: string, action: string, params?: object, reason?: string, extra?: string }} button */
+export function goButtonHtml(runtime, { label, action, params = undefined, reason = '', extra = '' }) {
     const text = reason ? (0, runtime.deps.escapeHTML)(reason) : esc(runtime, runtime.deps._t(label, params));
     return `<button type="button" class="psd-btn is-primary atlas-primary as-go-main${reason ? ' is-refused' : ''}"${extra} onclick="${action}" ${reason ? 'disabled' : ''}>${text}</button>`;
 }

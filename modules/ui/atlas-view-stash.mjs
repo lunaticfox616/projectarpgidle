@@ -31,7 +31,7 @@ export function tierRows(runtime) {
         const key = runtime.deps.atlas.isMapStone(map) ? map.tier : 'guardian';
         rows.set(key, [...(rows.get(key) || []), map]);
     }
-    return [...rows.entries()].sort(([a], [b]) => (a === 'guardian') - (b === 'guardian'));
+    return [...rows.entries()].sort(([a], [b]) => Number(a === 'guardian') - Number(b === 'guardian'));
 }
 
 export function rowHtml(runtime, [key, maps]) {
