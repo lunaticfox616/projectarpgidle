@@ -50,7 +50,8 @@ function moverRows(runtime, pulse) {
         .map(row => ({ ...row, factor: pulse.factors[row.key] }));
     const up = rows.filter(row => row.factor > 1).sort((a, b) => b.factor - a.factor).slice(0, MOVERS);
     const down = rows.filter(row => row.factor < 1).sort((a, b) => a.factor - b.factor).slice(0, MOVERS);
-    return [...up, ...down];
+    // Risers and fallers take turns (the largest of each first): the band shows only the chips that fit whole, so both kinds stay in view.
+    return up.flatMap((row, at) => [row, down[at]]).concat(down.slice(up.length)).filter(Boolean);
 }
 
 function chipHtml(runtime, row) {
@@ -77,8 +78,7 @@ function bandHtml(runtime) {
 function skeletonHtml(runtime) {
     const tabs = TABS.map(([id]) => `<button type="button" role="tab" class="psd-tab" id="ah-tab-${id}" aria-controls="ah-view" data-ah-tab="${id}"><span class="ah-tab-label"></span></button>`).join('');
     return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-top">
-            <nav class="ah-tabs psd-tabs" role="tablist" aria-label="${runtime.deps._t('경매장')}" onkeydown="marketUi.moveTab(event)">${tabs}</nav><div class="ah-purse"></div></header>
-        <div class="ah-band"></div>
+            <nav class="ah-tabs psd-tabs" role="tablist" aria-label="${runtime.deps._t('경매장')}" onkeydown="marketUi.moveTab(event)">${tabs}</nav><div class="ah-band"></div><div class="ah-purse"></div></header>
         <div class="ah-view" id="ah-view" role="tabpanel"></div></div>`;
 }
 

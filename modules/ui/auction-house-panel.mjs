@@ -27,9 +27,11 @@ const typed = (values, value) => (values && value !== null && value !== undefine
 
 const recentMode = runtime => runtime.state.gear.mode === 'recent';
 
-/** A tab of a strip: tab is { value, label, on, art? }. */
+/** A tab of a strip: tab is { value, label, on, art?, compact? }. A compact tab with a picture shows the picture alone until it is pressed
+ * (its name is then the tooltip and the accessible name). */
 function tabHtml(runtime, attr, tab) {
-    return `<button type="button" class="psd-tab ah-cat${tab.on ? ' is-on' : ''}" ${attr}="${esc(runtime, tab.value)}" aria-pressed="${tab.on}">${tab.art || ''}<span>${esc(runtime, tab.label)}</span></button>`;
+    const label = esc(runtime, tab.label), compact = tab.compact && tab.art ? ` is-compact" data-tip="${label}" aria-label="${label}` : '';
+    return `<button type="button" class="psd-tab ah-cat${tab.on ? ' is-on' : ''}${compact}" ${attr}="${esc(runtime, tab.value)}" aria-pressed="${tab.on}">${tab.art || ''}<span>${label}</span></button>`;
 }
 
 /** A strip tab's picture ('' without an address). */
@@ -46,12 +48,13 @@ function kindArtSrc(runtime, kind) {
     return kept.get(kind) || '';
 }
 
-/** The category strip: 전체, each gear slot with the slot's picture, each open kind that is not gear with a lot's picture; at its end the 최근 거래 switch. */
+/** The category strip: 전체, each gear slot with the slot's picture, each open kind that is not gear with a lot's picture (pictures alone, the
+ * pressed one with its name); at its end the 최근 거래 switch. */
 function catsHtml(runtime) {
     const chosen = categoryOf(liveQuery(runtime)), rules = runtime.deps.auctionHouse.searchRules, recent = recentMode(runtime);
     const rows = [['all', tr(runtime, '전체'), ''], ...rules.slots.map(slot => [`slot:${slot}`, slotName(runtime, slot), runtime.deps.getEquipmentGridVisualAsset({ slot })]),
         ...openKinds(runtime).filter(kind => kind !== 'gear').map(kind => [`kind:${kind}`, kindLabel(runtime, kind), kindArtSrc(runtime, kind)])];
-    return `${rows.map(([value, label, src]) => tabHtml(runtime, 'data-ah-cat', { value, label, on: value === chosen, art: artHtml(runtime, src) })).join('')}
+    return `${rows.map(([value, label, src]) => tabHtml(runtime, 'data-ah-cat', { value, label, on: value === chosen, art: artHtml(runtime, src), compact: true })).join('')}
         <button type="button" class="psd-tab ah-recent${recent ? ' is-on' : ''}" data-ah-mode="${recent ? 'open' : 'recent'}" aria-pressed="${recent}"><span>${esc(runtime, tr(runtime, '최근 거래'))}</span></button>`;
 }
 
