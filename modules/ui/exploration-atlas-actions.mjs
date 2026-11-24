@@ -135,13 +135,6 @@ export function showAtlasMap(runtime, on) {
     if (map?.getClientRects().length) return transitionAtlasMap(runtime, beginAtlasTurn(runtime, map));
 }
 
-export function enterAtlasRegion(runtime, id) {
-    if (!available(runtime, 'map-explore-worldtree') || !runtime.deps.ATLAS.regions.some(region => region.id === id)) return;
-    runtime.deps.atlasUi.selectRegion(id, true);
-    enter(runtime, 'map-explore-worldtree');
-    runtime.deps.document.querySelector('#ui-atlas .atlas-region-tabs [aria-pressed="true"]')?.focus({ preventScroll: true });
-}
-
 export function enterAtlasNode(runtime, id) {
     if (!available(runtime, 'map-explore-worldtree') || !runtime.deps.atlas.nodes.some(node => node.id === id)) return;
     enter(runtime, 'map-explore-worldtree');

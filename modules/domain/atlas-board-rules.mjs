@@ -121,11 +121,14 @@ export function atlasBoardRuleTierFor(b) { return Math.min(20, 8 + b.risk + Math
 
 export function atlasBoardRuleLossPctFor(env, b, boss) { return env.C.lossPct + (b.promise && boss ? env.C.promise.lossPct : 0); }
 
+/** 칸의 node는 예전 지도 칸(<권역>_<칸>)이나 예전 수호자다: 지도 칸은 그 내용을 맡은 천문도의 지도(ATLAS.hosts의 첫 곳)에서 싸운다. */
+export function atlasBoardRuleNodeOf(env, tile) { return env.deps.atlas.hosts(tile.node)[0] || tile.node; }
+
 export function atlasBoardRulePlan(env, state) {
     const b = atlasBoardRuleLedger(state), p = b.pending;
     if (!atlasBoardRuleUnlocked(env, state) || !p) return null;
     const t = atlasBoardRuleTile(env, p.position), boss = t.kind === 'boss';
-    return { id: p.id, node: t.node, boss, name: t.name, tier: atlasBoardRuleTierFor(b),
+    return { id: p.id, node: atlasBoardRuleNodeOf(env, t), boss, name: t.name, tier: atlasBoardRuleTierFor(b),
         risk: b.risk, boost: b.boost, diceFound: boss && p.diceFound === true };
 }
 

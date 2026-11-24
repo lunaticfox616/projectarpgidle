@@ -19,5 +19,5 @@ export function memoryArenaEntryReason(env, state, nodeId, tier) {
 }
 
 // ---------------------------------------------------------------- the fight
-/** The memory map's tier: the node's tier + tierStep × tier, under the atlas cap. */
-export function memoryArenaMapTier(env, state, node, tier) { return Math.min(env.deps.ATLAS.tierCap, env.deps.atlas.effectiveTier(state, node) + env.M.fight.tierStep * tier); }
+/** The memory map's fight tier: the node's fight tier (a map's chart tier turned into its game tier) + tierStep × tier, under the atlas cap. */
+export function memoryArenaMapTier(env, state, node, tier) { return Math.min(env.deps.ATLAS.tierCap, env.deps.atlas.gameTier(state, node) + env.M.fight.tierStep * tier); }

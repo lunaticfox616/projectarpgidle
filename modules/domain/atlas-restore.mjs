@@ -3,14 +3,44 @@ import { atlasCoreDefaults } from './atlas-state.mjs';
 import { atlasAutoUnlocked } from './atlas-auto.mjs';
 import { atlasCoreNormalizeResult, atlasCoreNormalizeTally } from './atlas-receipts.mjs';
 import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
+import { atlasCoreCancel } from './atlas-completion.mjs';
+import { atlasCorePoints } from './atlas-graph.mjs';
+import { atlasChartMove, atlasChartStaleRun } from './atlas-chart-migration.mjs';
 
-/** Defaults, the one-time move from the world-tree journey (its unlock carries over), corrupt entries dropped, unique uids. */
+/** 보관함에 둘 수 있는 것: 지도 노드의 지도석(천문도 등급을 넘는 손상된 등급은 가장 높은 등급으로)과 예전 수호자의 지도석(C 단계까지 그대로 둔다). */
+function stashStone(env, map) {
+    const kind = map && env.BY_ID.get(map.node).kind;
+    if (kind === 'map') return { ...map, tier: Math.min(env.CHART_TIERS, map.tier) };
+    return kind === 'guardian' ? map : null;
+}
+
+/** 완료와 보너스: 아는 노드만. 천문도 밖에 남은 예전 수호자와 정점의 첫 완료는 새 천문도에서 버린다(예전 지도 id는 모르는 id라 함께 빠진다). */
+function clearedNodes(env, raw) {
+    const done = atlasCoreNodeList(env, raw.completed, id => !env.LEGACY.includes(env.BY_ID.get(id)));
+    return { done, bonus: atlasCoreNodeList(env, raw.bonus, id => done.includes(id)) };
+}
+
+function restoreStash(env, raw, validMap) {
+    return (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).map(map => stashStone(env, map)).filter(Boolean).slice(0, env.deps.ATLAS.stashCap);
+}
+
+/** 예전 저장을 천문도로 옮기고(제자리에서), 옮기기 전의 것 둘을 돌려준다: 이어질 수 없는 열린 지도가 있었는지, 예전 정점을 완료했는지
+ * (후반 아틀라스의 깨어남을 예전 완료 기록에서 잇는 저장이 있다: atlasEndgame.normalize). */
+function moveToChart(env, raw) {
+    const before = { stale: atlasChartStaleRun(env, raw.run), pinnacleDone: Array.isArray(raw.completed) && raw.completed.includes(env.PINNACLE.id) };
+    atlasChartMove(env, raw);
+    return before;
+}
+
+/** Defaults, the one-time move from the world-tree journey (its unlock carries over), the move to the star chart (atlas-chart-migration),
+ * corrupt entries dropped, unique uids. */
 export function atlasCoreNormalize(env, state) {
     atlasCoreRenameSavedIds(env, [state.atlas, state.actExploration, state.enemies]);
     const raw = state.atlas && typeof state.atlas === 'object' ? state.atlas : {};
     env.deps.atlasEndgame.moveAltarMaterials(state, raw.endgame);
     const journeyUnlocked = !!(state.worldTreeJourney && state.worldTreeJourney.unlocked === true);
     delete state.worldTreeJourney;
+    const { stale, pinnacleDone } = moveToChart(env, raw);
     const uids = new Set(), validMap = entry => {
         const map = env.deps.atlasMaps.normalize(entry, id => env.BY_ID.has(id));
         if (!map || uids.has(map.uid)) return null;
@@ -18,12 +48,12 @@ export function atlasCoreNormalize(env, state) {
         return map;
     };
     // The open map claims its uid first: a stash entry sharing it is the duplicate.
-    const done = atlasCoreNodeList(env, raw.completed, () => true), bonus = atlasCoreNodeList(env, raw.bonus, id => done.includes(id)), run = atlasCoreNormalizeRun(env, raw.run, validMap);
-    const epoch = env.deps.atlasEpoch.normalize(raw.epoch), epochPoints = env.deps.atlasEpoch.points({ atlas: { epoch } });
-    const next = { ...atlasCoreDefaults(env), unlocked: raw.unlocked === true || journeyUnlocked, completed: done, bonus,
-        passives: env.deps.atlasPassives.normalize(raw.passives, done.length + bonus.length + epochPoints), epoch,
-        stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(map => map && env.NODES.includes(env.BY_ID.get(map.node)) && map.node !== env.PINNACLE.id).slice(0, env.deps.ATLAS.stashCap),
-        fragments: atlasCoreNormalizeFragments(env, raw.fragments), run, lastResult: atlasCoreNormalizeResult(env, raw.lastResult), endgame: env.deps.atlasEndgame.normalize(raw.endgame, done.includes(env.PINNACLE.id)),
+    const { done, bonus } = clearedNodes(env, raw), run = atlasCoreNormalizeRun(env, raw.run, validMap);
+    const epoch = env.deps.atlasEpoch.normalize(raw.epoch);
+    const next = { ...atlasCoreDefaults(env), unlocked: raw.unlocked === true || journeyUnlocked, sextant: raw.sextant === true, completed: done, bonus,
+        passives: env.deps.atlasPassives.normalize(raw.passives, atlasCorePoints()), epoch,
+        stash: restoreStash(env, raw, validMap),
+        fragments: atlasCoreNormalizeFragments(env, raw.fragments), run, lastResult: atlasCoreNormalizeResult(env, raw.lastResult), endgame: env.deps.atlasEndgame.normalize(raw.endgame, pinnacleDone),
         memory: atlasCoreNormalizeMemory(env, raw.memory), leaves: env.deps.memoryLeaves.normalize(raw.leaves), board: env.deps.atlasBoard.normalize(raw.board), tally: atlasCoreNormalizeTally(raw.tally),
         seeds: Math.max(0, Math.min(env.deps.ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
         autoMap: raw.autoMap === true, autoGuardians: raw.autoGuardians !== false, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
@@ -33,6 +63,8 @@ export function atlasCoreNormalize(env, state) {
     restoreWheelAccess(state, raw);
     atlasCoreRestoreBoardRun(env, raw, state);
     atlasCoreSetLoadout(env, state, Array.isArray(raw.loadout) ? raw.loadout : []);
+    // 새 천문도에서 이어질 수 없는 열린 지도는 입장 직후의 취소와 같이 닫는다: 지도석(옮겨진 것)과 쓴 각인, 입장권이 돌아온다.
+    if (stale) atlasCoreCancel(env, state);
     return next;
 }
 

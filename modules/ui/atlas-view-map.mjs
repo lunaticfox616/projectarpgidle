@@ -1,4 +1,4 @@
-import { shownNodes, done, ledger, panelOpen, terrainOf, tierStyle, nodeLabel, nodeName, heldLate, encounterNames, selectedMap, TICKET, sortedStash, selectedDestination, stonesForNode, mapLabel, mapName } from './atlas-view-model.mjs';
+import { shownNodes, done, ledger, panelOpen, terrainOf, tierStyle, mapTierStyle, nodeLabel, nodeName, heldLate, encounterNames, selectedMap, TICKET, sortedStash, selectedDestination, stonesForNode, mapLabel, mapName } from './atlas-view-model.mjs';
 
 export function chartHtml(runtime) {
     const region = runtime.deps.ATLAS.regions.find(row => row.id === runtime.state.selectedRegion), lore = runtime.deps.ATLAS.lore.regions[runtime.state.selectedRegion];
@@ -45,13 +45,13 @@ export function hint(runtime, event, id) {
     const node = runtime.deps.atlas.node(id);
     if (!node || typeof runtime.deps.showInfoTooltipHtml !== 'function') return;
     const region = runtime.deps.ATLAS.regions.find(row => row.id === node.region), tint = region ? region.tint : '#d9b066';
-    const status = runtime.deps.atlas.status(runtime.deps.game, id), tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node);
+    const status = runtime.deps.atlas.status(runtime.deps.game, id), tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node), fight = runtime.deps.atlas.gameTier(runtime.deps.game, node);
     const title = `<div class="tooltip-title" style="color:${tint}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name))}</div>`;
-    if (status === 'locked') return (0, runtime.deps.showInfoTooltipHtml)(event.clientX, event.clientY, title, tint);
+    if (status === 'locked' || node.kind === 'gate') return (0, runtime.deps.showInfoTooltipHtml)(event.clientX, event.clientY, title, tint);
     const kind = node.kind === 'map' ? terrainOf(runtime, node) : `${node.kind === 'guardian' ? (0, runtime.deps._t)('지역 수호자') : (0, runtime.deps._t)('정점')}(${terrainOf(runtime, node)})`;
     const where = region ? `, ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(region.name))}` : '';
     (0, runtime.deps.showInfoTooltipHtml)(event.clientX, event.clientY, `${title}
-            <div class="tooltip-line"><span class="atlas-tip-tier" style="${tierStyle(runtime, tier)}">${(0, runtime.deps._t)('{tier}등급', { tier })}</span> <span style="color:${runtime.state.STATUS_TONE[status]}">${(0, runtime.deps._t)(runtime.state.STATUS[status])}</span>${where}</div>
+            <div class="tooltip-line"><span class="atlas-tip-tier" style="${tierStyle(runtime, fight)}">${(0, runtime.deps._t)('{tier}등급', { tier })}</span> <span style="color:${runtime.state.STATUS_TONE[status]}">${(0, runtime.deps._t)(runtime.state.STATUS[status])}</span>${where}</div>
             <div class="tooltip-line">${(0, runtime.deps._t)('{kind}, 보스 {boss}', { kind, boss: (0, runtime.deps.escapeHTML)(node.boss) })}</div>`, tint);
 }
 
@@ -71,7 +71,7 @@ export function nodeHtml(runtime, node) {
     const classes = ['atlas-node', `is-${status}`, `kind-${node.kind}`, node.id === runtime.state.selectedNode ? 'is-selected' : '', active ? 'is-running' : ''].join(' ');
     const tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node);
     // data-info-tooltip-anchor: js/ui.js의 mousemove 감시가 이 표시가 없는 곳의 툴팁을 바로 지워, 지도 이름이 뜨자마자 사라졌다(2026-10-25 사용자).
-    return `<button class="${classes}" style="--x:${x}%;--y:${y}%;${tierStyle(runtime, tier)}" data-atlas-node="${node.id}" data-info-tooltip-anchor="1" aria-pressed="${node.id === runtime.state.selectedNode}"
+    return `<button class="${classes}" style="--x:${x}%;--y:${y}%;${tierStyle(runtime, runtime.deps.atlas.gameTier(runtime.deps.game, node))}" data-atlas-node="${node.id}" data-info-tooltip-anchor="1" aria-pressed="${node.id === runtime.state.selectedNode}"
             aria-label="${nodeLabel(runtime, node, tier, status)}" onclick="atlasUi.selectNode('${node.id}')"
             onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><b>${tier}</b><span class="atlas-route-name">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name))}</span>${held ? `<i>${held}</i>` : ''}</button>`;
 }
@@ -95,7 +95,8 @@ export function mapCardHtml(runtime, map, extra, nodeId = map.node) {
     // 지도석 없이 연 싸움(정점, 최종 보스, 리그 우두머리)은 희귀도 · 옵션 · 수량 없이 무엇인지만.
     const special = runtime.state.RUN_KIND[runtime.deps.atlas.node(map.node)?.kind];
     if (special) return `<div class="atlas-map-card"><strong>${(0, runtime.deps.escapeHTML)(nodeName(runtime, map.node))}</strong><span class="atlas-map-tags">${(0, runtime.deps._t)('{tier}등급, {special}', { tier: map.tier, special })}</span>${extra}</div>`;
-    const fx = runtime.deps.atlasMaps.effects(map), rule = runtime.deps.ATLAS.rarities[map.rarity];
+    // 고등급 보상은 싸움 등급으로 센다(천문도 등급의 지도석도 씨앗이 올린 등급을 받는다).
+    const fx = runtime.deps.atlasMaps.effects({ ...map, tier: runtime.deps.atlas.mapGameTier(runtime.deps.game, map) }), rule = runtime.deps.ATLAS.rarities[map.rarity];
     const mods = map.mods.map(entry => `<li>${(0, runtime.deps.escapeHTML)(runtime.deps.atlasMaps.describe(entry))}</li>`).join('');
     const tags = [(0, runtime.deps._t)('{tier}등급', { tier: map.tier }), rule.name, map.quality ? (0, runtime.deps._t)('품질 {quality}%', { quality: map.quality }) : '', map.corrupted ? '타락' : '',
         fx.overTiers ? (0, runtime.deps._t)('고등급 보상 {overTiers}단계', { overTiers: fx.overTiers }) : ''].filter(Boolean).join(', ');
@@ -208,12 +209,12 @@ export function nodeDetailHtml(runtime) {
     const node = runtime.deps.atlas.node(runtime.state.selectedNode);
     if (!node) return '<section class="atlas-node-detail"><p class="atlas-muted">노드를 누르면 정보가 보입니다. 완료한 노드의 이웃이 열립니다.</p></section>';
     if (node.kind === 'pinnacle') return pinnacleHtml(runtime, node);
-    const region = runtime.deps.ATLAS.regions.find(row => row.id === node.region), status = runtime.deps.atlas.status(runtime.deps.game, node.id), tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node);
-    const maps = stonesForNode(runtime, node).sort((a, b) => b.tier - a.tier);
+    const region = runtime.deps.ATLAS.regions.find(row => row.id === node.region) || { tint: '#d9b066', name: node.name }, status = runtime.deps.atlas.status(runtime.deps.game, node.id), tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node);
+    const maps = stonesForNode(runtime, node).sort((a, b) => b.tier - a.tier), fight = runtime.deps.atlas.gameTier(runtime.deps.game, node);
     const kind = node.kind === 'guardian' ? `<p class="atlas-guardian-note">${(0, runtime.deps._t)('지역 수호자, 처치마다 뿌리 입장권({value}), 지도석은 이 지역 {minTier}등급 이상 보스가 떨어뜨립니다', { value: node.ticket ? TICKET(runtime, node.ticket) : (0, runtime.deps._t)('가장 적은 종류'), minTier: runtime.deps.ATLAS.guardianRules.minTier })}</p>${runtime.deps.itemInfluencesUi.sourceHtml('guardian')}` : '';
     return `<section class="atlas-node-detail" style="--tint:${region.tint}"><small>${(0, runtime.deps._t)(region.name)}, ${runtime.state.STATUS[status]}</small><h3>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name))}</h3>
             <p>${(0, runtime.deps._t)('{tier}등급, {node}, 보스 {boss}', { tier, node: terrainOf(runtime, node), boss: (0, runtime.deps.escapeHTML)(node.boss) })}</p>${kind}
-            <p class="atlas-muted">${(0, runtime.deps._t)('장비 T{lootTier}까지, 혼돈 {equivalentDepth} 상당', { lootTier: runtime.deps.atlas.lootTier(tier), equivalentDepth: runtime.deps.atlas.equivalentDepth(tier) })}</p>
+            <p class="atlas-muted">${(0, runtime.deps._t)('장비 T{lootTier}까지, 혼돈 {equivalentDepth} 상당', { lootTier: runtime.deps.atlas.lootTier(fight), equivalentDepth: runtime.deps.atlas.equivalentDepth(fight) })}</p>
             ${maps.length ? `<div class="atlas-node-maps">${maps.map(runtime.handlers.stashRowHtml).join('')}</div>` : `<p class="atlas-muted">${stoneNeeded(runtime, node) || (0, runtime.deps._t)('수호자 지도석이 필요합니다.')}</p>`}</section>`;
 }
 
@@ -231,7 +232,7 @@ export function pinnacleHtml(runtime, node) {
 
 export function stashRowHtml(runtime, map) {
     return `<button class="atlas-stash-row rarity-${map.rarity}" aria-pressed="${map.uid === runtime.state.selectedUid}" onclick="atlasUi.selectMap(${map.uid})">
-            <b style="${tierStyle(runtime, map.tier)}">${map.tier}</b><span>${(0, runtime.deps.escapeHTML)(mapLabel(runtime, map))}${omenChipHtml(runtime, map)}</span><small>${(0, runtime.deps._t)(runtime.deps.ATLAS.rarities[map.rarity].name)}${map.mods.length ? (0, runtime.deps._t)(', 옵션 {length}', { length: map.mods.length }) : ''}${map.quality ? `, ${map.quality}%` : ''}${map.corrupted ? (0, runtime.deps._t)(', 타락') : ''}</small></button>`;
+            <b style="${mapTierStyle(runtime, map)}">${map.tier}</b><span>${(0, runtime.deps.escapeHTML)(mapLabel(runtime, map))}${omenChipHtml(runtime, map)}</span><small>${(0, runtime.deps._t)(runtime.deps.ATLAS.rarities[map.rarity].name)}${map.mods.length ? (0, runtime.deps._t)(', 옵션 {length}', { length: map.mods.length }) : ''}${map.quality ? `, ${map.quality}%` : ''}${map.corrupted ? (0, runtime.deps._t)(', 타락') : ''}</small></button>`;
 }
 
 /** 일괄 버리기(고른 지도석이 없어도 보인다): 희귀도와 등급을 고르는 창을 연다. 버릴 수 있는 지도 노드 지도석이 없으면 꺼진다. */

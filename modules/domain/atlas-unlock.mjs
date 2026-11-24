@@ -1,4 +1,4 @@
-import { atlasCoreOpensNow } from './atlas-access.mjs';
+import { atlasCoreOpensNow, atlasCoreLockReason } from './atlas-access.mjs';
 import { atlasCoreBonusOf } from './atlas-bonuses.mjs';
 import { atlasCoreBestTier } from './atlas-graph.mjs';
 import { atlasCoreStore } from './atlas-inventory.mjs';
@@ -15,4 +15,28 @@ export function atlasCoreSync(env, state, random = Math.random) {
     const maps = Array.from({ length: env.deps.ATLAS.starter.count + bonus.starter }, () => atlasCoreRollMap(env, state, tier, random, bonus)).filter(Boolean);
     atlasCoreStore(env, state, maps);
     return maps;
+}
+
+/** 시작 육분의를 켤 수 없는 까닭('' = 켤 수 있다): 지도를 여는 관문(루프와 이번 루프의 혼돈 20)을 넘었고, 이번 시대에 아직 켜지 않았고,
+ * 받을 지도석이 보관함에 다 들어갈 때. */
+export function atlasCoreSextantReason(env, state) {
+    const lock = atlasCoreLockReason(env, state);
+    if (lock) return lock;
+    if (state.atlas.sextant === true) return env.deps._t('시작 육분의는 이미 켜져 있습니다.');
+    return state.atlas.stash.length + env.deps.ATLAS.sextant.stones > env.deps.ATLAS.stashCap ? env.deps._t('보관함이 가득 찼습니다.') : '';
+}
+
+/** 시대마다 한 번(시대 재생이 되돌린다): 1등급 지도 넷이 열리고 일반 1등급 지도석을 입구 지도마다 하나씩 받는다(기운은 떨어진 지도석처럼 붙는다).
+ * @returns {{reason?:string, maps?:object[]}} */
+export function atlasCoreActivateSextant(env, state, random = Math.random) {
+    const reason = atlasCoreSextantReason(env, state);
+    if (reason) return { reason };
+    const rule = env.deps.ATLAS.sextant, entries = env.MAP_NODES.filter(node => node.parent === 'entry');
+    state.atlas.sextant = true;
+    const maps = Array.from({ length: rule.stones }, (_, index) => {
+        const map = env.deps.atlasMaps.create(entries[index % entries.length].id, rule.tier, 'normal', random);
+        return Object.assign(map, { omen: env.deps.lootOmens.roll(state, random), uid: state.atlas.nextUid++ });
+    });
+    atlasCoreStore(env, state, maps);
+    return { maps };
 }

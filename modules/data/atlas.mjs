@@ -1,3 +1,4 @@
+import { ATLAS_CHART } from './atlas-chart.mjs';
 // Combat encounters borrow enemies and materials from the unlocked activity. They never start a nested run.
 const regions = {
     underworld: ['지하 광맥', 'deepWhetstone', ['underworld-beetle', 'underworld-hound'], 'underworld-obsidian-centipede'],
@@ -49,8 +50,43 @@ const frontierWheels = [
     expedition('ordeals', '시련 원정', '#a26862', ['duel', 'battleTrials', 'chaosRealm', 'beyond', 'deepChaos'])
 ];
 
+// 천문도의 권역 id → 게임의 권역 id(개편 2026-11-24: 태고의 바다였던 sanctum이 기억의 회랑, 창공의 경계였던 canopy가 은하를 직조하는
+// 신전, 최초의 경계였던 trunk가 세계수 내면의 내용을 맡는다).
+const chartRegions = Object.freeze({ roots: 'roots', garden: 'garden', veil: 'sanctum', cloud: 'canopy', interior: 'trunk' });
+
+const contentRows = Object.freeze({
+    roots: [['검은 뿌리의 잔영', 1, 0], ['수맥의 탐식자', 5, 3], ['독무 정원의 포자어미', 4, 5], ['늪뿌리 수문장', 3, 2], ['밑거름의 잔재', 6, 7],
+        ['땅속 군주의 잔영', 7, 1], ['검은 샘의 주인', 5, 8], ['심근 파괴자', 1, 6], ['뿌리 심장의 망령', 10, 9]],
+    trunk: [['틈새 사냥꾼', 7, 1], ['나이테를 엮는 잔영', 4, 4], ['미궁의 옹이 수호자', 6, 6], ['길잃은 성핵 거신', 7, 2], ['천공 여왕', 4, 5],
+        ['무딘 날의 잔향', 7, 0], ['승강로 감시자', 3, 7], ['벼락의 흔적', 8, 8], ['줄기 옥좌의 군주', 10, 9]],
+    canopy: [['우듬지 매', 3, 3], ['둥지를 지키는 그리핀', 9, 1], ['십자 회랑의 잔영', 3, 0], ['나무꾼의 흐릿한 잔상', 9, 4], ['뇌운 정령', 8, 8],
+        ['떠도는 창공 거신', 3, 2], ['폭풍군단의 척후장', 10, 6], ['폭풍의 어미새', 8, 7], ['꼭대기 제사장', 5, 9]],
+    garden: [['정원사의 흐린 메아리', 2, 2], ['덤불 왕', 4, 5], ['분수의 망령', 6, 3], ['과수원의 불씨군주', 9, 4], ['칼날 회랑의 석상 수호자', 6, 6],
+        ['시든 화원의 갉는 자', 2, 0], ['빛바랜 관측자의 잔영', 4, 7], ['덩굴 성벽의 기사', 6, 8], ['첫 정원사', 6, 9]],
+    sanctum: [['참배길 순례자', 5, 1], ['서리여제의 잔상', 4, 3], ['빛바랜 태양의 사제', 5, 4], ['납골당의 시간 파수꾼', 4, 2], ['서고 사서', 4, 5],
+        ['빙결 재판관', 8, 6], ['잠든 삼원 제단', 5, 0], ['서리 왕관', 10, 8], ['잠든 눈의 수호자', 8, 9]]
+});
+
+// 갈래(권역과 세계수 보스 표지가 같은 지도들)마다 천문도 순서대로 칸 0, 1, 2…를 빌린다.
+const chartMaps = Object.freeze((() => {
+    const next = {};
+    return ATLAS_CHART.maps.map(map => {
+        const region = chartRegions[map.region], branch = region + ':' + (map.treeBoss || '');
+        next[branch] = (next[branch] ?? -1) + 1;
+        return Object.freeze({ id: map.id, region, slot: next[branch] % contentRows[region].length });
+    });
+})());
+
+const chartHosts = Object.freeze(Object.fromEntries(Object.keys(contentRows).flatMap(region => {
+    const own = chartMaps.filter(map => map.region === region);
+    return contentRows[region].map((row, slot) => {
+        const hosts = own.filter(map => map.slot === slot).map(map => map.id);
+        return [region + '_' + slot, Object.freeze(hosts.length ? hosts : [own[slot % own.length].id])];
+    });
+})));
+
 // 세계수 아틀라스 (docs/atlas-endgame-20260930.md 3절): 지역 · 노드 · 지도석 옵션과 규칙 수치. 모든 수치는 첫 제안값이다.
-// 노드 위치와 방향 연결은 lore에 정의하고 js/atlas.js가 읽는다.
+// 지도와 보스의 자리, 길은 천문도(data/atlas-chart.js)가 정하고 js/atlas.js가 읽는다.
 const ATLAS = Object.freeze({
     frontierLabels, frontierWheels,
     zoneId: 'atlas_map',
@@ -84,53 +120,30 @@ const ATLAS = Object.freeze({
     quality: Object.freeze({ max: 20, step: 5 }),
     // 타락: 무변화 · 등급 +1 · 옵션 초과 추가 · 5~6옵션 희귀로 재구성 (가중치).
     corruption: Object.freeze({ none: 30, tier: 25, extra: 25, reforge: 20, bonusQuantity: 10 }),
+    // 권역 id는 저장된 장비(dropRegion), 마름, 지역 옵션과 몬스터 표가 쓰는 열쇠라 그대로다. 천문도(2026-11-24)의 권역은 chartRegions가
+    // 이 id로 옮긴다: 이름은 천문도의 이름을 쓴다(sanctum 기억의 회랑, canopy 은하를 직조하는 신전, trunk 세계수 내면).
     regions: Object.freeze([
         { id: 'roots', name: '자립의 혈맥', act: 1, ele: 'chaos', tint: '#6f5a86' },
-        { id: 'trunk', name: '최초의 경계', act: 7, ele: 'phys', tint: '#8a6a45' },
-        { id: 'canopy', name: '창공의 경계', act: 3, ele: 'light', tint: '#5f8a9a' },
+        { id: 'trunk', name: '세계수 내면', act: 7, ele: 'phys', tint: '#8a6a45' },
+        { id: 'canopy', name: '은하를 직조하는 신전', act: 3, ele: 'light', tint: '#5f8a9a' },
         { id: 'garden', name: '검은 화로', act: 2, ele: 'fire', tint: '#9a5f45' },
-        { id: 'sanctum', name: '태고의 바다', act: 5, ele: 'cold', tint: '#5f7196' }
+        { id: 'sanctum', name: '기억의 회랑', act: 5, ele: 'cold', tint: '#5f7196' }
     ].map(Object.freeze)),
-    // [이름, 등급, 보스, 액트 지도(1~10, 그려 둔 지도를 다시 씀 — js/exploration-layouts.js), 보스 외형(액트 보스 0~9)] — 지역마다 칸 0~8 순서.
-    nodes: Object.freeze({
-        roots: [
-            ['붉은 이끼 여울', 1, '검은 뿌리의 잔영', 1, 0], ['스스로 흐르는 수맥', 2, '수맥의 탐식자', 5, 3],
-            ['군집의 요람', 4, '독무 정원의 포자어미', 4, 5], ['혈맥 갈림길', 5, '늪뿌리 수문장', 3, 2],
-            ['빈 껍질 저장고', 7, '밑거름의 잔재', 6, 7], ['첫 무리의 무덤', 9, '땅속 군주의 잔영', 7, 1],
-            ['생명핵의 샘', 11, '검은 샘의 주인', 5, 8], ['뿔의 회랑', 13, '심근 파괴자', 1, 6],
-            ['자립의 심장', 15, '뿌리 심장의 망령', 10, 9]
-        ],
-        trunk: [
-            // 지역 수호자(T16) 뒤에 열리는 갈래: 당시 지도석 드롭 범위(T13~16)에 맞춘다. 보유 지도석의 등급은 보존한다.
-            ['낡은 껍질 문턱', 13, '틈새 사냥꾼', 7, 1], ['첫 나이테 회랑', 13, '나이테를 엮는 잔영', 4, 4],
-            ['경계의 요새', 14, '미궁의 옹이 수호자', 6, 6], ['굳은 황금수액', 14, '길잃은 성핵 거신', 7, 2],
-            ['비어 있는 생장로', 15, '천공 여왕', 4, 5], ['갈라진 시작점', 15, '무딘 날의 잔향', 7, 0],
-            ['관측의 계단', 16, '승강로 감시자', 3, 7], ['태초의 심재', 16, '벼락의 흔적', 8, 8],
-            ['기원 관측대', 16, '줄기 옥좌의 군주', 10, 9]
-        ],
-        canopy: [
-            ['바람의 초소', 2, '우듬지 매', 3, 3], ['떠 있는 망루', 3, '둥지를 지키는 그리핀', 9, 1],
-            ['단절된 잔교', 4, '십자 회랑의 잔영', 3, 0], ['창백한 구름길', 5, '나무꾼의 흐릿한 잔상', 9, 4],
-            ['벼락의 표석', 8, '뇌운 정령', 8, 8], ['경계의 섬', 9, '떠도는 창공 거신', 3, 2],
-            ['달빛 관문', 12, '폭풍군단의 척후장', 10, 6], ['폭풍의 둥지', 13, '폭풍의 어미새', 8, 7],
-            ['엘라하의 전정', 16, '꼭대기 제사장', 5, 9]
-        ],
-        garden: [
-            ['잿빛 진입로', 1, '정원사의 흐린 메아리', 2, 2], ['식은 도가니', 2, '덤불 왕', 4, 5],
-            ['검은 잉걸 마당', 3, '분수의 망령', 6, 3], ['그을린 수로', 6, '과수원의 불씨군주', 9, 4],
-            ['벼림의 작업장', 7, '칼날 회랑의 석상 수호자', 6, 6], ['꺼지지 않는 화원', 10, '시든 화원의 갉는 자', 2, 0],
-            ['봉인된 화실', 11, '빛바랜 관측자의 잔영', 4, 7], ['검은 불꽃 성벽', 14, '덩굴 성벽의 기사', 6, 8],
-            ['화로의 문턱', 15, '첫 정원사', 6, 9]
-        ],
-        sanctum: [
-            ['기억의 해안', 2, '참배길 순례자', 5, 1], ['가라앉은 회랑', 3, '서리여제의 잔상', 4, 3],
-            ['조류의 예배당', 4, '빛바랜 태양의 사제', 5, 4], ['퇴적된 기록실', 5, '납골당의 시간 파수꾼', 4, 2],
-            ['무광의 서고', 6, '서고 사서', 4, 5], ['역류하는 해구', 9, '빙결 재판관', 8, 6],
-            ['침묵의 수도원', 10, '잠든 삼원 제단', 5, 0], ['심연의 왕관', 13, '서리 왕관', 10, 8],
-            ['태초의 검은 물', 14, '잠든 눈의 수호자', 8, 9]
-        ]
-    }),
-    // 2026-11-08: 고대의 다섯 터전. id와 보유 지도석 등급을 보존한다. links는 진행 방향이다.
+    // 천문도(data/atlas-chart.js, 사용자의 개편 패키지): 지도 50곳과 보스 10곳의 자리, 부모, 길. 지도의 등급은 천문도 등급 1~10이다.
+    starChart: ATLAS_CHART,
+    chartRegions,
+    // 천문도 등급 t의 난이도와 전리품은 예전 등급 gameTiers[t - 1]을 따른다(씨앗은 그 위에 seeds.tierStep씩, tierCap까지).
+    gameTiers: Object.freeze([1, 3, 4, 6, 8, 9, 11, 13, 14, 16]),
+    // 시작 육분의: 시대마다 한 번 켜면 1등급 지도 넷이 열리고 일반 1등급 지도석을 이만큼 받는다.
+    sextant: Object.freeze({ stones: 4, tier: 1 }),
+    // 지도의 내용 [보스, 액트 지도(1~10, 그려 둔 지도를 다시 씀: js/exploration-layouts.js), 보스 외형(액트 보스 0~9)]: 권역마다 칸 0~8.
+    // 천문도의 지도는 제 권역의 칸을 갈래 순서대로 빌린다(아래 maps, 갈래가 아홉보다 길면 처음부터 다시).
+    rows: contentRows,
+    // 지도마다 빌린 칸 { id, region, slot }과, 예전 노드 id(<권역>_<칸>)가 지금 어느 지도인지(hosts: 기억의 잎, 실타래, 원정 판,
+    // 저장된 기억이 이 표로 옮겨 간다). 지도가 다섯뿐인 권역의 남는 칸은 그 권역의 지도에 차례로 얹는다.
+    maps: chartMaps,
+    hosts: chartHosts,
+    // 2026-11-08: 고대의 다섯 터전과 고대 존재들(권역의 글과 무대, 후반 싸움의 차례). 지도의 길은 천문도(starChart.routes)가 정한다.
     lore: Object.freeze({
         regions: Object.freeze({
             roots: Object.freeze({"path":"sun","note":"어머니 나무에 기대지 않고 생명을 잇는 군집의 땅.","scene":"colony"}),
@@ -148,17 +161,7 @@ const ATLAS = Object.freeze({
             Object.freeze({"id":"cosmos_astra","name":"달의 존재, 아리안로드","path":"moon","requires":["pinnacle_leviathan","pinnacle_sky"],"scene":"cosmos"}),
             Object.freeze({"id":"woodsman","name":"나무꾼","path":"pinnacle","requires":["pinnacle_underking","cosmos_astra"],"scene":"beyond"}),
             Object.freeze({"id":"pinnacle_observer","name":"경계의 관측자 베일라","path":"pinnacle","requires":["woodsman","apex_archbishop","apex_devourer","pinnacle_underking","pinnacle_leviathan","pinnacle_sky","cosmos_astra"],"scene":"beyond"}),
-        ]),
-        entryNodes: Object.freeze(["roots_0","garden_0","canopy_0","sanctum_0"]),
-        links: Object.freeze([
-            Object.freeze(["roots_0","roots_1"]),Object.freeze(["roots_0","roots_2"]),Object.freeze(["roots_1","roots_3"]),Object.freeze(["roots_2","roots_4"]),Object.freeze(["roots_3","roots_5"]),Object.freeze(["roots_4","roots_5"]),Object.freeze(["roots_4","roots_6"]),Object.freeze(["roots_5","roots_7"]),Object.freeze(["roots_6","roots_8"]),Object.freeze(["roots_7","roots_g"]),Object.freeze(["roots_8","roots_g"]),Object.freeze(["roots_g","trunk_0"]),
-            Object.freeze(["garden_0","garden_1"]),Object.freeze(["garden_1","garden_2"]),Object.freeze(["garden_1","garden_3"]),Object.freeze(["garden_2","garden_4"]),Object.freeze(["garden_3","garden_4"]),Object.freeze(["garden_4","garden_5"]),Object.freeze(["garden_4","garden_6"]),Object.freeze(["garden_5","garden_7"]),Object.freeze(["garden_6","garden_8"]),Object.freeze(["garden_7","garden_g"]),Object.freeze(["garden_8","garden_g"]),Object.freeze(["garden_g","trunk_0"]),
-            Object.freeze(["canopy_0","canopy_1"]),Object.freeze(["canopy_0","canopy_2"]),Object.freeze(["canopy_1","canopy_3"]),Object.freeze(["canopy_2","canopy_4"]),Object.freeze(["canopy_3","canopy_5"]),Object.freeze(["canopy_4","canopy_6"]),Object.freeze(["canopy_5","canopy_7"]),Object.freeze(["canopy_6","canopy_8"]),Object.freeze(["canopy_7","canopy_8"]),Object.freeze(["canopy_8","canopy_g"]),Object.freeze(["canopy_g","trunk_0"]),
-            Object.freeze(["sanctum_0","sanctum_1"]),Object.freeze(["sanctum_1","sanctum_2"]),Object.freeze(["sanctum_1","sanctum_3"]),Object.freeze(["sanctum_2","sanctum_4"]),Object.freeze(["sanctum_3","sanctum_5"]),Object.freeze(["sanctum_4","sanctum_6"]),Object.freeze(["sanctum_5","sanctum_6"]),Object.freeze(["sanctum_6","sanctum_7"]),Object.freeze(["sanctum_6","sanctum_8"]),Object.freeze(["sanctum_7","sanctum_g"]),Object.freeze(["sanctum_8","sanctum_g"]),Object.freeze(["sanctum_g","trunk_0"]),
-            Object.freeze(["trunk_0","trunk_1"]),Object.freeze(["trunk_0","trunk_2"]),Object.freeze(["trunk_1","trunk_3"]),Object.freeze(["trunk_2","trunk_4"]),Object.freeze(["trunk_3","trunk_5"]),Object.freeze(["trunk_4","trunk_6"]),Object.freeze(["trunk_5","trunk_7"]),Object.freeze(["trunk_6","trunk_8"]),Object.freeze(["trunk_7","trunk_g"]),Object.freeze(["trunk_8","trunk_g"]),
-        ]),
-        points: Object.freeze([[50,88],[28,72],[72,72],[22,54],[78,54],[28,36],[72,36],[32,19],[68,19]]),
-        guardian: Object.freeze([50,8])
+        ])
     }),
     // 지도석 옵션. 수치는 굴림(0~1)으로 [min,max] 사이를 고르고, 옵션마다 아이템 수량 · 희귀도 보너스를 더한다(같은 굴림).
     // 효과 키는 js/atlas-maps.js의 effects()가 구역 · 적에 적용한다.

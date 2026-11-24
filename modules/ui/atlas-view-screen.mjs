@@ -1,6 +1,6 @@
 import { showWheelHub } from './atlas-wheel-hub.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
-import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, tierStyle, encounterNames, mapName, stonesForNode } from './atlas-view-model.mjs';
+import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode } from './atlas-view-model.mjs';
 import { deviceCardHtml, stoneNeeded, stoneLock, flowersHtml, chancesHtml, runHtml, pinnacleHtml, stashToolsHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
 import { resultHtml } from './atlas-view-results.mjs';
 
@@ -57,7 +57,7 @@ export function journeyState(runtime) {
         ...huntingJourneyAction(runtime) };
     if (st.seeds >= runtime.deps.ATLAS.seeds.max) return { title: (0, runtime.deps._t)('씨앗을 모두 모았습니다'), text: '',
         action: "atlasUi.setView('late')", label: (0, runtime.deps._t)('최종 보스 보기'), epoch: true };
-    if (runtime.deps.ATLAS.pinnacle.tickets.every(key => runtime.deps.game.currencies[key] >= 1)) return { title: (0, runtime.deps._t)('정점 입장권 4종 준비됨'),
+    if (!runtime.deps.atlas.pinnacleReason(runtime.deps.game)) return { title: (0, runtime.deps._t)('정점 입장권 4종 준비됨'),
         text: '',
         action: "atlasUi.selectNode('pinnacle',true)", label: (0, runtime.deps._t)('정점 준비 보기') };
     return mapJourney(runtime);
@@ -145,7 +145,7 @@ export function updateHud(runtime, zone) {
     // 지도 이름은 위의 지역 이름과 같고, 주운 지도석과 각인 수는 싸우는 동안 볼 일이 없다(2026-11-06 사용자): 등급, 종류, 방, 징조, 포털만.
     const fieldChip = fieldMarkup(runtime,zone,field);
     const rooms = run.encounters.map(type => encounterChip(runtime, run, type)).join('') + fieldChip;
-    host.innerHTML = `<span class="atlas-hud-chip atlas-hud-tier" style="${tierStyle(runtime, run.map.tier)}">${(0, runtime.deps._t)('{tier}등급', { tier: run.map.tier })}</span>${hudKindHtml(runtime, run)}${rooms}${omenChipHtml(runtime, run.map)}${hudPortalsHtml(runtime, run)}
+    host.innerHTML = `<span class="atlas-hud-chip atlas-hud-tier" style="${mapTierStyle(runtime, run.map)}">${(0, runtime.deps._t)('{tier}등급', { tier: run.map.tier })}</span>${hudKindHtml(runtime, run)}${rooms}${omenChipHtml(runtime, run.map)}${hudPortalsHtml(runtime, run)}
             <button type="button" class="combat-action-btn" onclick="atlasUi.openPanel()">${(0, runtime.deps._t)('아틀라스')}</button>`;
     host.querySelector('[data-atlas-passage]')?.addEventListener('click', () => walkToPassage(runtime));
 }

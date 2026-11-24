@@ -12,9 +12,14 @@ export function panelOpen(runtime) { return runtime.deps.game.mapExploreSubtab =
 
 export function encounterNames(runtime, types, golden = []) { return types.map(type => `${golden.includes(type) ? `${runtime.deps.ATLAS.goldenRoom.prefix} ` : ''}${runtime.deps.ATLAS.encounters[type].name}`).join(', '); }
 
+/** tier: 싸움 등급(등급의 빛깔은 싸움 등급을 따른다). */
 export function tierStyle(runtime, tier) { return `--atlas-tier:${runtime.deps.atlas.tierBand(tier).tone}`; }
 
-export function viewOpen(runtime, id) { return id !== 'board' || runtime.deps.atlasBoard.unlocked(runtime.deps.game); }
+/** 지도석의 빛깔: 지도 노드의 지도석은 천문도 등급을 싸움 등급으로 바꿔서. */
+export function mapTierStyle(runtime, map) { return tierStyle(runtime, runtime.deps.atlas.mapGameTier(runtime.deps.game, map)); }
+
+/** 패시브 쪽은 별 24개(개편의 B 단계)가 올 때까지 닫혀 있다: 예전 바퀴는 포인트가 없어 찍을 수 없다. */
+export function viewOpen(runtime, id) { return id !== 'passives' && (id !== 'board' || runtime.deps.atlasBoard.unlocked(runtime.deps.game)); }
 
 export function sortedStash(runtime) { return [...ledger(runtime).stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid); }
 
@@ -41,7 +46,10 @@ export function shownNodes(runtime) { return runtime.deps.atlas.nodes.filter(nod
 
 export function done(runtime, id) { return ['complete', 'bonus'].includes(runtime.deps.atlas.status(runtime.deps.game, id)); }
 
-export function nodeLabel(runtime, node, tier, status) { return (0, runtime.deps.escapeHTML)((0, runtime.deps._t)('{name} {tier}등급 {STATUS}', {
+/** 천문도의 보스 자리는 등급이 없다: 이름과 상태만. */
+export function nodeLabel(runtime, node, tier, status) {
+    if (node.kind === 'gate') return (0, runtime.deps.escapeHTML)(`${(0, runtime.deps._t)(node.name)} ${(0, runtime.deps._t)(runtime.state.STATUS[status])}`);
+    return (0, runtime.deps.escapeHTML)((0, runtime.deps._t)('{name} {tier}등급 {STATUS}', {
         name: (0, runtime.deps._t)(node.name), tier, STATUS: (0, runtime.deps._t)(runtime.state.STATUS[status])
     })); }
 

@@ -51,11 +51,12 @@ var dropSimulation = (() => {
         playerStatCache.invalidate();
     }
 
-    const MAP_NODE_IDS = () => ATLAS.regions.flatMap(region => ATLAS.nodes[region.id].map((row, slot) => ({ id: `${region.id}_${slot}`, tier: row[1] })));
+    // options.tier는 싸움 등급(1~24)이다. 천문도의 지도석은 천문도 등급 1~10을 지닌다(ATLAS.gameTiers): 그 싸움 등급을 넘지 않는 가장 높은
+    // 천문도 등급의 지도 하나를 고르고, 16을 넘는 몫은 세계수 씨앗이 올린다(openMap).
+    const chartTierOf = tier => Math.max(1, ATLAS.gameTiers.filter(step => step <= tier).length);
     function pickNode(tier) {
-        const nodes = MAP_NODE_IDS(), near = nodes.filter(node => Math.abs(node.tier - Math.min(16, tier)) <= 2);
-        const pool = near.length ? near : nodes;
-        return pool[Math.floor(Math.random() * pool.length)].id;
+        const pool = atlas.nodes.filter(node => node.kind === 'map' && node.tier === chartTierOf(tier));
+        return pool[Math.floor(Math.random() * pool.length)];
     }
     function rollRarity(choice) {
         if (choice === 'normal' || choice === 'magic' || choice === 'rare') return choice;
@@ -65,8 +66,11 @@ var dropSimulation = (() => {
     function openMap(options) {
         // 17등급 이상은 세계수 씨앗이 노드 등급을 올린 아틀라스다(js/atlas.js effectiveTier): 지도 안에서 떨어지는 지도석도 그 등급까지 나온다.
         game.atlas.seeds = Math.max(0, Math.min(ATLAS.seeds.max, Math.ceil((options.tier - 16) / ATLAS.seeds.tierStep)));
-        const map = atlasMaps.create(pickNode(options.tier), options.tier, rollRarity(options.rarity), Math.random);
+        const node = pickNode(options.tier), map = atlasMaps.create(node.id, node.tier, rollRarity(options.rarity), Math.random);
         map.uid = game.atlas.nextUid++;
+        // 그 지도까지 온 아틀라스: 시작 육분의를 켰고 그 등급 아래의 지도를 모두 마쳤다(지도 안에서 떨어지는 지도석이 그 등급까지 나온다).
+        game.atlas.sextant = true;
+        game.atlas.completed = atlas.nodes.filter(row => row.kind === 'map' && row.tier < node.tier).map(row => row.id);
         // 'random': a dropped stone's roll (js/atlas.js stamp), 'none': an old stone without one, else that omen.
         if (options.omen !== 'none') map.omen = lootOmens.validId(options.omen) ? options.omen : lootOmens.roll(game, Math.random);
         if (options.quality) map.quality = options.quality;
@@ -203,7 +207,7 @@ yarns: Object.fromEntries(KNITTING.list.map(row => [row.id, { name: row.name, gr
                 reward: memoryLeaves.bonusText(leaf), journal: leaf.title })),
             regions: ATLAS.regions.map(({ id, name, tint }) => ({ id, name, tint })),
             fragments: Object.fromEntries(ATLAS.fragments.map(fragment => [fragment.id, fragment.name])),
-            nodes: Object.fromEntries(ATLAS.regions.flatMap(region => ATLAS.nodes[region.id].map((row, slot) => [`${region.id}_${slot}`, row[0]]))) };
+            nodes: Object.fromEntries(atlas.nodes.filter(node => node.kind === 'map').map(node => [node.id, node.name])) };
     }
     return Object.freeze({ wrapCapturePoints, prepare, runMap, catalog });
 })();

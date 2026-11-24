@@ -106,7 +106,7 @@ export async function discard(runtime) {
 export function bulkDiscardFields(runtime) {
     const rules = runtime.deps.ATLAS;
     const rarities = [...Object.entries(rules.rarities).map(([value, rule]) => ({ value, label: (0, runtime.deps._t)(rule.name) })), { value: 'all', label: (0, runtime.deps._t)('전체') }];
-    const tiers = Array.from({ length: rules.tierCap }, (_, index) => ({ value: index + 1, label: (0, runtime.deps._t)('{tier}등급 이하', { tier: index + 1 }) }));
+    const tiers = Array.from({ length: rules.starChart.tiers }, (_, index) => ({ value: index + 1, label: (0, runtime.deps._t)('{tier}등급 이하', { tier: index + 1 }) }));
     return [{ label: (0, runtime.deps._t)('희귀도'), options: rarities }, { label: (0, runtime.deps._t)('지도석 등급'), options: tiers }];
 }
 
@@ -229,6 +229,16 @@ export function open(runtime) {
     runtime.state.selectedUid = null;
     refresh(runtime);
     (0, runtime.deps.switchTab)('tab-battle');
+}
+
+/** 시작 육분의를 켠다(시대마다 한 번): 1등급 지도 넷이 열리고 일반 1등급 지도석을 받는다. */
+export function activateSextant(runtime) {
+    const result = runtime.deps.atlas.activateSextant(runtime.deps.game);
+    if (result.reason) return (0, runtime.deps.addLog)(result.reason, 'attack-monster');
+    (0, runtime.deps.playUiFeedbackSound)('uiConfirm');
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 시작 육분의를 켰습니다. {tier}등급 지도석 {count}개를 얻었습니다.', { tier: runtime.deps.ATLAS.sextant.tier, count: result.maps.length }), 'loot-normal');
+    (0, runtime.deps.queueImportantSave)(200);
+    refresh(runtime);
 }
 
 export function openPinnacle(runtime) {

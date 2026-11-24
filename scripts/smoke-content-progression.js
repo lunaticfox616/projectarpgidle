@@ -575,13 +575,13 @@ run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.deepEqual(json('game.knitting.counts'), held.counts, "this loop's stock survives a reload while closed");
 assert.deepEqual(json('game.knitting.knitted'), held.knitted);
 assert.deepEqual(json('game.knitting.seen').sort(), held.seen.slice().sort());
-// Catalogue: 165 kinds, real IDs and unlock links, named-unique grades, 55 home zones with 1-4 kinds each.
+// Catalogue: 165 kinds, real IDs and unlock links, named-unique grades, 60 home zones (10 acts, the 50 chart maps) with 1-4 kinds each.
 assert.deepEqual(json('knittingRewards.catalogProblems()'), [], 'ids, names, grades, sets, sources, unlock links, rewards, unique grades and homes');
 assert.equal(run('KNITTING.list.length'), 165);
 assert(run('KNITTING.rankBonus < KNITTING.homeBonus'), 'a home outranks a rank-only bonus');
 const homeCounts = json(`[...Array.from({length:10},(_,i)=>'act:'+i),...atlas.nodes.filter(n=>n.kind==='map').map(n=>'node:'+n.id)]
     .map(key=>[key,KNITTING.list.filter(row=>(row.homes||[]).includes(key)).length])`);
-assert.equal(homeCounts.length, 55);
+assert.equal(homeCounts.length, 60);
 homeCounts.forEach(([key, n]) => assert(n >= 1 && n <= 4, `${key}: ${n}`));
 
 assert(row('echo-weft').unlocks.includes('gemForge') && row('primal-dust').unlocks.includes('fossil'), 'currency unlock links are data, not inference');
@@ -599,8 +599,8 @@ run("knitting.markDrop(game,'last-hem')");
 assert(!run("knitting.dropPool(game,{type:'act',id:9},{isBoss:true}).some(row=>row.id==='last-hem')"), 'once per loop is only a cap');
 // Value weights: no better grade outweighs or outpaces a lower one; a home beats a rank-only kind of the same grade.
 const zones = [[{ type: 'act', id: 0 }, {}], [{ type: 'act', id: 0 }, { isBoss: true }], [{ type: 'act', id: 9 }, { isBoss: true }],
-    [{ type: 'atlasMap', atlasRegion: 'roots', atlasNode: 'roots_0', atlasKind: 'map' }, {}],
-    [{ type: 'atlasMap', atlasRegion: 'garden', atlasNode: 'garden_8', atlasKind: 'map' }, { isBoss: true }], [{ type: 'abyss' }, { isElite: true }]];
+    [{ type: 'atlasMap', atlasRegion: 'roots', atlasNode: 'sun1', atlasKind: 'map' }, {}],
+    [{ type: 'atlasMap', atlasRegion: 'garden', atlasNode: 'sunCoalGorge', atlasKind: 'map' }, { isBoss: true }], [{ type: 'abyss' }, { isElite: true }]];
 const pool = (zone, enemy) => { const z = JSON.stringify(zone), e = JSON.stringify(enemy);
     return json(`knitting.weighted(knitting.dropPool(game,${z},${e}),${z},${e}).map(x=>({id:x.row.id,g:x.row.grade,s:x.row.set,w:x.weight}))`); };
 for (const [zone, enemy] of zones) {
@@ -700,7 +700,7 @@ for (const kind of json('KNITTING.list')) {
 }
 // The fossil boots keep the shared pool contract (same-effect normal lines may coexist) for every class and draw.
 // Mapstone exchanges are all-or-nothing, including the atlas's UID counter.
-run("game.knitting.counts['cartographer-rubbing']=5;game.atlas.stash=Array.from({length:ATLAS.stashCap-1},()=>atlasMaps.create('roots_0',1,'normal',()=>0))");
+run("game.knitting.counts['cartographer-rubbing']=5;game.atlas.stash=Array.from({length:ATLAS.stashCap-1},()=>atlasMaps.create('sun1',1,'normal',()=>0))");
 const mapStock=json('({atlas:game.atlas,knitting:game.knitting,counter:window.GameModules.state.session.itemIdCounter})');
 assert.equal(run("knittingRewards.knit('cartographer-rubbing').ok"),false);
 assert.deepEqual(json('({atlas:game.atlas,knitting:game.knitting,counter:window.GameModules.state.session.itemIdCounter})'),mapStock);

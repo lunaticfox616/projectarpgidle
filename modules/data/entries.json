@@ -207,6 +207,13 @@
     ]
   },
   {
+    "source": "modules/data/atlas-chart.mjs",
+    "output": "data/atlas-chart.js",
+    "names": [
+      "ATLAS_CHART"
+    ]
+  },
+  {
     "source": "modules/data/atlas.mjs",
     "output": "data/atlas.js",
     "names": [

@@ -75,10 +75,11 @@
 const DEFAULT_GAME_BLUEPRINT = {
     // 세계수 아틀라스 (js/atlas.js normalize): unlocked/completed/bonus/autoMap survive loops; stash/run reset each loop.
     // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted}; run: the open map {map,portals,drops,returnZoneId}.
+    // sextant: 시작 육분의 activated this epoch (opens the four tier 1 maps). A map item's tier is its chart tier 1..10 (js/atlas.js gameTier).
     // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
     // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).
     // endgame: the awakened late atlas (js/atlas-endgame.js) — kills, materials, blight, witness; survives loops, not the epoch.
-    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, autoGuardians: true, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
+    atlas: { version: 1, unlocked: false, sextant: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, autoGuardians: true, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
         endgame: { kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] }, leaves: { counts: {}, seen: [], woven: {} },
         tally: { maps: 0, treasure: 0, golden: 0 } },
     // Last map's committed combat receipts; display only, never a claimable reward.
@@ -92,7 +93,8 @@ const DEFAULT_GAME_BLUEPRINT = {
     // (js/weapon-mastery.js) and the chronicle's claimed rings (js/chronicle.js).
     weaponMastery: { xp: {} },
     chronicle: { rings: 0 },
-    saveVersion: 21,   // 20(2026-10-30): 장비 줄의 다시 만들 수 있는 칸을 빼고 저장한다(js/item-save-slim.js). 21(2026-11-09): resonancePower에서 봉인 몫을 뺐다(js/save-migrations.js removeOldSealResonanceSave)
+    // 22(2026-11-24): 아틀라스가 천문도로 바뀌었다(js/atlas.js normalize, modules/domain/atlas-chart-migration.mjs: 예전 노드의 완료와 패시브를 버리고 지도석을 천문도 등급으로).
+    saveVersion: 22,   // 20(2026-10-30): 장비 줄의 다시 만들 수 있는 칸을 빼고 저장한다(js/item-save-slim.js). 21(2026-11-09): resonancePower에서 봉인 몫을 뺐다(js/save-migrations.js removeOldSealResonanceSave)
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
     // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game. The default stays version 9: a save
     // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
