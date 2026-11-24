@@ -1,5 +1,6 @@
 import { atlasCoreLockReason, atlasCoreMapDestination } from './atlas-access.mjs';
 import { atlasCoreCompleted, atlasCoreReachable, atlasCoreFightCleared, atlasCoreIsMapStone, atlasCoreChartTierOf } from './atlas-graph.mjs';
+import { atlasCoreGateFree } from './atlas-gates.mjs';
 
 /** 시대 재생은 정점 이후에만 가능하다. 이전 시대에서 얻은 자동 입장도 유지한다. */
 export function atlasAutoUnlocked(state) {
@@ -14,10 +15,12 @@ export function atlasCoreNextAuto(env, state, tierCap) {
     const score = map => [map.tier, Number(!atlasCoreFightCleared(env, state, atlasCoreMapDestination(env, state, map).id)), env.RARITY_RANK[map.rarity], -map.uid];
     const better = (x, y) => { const i = x.findIndex((v, k) => v !== y[k]); return i >= 0 && x[i] > y[i]; };
     // 갈 곳이 닫힌 지도석(자리가 닫힌 수호자의 것, 켜지 않은 시작 육분의)은 고르지 않는다: 열 수 없는 지도석이 자동 지도를 멈추지 않게.
+    // 아직 완료하지 않은 보스 자리의 수호자 지도석도 고르지 않는다: 그 첫 도전은 비용이 없다(보스 도전, atlas-gates).
+    const freeGate = node => env.GATE_OF.has(node.id) && atlasCoreGateFree(state, env.GATE_OF.get(node.id).id);
     const eligible = map => {
         const kind = env.BY_ID.get(map.node)?.kind, destination = atlasCoreMapDestination(env, state, map);
         return (atlasCoreIsMapStone(env, map) ? map.tier : atlasCoreChartTierOf(env, map.tier)) <= tierCap && (kind === 'map' || (kind === 'guardian' && state.atlas.autoGuardians !== false))
-            && !!destination && atlasCoreReachable(env, state, destination.id);
+            && !!destination && atlasCoreReachable(env, state, destination.id) && !freeGate(destination);
     };
     // 갈 곳을 찾는 셈이 지도석마다 한 번만 돌게 점수를 먼저 매긴다.
     const ranked = state.atlas.stash.filter(eligible).map(map => ({ map, score: score(map) }));

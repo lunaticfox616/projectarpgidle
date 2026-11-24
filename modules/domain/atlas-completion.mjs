@@ -39,17 +39,18 @@ export function atlasCoreCompleteBoard(env, state, run) {
     if (!board) return null;
     state.atlas.run = null;
     state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome: 'complete', first: false, bonus: false, drops: 0, lost: 0,
-        fragments: 0, lostFragments: 0, lostMaterials: [], memory: null, granted: [], boxes: null, refund: null, stars: null };
+        fragments: 0, lostFragments: 0, lostMaterials: [], memory: null, granted: [], boxes: null, refund: null, stars: null, board: true };
     return { ...state.atlas.lastResult, board, returnZoneId: run.returnZoneId };
 }
 
 /** A completed map's receipt (atlas-receipts normalizes the same shape). boxes: 장비 상자 to open { count, fine } (their items arrive
- * with atlasCoreKeepBoxes). stars: what the passive stars added (atlas-star-rewards atlasStarClearGains), null off the chart. */
+ * with atlasCoreKeepBoxes). stars: what the passive stars added (atlas-star-rewards atlasStarClearGains), null off the chart.
+ * board: a ring board map (its tier is the fight's tier, not the chart's; a memory fight tells it by memory.foughtTier). */
 export function atlasCoreClearReceipt(env, run, parts) {
     const { first, bonus, stored, fragments, granted, boxes, stars } = parts;
     return { nodeId: run.map.node, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored, lost: run.drops.length - stored, fragments,
         lostFragments: run.found.length - fragments, lostMaterials: [], granted, boxes: atlasCoreNormalizeBoxes(env, boxes), refund: null,
-        stars: atlasCoreNormalizeStarGains(env, stars) };
+        stars: atlasCoreNormalizeStarGains(env, stars), board: false };
 }
 
 /** 완료를 적는다: 지도는 제 id, 천문도의 보스 자리가 치르는 싸움은 그 자리(후반 싸움은 제 id도, atlas-graph atlasCoreClearIds). 기억 싸움은
@@ -131,7 +132,7 @@ export function atlasCoreClose(env, state, outcome) {
         lost: run.drops.length, fragments: 0, lostFragments: run.found.length,
         lostMaterials: atlasCoreNormalizeResultMaterials(env, Object.entries(run.endgame.items), env.deps.ATLAS_ENDGAME.itemCap * 10),
         seed: false, seeds: state.atlas.seeds, endgame: null,
-        memory: atlasCoreNormalizeResultMemory(env, { foughtTier: run.map.memory }, true), granted: [], boxes: null, refund: null, stars: null };
+        memory: atlasCoreNormalizeResultMemory(env, { foughtTier: run.map.memory }, true), granted: [], boxes: null, refund: null, stars: null, board: !!run.board };
     // Floor drops already entered this receipt when produced; the existing departure still collects them exactly once.
     atlasCoreKeepLoot(env, state, state.explorationLoot);
     return { returnZoneId: run.returnZoneId };

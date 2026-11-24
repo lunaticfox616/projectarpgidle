@@ -20,13 +20,14 @@
         return enemy;
     }
 
-/** 그 보스 방의 보스가 하나 더(twin): 수치는 같고, 그림은 구역이 고른다(혼돈 심화처럼 보스 그림이 여럿인 곳은 다른 모습으로 선다). */
+/** 그 보스 방의 보스가 하나 더(twin): 수치는 같고, 그림은 구역이 고른다(혼돈 심화처럼 보스 그림이 여럿인 곳은 다른 모습으로 선다).
+ * bossTwin: 그 방의 제 보스가 아니다(천문도 일반 지도에서 장비 상자가 대신하지 않는 처치 보상, domain/atlas-finds-kills). */
     export function invaderBuildTwin(env, zone, pack) {
         const enemy = env.deps.createEnemy(zone, { at: 0, count: 1, boss: true, storyStage: pack.stage, plainBoss: true }, 1);
         if (zone.atlasStages) env.deps.atlasEndgame.tuneStage(enemy, zone, pack.stage);
         if (zone.memoryTier) env.deps.memoryDungeon.tuneBoss(enemy, zone.memoryTier);
         const maxHp = Math.floor(enemy.maxHp * env.deps.SURPRISE.twinHpMul);
-        return Object.assign(enemy, { maxHp, hp: maxHp, redEntrance: true });
+        return Object.assign(enemy, { maxHp, hp: maxHp, redEntrance: true, bossTwin: true });
     }
 
 /** 뿌리 절단자가 아닌 난입 보스: 수치는 그 구역 보스, 그림은 후보 가운데 싸우고 있는 보스(current, 없으면 null)가 아닌 하나. uninvited: 숨은 기록을 받지 않는다(wakeBosses). */

@@ -1,6 +1,6 @@
 // 천문도 아래 띠의 첫 카드(아틀라스 개편 D1): 고른 것. 지도는 입장 상자(포털, 장비 상자, 형체 없는 이슬, 소모, 별 효과, 각인), 보스 자리는
 // 상대와 열쇠와 비용, 피나클 장치는 외부 피나클 둘, 시작 육분의는 네 시작 길, 열린 탐사는 포털과 보류한 것. 주 단추는 띠의 as-go가 그린다.
-import { ledger, selectedMap, runningNode, heldLate, entryTerms, starChances, dewChoice } from './atlas-view-model.mjs';
+import { ledger, selectedMap, runningNode, heldLate, entryTerms, starChances, dewChoice, chartRun } from './atlas-view-model.mjs';
 import { gateCostChips, fragmentText } from './atlas-view-map.mjs';
 
 export function esc(runtime, text) { return (0, runtime.deps.escapeHTML)(text); }
@@ -146,7 +146,7 @@ export function entryCardHtml(runtime) {
 
 /** 열린 탐사 카드: 머리(등급, 싸움 이름, 탐사 중), 남은 포털 칸, 보스를 잡으면 받는 것(지침, 각인, 후반 재료). */
 export function runCardHtml(runtime, run) {
-    const node = runtime.deps.atlas.node(run.map.node), total = run.board ? 1 : runtime.deps.atlas.portalCap(run), late = heldLate(runtime, run), chart = node?.kind === 'map' && !run.map.memory;
+    const node = runtime.deps.atlas.node(run.map.node), total = run.board ? 1 : runtime.deps.atlas.portalCap(run), late = heldLate(runtime, run), chart = chartRun(runtime, run);
     const pips = Array.from({ length: total }, (_, i) => `<i class="${i < run.portals ? 'is-on' : ''}"></i>`).join('');
     const held = [esc(runtime, runtime.deps._t('지침 {count}개', { count: run.drops.length })), esc(runtime, runtime.deps._t('각인 {count}개', { count: run.found.length })), late ? (0, runtime.deps.escapeHTML)(late) : ''].filter(Boolean).join(', ');
     const boxes = chart ? statHtml(runtime, 'shield', '장비 상자', entryTerms(runtime, node, run.dew === true).boxes) : '';

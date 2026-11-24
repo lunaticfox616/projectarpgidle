@@ -285,8 +285,11 @@ export function abandonMessage(runtime, run) {
     // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료, 기억 싸움은 그 기억). 비용 없는 첫 도전은 없다.
     const offering = run.free ? '' : run.board ? (0, runtime.deps._t)('보관 재화 {lossPctFor}%', { lossPctFor: runtime.deps.atlasBoard.lossPctFor(ledger(runtime).board, run.board.boss) }) : run.map.memory ? (0, runtime.deps._t)('보스의 기억 {memory}단계', { memory: run.map.memory }) : kind === 'pinnacle' ? '바친 입장권' : (runtime.state.RUN_KIND[kind] ? '바친 재료' : '지침');
     const lost = [offering, held ? (0, runtime.deps._t)('보류 중인 지침과 각인 {held}개', { held }) : '', heldLate(runtime, run)].filter(Boolean).join(', ');
-    return `${run.board ? run.board.name : nodeName(runtime, run.map.node)} 지도를 닫을까요?\n손실: ${lost}\n일반 장비와 재화, 바닥 전리품은 남습니다.${run.board ? (0, runtime.deps._t)('\n다음 진입에는 심재 주사위 1개가 필요합니다.') : ''}`;
+    return `${run.board ? run.board.name : nodeName(runtime, run.map.node)} 지도를 닫을까요?${lossLine(lost)}\n일반 장비와 재화, 바닥 전리품은 남습니다.${run.board ? (0, runtime.deps._t)('\n다음 진입에는 심재 주사위 1개가 필요합니다.') : ''}`;
 }
+
+/** 지도 닫기 확인의 손실 줄: 잃는 것이 없으면(비용 없는 첫 도전에 보류한 것도 없을 때) 줄째 뺀다. */
+function lossLine(lost) { return lost ? `\n손실: ${lost}` : ''; }
 
 export function toggleAuto(runtime, on) {
     ledger(runtime).autoMap = !!on && runtime.deps.atlas.autoUnlocked(runtime.deps.game);

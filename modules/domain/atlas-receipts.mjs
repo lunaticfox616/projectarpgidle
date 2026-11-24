@@ -89,5 +89,6 @@ export function atlasCoreNormalizeResult(env, raw) {
         lostFragments: Math.min(env.deps.ATLAS.fragmentRules.held, count(raw.lostFragments)),
         lostMaterials: failed ? atlasCoreNormalizeResultMaterials(env, raw.lostMaterials, env.deps.ATLAS_ENDGAME.itemCap * 10) : [],
         seed: !failed && raw.seed === true, seeds: Math.min(env.deps.ATLAS.seeds.max, count(raw.seeds)), endgame: failed ? null : atlasCoreNormalizeResultEndgame(env, raw.endgame),
-        loot: atlasCoreNormalizeLoot(env, raw.loot), memory: atlasCoreNormalizeResultMemory(env, raw.memory, failed), ...normalizeGiven(env, raw, failed) };
+        loot: atlasCoreNormalizeLoot(env, raw.loot), memory: atlasCoreNormalizeResultMemory(env, raw.memory, failed), ...normalizeGiven(env, raw, failed),
+        board: raw.board === true };
 }
