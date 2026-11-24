@@ -1,5 +1,5 @@
-@layer components{/* 세계수 아틀라스: 돌판 · 청동 테 · 금빛 글자(themes/pixel.css의 결). 지도는 도트 그림(js/canvas-atlas-chart.js) 위에 투명한
-   노드 버튼을 얹는다. 장식 없이 판 · 선 · 메달만. */
+@layer components{/* 세계수 아틀라스: 돌판 · 청동 테 · 금빛 글자(themes/pixel.css의 결). 천문도 화면은
+   css/atlas-sheet.css가 그린다. */
 #tab-map .map-explore-layout:has(#map-explore-worldtree.active){display:block}
 #atlas-wheel-refuge{position:absolute;inset:0;z-index:6}
 .atlas-wheel-hub{position:relative;height:100%;width:100%;color:#f3e5c4;background:#322a30 url('../assets/stage-scenes/regions/act-10.png') center top/cover}
@@ -25,15 +25,6 @@
 :is(#ui-atlas,#ui-atlas-combat) .atlas-omen-chip{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid color-mix(in srgb,var(--omen) 55%,#2a2218);color:var(--omen);font-size:11px;font-style:normal;vertical-align:middle}
 #ui-atlas{--atlas-gold:#d9b066;--atlas-gold-hi:#f3d28c;--atlas-muted:#a39883;--atlas-ink:#e6dcc6;--atlas-line:#3a2f20;--atlas-edge:#5d4a2e;--atlas-deep:#100d0a;--atlas-panel:#15120e;--atlas-raised:#1d1813;--atlas-normal:#d6cdb8;--atlas-magic:#86b2e2;--atlas-rare:#e2c466;color:var(--atlas-ink);container-type:inline-size}
 #ui-atlas .atlas-shell{border:1px solid var(--atlas-edge);background:var(--atlas-deep);box-shadow:inset 0 0 0 1px #000}
-#ui-atlas .atlas-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:14px 18px;border-bottom:1px solid var(--atlas-line);background:var(--atlas-panel)}
-/* 머리의 진행 수치(2026-10-25): 색 점 하나와 이름, 금빛 수치 */
-#ui-atlas .atlas-stats{display:flex;flex-wrap:wrap;gap:4px 10px}
-#ui-atlas .atlas-stat{display:inline-flex;align-items:baseline;gap:4px}
-#ui-atlas .atlas-stat::before{content:'';width:7px;height:7px;align-self:center;background:var(--stat-tone);box-shadow:0 0 4px color-mix(in srgb,var(--stat-tone) 60%,transparent)}
-#ui-atlas .atlas-stat b{color:var(--stat-tone);font-weight:600}
-#ui-atlas .atlas-auto{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:2px 8px;font-size:12px;cursor:pointer}
-#ui-atlas .atlas-auto small{grid-column:2;color:var(--atlas-muted);font-size:11px}
-#ui-atlas .atlas-auto input{width:16px;height:16px;accent-color:var(--atlas-gold)}
 #ui-atlas .atlas-lock{margin:0;padding:9px 18px;border-bottom:1px solid var(--atlas-line);background:#1b150e;color:#dcbf86;font-size:12px}
 #ui-atlas .atlas-muted{margin:6px 0;color:var(--atlas-muted);font-size:12px}
 /* 나이테의 칸과 행동 버튼은 atlas-board.css가 소유한다. */
@@ -41,20 +32,6 @@
 #ui-atlas button:not(:where(.ab button)):hover:not(:disabled){border-color:var(--atlas-gold);background:#261f17}
 #ui-atlas button:not(:where(.ab button)):focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
 #ui-atlas button:not(:where(.ab button)):disabled{opacity:.45;cursor:not-allowed}
-#ui-atlas .atlas-journey{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 14px;padding:12px 18px;border-bottom:1px solid var(--atlas-edge);background:var(--atlas-panel)}
-#ui-atlas .atlas-journey h3{margin:0;color:var(--atlas-gold-hi);font-size:14px;font-weight:600}
-#ui-atlas .atlas-journey p{margin:3px 0 0;color:var(--atlas-ink);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
-#ui-atlas .atlas-journey .atlas-actions{margin:0}
-#ui-atlas .atlas-journey button{min-height:44px}
-#ui-atlas .atlas-journey details{grid-column:1/-1;color:var(--atlas-muted);font-size:11px}
-#ui-atlas .atlas-journey summary{width:fit-content;padding:4px 0;cursor:pointer}
-#ui-atlas .atlas-journey summary:focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
-#ui-atlas .atlas-auto-options{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:8px 18px;border-bottom:1px solid var(--atlas-line);background:var(--atlas-raised);font-size:12px}
-#ui-atlas .atlas-auto-options label{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer}
-#ui-atlas .atlas-auto-options input{width:16px;height:16px;accent-color:var(--atlas-gold)}
-#ui-atlas .atlas-auto-options p{flex:1 1 230px;margin:0;color:var(--atlas-ink);line-height:1.6}
-#ui-atlas .atlas-auto-options button{min-height:44px;padding:6px 10px}
-#ui-atlas .atlas-auto-options>small{flex-basis:100%;color:var(--atlas-muted);font-size:11px;line-height:1.6}
 #ui-atlas .atlas-result-loss p{margin:0;color:#e9b18d;line-height:1.6}
 #ui-atlas .atlas-result-loss p+p{color:var(--atlas-muted)}
 #ui-atlas .atlas-result-memory{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;color:#d9b8fa}
@@ -67,62 +44,6 @@
 #ui-atlas :is(.atlas-fight-followup,.atlas-fight-empty) button{min-height:44px;padding:6px 12px}
 #ui-atlas [data-atlas-fight]{scroll-margin-block-start:10px}
 #ui-atlas [data-atlas-fight]:focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
-@container (max-width:600px){
-  #ui-atlas .atlas-journey{grid-template-columns:minmax(0,1fr);padding:10px}
-  #ui-atlas .atlas-journey .atlas-actions{justify-content:flex-start}
-  #ui-atlas .atlas-auto-options{padding:6px 10px}
-}
-#ui-atlas .atlas-main{display:grid;grid-template-columns:minmax(0,1fr) 300px}
-#ui-atlas .atlas-chart-column{padding:10px 12px 14px}
-/* 지도: 도트 그림이 판 전체를 그리고, 버튼은 메달 자리에 투명하게 선다(누르기 · 초점 · 등급 숫자). */
-#ui-atlas .atlas-chart{position:relative;width:min(100%,660px);aspect-ratio:1;margin:0 auto;container-type:inline-size}
-#ui-atlas .atlas-art{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
-/* 범례 줄은 제 폭만 차지하고 가운데(margin auto)에서 반 화소를 되돌린다: 칸 안의 가운데 맞춤은 반 화소에 놓였다(2026-10-21). */
-#ui-atlas .atlas-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;width:fit-content;max-width:100%;margin:0 auto 8px;position:relative;left:calc(round(down,50%,1px) - 50%);translate:calc(round(up,50%,1px) - 50%);font-size:var(--font-size-ui);color:var(--atlas-ink)}
-#ui-atlas .atlas-legend span{display:inline-flex;align-items:center;gap:6px}
-#ui-atlas .atlas-legend i{width:8px;height:8px;background:color-mix(in srgb,var(--tint) 70%,#d8ccb0);box-shadow:1px 1px 0 #000}
-#ui-atlas .atlas-legend small{color:var(--atlas-muted)}
-#ui-atlas .atlas-node{--node:round(4.4cqw,2px);position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);transform:translate(round(-50%,1px),round(-50%,1px));width:var(--node);height:var(--node);min-width:0;min-height:0;padding:0;display:grid;place-items:center;border:0;background:transparent;box-shadow:none;color:#8d826e;font-size:12px;line-height:1}
-#ui-atlas .atlas-node:hover:not(:disabled){border:0;background:transparent}
-#ui-atlas .atlas-node b{font-weight:400;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000,1px 1px 0 #000;pointer-events:none}
-/* 노드 숫자는 등급의 빛깔(흰색 1~6, 노란색 7~11, 빨간색 12 이상: js/atlas-ui.js tierStyle), 아직 갈 수 없는 노드는 그 빛깔을 어둡게 */
-#ui-atlas .atlas-node b{color:var(--atlas-tier)}
-#ui-atlas .atlas-node.is-locked b{color:color-mix(in srgb,var(--atlas-tier) 42%,#1a140d)}
-/* 지도 노드 툴팁의 등급 칩(js/atlas-ui.js hint): 등급의 빛깔로 테와 바탕 */
-#info-tooltip .atlas-tip-tier{display:inline-block;padding:0 5px;border:1px solid color-mix(in srgb,var(--atlas-tier) 60%,transparent);background:color-mix(in srgb,var(--atlas-tier) 16%,transparent);color:var(--atlas-tier);line-height:16px}
-#ui-atlas .atlas-node.is-open{color:var(--atlas-gold-hi)}
-#ui-atlas .atlas-node.is-complete{color:#efe6d2}
-#ui-atlas .atlas-node.is-bonus{color:#fff1c9}
-#ui-atlas .atlas-node.kind-guardian{--node:round(6.2cqw,2px)}
-#ui-atlas .atlas-node.kind-pinnacle{--node:round(7.6cqw,2px);font-size:13px}
-#ui-atlas .atlas-node:hover b{color:#fff4d6}
-#ui-atlas .atlas-node i{position:absolute;right:-3px;top:-3px;min-width:13px;height:13px;padding:0 2px;background:var(--atlas-gold);box-shadow:1px 1px 0 #000;color:#15120e;font-size:9px;font-style:normal;font-weight:700;line-height:13px;box-sizing:border-box}
-#ui-atlas .atlas-guardian-note{color:#d6c08a}
-#ui-atlas .atlas-tickets{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
-#ui-atlas .atlas-tickets span{padding:2px 7px;border:1px solid var(--atlas-line);color:var(--atlas-muted);font-size:11px}
-#ui-atlas .atlas-tickets span.is-on{border-color:var(--atlas-edge);color:#eadbb5;background:var(--atlas-raised)}
-#ui-atlas .atlas-side{display:flex;flex-direction:column;border-left:1px solid var(--atlas-line);background:var(--atlas-panel)}
-/* 오른쪽 칸은 지도 칸의 높이를 늘리지 않고 그 높이 안에서 스크롤한다(contain:size, 2026-10-25 사용자: 오른쪽 메뉴가 길어지면 지도도
-   아래로 길쭉해졌다). 한 줄로 쌓이는 좁은 창(아래 720px)에서는 늘 그렇듯 내용만큼 자란다. */
-#ui-atlas .atlas-side{contain:size;overflow-y:auto;scrollbar-width:thin}
-#ui-atlas .atlas-device,#ui-atlas .atlas-node-detail{padding:14px 16px;border-bottom:1px solid var(--atlas-line);scroll-margin-block-start:10px}
-#ui-atlas .atlas-side h3{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--atlas-gold)}
-#ui-atlas .atlas-map-card{--rarity:var(--atlas-normal);padding:10px 12px;border:1px solid color-mix(in srgb,var(--rarity) 45%,transparent);background:var(--atlas-deep);box-shadow:2px 2px 0 #000}
-#ui-atlas .atlas-map-card.rarity-magic{--rarity:var(--atlas-magic)}
-#ui-atlas .atlas-map-card.rarity-rare{--rarity:var(--atlas-rare)}
-#ui-atlas .atlas-map-card.is-corrupted{border-color:#8a3a46}
-#ui-atlas .atlas-map-card>strong{display:block;color:var(--rarity);font-size:14px;font-weight:600}
-#ui-atlas .atlas-map-tags{display:block;margin-top:2px;color:var(--atlas-muted);font-size:11px}
-#ui-atlas .atlas-mods{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:3px;font-size:12px;color:#aebfe0}
-#ui-atlas .atlas-map-card.rarity-rare .atlas-mods{color:#d9cf9f}
-#ui-atlas .atlas-rewards{margin:8px 0 0;font-size:11px;color:#c9bfa8}
-#ui-atlas .atlas-map-card .map-power-estimate{margin-top:8px}
-#ui-atlas .atlas-portals{display:flex;align-items:center;gap:5px;margin:8px 0 0;font-size:12px}
-#ui-atlas .atlas-portals i{width:9px;height:9px;border:1px solid var(--atlas-magic)}
-#ui-atlas .atlas-portals i.is-on{background:var(--atlas-magic)}
-#ui-atlas .atlas-crafts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:10px}
-#ui-atlas .atlas-crafts button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:38px;padding:5px 7px;text-align:left}
-#ui-atlas .atlas-crafts small{color:var(--atlas-muted);font-size:10px}
 #ui-atlas .atlas-flowers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:10px}
 #ui-atlas .atlas-flowers>p{grid-column:1/-1;margin:0;color:var(--atlas-muted);font-size:12px}
 #ui-atlas .atlas-flower{display:grid;align-content:start;gap:5px}
@@ -134,46 +55,9 @@
 #ui-atlas .atlas-flower .is-golden{border-color:#d9b066;background:linear-gradient(90deg,rgba(217,176,102,.22),transparent);color:#f0d9a4}
 #ui-atlas .atlas-omen.is-bloomed{animation:atlas-omen-bloom .6s steps(6) 1}
 @keyframes atlas-omen-bloom{from{box-shadow:0 0 0 2px var(--omen),0 0 14px var(--omen);filter:brightness(1.7)}to{box-shadow:none;filter:none}}
-#ui-atlas .atlas-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-#ui-atlas .atlas-actions button{min-height:34px;padding:6px 12px}
 #ui-atlas .atlas-primary{background:#cfb887;border-color:#e6cf9f;color:#17140f;font-weight:700;box-shadow:inset 1px 1px 0 #fff3cf,inset -1px -1px 0 #7a6440,2px 2px 0 #000}
 #ui-atlas .atlas-primary:hover:not(:disabled){background:#dcc697}
-#ui-atlas .atlas-node-detail small{color:color-mix(in srgb,var(--tint) 45%,#d5cfbd);font-size:11px}
-#ui-atlas .atlas-node-detail h3{margin:2px 0 4px;font-size:15px;color:var(--atlas-ink)}
-#ui-atlas .atlas-node-detail p{margin:3px 0;font-size:12px}
-#ui-atlas .atlas-node-maps{display:grid;gap:4px;margin-top:8px}
-#ui-atlas .atlas-stash{padding:14px 18px;border-top:1px solid var(--atlas-line)}
-#ui-atlas .atlas-stash h3{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--atlas-gold)}
-#ui-atlas .atlas-stash h3 span{margin-left:6px;color:var(--atlas-muted);font-weight:400}
-#ui-atlas .atlas-stash-capacity{margin:0 0 10px;color:var(--atlas-ink);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
-#ui-atlas .atlas-stash-capacity span{display:block;color:var(--atlas-muted);font-size:11px}
-#ui-atlas .atlas-stash-capacity.is-full{padding:8px 10px;border:1px solid #a66b45;background:#2b1c14;color:#f2c391}
-#ui-atlas .atlas-stash-management{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 12px;padding:10px;border:1px solid var(--atlas-edge);background:var(--atlas-panel)}
-#ui-atlas .atlas-stash-management p{flex:1 1 180px;min-width:0;margin:0;font-size:12px;overflow-wrap:anywhere}
-#ui-atlas .atlas-stash-management strong{display:block;color:var(--atlas-gold-hi);font-weight:400}
-#ui-atlas .atlas-stash-management span,#ui-atlas .atlas-stash-management small{display:block;color:var(--atlas-muted);font-size:11px}
-#ui-atlas .atlas-stash-management small{flex-basis:100%}
-#ui-atlas .atlas-stash-management .atlas-discard{min-height:44px;padding:8px 12px;color:#efbf9c;border-color:#875839}
 /* 고른 지도석의 도구: 합치기(같은 등급 몇 개 있는지), 버리기, 그 등급 이하 일반 지도석 정리(몇 개) */
-#ui-atlas .atlas-stash-management span b{color:var(--atlas-tier);font-weight:400}
-#ui-atlas .atlas-stash-tools{display:flex;flex-wrap:wrap;gap:6px}
-#ui-atlas .atlas-stash-tools button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 10px}
-#ui-atlas .atlas-stash-tools button span{display:inline;color:var(--atlas-muted);font-size:11px}
-#ui-atlas .atlas-stash-management .atlas-stash-tools .atlas-discard{min-height:36px;padding:6px 10px}
-#ui-atlas .atlas-stash-tools .atlas-combine:not(:disabled){border-color:var(--atlas-gold);color:var(--atlas-gold-hi)}
-#ui-atlas .atlas-stash-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:5px}
-#ui-atlas .atlas-stash-row{--rarity:var(--atlas-normal);display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:0 8px;min-height:40px;padding:5px 8px;text-align:left}
-#ui-atlas .atlas-stash-row.rarity-magic{--rarity:var(--atlas-magic)}
-#ui-atlas .atlas-stash-row.rarity-rare{--rarity:var(--atlas-rare)}
-#ui-atlas .atlas-stash-row b{grid-row:span 2;display:grid;place-items:center;width:26px;height:26px;border:1px solid color-mix(in srgb,var(--rarity) 55%,transparent);background:var(--atlas-deep);color:var(--rarity);font-size:12px}
-#ui-atlas .atlas-stash-row b{color:var(--atlas-tier)}
-#ui-atlas .atlas-stash-row span{color:var(--rarity);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#ui-atlas .atlas-stash-row small{color:var(--atlas-muted);font-size:10px}
-#ui-atlas .atlas-stash-row[aria-pressed="true"]{border-color:var(--atlas-gold-hi);background:#2a2217}
-#ui-atlas .atlas-result{display:grid;gap:8px;padding:12px 18px;border-top:1px solid var(--atlas-line);background:var(--atlas-panel);font-size:12px}
-#ui-atlas .atlas-result>h3{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin:0;font-size:13px;font-weight:600;color:var(--atlas-gold)}
-#ui-atlas .atlas-result>h3 span{color:var(--atlas-muted);font-weight:400}
-#ui-atlas .atlas-result.is-failed>h3{color:#d98a7a}
 #ui-atlas .atlas-result-finds{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 #ui-atlas :is(.atlas-result-finds,.atlas-result-currencies)>small{margin-right:4px;color:var(--atlas-muted)}
 #ui-atlas .atlas-find{display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:2px 9px;border:1px solid var(--atlas-line);background:var(--atlas-deep);color:#d8ccb2}
@@ -192,21 +76,6 @@
 #ui-atlas .atlas-find.moment-jackpot{border-color:#ff5e6c;background:#1a0b0b;box-shadow:0 0 8px rgba(255,94,108,.5);color:#ffe7a3}
 #ui-atlas .atlas-result-currencies{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px}
 #ui-atlas .atlas-result-currencies b{font-weight:500;color:#e5d2aa}
-@container (max-width:720px){#ui-atlas .atlas-main{grid-template-columns:minmax(0,1fr)}#ui-atlas .atlas-side{contain:none;overflow:visible;border-left:0;border-top:1px solid var(--atlas-line)}}
-@container (max-width:420px){#ui-atlas .atlas-node i{min-width:8px;width:8px;height:8px;padding:0;right:-2px;top:-2px;font-size:0}#ui-atlas .atlas-node{font-size:10px}}
-@container (max-width:480px){#ui-atlas .atlas-stash{padding:10px}#ui-atlas .atlas-chart-column{padding:8px 4px 10px}#ui-atlas .atlas-stash-list{grid-template-columns:minmax(0,1fr)}}
-/* 좁은 창: 진행 수치와 자동 지도 칸이 한 줄에 선다(보기 단추는 지도 창 위 둘째 줄로 갔다, 2026-10-25). */
-@container (max-width:1080px){
-  #ui-atlas .atlas-head{padding:10px}
-  #ui-atlas .atlas-auto{min-height:44px;gap:2px 6px}
-  #ui-atlas .atlas-auto small{max-width:160px}
-}
-#ui-atlas .atlas-fragments{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
-#ui-atlas .atlas-fragments>p{flex-basis:100%;margin:0 0 2px}
-#ui-atlas .atlas-fragment{display:flex;align-items:center;gap:6px;min-height:28px;padding:3px 8px;font-size:11px}
-#ui-atlas .atlas-fragment small{color:var(--atlas-muted)}
-#ui-atlas .atlas-fragment.is-on{border-color:var(--atlas-gold-hi);background:#2a2217;color:#f3e2b5}
-#ui-atlas .atlas-encounters{margin:8px 0 0;font-size:11px;color:#c9b98f}
 #ui-atlas .atlas-epoch{padding:14px 18px}
 #ui-atlas .atlas-epoch-restart{display:grid;gap:8px;margin-bottom:14px;padding:12px;border:1px solid var(--atlas-gold);background:var(--atlas-raised);font-size:12px;overflow-wrap:anywhere}
 #ui-atlas .atlas-epoch-restart h3{margin:0;color:var(--atlas-gold-hi);font-size:12px}
@@ -319,19 +188,5 @@
 }
 
 /* Ancient atlas: regional routes, then the sun/moon encounters. */
-#ui-atlas .atlas-region-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-#ui-atlas .atlas-region-tabs button{flex:1 1 100px;min-height:64px;padding:8px;display:grid;gap:3px;text-align:left;border-top:3px solid var(--tint)}
-#ui-atlas .atlas-region-tabs button[aria-pressed="true"]{border-color:var(--atlas-gold);background:#2a241b}
-#ui-atlas .atlas-region-tabs small{color:var(--atlas-muted)}
-#ui-atlas .atlas-region-tabs b{font-size:11px;color:var(--atlas-gold)}
-#ui-atlas .atlas-region-route{padding:12px;border:1px solid var(--atlas-edge);background:#121318}
-#ui-atlas .atlas-region-route h3{margin:0;color:var(--atlas-gold-hi)}
-#ui-atlas .atlas-route-chart{border-radius:0;aspect-ratio:1;overflow:visible;max-width:720px}
-#ui-atlas .atlas-route-chart .atlas-art{border-radius:0}
-#ui-atlas .atlas-route-chart .atlas-node{overflow:visible}
-#ui-atlas .atlas-route-name{position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:11px;color:var(--atlas-ink);white-space:nowrap;background:#121318e8;padding:2px 4px;pointer-events:none}
-#ui-atlas .atlas-ancient-entry{padding:10px 18px;border-bottom:1px solid var(--atlas-line)}
-#ui-atlas .atlas-ancient-entry button{min-height:44px;padding:8px 18px}
 #ui-atlas .atlas-ancient-order{padding:12px 18px;line-height:1.7;color:var(--atlas-gold-hi)}
-@container(max-width:480px){#ui-atlas .atlas-route-name{font-size:10px;max-width:100px;white-space:normal;width:max-content}}
 }

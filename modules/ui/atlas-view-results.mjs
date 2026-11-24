@@ -1,4 +1,4 @@
-import { momentClass, ledger, nodeName } from './atlas-view-model.mjs';
+import { momentClass, nodeName } from './atlas-view-model.mjs';
 
 export function itemFind(runtime, row) {
     const name = row.rarity === 'unique' ? `「${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name))}」` : (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name));
@@ -27,9 +27,9 @@ export function findsHtml(runtime, receipt) {
 }
 
 export function resultNotes(runtime, result) {
-    return [result.first && '첫 완료', result.bonus && '보너스 달성', result.drops && (0, runtime.deps._t)('지도석 {drops}개', { drops: result.drops }),
+    return [result.first && (0, runtime.deps._t)('첫 완료'), result.drops && (0, runtime.deps._t)('지침 {count}개', { count: result.drops }),
         result.fragments && (0, runtime.deps._t)('각인 {fragments}개', { fragments: result.fragments }), result.seed && (0, runtime.deps._t)('세계수 씨앗 +1 ({seeds}/{max})', { seeds: result.seeds, max: runtime.deps.ATLAS.seeds.max }),
-        result.endgame?.awakened && '아틀라스 후반부 개방'].filter(Boolean).join(', ');
+        result.endgame?.awakened && (0, runtime.deps._t)('아틀라스 후반부 개방')].filter(Boolean).join(', ');
 }
 
 /** The atlas's own materials are outside the wallet receipt. Show the amounts actually kept at completion. */
@@ -51,18 +51,10 @@ export function receiptHtml(runtime, receipt) {
             <div class="atlas-result-currencies"><small>${(0, runtime.deps._t)('재화 {length}종, 장비 {equipmentCount}개', { length: Object.keys(receipt.currencies).length, equipmentCount: receipt.equipmentCount })}</small>${currencies || none}</div>`;
 }
 
-export function resultHtml(runtime) {
-    const result = ledger(runtime).lastResult;
-    if (!result) return '';
-    const done = result.outcome === 'complete', recalled = result.memory?.foughtTier;
-    return `<section class="atlas-result${done ? '' : ' is-failed'}" aria-label="${(0, runtime.deps._t)('지난 지도 결과')}"><h3>${(0, runtime.deps.escapeHTML)(nodeName(runtime, result.nodeId))}${recalled ? (0, runtime.deps._t)(' (기억 {recalled}단계)', { recalled }) : ''} ${result.tier}등급 ${done ? (0, runtime.deps._t)('완료') : (0, runtime.deps._t)('실패')}<span>${resultNotes(runtime, result)}</span></h3>
-            ${done ? overflowHtml(runtime, result) : failureHtml(runtime, result)}${givenHtml(runtime, result)}${boxesHtml(runtime, result.boxes)}${resultMemoryHtml(runtime, result)}${resultMaterialsHtml(runtime, result)}${receiptHtml(runtime, result.loot)}</section>`;
-}
-
 /** 받은 지도석의 줄: 첫 완료가 연 지도마다 하나와 패시브 별이 준 것(지침 획득), 마지막 포털이 닫혀 돌려받은 하나(지침 반환). 별이 찾거나
  * 남긴 형체 없는 이슬은 그 뒤에. */
 export function givenHtml(runtime, result) {
-    const name = row => (0, runtime.deps._t)('{name} {tier}등급', { name: (0, runtime.deps._t)(nodeName(runtime, row.node)), tier: row.tier });
+    const name = row => `${(0, runtime.deps._t)(nodeName(runtime, row.node))} T${row.tier}`;
     const stars = result.stars || { dew: 0, dewKept: false, stones: [] };
     const granted = [...(result.granted || []), ...stars.stones].map(name).join(', '), refund = result.refund ? name(result.refund) : '';
     const line = granted ? (0, runtime.deps._t)('지침 획득: {maps}', { maps: granted }) : refund ? (0, runtime.deps._t)('지침 반환: {map}', { map: refund }) : '';
@@ -104,6 +96,5 @@ export function resultMemoryHtml(runtime, result) {
 
 export function failureHtml(runtime, result) {
     const lost = lostRewards(runtime, result);
-    return `${lost.length ? `<div class="atlas-result-loss"><p>${(0, runtime.deps._t)('보류 보상 손실: {lost}', { lost: (0, runtime.deps.escapeHTML)(lost.join(', ')) })}</p></div>` : ''}
-            ${!ledger(runtime).run && ledger(runtime).stash.length ? (0, runtime.deps._t)('<div class="atlas-actions"><button onclick="atlasUi.revealStash()">다음 지도석 고르기</button></div>') : ''}`;
+    return lost.length ? `<div class="atlas-result-loss"><p>${(0, runtime.deps._t)('보류 보상 손실: {lost}', { lost: (0, runtime.deps.escapeHTML)(lost.join(', ')) })}</p></div>` : '';
 }

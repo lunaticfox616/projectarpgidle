@@ -653,7 +653,7 @@ for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
     assert.deepEqual([chart('game.atlas.stash.length'), read('game.atlas.lastResult.refund')], [0, null], 'a memory fight has no refund');
     // Dew entry: one formlessDew on top of the stone, 1 portal, 2 장비 상자; none held: refused, nothing spent; a cancel gives both back.
     chart("game.currencies.formlessDew=0;var dewStone = give('sun1', 1);");
-    assert.match(chart(`atlas.begin(game, dewStone, 29, () => .5, 'sun1', true)`), /형체없는 이슬이 없습니다/);
+    assert.match(chart(`atlas.begin(game, dewStone, 29, () => .5, 'sun1', true)`), /형체 없는 이슬이 없습니다/);
     assert.equal(chart('game.atlas.stash.length'), 1, 'a refused dew entry spends nothing');
     chart('game.currencies.formlessDew=2;');
     assert.equal(chart(`atlas.begin(game, dewStone, 29, () => .5, 'sun1', true)`), '');
@@ -664,7 +664,7 @@ for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
     assert.deepEqual(read('[game.currencies.formlessDew, game.atlas.lastResult.refund]'), [1, { node: 'sun1', tier: 1 }], 'a lost dew entry returns the stone, not the dew');
     chart(`atlas.begin(game, game.atlas.stash[0].uid, 29, () => .5, 'sun1', true);var dewEnd = atlas.complete(game);`);
     assert.deepEqual(read('[dewEnd.gearBoxes, game.atlas.lastResult.boxes.count]'), [2, 2], 'a dew clear opens two 장비 상자');
-    assert.match(chart(`atlas.begin(game, give('sun1', 1), 29, () => .5, undefined, true)`), /형체없는 이슬이 없습니다/, 'the last dew is spent');
+    assert.match(chart(`atlas.begin(game, give('sun1', 1), 29, () => .5, undefined, true)`), /형체 없는 이슬이 없습니다/, 'the last dew is spent');
     // 장비 상자 rolls come from the run's stone, so a save and load in the middle of the run rolls the same boxes.
     const picks = loadMidRun => {
         chart(`game.currentZoneId=29;game.atlas.run=null;game.atlas.stash=[{ ...atlasMaps.create('sun1', 1), uid: 777 }];game.atlas.nextUid=778;game.currencies.formlessDew=1;`);

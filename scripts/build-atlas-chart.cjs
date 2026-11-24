@@ -52,8 +52,8 @@ function routeRow(route) {
     return { from: route.from, to: route.to, side: route.side, hidden: route.hidden === true, guardianEntry: route.guardianEntry === true, path: route.svgPath };
 }
 
-/** 화면 글에는 가운뎃점을 쓰지 않는다: 패키지의 효과 글에 있는 것은 쉼표로. */
-const plainText = text => String(text).replace(/\s*·\s*/g, ', ');
+/** 화면 글에는 가운뎃점을 쓰지 않는다: 패키지의 효과 글에 있는 것은 쉼표로. 재화 이름은 게임의 표기(형체 없는 이슬)로 쓴다. */
+const plainText = text => String(text).replace(/\s*·\s*/g, ', ').replace(/형체없는/g, '형체 없는');
 
 function starRow(star, starts) {
     return { id: star.id, name: star.name, label: star.label || null, side: star.side, branch: star.branchName, point: star.point,

@@ -1,13 +1,13 @@
-import { clearAtlasTurn, available, routeLabel, routeSummary, actActionsHtml, trackedRewardHtml, rewardNamesHtml, open, openAct, enter, discovered, bosses, trials, showAtlasMap, enterAtlasNode, page, openEntryPage, hunt, render, syncLocation, bossRewardLabel, bossEntry, rewardTooltip, bossSummary, trialRouteSummary, hiveRouteSummary, colonyRouteSummary, chaosDepthLine, meteorLine, floorProgress } from './exploration-atlas-actions.mjs';
+import { available, routeLabel, routeSummary, actActionsHtml, trackedRewardHtml, rewardNamesHtml, open, openAct, enter, discovered, bosses, trials, page, openEntryPage, hunt, render, syncLocation, bossRewardLabel, bossEntry, rewardTooltip, bossSummary, trialRouteSummary, hiveRouteSummary, colonyRouteSummary, chaosDepthLine, meteorLine, floorProgress } from './exploration-atlas-actions.mjs';
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
 export function createExplorationAtlasView(deps) {
     const runtime = { deps, state: {}, handlers: {}, api: null };
-    const handlers = { available, routeLabel, routeSummary, actActionsHtml, trackedRewardHtml, rewardNamesHtml, open, openAct, enter, discovered, bosses, trials, showAtlasMap, enterAtlasNode, page, openEntryPage, hunt, render, syncLocation, bossRewardLabel, bossEntry, rewardTooltip };
+    const handlers = { available, routeLabel, routeSummary, actActionsHtml, trackedRewardHtml, rewardNamesHtml, open, openAct, enter, discovered, bosses, trials, page, openEntryPage, hunt, render, syncLocation, bossRewardLabel, bossEntry, rewardTooltip };
     for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(undefined, runtime);
     initialize(runtime);
 
-    runtime.api = {open: runtime.handlers.open,openAct: runtime.handlers.openAct,enter: runtime.handlers.enter,available: runtime.handlers.available,discovered: runtime.handlers.discovered,bosses: runtime.handlers.bosses,trials: runtime.handlers.trials,routeLabel: runtime.handlers.routeLabel,showAtlasMap: runtime.handlers.showAtlasMap,enterAtlasNode: runtime.handlers.enterAtlasNode,page: runtime.handlers.page,openEntryPage: runtime.handlers.openEntryPage,hunt: runtime.handlers.hunt,render: runtime.handlers.render,syncLocation: runtime.handlers.syncLocation,bossRewardLabel: runtime.handlers.bossRewardLabel,bossEntry: runtime.handlers.bossEntry,rewardTooltip: runtime.handlers.rewardTooltip};
+    runtime.api = {open: runtime.handlers.open,openAct: runtime.handlers.openAct,enter: runtime.handlers.enter,available: runtime.handlers.available,discovered: runtime.handlers.discovered,bosses: runtime.handlers.bosses,trials: runtime.handlers.trials,routeLabel: runtime.handlers.routeLabel,page: runtime.handlers.page,openEntryPage: runtime.handlers.openEntryPage,hunt: runtime.handlers.hunt,render: runtime.handlers.render,syncLocation: runtime.handlers.syncLocation,bossRewardLabel: runtime.handlers.bossRewardLabel,bossEntry: runtime.handlers.bossEntry,rewardTooltip: runtime.handlers.rewardTooltip};
 
     runtime.api.dispose = () => disposeExplorationAtlasView(runtime);
     return runtime.api;
@@ -15,8 +15,6 @@ export function createExplorationAtlasView(deps) {
 
 function initialize(runtime) {
     runtime.state.signature = '';
-    runtime.state.atlasTurn = null;
-    runtime.state.atlasPlate = null;
     runtime.state.discoveredBy = Object.freeze({
         'map-explore-chaos': () => Math.min(runtime.deps.game.maxZoneId, (0, runtime.deps.getVisibleHuntingMapCapZoneId)()) >= runtime.deps.ABYSS_START_ZONE_ID || (0, runtime.deps.getDeepChaosEntryState)().open,
         'map-explore-root-boss': () => bosses(runtime).length > 0,
@@ -53,7 +51,5 @@ function initialize(runtime) {
 }
 
 function disposeExplorationAtlasView(runtime) {
-    clearAtlasTurn(runtime);
-    runtime.state.atlasPlate = null;
     runtime.state.signature = '';
 }

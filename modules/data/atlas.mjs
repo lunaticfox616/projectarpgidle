@@ -325,9 +325,6 @@ const ATLAS = Object.freeze({
             { id: 'ages', name: '쌓인 시대', max: 20, effect: Object.freeze({ rarity: 3 }) }
         ].map(Object.freeze))
     }),
-    // 노드 지도 좌표(0~100): 칸 0~2는 바깥 고리, 3·4 / 5·6 / 7·8은 안쪽 고리들. 안쪽 고리는 10노드가 36°씩 고르게 선다.
-    chart: Object.freeze({ radii: Object.freeze([42, 33, 24.5, 16.5]), ring: Object.freeze([0, 0, 0, 1, 1, 2, 2, 3, 3]),
-        offsets: Object.freeze([-24, 0, 24, -18, 18, -18, 18, -18, 18]) }),
     // 바닥 위험 옵션이 쓰는 시련 함정 패턴(js/hazard-evasion.js).
     burningGround: Object.freeze({ pattern: 'pool', warningMs: 1700, intervalMs: 5200 }),
     // 이름을 바꾼 저장 id(2026-10-08): 예전 id의 FNV-1a 32비트 해시(16진수) → 새 id. 저장을 불러올 때 아틀라스, 탐험 지도, 적 상태

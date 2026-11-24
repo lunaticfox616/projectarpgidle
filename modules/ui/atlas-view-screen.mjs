@@ -1,8 +1,10 @@
 import { showWheelHub } from './atlas-wheel-hub.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
-import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode, stoneForNode, dewChoice } from './atlas-view-model.mjs';
-import { deviceCardHtml, stoneNeeded, stoneLock, flowersHtml, chancesHtml, runHtml, gateHtml, stashToolsHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
-import { resultHtml } from './atlas-view-results.mjs';
+import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode, stoneForNode, runningNode } from './atlas-view-model.mjs';
+import { omenChipHtml } from './atlas-view-map.mjs';
+import { pickCardHtml, goHtml } from './atlas-view-pick.mjs';
+import { stashCardHtml } from './atlas-view-stash.mjs';
+import { progressCardHtml } from './atlas-view-progress.mjs';
 
 /** The views for the map window's second tab row: { select(id), items: [{ id, label, badge, on }] }. */
 export function pages(runtime) {
@@ -16,17 +18,6 @@ export function progressLine(runtime) {
     const st = ledger(runtime);
     if (st.run) return (0, runtime.deps._t)('열린 지도: {node}', { node: nodeName(runtime, st.run.map.node) });
     return (!st.unlocked && runtime.deps.atlas.lockReason(runtime.deps.game)) || (0, runtime.deps._t)('지도석 {length}개, 완료 {length2}곳', { length: st.stash.length, length2: st.completed.length });
-}
-
-export function headerHtml(runtime) {
-    // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).
-    const st = ledger(runtime), progress = runtime.deps.atlas.progress(runtime.deps.game), free = runtime.deps.atlasPassives.available(runtime.deps.game);
-    const stat = (label, value, tone) => `<span class="atlas-stat" style="--stat-tone:${tone}">${label} <b>${value}</b></span>`;
-    const stats = stat('완료', `${progress.done}/${progress.total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
-        + stat('씨앗', `${st.seeds}/${runtime.deps.ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${runtime.deps.atlasPassives.points(runtime.deps.game)}${free ? (0, runtime.deps._t)(' (남음 {free})', { free }) : ''}`, '#7fd6cf');
-    return `<header class="atlas-head"><span class="atlas-stats">${stats}</span>
-            <label class="atlas-auto" data-tip="${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '자동 지도 · 정점 정복 후')}</span>
-            <small>${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}</small></label></header>`;
 }
 
 /** Navigation only: preparing a suggested map never spends its stone or starts combat. */
@@ -63,45 +54,26 @@ export function journeyState(runtime) {
     return mapJourney(runtime);
 }
 
-export function journeyHtml(runtime) {
-    const next = journeyState(runtime);
-    return `<section class="atlas-journey" aria-label="${(0, runtime.deps._t)('아틀라스 다음 목표')}"><div><h3>${(0, runtime.deps._t)(next.title)}</h3>${next.text ? `<p>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(next.text))}</p>` : ''}</div>
-            <div class="atlas-actions"><button class="atlas-primary" onclick="${next.action}">${(0, runtime.deps._t)(next.label)}</button>${next.epoch ? `<button onclick="atlasUi.setView('epoch')">${(0, runtime.deps._t)('시대 재생 비교')}</button>` : ''}</div></section>`;
-}
-
-export function autoOptionsHtml(runtime) {
-    const st = ledger(runtime);
-    if (!st.autoMap) return '';
-    const stop = runtime.deps.game.settings.mapCompleteAction === 'stop';
-    return `<section class="atlas-auto-options" aria-label="${(0, runtime.deps._t)('자동 지도 설정')}"><label><input type="checkbox" ${st.autoGuardians ? 'checked' : ''} onchange="atlasUi.toggleAutoGuardians(this.checked)">${(0, runtime.deps._t)('수호자 지도 포함')}</label>
-            ${stop ? (0, runtime.deps._t)('<p>완료 후 멈춤 설정으로 자동 지도가 대기 중입니다.</p>') : ''}
-            ${stop ? (0, runtime.deps._t)('<button onclick="openMapCompleteActionPicker(event)">완료 후 행동 변경</button>') : ''}</section>`;
-}
-
-/** 한 장 시험판(js/atlas-sheet-ui.js)에 건네는 것: 고른 노드와 지도석, 열 수 없는 까닭, 이미 만든 조각(열린 지도나 보스 자리나 지도석 카드, 보관함 도구, 결과),
- * 맞는 지도석이 없을 때의 말(needed)과 노드에 쓸 수 있는 지도석(matchingStones). */
-export function sheetParts(runtime) {
-    const st = ledger(runtime), map = selectedMap(runtime), node = runtime.deps.atlas.node(runtime.state.selectedNode), busy = runtime.deps.atlas.runOpenReason(runtime.deps.game), block = runtime.deps.atlasRun.blockReason();
-    const card = map ? `<section class="atlas-device" aria-label="${(0, runtime.deps._t)('지도 장치')}">${deviceCardHtml(runtime, map)}
-            <div class="atlas-crafts" aria-label="${(0, runtime.deps._t)('지도석 제작')}">${runtime.state.CRAFT_ORDER.map(key => craftButtonHtml(runtime, map, key)).join('')}</div>${flowersHtml(runtime, map)}${chancesHtml(runtime)}</section>` : '';
-    const side = st.run ? runHtml(runtime, st.run) : node && node.kind === 'gate' ? gateHtml(runtime, node) : card;
-    const tools = `${stashToolsHtml(runtime, map, busy)}${busy ? `<small>${busy}</small>` : ''}`;
-    const lock = map ? stoneLock(runtime, map) : runtime.deps.atlas.lockReason(runtime.deps.game) || block;
-    return { node: runtime.state.selectedNode, uid: runtime.state.selectedUid, lock, block, side, tools, after: `${autoOptionsHtml(runtime)}${resultHtml(runtime)}`, mapName: runtime.handlers.mapName,
-        needed: stoneNeeded(runtime, node), matchingStones: target => stonesForNode(runtime, target), dew: dewChoice(runtime, map) };
-}
-
+/** 지도 쪽: 천문도(atlasSheetUi)와 그 아래 띠(고른 것, 지침 보관함, 진행, 주 단추). */
 export function mapsViewHtml(runtime) {
-    if (runtime.deps.atlasSheetUi.on()) return runtime.deps.atlasSheetUi.html(sheetParts(runtime));
-    return `${journeyHtml(runtime)}<div class="atlas-ancient-entry"><button onclick="atlasUi.setView('late')">${(0, runtime.deps._t)('태양과 달, 피나클')}</button></div>${autoOptionsHtml(runtime)}<div class="atlas-main"><div class="atlas-chart-column">${legendHtml(runtime)}${chartHtml(runtime)}</div><div class="atlas-side">${ledger(runtime).run ? runHtml(runtime, ledger(runtime).run) : deviceHtml(runtime)}${nodeDetailHtml(runtime)}</div></div>
-            ${resultHtml(runtime)}${stashHtml(runtime)}`;
+    const chart = runtime.deps.atlasSheetUi.chart({ node: runtime.state.selectedNode, held: node => stonesForNode(runtime, node).length > 0 });
+    return `<div class="atlas-sheet"><div class="as-chart-box">${chart}</div><div class="as-band">${pickCardHtml(runtime)}${stashCardHtml(runtime)}${progressCardHtml(runtime)}${goHtml(runtime)}</div></div>`;
 }
 
-/** 고른 노드가 있으면 도크는 그 노드에 맞는 지도석을 스스로 쥔다: 지도를 마친 뒤 받은 지도석, 쓰거나 버려 사라진 지도석도 다시 맞춘다
- * (예전에는 완료 뒤 맞는 지도석이 있어도 'N등급 지도석이 필요합니다.'가 남았다). */
+/** 고른 것이 없으면 하나를 고른다: 열린 탐사의 자리, 꺼진 시작 육분의, 지침이 있는 열린 지도(높은 등급부터), 열린 지도, 시작 육분의 차례.
+ * 지도를 골랐으면 그 지도에 맞는 지침을 스스로 쥔다: 지도를 마친 뒤 받은 지침, 쓰거나 버려 사라진 지침도 다시 맞춘다. */
 export function keepStonePick(runtime) {
+    if (!runtime.state.selectedNode) runtime.state.selectedNode = defaultPick(runtime);
     const node = runtime.deps.atlas.node(runtime.state.selectedNode);
     if (node && !ledger(runtime).run) runtime.state.selectedUid = stoneForNode(runtime, node)?.uid ?? null;
+}
+
+export function defaultPick(runtime) {
+    const atlas = runtime.deps.atlas, game = runtime.deps.game, run = ledger(runtime).run;
+    if (run) return runningNode(runtime);
+    if (game.atlas.sextant !== true) return 'entry';
+    const open = atlas.nodes.filter(node => node.kind === 'map' && atlas.status(game, node.id) === 'open').sort((a, b) => b.tier - a.tier);
+    return (open.find(node => stonesForNode(runtime, node).length) || open[0])?.id || 'entry';
 }
 
 export function render(runtime) {
@@ -113,14 +85,21 @@ export function render(runtime) {
     const wallet = [...[...runtime.state.CRAFT_ORDER, ...runtime.deps.ATLAS.pinnacle.tickets].map(key => runtime.deps.game.currencies[key] || 0), ...flowerWallet(runtime)];
     if (!viewOpen(runtime, runtime.state.view)) runtime.state.view = 'maps'; // 다른 저장을 불러와 원정이 닫힌 뒤
     keepStonePick(runtime);
-    const key = JSON.stringify([runtime.deps.atlasSheetUi.on(), runtime.state.view, runtime.state.selectedRegion, ledger(runtime), runtime.state.selectedNode, runtime.state.selectedUid, runtime.state.useDew, wallet, runtime.deps.atlasRun.blockReason(), runtime.deps.game.currentZoneId, runtime.deps.game.maxZoneId, runtime.deps.game.settings.mapCompleteAction, (0, runtime.deps.getPersistentBuildSignature)(runtime.deps.game)]);
+    const key = JSON.stringify([runtime.state.view, ledger(runtime), runtime.state.selectedNode, runtime.state.selectedUid, runtime.state.useDew, runtime.state.craftOpen, runtime.state.progressFace, wallet, runtime.deps.atlasRun.blockReason(), runtime.deps.game.currentZoneId, runtime.deps.game.maxZoneId, runtime.deps.game.settings.mapCompleteAction, (0, runtime.deps.getPersistentBuildSignature)(runtime.deps.game)]);
     if (key === runtime.state.signature && panel.innerHTML) return;
     runtime.state.signature = key;
     const lock = runtime.deps.atlas.lockReason(runtime.deps.game);
-    panel.innerHTML = `<div class="atlas-shell">${runtime.deps.atlasSheetUi.on() ? (runtime.state.view === 'maps' ? '' : runtime.deps.atlasSheetUi.top(false)) : headerHtml(runtime)}${lock && !ledger(runtime).unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
+    panel.innerHTML = `<div class="atlas-shell">${lock && !ledger(runtime).unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
             ${runtime.state.VIEWS[runtime.state.view]()}</div>`;
-    runtime.state.PAINT[runtime.state.view]();
+    if (runtime.state.view === 'maps') runtime.deps.atlasSheetUi.settle();
     watchPanel(runtime, panel);
+}
+
+/** 천문도는 창 너비를 따른다: 휴대폰에서 옆으로 민 천문도가 처음 보일 때(보이지 않는 탭에서 그려 너비가 0이었다) 고른 곳을 가운데로 세운다. */
+export function watchPanel(runtime, panel) {
+    if (runtime.state.panelObserver || typeof runtime.deps.ResizeObserver !== 'function') return;
+    runtime.state.panelObserver = new runtime.deps.ResizeObserver(() => { if (panelOpen(runtime) && runtime.state.view === 'maps') runtime.deps.atlasSheetUi.settle(); });
+    runtime.state.panelObserver.observe(panel);
 }
 
 /** The map's kind chip: its rarity in the rarity's colour, a memory step, or the fight it opens. */

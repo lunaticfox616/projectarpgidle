@@ -47,8 +47,8 @@ function atlasCoreNodeReason(env, state, map, nodeId) {
 
 /** 형체 없는 이슬 입장(개편 A2): 천문도의 일반 지도석만, 지갑에 이슬이 있을 때. */
 export function atlasCoreDewReason(env, state, map) {
-    if (!atlasCoreIsMapStone(env, map) || map.memory) return env.deps._t('형체없는 이슬은 일반 지도에만 쓸 수 있습니다.');
-    return (state.currencies.formlessDew || 0) >= env.deps.ATLAS.dewEntry.cost ? '' : env.deps._t('형체없는 이슬이 없습니다.');
+    if (!atlasCoreIsMapStone(env, map) || map.memory) return env.deps._t('형체 없는 이슬은 일반 지도에만 쓸 수 있습니다.');
+    return (state.currencies.formlessDew || 0) >= env.deps.ATLAS.dewEntry.cost ? '' : env.deps._t('형체 없는 이슬이 없습니다.');
 }
 
 /** nodeId를 주면 그 노드에 그 지도석을 쓸 수 있는지까지 본다. dew: 형체 없는 이슬 입장. */

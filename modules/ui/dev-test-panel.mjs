@@ -353,8 +353,6 @@ export class DevTestPanel {
         stance.value = this.deps.game.settings.stageStance || 'auto';
         stance.onchange = () => this.setSetting('stageStance', stance.value, `무대 자세: ${stance.selectedOptions[0].textContent}`);
         return this.section('옆에서 보는 무대(시험판)', [
-            this.row([this.el('label', { textContent: '아틀라스' }), this.button('한 장', () => { this.setSetting('atlasSheet', 'on', '아틀라스: 한 장'); this.deps.atlasUi.refresh(); }),
-                this.button('예전 화면', () => { this.setSetting('atlasSheet', 'off', '아틀라스: 예전 화면'); this.deps.atlasUi.refresh(); })]),
             this.row([this.el('label', { textContent: '크기' }), this.button('자동', () => this.setSetting('stageZoom', 0, '무대 크기: 자동')),
                 ...[1, 1.5, 2].map(zoom => this.button(`×${zoom}`, () => this.setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             this.row([this.el('label', { textContent: '자세' }), stance]),

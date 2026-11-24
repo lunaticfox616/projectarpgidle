@@ -16,15 +16,12 @@ export function available(runtime, route) {
 }
 
 /** 전체 탐험은 세계 지도(js/world-map-ui.js)다. 권역을 고르는 중간 화면은 없다(2026-11-08: 지도의 자리가 그 몫이다). */
-export function open(runtime, atlasMap = false) {
-    clearAtlasTurn(runtime);
-    runtime.deps.worldMapUi.showAtlas(atlasMap);
+export function open(runtime) {
     (0, runtime.deps.switchTab)('tab-map', { keepWindowOpen: true });
     (0, runtime.deps.switchMapSubtab)('map-tab-zones');
     (0, runtime.deps.switchMapExploreSubtab)('map-explore-atlas');
     render(runtime);
     scrollToTop(runtime);
-    if (atlasMap) focusAtlasControl(runtime, true);
 }
 
 /** The world map with a story act picked: its side panel holds the act's reward, travel and 세부 지역. Goals open this, not the act list
@@ -34,117 +31,9 @@ export function openAct(runtime, zoneId) {
     runtime.deps.worldMapUi.pickAct(zoneId);
 }
 
-export function revealAtlasMap(runtime, on) {
-    runtime.deps.worldMapUi.showAtlas(on);
-    render(runtime);
-    focusAtlasControl(runtime, on);
-}
-
-export function focusAtlasControl(runtime, on) {
-    const selector = on ? '.wm-atlas-back' : '.wm-atlas-entrance';
-    const control = runtime.deps.document.querySelector('#ui-exploration-atlas ' + selector);
-    if (!on) control?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    control?.focus({ preventScroll: true });
-}
-
-export function clearAtlasTurn(runtime) {
-    const turn = runtime.state.atlasTurn;
-    if (!turn) return;
-    runtime.state.atlasTurn = null;
-    turn.motions.forEach(motion => motion.cancel());
-    turn.layer?.remove();
-    turn.view.classList.remove('is-atlas-turning');
-    turn.map.inert = false;
-    turn.map.removeAttribute('aria-busy');
-}
-
-export function decodeAtlasPlate(runtime) {
-    if (!runtime.state.atlasPlate) {
-        runtime.state.atlasPlate = new runtime.deps.Image();
-        runtime.state.atlasPlate.src = runtime.deps.WORLD_MAP.atlas.src;
-    }
-    return runtime.state.atlasPlate.decode();
-}
-
-export function turnIsVisible(runtime, turn) {
-    return turn.owner === runtime.deps.game && overviewSelected(runtime) && turn.map.isConnected && turn.map.getClientRects().length > 0;
-}
-
-export function beginAtlasTurn(runtime, map) {
-    const turn = runtime.state.atlasTurn = { map, view: map.parentElement, owner: runtime.deps.game, layer: null, motions: [] };
-    map.inert = true;
-    map.setAttribute('aria-busy', 'true');
-    return turn;
-}
-
-export function addAtlasLayer(runtime, turn) {
-    const layer = runtime.deps.document.createElement('div');
-    layer.className = 'wm-map wm-atlas-arriving';
-    layer.setAttribute('aria-hidden', 'true');
-    layer.style.backgroundImage = `url('${runtime.deps.WORLD_MAP.atlas.src}')`;
-    turn.view.classList.add('is-atlas-turning');
-    turn.view.append(layer);
-    return layer;
-}
-
-/** Invert the live chart while the decoded art covers it in place. No pause or empty frame. */
-export function blendAtlasTurn(runtime, turn) {
-    if (runtime.deps.uiDisplay.reducedEffects() || !turn.map.animate) return;
-    const oldHeight = turn.view.offsetHeight;
-    const layer = turn.layer = addAtlasLayer(runtime, turn);
-    const timing = { duration: 760, fill: 'both' };
-    turn.motions.push(
-        turn.map.animate([{ filter: 'invert(0)', easing: 'ease-in-out' }, { filter: 'invert(1)', offset: .54 }, { filter: 'invert(1)' }], timing),
-        layer.animate([{ opacity: 0 }, { opacity: 0, offset: .24, easing: 'ease-in-out' }, { opacity: 1 }], timing)
-    );
-    if (Math.abs(oldHeight - layer.offsetHeight) > 1) turn.motions.push(turn.view.animate([
-        { height: `${oldHeight}px` }, { height: `${oldHeight}px`, offset: .24, easing: 'ease-in-out' }, { height: `${layer.offsetHeight}px` }
-            ], timing));
-    return Promise.all(turn.motions.map(motion => motion.finished));
-}
-
-export function atlasTurnFailed(runtime, turn, error) {
-    if (runtime.state.atlasTurn !== turn) return; // Navigation cancelled the animation intentionally.
-    runtime.state.atlasPlate = null;
-    clearAtlasTurn(runtime);
-    runtime.deps.console.warn('[atlas-map] Failed to prepare chart', error);
-    if (!turnIsVisible(runtime, turn)) return;
-    turn.map.querySelector('.wm-atlas-entrance')?.focus();
-    (0, runtime.deps.showGameToast)((0, runtime.deps._t)('아틀라스 지도를 불러오지 못했습니다. 다시 눌러 주세요.'));
-}
-
-/** Decode first so the outgoing map remains visible until the new picture can blend over it. */
-export async function transitionAtlasMap(runtime, turn) {
-    try {
-        await decodeAtlasPlate(runtime);
-        if (runtime.state.atlasTurn === turn && turnIsVisible(runtime, turn)) await blendAtlasTurn(runtime, turn);
-    } catch (error) {
-        atlasTurnFailed(runtime, turn, error);
-        return;
-    }
-    if (runtime.state.atlasTurn !== turn) return;
-    const visible = turnIsVisible(runtime, turn);
-    clearAtlasTurn(runtime);
-    if (visible) revealAtlasMap(runtime, true);
-}
-
-export function showAtlasMap(runtime, on) {
-    if (!on) { clearAtlasTurn(runtime); revealAtlasMap(runtime, false); return; }
-    if (runtime.state.atlasTurn || !overviewSelected(runtime)) return;
-    const map = runtime.deps.document.querySelector('#ui-exploration-atlas .wm-map:not(.wm-atlas-map)');
-    if (map?.getClientRects().length) return transitionAtlasMap(runtime, beginAtlasTurn(runtime, map));
-}
-
-export function enterAtlasNode(runtime, id) {
-    if (!available(runtime, 'map-explore-worldtree') || !runtime.deps.atlas.nodes.some(node => node.id === id)) return;
-    enter(runtime, 'map-explore-worldtree');
-    runtime.deps.atlasUi.selectNode(id, true);
-}
-
 export function enter(runtime, route) {
     if (!regionFor(runtime, route) && route !== 'map-tab-pvp') return;
     if (!available(runtime, route)) return;
-    clearAtlasTurn(runtime);
     if (route.startsWith('map-explore-')) {
         (0, runtime.deps.switchMapSubtab)('map-tab-zones');
         (0, runtime.deps.switchMapExploreSubtab)(route);
@@ -284,9 +173,6 @@ export function bossRewardLabel(runtime, zone) {
 export function render(runtime) {
     const host = runtime.deps.document.getElementById('ui-exploration-atlas');
     syncLocation(runtime);
-    // Runtime refreshes may change the map markup while the current chart is being turned.
-    if (runtime.state.atlasTurn && turnIsVisible(runtime, runtime.state.atlasTurn)) return;
-    clearAtlasTurn(runtime);
     if (!host || !overviewSelected(runtime)) return;
     const arena = available(runtime, 'map-tab-pvp') ? `<button class="atlas-arena" onclick="explorationAtlasUi.enter('map-tab-pvp')">${(0, runtime.deps._t)('대전')}</button>` : '';
     const body = runtime.deps.worldMapUi.overviewHtml(reader(runtime));
@@ -354,8 +240,7 @@ export function locationHtml(runtime, route) {
     const others = runtime.deps.worldMapUi.offMapRoutes().map(entry => `<button class="exploration-place-tab is-plain" aria-pressed="${entry === route}" onclick="explorationAtlasUi.enter('${entry}')"><span>${(0, runtime.deps.escapeHTML)(routeLabel(runtime, entry))}</span></button>`).join('');
     const chips = pageChips(runtime, route).map(chip => `<button aria-pressed="${!!chip.on}" onclick="${chip.action}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(chip.label))}`
             + `${chip.badge ? `<i>${(0, runtime.deps.escapeHTML)(chip.badge)}</i>` : ''}</button>`).join('');
-    const atlasMap = route === 'map-explore-worldtree' ? `<button class="exploration-home" onclick="explorationAtlasUi.open(true)">${(0, runtime.deps._t)('아틀라스 지도')}</button>` : '';
-    return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">${(0, runtime.deps._t)('세계 지도')}</button>${atlasMap}${places}${others}</div>`
+    return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">${(0, runtime.deps._t)('세계 지도')}</button>${places}${others}</div>`
         + `<div class="exploration-routes" role="group" aria-label="${(0, runtime.deps.escapeHTML)(routeLabel(runtime, route))}">${chips}</div>`;
 }
 

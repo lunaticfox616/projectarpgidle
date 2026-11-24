@@ -30,33 +30,17 @@ export function openNode(runtime, id) {
     else if (selectedMap(runtime)) open(runtime);
 }
 
-export function selectRegion(runtime, id, showMaps = false) {
-    if (!runtime.deps.ATLAS.regions.some(row => row.id === id)) return;
-    if (showMaps) runtime.state.view = 'maps';
-    runtime.state.selectedRegion = id;
-    runtime.state.selectedNode = null;
-    refresh(runtime);
-}
-
+/** 천문도의 노드나 표지(시작 육분의 'entry', 피나클 장치 'device')를 고른다. 고른 지침이 이 노드에 맞지 않으면 맞는 지침(같은 등급,
+ * 수호자는 그 수호자의 것)으로 바꾸고, 없으면 비운다. reveal: 다른 쪽에서 왔으면 지도 쪽을 열고 고른 것의 카드를 보인다. */
 export function selectNode(runtime, id, reveal = false) {
     const node = runtime.deps.atlas.node(id);
-    if (!node) return;
-    (0, runtime.deps.hideInfoTooltip)(); // a tap also fires the hover card; the detail panel shows the node now
+    if (!node && !runtime.state.MARKS.includes(id)) return;
+    (0, runtime.deps.hideInfoTooltip)(); // a tap also fires the hover card; the card under the chart shows the node now
     if (reveal) runtime.state.view = 'maps';
     runtime.state.selectedNode = id;
-    runtime.state.selectedRegion = node.region || 'trunk';
-    // 고른 지도석이 이 노드에 맞지 않으면 맞는 지도석(같은 등급, 수호자는 그 수호자의 것)으로 바꾸고, 없으면 비운다.
-    runtime.state.selectedUid = stoneForNode(runtime, node)?.uid ?? null;
+    runtime.state.selectedUid = node ? stoneForNode(runtime, node)?.uid ?? null : null;
     render(runtime);
-    if (reveal) revealNodeDetail(runtime);
-}
-
-export function revealNodeDetail(runtime) {
-    const detail = runtime.deps.document.querySelector('#ui-atlas .atlas-node-detail');
-    if (!detail) return;
-    detail.tabIndex = -1;
-    detail.focus({ preventScroll: true });
-    detail.scrollIntoView({ block: 'nearest' });
+    if (reveal) revealDevice(runtime);
 }
 
 export function selectMap(runtime, uid, reveal = false) {
@@ -76,15 +60,15 @@ export function pickMap(runtime, map) {
     // 수호자 지도석의 갈 곳은 그 수호자를 치르는 천문도의 자리로 고른다(자리가 없는 「나이테 왕」은 그 수호자).
     const destination = atlas.mapDestination(game, map), node = destination && (atlas.gateOf(destination.id) || destination);
     runtime.state.selectedNode = atlas.matchesNode(game, map, node) ? node.id : null;
-    if (node) runtime.state.selectedRegion = node.region || 'trunk';
 }
 
+/** 고른 것의 카드를 보인다(휴대폰에서는 천문도 아래로 내려 간다). */
 export function revealDevice(runtime) {
-    runtime.deps.document.querySelector('#ui-atlas .atlas-device')?.scrollIntoView({ block: 'start' });
+    runtime.deps.document.querySelector('#ui-atlas .as-pick')?.scrollIntoView({ block: 'nearest' });
 }
 
 export function revealStash(runtime) {
-    runtime.deps.document.querySelector('#ui-atlas .atlas-stash')?.scrollIntoView({ block: 'start' });
+    runtime.deps.document.querySelector('#ui-atlas .as-stash')?.scrollIntoView({ block: 'nearest' });
 }
 
 /** 고른 지도석 하나. 손대지 않은 지도석은 묻지 않고(2026-11-06 사용자: 버리기가 너무 귀찮다), 제작한 것만 확인한다. 버린 뒤 다음 줄을 골라
@@ -238,9 +222,21 @@ export function open(runtime) {
     (0, runtime.deps.switchTab)('tab-battle');
 }
 
-/** 입장 도크의 형체없는 이슬 사용 켜고 끄기(지갑에 이슬이 없으면 단추가 꺼져 있다). */
+/** 입장 상자의 형체 없는 이슬 사용 켜고 끄기(지갑에 이슬이 없으면 꺼져 있다). */
 export function toggleDew(runtime) {
     runtime.state.useDew = runtime.state.useDew !== true;
+    render(runtime);
+}
+
+/** 지침 보관함 카드를 고른 지침의 제작 면으로 바꾸거나 목록으로 되돌린다. */
+export function toggleCraft(runtime) {
+    runtime.state.craftOpen = runtime.state.craftOpen !== true;
+    render(runtime);
+}
+
+/** 진행 카드의 쪽: 'progress' | 'result'. */
+export function showProgress(runtime, face) {
+    runtime.state.progressFace = face === 'result' ? 'result' : 'progress';
     render(runtime);
 }
 
@@ -249,7 +245,8 @@ export function activateSextant(runtime) {
     const result = runtime.deps.atlas.activateSextant(runtime.deps.game);
     if (result.reason) return (0, runtime.deps.addLog)(result.reason, 'attack-monster');
     (0, runtime.deps.playUiFeedbackSound)('uiConfirm');
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 시작 육분의를 켰습니다. {tier}등급 지도석 {count}개를 얻었습니다.', { tier: runtime.deps.ATLAS.sextant.tier, count: result.maps.length }), 'loot-normal');
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🗺️ 시작 육분의를 켰습니다. T{tier} 지침 {count}개를 얻었습니다.', { tier: runtime.deps.ATLAS.sextant.tier, count: result.maps.length }), 'loot-normal');
+    runtime.state.selectedNode = null; // 다음 그리기가 새로 열린 지도 하나를 고른다
     (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
 }
