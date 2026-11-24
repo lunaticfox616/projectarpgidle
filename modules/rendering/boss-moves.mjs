@@ -1,4 +1,5 @@
 import { createObserverScene } from './observer-scene.mjs';
+import { drawForgeFloor, drawSignature, nextSignatureStages, signatureRange } from './atlas-signature.mjs';
 import { createObserverArena } from './observer-arena.mjs';
 import { createBossMoveTiming } from './boss-move-timing.mjs';
 import { WOODSMAN_BLADE, WOODSMAN_SHAPES } from './boss-move-clips.mjs';
@@ -176,13 +177,21 @@ class BossMoveView {
     drawLiveMove(owner, ctx, entry, projection, now) {
         const move = entry.move, found = this.deps.bossMoves.fxOf(entry.source);
         if (move.kind === 'woodsman') return;
+        if (move.family==='forge') {
+            if (owner.enemies.some(enemy => enemy.id === entry.source.id && enemy.hp > 0)) drawForgeFloor(ctx,move,projection,now);
+            return;
+        }
         if (move.kind === 'observer') { this.arena.drawObserverMove(owner, ctx, entry, projection, now); return; }
+        if (move.kind !== 'signature') this.drawStageWarnings(ctx,move,projection,now);
+        if (move.kind === 'grind') this.drawGrindGround(ctx, move, now, projection);
+        if (found && this.fx()) this.drawBursts(ctx, entry, found.row, now, projection);
+    }
+
+    drawStageWarnings(ctx,move,projection,now) {
         for (const stage of move.stages) {
             const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
             if (cells.length && !this.HELD_MOVES.includes(move.kind)) this.drawStageWarning(ctx, { cells }, move.releasedAt + stage.ms, now, projection);
         }
-        if (move.kind === 'grind') this.drawGrindGround(ctx, move, now, projection);
-        if (found && this.fx()) this.drawBursts(ctx, entry, found.row, now, projection);
     }
 
     /** Pale footprint = arrival, red footprint = damage. Neither follows the victim after being warned. */
@@ -371,6 +380,7 @@ class BossMoveView {
         this.drawCharges(owner, ctx, projection);
         for (const entry of this.deps.bossMoves.live(now)) {
             if (entry.move.kind === 'observer') { this.arena.drawObserverAir(ctx, entry, projection, now); continue; }
+            if (entry.move.kind === 'signature') {drawSignature(ctx,entry,projection,now);continue;}
             if (entry.move.kind === 'grind') this.drawGrindSparks(ctx, entry, now);
             const found = this.deps.bossMoves.fxOf(entry.source);
             if (!found) continue;
@@ -386,5 +396,7 @@ export function createBossMoveView(deps) {
     const arena = createObserverArena(deps, scene);
     const motion = createBossMoveTiming(deps);
     const instance = new BossMoveView(deps, arena);
-    return Object.freeze({ motion, drawGround: instance.drawGround.bind(instance), drawAir: instance.drawAir.bind(instance), drawWoodsmanFx: instance.drawWoodsmanFx.bind(instance), drawObserverWarnings: arena.drawObserverWarnings, drawObserverTransition: scene.drawObserverTransition, observerScene: scene.observerScene, observerCamera: scene.observerCamera, strikeHoldMs: motion.strikeHoldMs, heldSide: motion.heldSide, shiftAlpha: motion.shiftAlpha });
+    const nextStrikes=enemies=>nextSignatureStages(enemies,deps.bossMoves.live(deps.getCombatTime()),deps.bossAttackView);
+    const castRange=enemy=>signatureRange(enemy,deps.bossMoves.live(deps.getCombatTime()),deps.bossAttackView);
+    return Object.freeze({ motion, nextStrikes, castRange, drawGround: instance.drawGround.bind(instance), drawAir: instance.drawAir.bind(instance), drawWoodsmanFx: instance.drawWoodsmanFx.bind(instance), drawObserverWarnings: arena.drawObserverWarnings, drawObserverTransition: scene.drawObserverTransition, observerScene: scene.observerScene, observerCamera: scene.observerCamera, strikeHoldMs: motion.strikeHoldMs, heldSide: motion.heldSide, shiftAlpha: motion.shiftAlpha });
 }

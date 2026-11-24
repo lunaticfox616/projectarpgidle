@@ -17,14 +17,15 @@ class LootDelivery {
             filterOnPickup: !options?.ignoreFilter, ignoreAutoSalvage: !!options?.ignoreAutoSalvage }, state);
     }
     keepEquipment(state, enemy, item, options) {
+        this.deps.normalizeItem(item);
         const highlight = this.deps.policy.highlight(item, state);
-        const keep = this.deps.previewEquipmentPickup(item, options) === 'kept';
         const guaranteed = this.deps.isGuaranteedEquipmentPickup(item, options);
-        if (keep && this.holdEquipment(state, enemy, item, options, { highlight, guaranteed })) return { status: 'floor' };
+        if (this.holdEquipment(state, enemy, item, options, { highlight, guaranteed })) return { status: 'floor' };
         const run = this.floorFor(state, enemy);
-        if (run && keep) {
-            this.deps.floor.place(run, enemy, item, { highlight: !!highlight, guaranteed });
-            return { status: 'floor', celebrate: true, highlight };
+        if (run) {
+            this.deps.floor.place(run, enemy, item, { highlight: !!highlight, guaranteed,
+                filterOnPickup: !options?.ignoreFilter, ignoreAutoSalvage: !!options?.ignoreAutoSalvage });
+            return { status: 'floor', celebrate: !run.bossLoot, highlight };
         }
         if (!this.deps.addItemToInventory(item, options)) return { status: null };
         return { status: 'kept', receipt: { item, itemKind: 'equipment', highlight } };
@@ -32,7 +33,7 @@ class LootDelivery {
     placeItem(state, enemy, kind, { item, overflow }) {
         if (this.deps.floor.reserve({ gx: enemy.gx, gy: enemy.gy, kind, item, overflow }, state)) return true;
         const run = this.floorFor(state, enemy);
-        if (!run || (kind === 'jewel' && this.deps.bagItems.salvagedOnDrop(item))) return false;
+        if (!run) return false;
         this.deps.floor.placeItem(run, enemy, kind, item, overflow);
         return true;
     }

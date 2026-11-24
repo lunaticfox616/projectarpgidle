@@ -39,8 +39,13 @@ export function moveRestArea(env, pattern, move) {
             damageMul: (Number(pattern.damageMul) || 1) * (stage.share || 1), isSpecial: pattern.isSpecial && move.next === 1 };
         if (move.observerMove === 'collapse') (yield* observerCollapse(env, attack, now));
         if (move.observerMove === 'seal') (yield* observerSeal(env, attack));
-        return { cells, burst: ['rings', 'cross', 'scatter'].includes(move.kind) };
+        return { cells, burst:stageBursts(move) };
     }
+
+function stageBursts(move) {
+    if (move.family==='forge') return move.next===move.stages.length;
+    return ['rings','cross','scatter','signature'].includes(move.kind);
+}
 
 /** The stages still to land go back in the queue as one attack (not a special any more: no cast bar, no second log line). A volley
      * whose every shot hit has nothing left. */

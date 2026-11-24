@@ -50,7 +50,7 @@ const actExplorationState={
     discover(run,cell,stats) {return part1.stateDiscover({owner:game,deps,memo}, run,cell,stats);},
     engage(state,now=getCombatTime()) {return part2.stateEngage({owner:game,deps,memo}, state,now);},
     dormantNear(state,cell,reach) {return part2.stateDormantNear(state,cell,reach);},
-    wake(state,enemies) {return part2.stateWake(state,enemies);},
+    wake(state,enemies) {return part2.stateWake({owner:game,deps,memo},state,enemies);},
     alerted(state) {return part2.stateAlerted({owner:game,deps,memo}, state);},
     entrance(run) {return part2.stateEntrance({owner:game,deps,memo}, run);},
     joinedAt(enemy) {return part2.stateJoinedAt({owner:game,deps,memo}, enemy);},

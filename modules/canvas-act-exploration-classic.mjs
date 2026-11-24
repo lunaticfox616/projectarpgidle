@@ -8,6 +8,7 @@ const native = createActExplorationView({
     get actExplorationMotion() { return actExplorationMotion; },
     get stageView() { return stageView.layout; },
     get woodsmanView() { return woodsmanView; },
+    get bossMoves() { return bossMoveView; },
     get stageScene() { return typeof stageScene === 'undefined' ? undefined : stageScene.scenery; },
     get actExplorationDoors() { return actExplorationDoors; },
     get stageRoomsView() { return stageRoomsView.renderer; },

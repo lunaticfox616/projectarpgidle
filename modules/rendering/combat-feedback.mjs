@@ -1,4 +1,5 @@
 import { clampNumber } from '../common/numbers.mjs';
+import { drawBossVictoryCaption } from './boss-victory-caption.mjs';
 
 /** Render-local cache and read-only scene ports; no combat rules or saved state. */
 class CombatFeedbackRenderer {
@@ -25,7 +26,7 @@ class CombatFeedbackRenderer {
         levelUp: () => this.deps.playUiFeedbackSound('levelUp'),
         lootBurst: () => this.deps.playUiFeedbackSound('lootBurst'),
         fishCatch: fx => { if (!fx.background) this.deps.playUiFeedbackSound('fishCatch'); },
-        bossEntrance: () => this.deps.playUiFeedbackSound('bossEntrance'),
+        bossEntrance: fx => { if (!fx.phaseChange) this.deps.playUiFeedbackSound('bossEntrance'); },
         observerCollapse: () => this.deps.playUiFeedbackSound('riftOpen'),
         playerReturnDepart: () => this.deps.playUiFeedbackSound('returnWarp')
     };
@@ -142,7 +143,8 @@ class CombatFeedbackRenderer {
 
     deathNotice(fx, now) {
         if (!fx.boss) return;
-        this.notice = { text: this.deps._t('보스 처치'), detail: this.deps.stripDecorativeEmoji(fx.name || ''), start: now, duration: 1850 };
+        const name = this.deps._t(this.deps.stripDecorativeEmoji(fx.name || ''));
+        this.notice = { text: name ? this.deps._t('{name} 처치', { name }) : this.deps._t('보스 처치'), start: now, duration: 1850 };
     }
 
     contactStyle(fx) {
@@ -223,25 +225,9 @@ class CombatFeedbackRenderer {
         if (!this.notice) return;
         const t = (area.now - this.notice.start) / this.notice.duration;
         const alpha = Math.min(1, t * 10, (1 - t) * 5);
-        const x = Math.round(area.width / 2), y = Math.round(area.height * .19);
-        const width = Math.min(area.width - 32, 300);
         ctx.save();
         ctx.globalAlpha = Math.max(0, alpha);
-        ctx.fillStyle = 'rgba(12,13,16,.86)';
-        ctx.fillRect(x - width / 2, y - 21, width, 60);
-        ctx.fillStyle = '#a88b51';
-        ctx.fillRect(x - width / 2, y - 21, width, 1);
-        ctx.fillRect(x - 20, y + 38, 40, 1);
-        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-        // 갈무리의 제 크기(제목 24px, 설명은 갈무리14 15px)와 정수 화소: 22px, 14px은 도트가 번졌다(2026-10-21).
-        ctx.font = `24px ${this.deps.battlePixelFont()}`;
-        ctx.fillStyle = '#f1d69b'; this.deps.drawCrispCanvasText(ctx, this.deps._t(this.notice.text), x, y + 2);
-        if (this.notice.detail) {
-            ctx.font = `15px 'Galmuri14', ${this.deps.battlePixelFont()}`;
-            ctx.fillStyle = '#d6ccbc';
-            if (ctx.measureText(this.notice.detail).width <= width - 20) this.deps.drawCrispCanvasText(ctx, this.notice.detail, x, y + 24);
-            else ctx.fillText(this.notice.detail, x, y + 24, width - 20);
-        }
+        drawBossVictoryCaption(ctx, area, this.notice.text, [], `'Galmuri14', ${this.deps.battlePixelFont()}`);
         ctx.restore();
     }
 

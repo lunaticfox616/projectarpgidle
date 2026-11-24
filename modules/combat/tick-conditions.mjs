@@ -35,6 +35,8 @@ export function tickApplyPlayerAilmentsToTick(env, pStats) {
         if (tickIsStrongerShock(ail, activePlayerShock)) activePlayerShock = ail;
     });
     if (ailmentMap.chill) pStats.aspd *= 1 - 0.32 * (1 - clampNumber(pStats.chillEffectReducePct || 0, 0, 100) / 100);
+    if (ailmentMap.huntSlow) pStats.moveSpeed *= 0.75;
+    if (ailmentMap.huntHex) pStats.genericTakenDamageMultiplier = (pStats.genericTakenDamageMultiplier || 1)*1.15;
     pStats.playerShockTakenDamageIncreasePct = activePlayerShock ? env.deps.getPlayerShockTakenDamageIncreasePct(pStats, activePlayerShock.power) : 0;
 }
 

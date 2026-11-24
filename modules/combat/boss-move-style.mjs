@@ -1,6 +1,7 @@
 import { BOSS_MOVE_STYLE_BY_VISUAL, BOSS_MOVE_INTRO, FAMILIES, BOSS_MOVE_NAMES, BOSS_MOVE_RULES } from './boss-move-values.mjs';
 import { BOSS_ATTACK_IMPACT_DELAY_MS } from './core-values.mjs';
 import { observerImpactMs } from './boss-move-geometry.mjs';
+import { signatureFirstHit } from './atlas-signature.mjs';
 
 /** The boss's effect row (data/boss-fx.js): the look it shows on the stage (js/canvas-stage-roster.js actorFor), else its asset. */
     export function moveBossFxOf(env, enemy) {
@@ -54,6 +55,7 @@ export function moveMoveKind(area, telegraph, style) {
         if (area?.woodsman) return area.woodsman.stages[0].ms;
         if (!area) return BOSS_ATTACK_IMPACT_DELAY_MS;
         if (area.observerMove) return observerImpactMs(area);
+        if (state.signature) return signatureFirstHit(state.signature);
         const kind = moveMoveKind(area, state.telegraphKind, moveStyleOf(env, enemy));
         return kind ? BOSS_MOVE_RULES[kind].firstMs : BOSS_ATTACK_IMPACT_DELAY_MS;
     }

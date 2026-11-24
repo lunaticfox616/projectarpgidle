@@ -133,19 +133,22 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'zone actions';
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle),
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button,
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > :is(.ui-context-dock-tab, .combat-log-toggle) {
-    border: 1px solid var(--px-ink);
+    border: 1px solid var(--px-bronze-lo);
     border-radius: 0;
     background: var(--px-board), var(--px-stone-control);
-    box-shadow: var(--px-bevel);
+    box-shadow: none;
     color: var(--px-copy);
     /* 기본 모바일 규칙의 9 ~ 10px 글씨는 도트 글꼴에서 뭉개진다 */
     font-size: 12px;
     text-shadow: var(--px-text-edge);
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, .ui-context-dock-tab, .combat-log-toggle):active {
-    box-shadow: var(--px-bevel-pressed);
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button:is([aria-pressed="true"],[aria-expanded="true"]) {
+    box-shadow: inset 0 -2px var(--px-gold); color: var(--px-gold-bright);
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, .ui-context-dock-tab, .combat-log-toggle):active {
+    border-color: var(--px-gold); box-shadow: inset 0 2px 0 var(--px-bronze-lo);
   }
   /* 전투 기록 막대는 판 자체가 테두리라 안의 펼치기 버튼은 납작하게 */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > #btn-combat-log-toggle { border-color: transparent; background: none; box-shadow: none; }
@@ -155,7 +158,7 @@
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
     border-top: 1px solid var(--px-ink);
     background: var(--px-wood-dark), var(--px-stone);
-    box-shadow: inset 0 1px 0 var(--px-bronze-hi), inset 0 2px 0 var(--px-bronze), inset 0 3px 0 var(--px-ink);
+    box-shadow: inset 0 1px 0 var(--px-bronze-lo);
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) {
     border: 0;
@@ -171,8 +174,11 @@
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more):last-child { border-right: 0; box-shadow: none; }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active {
     background: var(--px-board-hot), var(--px-stone-control);
-    box-shadow: inset 0 4px 0 var(--px-gold), inset 2px 0 0 #000, inset -2px 0 0 #000;
+    box-shadow: inset 0 2px 0 var(--px-gold);
     color: var(--px-gold-bright);
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more):is(:active,:focus-visible) {
+    outline: 1px solid var(--px-gold-bright); outline-offset: -2px;
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) > .noti-dot {
     width: 8px;

@@ -30,6 +30,8 @@ const native = createBossMoveView({
     get woodsmanAttackFxElement() { return woodsmanAttackFxElement; }
 });
 const bossMoveView = Object.freeze({
+    nextStrikes: native.nextStrikes,
+    castRange: native.castRange,
     drawGround: (ctx, projection) => native.drawGround(game, ctx, projection),
     drawAir: (ctx, projection) => native.drawAir(game, ctx, projection),
     drawWoodsmanFx: native.drawWoodsmanFx,

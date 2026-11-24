@@ -88,6 +88,7 @@ export class BattlefieldFrameEffects {
     }
 
     deathSound(fx, now) {
+        if (fx.boss) this.deps.damageText.finishBoss(fx.enemyId, fx);
         if (now - fx.start < 500 && typeof this.deps.playFeedback === 'function') {
             this.deps.playFeedback(fx.boss ? 'killBoss' : (fx.elite ? 'killElite' : 'kill'));
         }

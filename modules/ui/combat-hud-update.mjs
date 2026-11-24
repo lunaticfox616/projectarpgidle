@@ -7,6 +7,7 @@ import { pruneEnemyHpDamageGhostStates, updatePlayerHpDamageGhost, updateEnemyHp
 import { getUiEnemyTraitLabels, updateFocusedEnemyTraitPanel } from './combat-hud-traits.mjs';
 import { releaseCombatHudTrait } from './combat-hud-lifetime.mjs';
 import { buildEnemyCombatEffectIcons } from './combat-hud-enemy-effects.mjs';
+import { paintPlayerHpText, paintEnemyHpText } from './combat-hud-health-text.mjs';
 
 export function updateCombatUI(runtime, pStats) {
     pStats = (0, runtime.deps.normalizeUiPlayerStats)(pStats, runtime.deps.cachedTooltipStats || {});
@@ -151,8 +152,7 @@ function updatePlayerLifeGauge(runtime, pStats) {
     let safeHp = Math.max(0, Number(runtime.deps.game.playerHp) || 0);
     // 생명은 정수로 올림(1 미만이 남아도 1 — 살아 있음이 보이게), 최대 생명 표시(내림)는 넘지 않는다.
     let shownHp = Math.max(0, Math.min(Math.ceil(safeHp - 1e-6), Math.floor(Number(pStats.maxHp) || 0)));
-    setTextById(runtime, 'ui-hp', formatSettingNumber(runtime, shownHp, 'showHpComma'));
-    setTextById(runtime, 'ui-maxhp', formatSettingNumber(runtime, pStats.maxHp, 'showHpComma'));
+    paintPlayerHpText(runtime, shownHp, pStats.maxHp);
     let hpPct = Math.max(0, Math.min(100, (runtime.deps.game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = runtime.deps.document.getElementById('ui-hp-bar');
     setUiImageGaugePercent(runtime, hpBar, hpPct);
@@ -174,26 +174,17 @@ function updateFocusedCombatEnemy(runtime, pStats, zone, focusedEnemy, enemyList
     let hpTextEl = enemyListEl.querySelector('.hp-text');
     let ailmentEl = enemyListEl.querySelector('.enemy-ailments');
     let traitEl = enemyListEl.querySelector('.enemy-traits');
-    setElementText(runtime, nameEl, `${(0, runtime.deps.getEnemyDisplayName)(focusedEnemy)}, Lv.${runtime.deps.levelProgression.monsterLevel(zone, focusedEnemy)}`);
+    const phase = focusedEnemy.atlasPhaseCount > 1 ? ` [${focusedEnemy.atlasPhase + 1}/${focusedEnemy.atlasPhaseCount}]` : '';
+    setElementText(runtime, nameEl, `${(0, runtime.deps.getEnemyDisplayName)(focusedEnemy)}${phase}, Lv.${runtime.deps.levelProgression.monsterLevel(zone, focusedEnemy)}`);
     paintEnemyGhostBar(ghostEl, pct, ghostTrailPct, ghostDisplay);
     paintEnemyShieldBar(esEl, focusedEnemy);
     if (hpEl) setUiImageGaugePercent(runtime, hpEl, pct);
     if (pendingEl) { pendingEl.style.left = `${pendingStartPct}%`; pendingEl.style.width = `${pendingPct}%`; }
-    paintEnemyHpText(runtime, hpTextEl, focusedEnemy);
+    paintEnemyHpText(runtime, hpTextEl, focusedEnemy, zone, enemyHudTier);
     patchCombatEffectStrip(runtime, ailmentEl, effectMarkup);
     if (traitEl) updateFocusedEnemyTraitPanel(runtime, traitEl, focusedEnemy, enemyHudTier === 'mob' ? [] : tags);
 }
 
-
-function paintEnemyHpText(runtime, hpTextEl, focusedEnemy) {
-    if (hpTextEl) {
-        let zoneNow = (0, runtime.deps.getZone)(runtime.deps.game.currentZoneId);
-        if (zoneNow && zoneNow.type === 'woodsmanEcho') {
-            let totalDealt = Math.max(0, Math.floor((focusedEnemy.echoStartHp || focusedEnemy.maxHp || 0) - Math.max(0, focusedEnemy.hp || 0)));
-            setElementText(runtime, hpTextEl, `${enemyShieldText(runtime, focusedEnemy)}${formatSettingNumber(runtime, totalDealt, 'showEnemyHpComma')} / ?`);
-        } else setElementText(runtime, hpTextEl, `${enemyShieldText(runtime, focusedEnemy)}${formatSettingNumber(runtime, Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(runtime, focusedEnemy.maxHp, 'showEnemyHpComma')}`);
-    }
-}
 
 function paintEnemyShieldBar(esEl, focusedEnemy) {
     if (esEl) {
@@ -213,7 +204,7 @@ function paintEnemyGhostBar(ghostEl, pct, ghostTrailPct, ghostDisplay) {
 
 function ensureCombatEnemyCard(runtime, enemyListEl, focusedEnemy) {
     let enemyHudTier = (focusedEnemy.isBoss || focusedEnemy.bossPhase) ? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob');
-    let focusedKey = String(focusedEnemy.id) + '|' + enemyHudTier;
+    let focusedKey = [focusedEnemy.id, enemyHudTier, runtime.deps.i18n.locale].join('|');
     // 2026-10-04 visibility: an ordinary monster's HP already rides over its head on the field, so the big top card
     // (name · bar) only shows for elites and bosses — on phones it covered the ground ahead where packs come from.
     // 같은 값이면 쓰지 않는다: 쓸 때마다 body의 :has() 규칙까지 스타일을 다시 계산했다(2026-10-25 측정, 일반 몹을 겨눈 동안 틱마다).
@@ -235,9 +226,11 @@ function ensureCombatEnemyCard(runtime, enemyListEl, focusedEnemy) {
                                 <div class="hp-bar-fill enemy-es"></div>
                                 <div class="hp-bar-fill enemy"></div>
                                 <div class="hp-bar-fill enemy-pending"></div>
-                                <div class="hp-text"></div>
+                                <div class="hp-text" id="enemy-life-label"></div>
                             </div>
+                            ${enemyHudTier === 'boss' ? `<button type="button" class="hp-detail-trigger" popovertarget="boss-life-detail" aria-label="${runtime.deps._t('보스 생명력')}" aria-describedby="enemy-life-label"></button>` : ''}
                         </div>
+                        ${enemyHudTier === 'boss' ? `<div id="boss-life-detail" class="hp-detail-panel" popover="auto" role="group" aria-labelledby="boss-life-heading"><strong id="boss-life-heading">${runtime.deps._t('보스 생명력')}</strong><span id="boss-life-exact"></span></div>` : ''}
                         ${metaMarkup}
                     </div>
                     ${effectMarkup}
@@ -304,8 +297,4 @@ function updateWoodsmanEntranceProgress(runtime) {
     setTextById(runtime, 'ui-progress-label', '☠️ 나무꾼 등장 대기');
     setTextById(runtime, 'ui-move-time-text', runtime.deps.game.moveTimer > 0 ? (0, runtime.deps._t)('{max}초', { max: Math.max(0, runtime.deps.game.moveTimer).toFixed(1) }) : '등장 임박');
     setCombatProgressGaugePercent(runtime, readyPct);
-}
-
-function enemyShieldText(runtime, focusedEnemy) {
-    return focusedEnemy.energyShield > 0 ? (0, runtime.deps._t)('보호막 {energyShield}, ', { energyShield: formatSettingNumber(runtime, focusedEnemy.energyShield, 'showEnemyHpComma') }) : '';
 }

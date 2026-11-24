@@ -72,7 +72,7 @@ export function progressDeferDeparture(env, state) {
 export function* progressDepart(env, state) {
     const run=state.actExploration;
     if(run && ['colony_run','grand_breach_run'].includes(run.zoneId))env.deps.ground.discardEncounter(state,run.zoneId);
-    else if(run && state===env.owner){const rows=env.deps.ground.takeAll(run);if(rows.length)(yield {kind:'collectExplorationFloorLoot',args:[rows]});}
+    else if(run && state===env.owner){const rows=env.deps.ground.takeOnExit(run);if(rows.length)(yield {kind:'collectExplorationFloorLoot',args:[rows]});}
     else if(run)env.deps.ground.settleOnLoad(state,run);
     state.actExploration=null;
 }

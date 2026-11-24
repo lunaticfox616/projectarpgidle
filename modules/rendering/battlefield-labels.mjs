@@ -29,8 +29,11 @@ export class BattlefieldLabels {
 
     presentation(enemy) {
         const raw = String(enemy.traitName || '정예'), previous = this.cache.get(enemy);
-        if (previous?.raw === raw) return previous;
-        const result = { raw, label: this.compact(raw), color: this.deps.tones.lineColor(raw, '#f3d77a') };
+        const locale=this.deps.locale;
+        if (previous?.raw === raw && previous.locale===locale) return previous;
+        const compact=this.compact(raw);
+        const label=enemy.huntRisk ? compact.split(' · ').map(part=>this.deps.translate(part)).join(' · ') : compact;
+        const result = { raw, locale, label, color: this.deps.tones.lineColor(raw, '#f3d77a') };
         this.cache.set(enemy, result);
         return result;
     }
@@ -49,7 +52,7 @@ export class BattlefieldLabels {
     }
 
     draw(ctx, centerX, bottomY, enemy) {
-        if (!enemy.isElite || enemy.isBoss) return;
+        if ((!enemy.isElite && !enemy.huntRisk) || enemy.isBoss) return;
         const presentation = this.presentation(enemy);
         ctx.save();
         ctx.font = `12px ${this.text.font()}`;

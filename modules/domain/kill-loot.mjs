@@ -1,3 +1,4 @@
+import { huntExtraChance } from './hunt-traits.mjs';
 /** Roll and deliver a kill's rewards in order. Yielded notices never grant rewards a second time.
  * Resume after each notice so unlocks, observers and receipts keep their original timing.
  * Item/content ports not yet migrated use the active game, matching LootDelivery's owner contract. */
@@ -45,6 +46,12 @@ class KillLoot {
     }
     *roll(state, enemy) {
         const zone = this.deps.zone(state.currentZoneId) || this.deps.zone(0), context = this.context(state, enemy, zone);
+        const chance = huntExtraChance(enemy);
+        const extra = chance > 0 ? Math.floor(chance) + Number(this.deps.random() < chance % 1) : 0;
+        yield* this.rollItems(state,enemy,zone,context);
+        for (let i=0;i<extra;i++) yield* this.rollItems(state,enemy,zone,{...context,extra:true});
+    }
+    *rollItems(state,enemy,zone,context) {
         yield* this.echo(state, enemy, context);
         yield* this.rune(state, enemy, context);
         const chances = this.deps.chances(zone, enemy), { drops, gear } = this.rolls.currencyAndGear(enemy, zone, chances.equipment);

@@ -117,7 +117,7 @@ const gridTransition=Object.freeze({
     advanceGridUnitMovement(unit,target,dtSec,intervalSec,avoid) {return part6.cellAdvanceGridUnitMovement(env, unit, target, {dtSec:dtSec,intervalSec:intervalSec,avoid:avoid});},
     getGridUnitStepSec(unit) {return part6.cellGetGridUnitStepSec(env, unit);},
     markGridStep(unit,from,moved) {return part6.cellMarkGridStep(env, unit,from,moved);},
-    beginExplorationGridStep(target,interval,avoid,diagonal) {return part6.cellBeginExplorationGridStep(env, target,interval,avoid,diagonal);},
+    beginExplorationGridStep(target,interval,avoid) {return part6.cellBeginExplorationGridStep(env, target,interval,avoid);},
     canGridUnitStepToward(unit,target,avoid) {return part6.cellCanGridUnitStepToward(env, unit,target,avoid);},
     getGridApproachStep(unit,target,avoid) {return part6.cellGetGridApproachStep(env, unit,target,avoid);},
     getHeroStepBlockedCells() {return part6.cellGetHeroStepBlockedCells(env);},

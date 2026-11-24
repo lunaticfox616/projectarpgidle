@@ -22,7 +22,9 @@ const damageRenderer = new DamageTextRenderer({
     translate: (...args) => _t(...args),
     get drawCrispCanvasText() { return drawCrispCanvasText; }
 }, runtime);
-const spawnDamageText = Object.assign(damageQueue.spawnDamageText.bind(damageQueue), { fromHit: damageQueue.fromHit.bind(damageQueue) });
+const spawnDamageText = Object.assign(damageQueue.spawnDamageText.bind(damageQueue), {
+    fromHit: damageQueue.fromHit.bind(damageQueue), finishBoss: damageQueue.finishBoss.bind(damageQueue)
+});
 const drawDamageTexts = damageRenderer.render.bind(damageRenderer);
 const heroMotion = new HeroMotionPlayback({
     get performance() { return performance; },

@@ -1,4 +1,5 @@
 import { getAdditiveDropBonusMultiplier } from '../common/numbers.mjs';
+import { huntRarity } from './hunt-traits.mjs';
 
 /** Drop planning only. State and tables are explicit; generation/id allocation remain injected item-domain owners. */
 class LootRules {
@@ -94,7 +95,7 @@ class LootRules {
     getEquipmentDropRarity(enemy, roll) {
         let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
         let thresholds = this.tables.EQUIPMENT_DROP_RARITY_THRESHOLDS[rank];
-        let scaled = roll / Math.max(1, Number(enemy.lootRarityMul) || 1);
+        let scaled = roll / (Math.max(1, Number(enemy.lootRarityMul) || 1) * huntRarity(enemy));
         if (scaled < thresholds.unique * Math.max(1, Number(enemy.uniqueChanceMul) || 1)) return 'unique';
         return ['rare', 'magic'].find(rarity => scaled < thresholds[rarity]) || 'normal';
     }

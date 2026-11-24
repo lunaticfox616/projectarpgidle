@@ -25,7 +25,7 @@ class BossEntrance {
         this.onStage = () => typeof this.deps.stageView === 'object' && true;
         this.holdOf = fx => fx.holdMs || 2600;
         this.dimProgress = (fx, now) => now - fx.start < this.holdOf(fx) ? this.ease((now - fx.start) / 350) : Math.max(0, 1 - (now - fx.start - this.holdOf(fx)) / 500);
-        this.dimStrength = fx => fx.red ? this.RED.dim : this.onStage() ? this.STAGE.dim : 0.5;
+        this.dimStrength = fx => fx.phaseChange ? 0.18 : fx.red ? this.RED.dim : this.onStage() ? this.STAGE.dim : 0.5;
         this.burstOf = fx => (this.onStage() ? this.holdOf(fx) * this.STAGE.burstAt : this.BURST_AT);
         this.defeat = new BossDefeat(deps, this.motes.bind(this));
         this.enteringSpans = boss => (this.spot && boss && this.spot.id === boss.id ? [[this.spot.top, this.spot.feet + 8]] : []);
@@ -55,6 +55,7 @@ class BossEntrance {
         if (!fx || !fx.enemyIds.includes(enemy.id)) return null;
         const hold = this.holdOf(fx), t = now - fx.start, burst = this.burstOf(fx), color = this.colorOf(fx, enemy);
         if (this.deps.uiDisplay.reducedEffects()) return { alpha: 1, shade: 0, rim: 0.2, flash: 0, color };
+        if (enemy.atlasPhase>0) return {alpha:1,shade:0,rim:Math.sin(Math.PI*this.share(t,0,hold)),flash:0,color};
         if (t >= burst) return { alpha: 1, shade: 0, rim: 0, flash: 1 - this.share(t, burst, burst + this.STAGE.flashMs), color };
         return { alpha: this.ease(t / (hold * this.STAGE.fadeIn)), shade: 1, rim: this.share(t, hold * this.STAGE.rimFrom, burst), flash: 0, color };
     }
@@ -78,7 +79,7 @@ class BossEntrance {
     shake(now) {
         if (this.deps.uiDisplay.reducedEffects()) return 0;
         const fx = this.active(now);
-        if (!fx) return 0;
+        if (!fx || fx.phaseChange) return 0;
         const t = now - fx.start, burst = this.burstOf(fx), big = fx.red ? this.RED.shake : 1;
         if (t < burst) return (0.5 + t / burst * 1.5) * big;
         return Math.max(0, 7 * big * (1 - (t - burst) / 420));
@@ -254,13 +255,17 @@ class BossEntrance {
         if (this.deps.uiDisplay.reducedEffects()) return;
         this.defeat.drawScreen(ctx, area);
         const fx = this.active(area.now);
-        if (!fx) return;
+        if (!fx || fx.phaseChange) return;
         const burst = this.burstOf(fx), t = area.now - fx.start;
         if (fx.red) this.drawRedVeil(ctx, area, { t, hold: this.holdOf(fx) });
         else if (this.firstSight(fx)) this.drawSightBars(ctx, area, { t, hold: this.holdOf(fx) });
         if (t < burst || t >= burst + 240) return;
+        this.drawEntranceFlash(ctx,area,fx,(t-burst)/240);
+    }
+
+    drawEntranceFlash(ctx,area,fx,progress) {
         ctx.save();
-        ctx.globalAlpha = (fx.red ? this.RED.flashAlpha : this.onStage() ? 0.24 : 0.38) * (1 - (t - burst) / 240);
+        ctx.globalAlpha = (fx.red ? this.RED.flashAlpha : this.onStage() ? 0.24 : 0.38) * (1-progress);
         ctx.fillStyle = fx.red ? this.RED.flash : '#fff6e6';
         ctx.fillRect(0, 0, area.width, area.height);
         ctx.restore();

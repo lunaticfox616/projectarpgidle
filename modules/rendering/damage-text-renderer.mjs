@@ -29,7 +29,7 @@ export class DamageTextRenderer {
     }
 
     font(text) {
-        return `800 ${text.impactTier === 'annihilate' ? 24 : 12}px "Galmuri11", "Malgun Gothic", sans-serif`;
+        return `800 ${!text.finishAt && text.impactTier === 'annihilate' ? 24 : 12}px "Galmuri11", "Malgun Gothic", sans-serif`;
     }
 
     appearance(text, t) {
@@ -70,13 +70,16 @@ export class DamageTextRenderer {
     frame(ctx, text, now) {
         const elapsed = now - Number(text.start);
         if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return null;
+        const ending = text.finishAt ? clampNumber((text.finishAt - this.runtime.scene.lastWallNow) / 170, 0, 1) : 1;
+        if (!ending) return null;
         const t = clampNumber(elapsed / text.duration, 0, 1);
         const rise = text.bodyCue ? 10 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
-        const y = text.y - rise * (1 - Math.pow(1 - t, 2));
-        return this.measure(ctx, { text, t, now, x: text.x, y, ...this.appearance(text, t) });
+        const y = text.finishAt ? text.y : text.y - rise * (1 - Math.pow(1 - t, 2));
+        return this.measure(ctx, { text, t, now, ending, x: text.x, y, ...this.appearance(text, t) });
     }
 
     place(row, taken, protectedBoxes) {
+        if (row.text.finishAt) return;
         const limit = Math.min(MAX_LIFT, Math.max(0, row.box.y - GAP));
         let lift = Math.min(limit, row.text.readabilityLift || 0);
         row.box.y -= lift;
@@ -121,6 +124,7 @@ export class DamageTextRenderer {
         const { text, t, x, y } = row;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38)) * this.crowdFade(row);
+        ctx.globalAlpha *= row.ending;
         ctx.font = row.font; ctx.textAlign = row.align;
         ctx.translate(x, y); ctx.scale(row.pop, row.pop); ctx.translate(-x, -y);
         const strong = isStrongDamageText(text);

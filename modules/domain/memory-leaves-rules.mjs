@@ -25,9 +25,16 @@ export function leafSourceMatches(env, source, zone, enemy) {
     return !!source.any;
 }
 
-export function leafPoolFor(env, state, zone, enemy) {
+function seenLeaves(state) {
     const seen = new Set(leafStore(state).seen);
-    for (const row of state.actExploration?.groundLoot || []) if (row.kind === 'leaf') seen.add(row.leaf);
+    for (const rows of [state.actExploration?.groundLoot,state.actExploration?.bossLoot?.pendingLoot]) {
+        for (const row of rows || []) if (row.kind==='leaf') seen.add(row.leaf);
+    }
+    return seen;
+}
+
+export function leafPoolFor(env, state, zone, enemy) {
+    const seen=seenLeaves(state);
     const open = env.deps.MEMORY_LEAVES.list.filter(leaf => !seen.has(leaf.id)
         && (leaf.minTier || 0) <= (Number(zone.atlasTier) || 0) && leafSourceMatches(env, leaf.source, zone, enemy));
     const special = open.filter(leafIsSpecialLeaf);

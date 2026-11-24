@@ -2,11 +2,13 @@ import { moveReleaseShift } from './boss-shift-state.mjs';
 import { observerImpacts } from './boss-move-geometry.mjs';
 import { moveStyleOf, moveMoveKind } from './boss-move-style.mjs';
 import { moveStagesOf } from './boss-move-stages.mjs';
+import { planSignature } from './atlas-signature.mjs';
 
 /** Puts a move on a special about to be released (consumeBossPatternAttack): state.move, or nothing (lands at once). */
     export function movePlanBossMove(env, state, enemy) {
         if (!state || !state.area || !state.isSpecial || !enemy) return null;
         if (state.area.observerMove) return movePlanObserverMove(state);
+        if (state.signature) return planSignature(state,enemy);
         moveReleaseShift(env, enemy);
         return state.area.woodsman ? env.deps.woodsmanBattle.plan(state) : movePlanStagedMove(env, state, enemy);
     }

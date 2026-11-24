@@ -81,12 +81,21 @@ function atlasDestination(env,run,mode) {
     if (run.zoneId !== 'atlas_map') return null;
     if (run.source.pocket) {
         const pack = run.packs.find(row => row.task && (row.task.index < row.task.spots.length || row.aliveIds.length));
-        if (pack) return pack.aliveIds.length ? statePackPosition(env.deps.actExplorationMap.forRun(run), pack) : pack.task.spots[pack.task.index];
+        if (pack) return expeditionDestination(env,run,pack);
     } else if (mode === 'full') {
         const site = env.owner.atlas.run?.passages?.sites.find(row => !row.used);
         if (site) return site;
     }
     return null;
+}
+
+function expeditionDestination(env,run,pack) {
+    if (pack.aliveIds.length) return statePackPosition(env.deps.actExplorationMap.forRun(run),pack);
+    const {task} = pack;
+    if (!task.cocoons) return task.spots[task.index];
+    const hero = env.owner.gridPlayer;
+    const distance = at => Math.hypot(at.gx-hero.gx,at.gy-hero.gy);
+    return task.spots.reduce((nearest,at) => distance(at)<distance(nearest) ? at : nearest);
 }
 
 /** The pack automatic exploration walks to next: every ordinary pack in 전체 탐색, elites and boss stages in 직행. */

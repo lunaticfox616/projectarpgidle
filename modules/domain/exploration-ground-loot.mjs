@@ -6,6 +6,7 @@ export const groundLootKind = row => row.kind || (typeof row.currency === 'strin
 const ENCOUNTER_ZONES = ['colony_run', 'grand_breach_run'];
 const encounterRecord = (state, zoneId) => zoneId === 'colony_run' ? state.colony : zoneId === 'grand_breach_run' ? state.voidRift?.grandRun : null;
 const validEncounterCell = cell => Number.isSafeInteger(cell?.gx) && cell.gx >= 0 && Number.isSafeInteger(cell?.gy) && cell.gy >= 0;
+const inventoryItem = row => row?.item && !['talisman','stump'].includes(row.kind);
 
 // Old starter gems remain exact attack-rune rewards when a save is restored.
 const retireStarterGemRow = row => !row || row.kind !== 'gem' ? row
@@ -18,6 +19,19 @@ function ringCells(cell, reach) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) === reach) out.push({ gx: cell.gx + dx, gy: cell.gy + dy });
     }
     return out;
+}
+
+function* nearbyCells(cell) {
+    for (let reach=1;reach<=4;reach++) yield* ringCells(cell,reach);
+}
+
+function roomForDrop(map,cell,rooms) {
+    if (map.owner) return rooms.roomAt(map,cell);
+    return map.rooms?.find(room=>Math.abs(cell.gx-room.gx)<=room.radiusX && Math.abs(cell.gy-room.gy)<=room.radiusY);
+}
+
+function partOfBossFight(pack,cache) {
+    return pack.roomId===cache.roomId && (pack.key===cache.packKey || pack.stage!==null || pack.invader);
 }
 
 function underDoorSeal(map, cell) {
@@ -71,12 +85,11 @@ function restoredRewards(deps) {
     };
 }
 
-/** One instance owns non-saved landing clocks. Domain dependencies and the combat clock are supplied at creation.
+/** Each floor row carries its launch time on the saved combat clock. Pre-clock saves are already landed.
  * Mutating methods receive their state explicitly. UI pickup/FX remain with the caller. */
 class ExplorationGroundLoot {
     constructor(deps) {
         this.deps = deps;
-        this.laidAt = new WeakMap();
         this.queueEnds = new WeakMap();
         this.validKind = validators(deps);
         this.settleRow = restoredRewards(deps);
@@ -87,8 +100,8 @@ class ExplorationGroundLoot {
         this.queueEnds.set(run, turn + timing.gapMs);
         return turn;
     }
-    landed(row, now) { return !this.laidAt.has(row) || now - this.laidAt.get(row) >= this.deps.timing.readyMs; }
-    touchedDown(row, now) { return !this.laidAt.has(row) || now - this.laidAt.get(row) >= this.deps.timing.flightMs; }
+    landed(row, now) { return row.dropAt===undefined || now-row.dropAt>=this.deps.timing.readyMs; }
+    touchedDown(row, now) { return row.dropAt===undefined || now-row.dropAt>=this.deps.timing.flightMs+this.deps.timing.flightSpreadMs; }
     clearOfDoors(run, cell) {
         const { maps, rooms, doors } = this.deps;
         const map = doors.stageMap(run), room = map ? rooms.roomAt(map, cell) : null;
@@ -101,13 +114,28 @@ class ExplorationGroundLoot {
         return cell;
     }
     lay(state, run, row) {
-        Object.assign(row, this.clearOfDoors(run, row));
-        floor(run).push(row);
-        this.laidAt.set(row, this.dropTurn(run));
         this.deps.receipts.floorRow(state, row);
+        this.storeRow(run,row);
     }
-    place(state, run, cell, item, { highlight = false, guaranteed = false } = {}) {
-        this.lay(state, run, { gx: cell.gx, gy: cell.gy, item, highlight: !!highlight, guaranteed: !!guaranteed });
+    storeRow(run,row) {
+        if (run.bossLoot) { run.bossLoot.pendingLoot.push(row); return; }
+        Object.assign(row,this.clearOfDoors(run,row));
+        row.dropAt=this.dropTurn(run);
+        if (row.currency) this.addCurrencyLot(run,row);
+        else floor(run).push(row);
+    }
+    addCurrencyLot(run,row) {
+        const target=floor(run),now=this.deps.now();
+        const same=target.filter(other=>other.currency===row.currency && other.gx===row.gx && other.gy===row.gy);
+        const batch=same.find(other=>other.dropAt===row.dropAt);
+        if (batch) {batch.count+=row.count;return;}
+        // Keep a landed pile collectible while a later delivery to its tile is still in flight.
+        const [settled,...rest]=same.filter(other=>this.landed(other,now));
+        for (const earlier of rest) {settled.count+=earlier.count;target.splice(target.indexOf(earlier),1);}
+        target.push(row);
+    }
+    place(state, run, cell, item, { highlight = false, guaranteed = false, filterOnPickup=false, ignoreAutoSalvage=false } = {}) {
+        this.lay(state, run, { gx: cell.gx, gy: cell.gy, item, highlight: !!highlight, guaranteed: !!guaranteed,filterOnPickup,ignoreAutoSalvage });
     }
     placeItem(state, run, cell, kind, { item, overflow }) {
         this.lay(state, run, kind === 'talisman' ? { gx: cell.gx, gy: cell.gy, kind, item, overflow } : { gx: cell.gx, gy: cell.gy, kind, item });
@@ -117,12 +145,7 @@ class ExplorationGroundLoot {
     placeRune(state, run, cell, gem) { this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'rune', gem }); }
     placeCurrency(state, run, at, currency, count) {
         this.deps.receipts.currency(state, currency, count);
-        const cell = this.clearOfDoors(run, at);
-        const row = floor(run).find(other => other.currency === currency && other.gx === cell.gx && other.gy === cell.gy);
-        if (row) { row.count += count; return; }
-        const fresh = { gx: cell.gx, gy: cell.gy, currency, count };
-        run.groundLoot.push(fresh);
-        this.laidAt.set(fresh, this.dropTurn(run));
+        this.storeRow(run,{gx:at.gx,gy:at.gy,currency,count});
     }
     take(run, test) {
         const taken = rows(run).filter(test);
@@ -130,10 +153,12 @@ class ExplorationGroundLoot {
         return taken;
     }
     takeNear(run, cell, now, range) {
-        const here = rows(run).filter(row => distance(row, cell) <= range);
-        return here.length && here.every(row => this.landed(row, now)) ? this.take(run, row => here.includes(row)) : [];
+        return this.take(run, row => distance(row, cell) <= range && this.landed(row, now));
     }
-    takeAt(run, cell) { return this.take(run, row => row.gx === cell.gx && row.gy === cell.gy); }
+    takeAt(run, cell) {
+        const now=this.deps.now();
+        return this.take(run, row => row.gx === cell.gx && row.gy === cell.gy && this.touchedDown(row,now));
+    }
     takeAll(run) { return this.take(run, () => true); }
     nearest(run, from, now) {
         const busy = new Set(now === undefined ? [] : rows(run).filter(row => !this.landed(row, now)).map(cellOf));
@@ -145,7 +170,7 @@ class ExplorationGroundLoot {
         return best;
     }
     falling(run, now) { return rows(run).some(row => !this.landed(row, now)); }
-    inAir(run, now) { return rows(run).filter(row => this.laidAt.get(row) <= now && !this.touchedDown(row, now)); }
+    inAir(run, now) { return rows(run).filter(row => row.dropAt <= now && !this.touchedDown(row, now)); }
     piles(run, now) {
         const byCell = new Map();
         for (const row of rows(run)) {
@@ -158,26 +183,54 @@ class ExplorationGroundLoot {
     }
     encounterOwner(state, zoneId = state.currentZoneId) {
         const owner = encounterRecord(state, zoneId);
-        return owner?.inRun ? owner : null;
+        if (owner?.inRun) return owner;
+        const run=state.actExploration;
+        return run?.zoneId===zoneId ? run.bossLoot || null : null;
     }
     reserve(state, row) {
         const owner = this.encounterOwner(state);
         if (!owner) return false;
         const held = row && groundLootKind(row) === 'equipment' ? { highlight: false, guaranteed: false, ...row } : row;
         if (!this.validPendingRow(held)) throw Error('잘못된 원정 보류 전리품');
+        if (owner===state.actExploration?.bossLoot) {
+            if (held.currency) this.deps.receipts.currency(state,held.currency,held.count);
+            else this.deps.receipts.floorRow(state,held);
+        }
         if (!Array.isArray(owner.pendingLoot)) owner.pendingLoot = [];
         owner.pendingLoot.push({ ...held });
         return true;
     }
-    encounterDropCells(state, run, cell) {
+    encounterDropCells(state, run, cell, limit=Infinity) {
         if (!Number.isInteger(cell?.gx) || !Number.isInteger(cell?.gy)) return [];
         const { maps, rooms } = this.deps, map = maps.forRun(run);
         if (!map) return [];
-        const room = map.rooms ? rooms.roomAt(map, cell) : null;
-        const reachable = next => maps.walkable(map, next, true) && (!room || rooms.roomAt(map, next) === room)
+        const room = roomForDrop(map,cell,rooms);
+        const reachable = next => maps.walkable(map, next, true) && (!room || roomForDrop(map,next,rooms) === room)
             && (!state.gridPlayer || distance(next, state.gridPlayer) > 0) && (!map.doors || !underDoorSeal(map, next))
             && (!state.gridPlayer || maps.route(map, state.gridPlayer, next).length > 0);
-        return [1, 2, 3, 4].flatMap(reach => ringCells(cell, reach).filter(reachable));
+        const cells=[];
+        for (const next of nearbyCells(cell)) {
+            if (!reachable(next)) continue;
+            cells.push(next);
+            if (cells.length>=limit) break;
+        }
+        return cells;
+    }
+    beginBoss(run,pack,joining) {
+        if (run.bossLoot || !pack) return;
+        if (joining && !joining.some(enemy=>enemy.isBoss)) return;
+        const map=this.deps.maps.forRun(run);
+        const nearby=this.take(run,row=>roomForDrop(map,row,this.deps.rooms)?.id===pack.roomId);
+        run.bossLoot={roomId:pack.roomId,packKey:pack.key,pendingLoot:nearby};
+    }
+    finishBoss(state,run,cell) {
+        const cache=run.bossLoot;
+        if (!cache || run.packs.some(pack=>pack.aliveIds.length && partOfBossFight(pack,cache))) return;
+        delete run.bossLoot;
+        if (!cache.pendingLoot.length) return;
+        const cells=state.isBackgroundCalculation ? [] : this.encounterDropCells(state,run,cell,Math.min(cache.pendingLoot.length,8));
+        if (!cells.length) cells.push(this.clearOfDoors(run,state.gridPlayer));
+        cache.pendingLoot.forEach((row,i)=>this.storeRow(run,{...row,...cells[i%cells.length]}));
     }
     /** Empty the buffer first. The returned rows need immediate live pickup, or burst requests only a visual.
      * The caller must finish that work before the next settlement; the domain never calls UI or replays rewards. */
@@ -215,8 +268,7 @@ class ExplorationGroundLoot {
         this.dropEncounterBuffer(state, zoneId);
         const run = state.actExploration;
         if (run?.zoneId !== zoneId) return [];
-        const won = rows(run);
-        run.groundLoot = [];
+        const won = this.takeOnExit(run);
         if (live) return won;
         won.forEach(row => this.settleRow[groundLootKind(row)](state, row));
         return [];
@@ -224,7 +276,8 @@ class ExplorationGroundLoot {
     /** Consume fully. A stale live encounter's earned floor must settle before the next owner's validation. */
     *normalizeEncounter(state, live) {
         const activeFloor = state.actExploration?.zoneId === state.currentZoneId ? rows(state.actExploration) : [];
-        const ids = new Set(activeFloor.map(row => row?.item?.id).filter(Number.isSafeInteger));
+        const protectedRows=state.actExploration?.bossLoot?.pendingLoot || [];
+        const ids = new Set([...activeFloor,...protectedRows].filter(inventoryItem).map(row=>row.item.id).filter(Number.isSafeInteger));
         for (const zoneId of ENCOUNTER_ZONES) {
             const owner = encounterRecord(state, zoneId);
             if (!owner) continue;
@@ -238,7 +291,7 @@ class ExplorationGroundLoot {
         owner.pendingLoot = owner.pendingLoot.map(retireStarterGemRow);
         for (const row of owner.pendingLoot) {
             if (!this.validPendingRow(row)) throw Error('잘못된 원정 보류 전리품');
-            const id = row.item?.id;
+            const id = inventoryItem(row) ? row.item.id : null;
             if (Number.isSafeInteger(id) && ids.has(id)) throw Error('중복된 원정 보류 아이템');
             if (Number.isSafeInteger(id)) ids.add(id);
         }
@@ -247,14 +300,20 @@ class ExplorationGroundLoot {
     }
     reservedItems(state) {
         const held = ENCOUNTER_ZONES.flatMap(id => encounterRecord(state, id)?.pendingLoot || []);
-        return [...rows(state.actExploration), ...held].filter(row => row.item && row.kind !== 'talisman' && row.kind !== 'stump').map(row => row.item);
+        const boss=state.actExploration?.bossLoot?.pendingLoot || [];
+        return [...rows(state.actExploration), ...boss, ...held].filter(inventoryItem).map(row => row.item);
     }
     settleOnLoad(state, run) {
         if (ENCOUNTER_ZONES.includes(run.zoneId)) this.dropEncounterBuffer(state, run.zoneId);
-        for (const row of rows(run)) this.settleRow[groundLootKind(row)](state, row);
-        run.groundLoot = [];
+        for (const row of this.takeOnExit(run)) this.settleRow[groundLootKind(row)](state, row);
     }
-    validate(run) {
+    takeOnExit(run) {
+        const all=rows(run).concat(run.bossLoot?.pendingLoot || []);
+        delete run.bossLoot;
+        run.groundLoot = [];
+        return all;
+    }
+    validate(run,clock) {
         if (run.groundLoot === undefined) run.groundLoot = [];
         if (!Array.isArray(run.groundLoot)) throw Error('잘못된 탐험 바닥 아이템 저장');
         run.groundLoot = run.groundLoot.map(retireStarterGemRow);
@@ -262,9 +321,32 @@ class ExplorationGroundLoot {
         for (const row of run.groundLoot) {
             if (!this.validRow(map, row)) throw Error('잘못된 탐험 바닥 아이템 저장');
             if (['talisman', 'stump', 'leaf', 'yarn', 'rune'].includes(groundLootKind(row))) continue;
-            const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency}`;
+            const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency},${row.dropAt??''}`;
             if (ids.has(key)) throw Error('중복된 탐험 바닥 아이템 저장');
             ids.add(key);
+        }
+        this.restoreClock(run,clock);
+        if (run.bossLoot) this.validateBoss(run,ids);
+    }
+    restoreClock(run,clock) {
+        if (!Number.isFinite(clock)) return;
+        let next=clock;
+        for (const row of run.groundLoot) {
+            if (row.dropAt===undefined) continue;
+            if (!Number.isFinite(row.dropAt) || row.dropAt>clock+this.deps.timing.queueCapMs) delete row.dropAt;
+            else next=Math.max(next,row.dropAt+this.deps.timing.gapMs);
+        }
+        this.queueEnds.set(run,next);
+    }
+    validateBoss(run,ids) {
+        const cache=run.bossLoot;
+        if (!run.packs.some(p=>partOfBossFight(p,cache)) || !Array.isArray(cache.pendingLoot))
+            throw Error('잘못된 보스 전리품 저장');
+        for (const row of cache.pendingLoot) {
+            if (!this.validPendingRow(row)) throw Error('잘못된 보스 전리품');
+            const key=inventoryItem(row) ? 'item:'+row.item.id : null;
+            if (key && ids.has(key)) throw Error('중복된 보스 전리품');
+            if (key) ids.add(key);
         }
     }
     validPendingRow(row) {

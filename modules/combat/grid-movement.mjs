@@ -8,11 +8,19 @@ export function cellAdvanceGridUnitMovement(env, unit, target, {dtSec, intervalS
     if (env.deps.actExplorationState.current(env.owner) && unit===env.owner.gridPlayer) return cellBeginExplorationGridStep(env, target,interval,avoid);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + dtSec;
     if (unit.gridMoveTimer < interval) return false;
-    let from = { gx: unit.gx, gy: unit.gy };
-    let moved = cellStepAroundDanger(cellGetGridBlockedCells(env, unit), avoid, blocked => cellGridStepToward(env, unit, {tx:target.gx,ty:target.gy,blocked:blocked,diagonal:undefined}));
-    unit.gridMoveTimer = moved ? 0 : interval;
-    cellMarkGridStep(env, unit, from, moved);
-    return moved;
+    const next = cellGetGridApproachStep(env,unit,target,avoid);
+    return cellSpendGridStep(env,unit,next,interval);
+}
+
+export function cellSpendGridStep(env,unit,next,interval) {
+    if (!next) { unit.gridMoveTimer=interval; return false; }
+    const from={gx:unit.gx,gy:unit.gy};
+    const cost=interval*(from.gx!==next.gx && from.gy!==next.gy ? Math.SQRT2 : 1);
+    if (unit.gridMoveTimer+1e-9<cost) return false;
+    unit.gridMoveTimer=Math.min(interval,Math.max(0,unit.gridMoveTimer-cost));
+    unit.gx=next.gx;unit.gy=next.gy;
+    cellMarkGridStep(env,unit,from,true);
+    return true;
 }
 
 export function cellGetGridUnitStepSec(env, unit) {
@@ -35,11 +43,11 @@ export function cellStepAroundDanger(blocked, avoid, stepThrough) {
     return (soft.length > 0 && stepThrough(cellWithAvoidedGridCells(new Set(blocked), soft))) || stepThrough(blocked);
 }
 
-export function cellBeginExplorationGridStep(env, target,interval,avoid,diagonal=false) {
+export function cellBeginExplorationGridStep(env, target,interval,avoid) {
     const run=env.deps.actExplorationState.current(env.owner);if(!run || run.motion)return false;
     if(env.deps.actExplorationMotion.freeBusy(run))return false;
     const next={gx:env.owner.gridPlayer.gx,gy:env.owner.gridPlayer.gy}, free=env.deps.bossMoves.observer.playerBoundary(run);
-    if(!cellStepAroundDanger(cellGetExplorationPlanningBlockedCells(env, run),avoid,blocked=>cellGridStepToward(env, next, {tx:target.gx,ty:target.gy,blocked:blocked,diagonal:diagonal || !!free})))return false;
+    if(!cellStepAroundDanger(cellGetExplorationPlanningBlockedCells(env, run),avoid,blocked=>cellGridStepToward(env, next, {tx:target.gx,ty:target.gy,blocked,diagonal:true})))return false;
     const paced=interval/env.deps.actExplorationDoors.pace(run);
     if(free){
         const point=env.deps.actExplorationMotion.preciseTarget(run,next);
@@ -56,9 +64,9 @@ export function cellGetGridApproachStep(env, unit, target, avoid) {
     if (!cellHasGridCell(env, unit) || !target) return null;
     const run = env.deps.actExplorationState.current(env.owner);
     const exploring = !!run && unit === env.owner.gridPlayer;
-    const probe = exploring ? { gx: unit.gx, gy: unit.gy } : { ...unit };
+    const probe = { gx:unit.gx, gy:unit.gy, isBoss:unit.isBoss, footprint:unit.footprint };
     const blocked = exploring ? cellGetExplorationPlanningBlockedCells(env, run) : cellGetGridBlockedCells(env, unit);
-    return cellStepAroundDanger(blocked, avoid, cells => cellGridStepToward(env, probe, {tx:target.gx,ty:target.gy,blocked:cells,diagonal:undefined})) ? probe : null;
+    return cellStepAroundDanger(blocked, avoid, cells => cellGridStepToward(env, probe, {tx:target.gx,ty:target.gy,blocked:cells,diagonal:true})) ? probe : null;
 }
 
 export function cellGetExplorationPlanningBlockedCells(env, run) {

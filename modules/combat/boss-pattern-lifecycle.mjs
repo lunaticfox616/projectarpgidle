@@ -3,13 +3,15 @@ import { OWN_PATTERN_MODES, BOSS_PATTERN_NAMES } from './boss-pattern-values.mjs
 import { bossBuildPatternState } from './boss-pattern-states.mjs';
 import { bossNoteBossSpecial } from './boss-special-plan.mjs';
 import { BOSS_ATTACK_IMPACT_DELAY_MS } from './core-values.mjs';
+import { signaturePreview } from './atlas-signature.mjs';
 
 export function bossGetOwnPatternState(env, mode, enemy, attackNumber) {
         if (mode === 'rootGrinder') return env.deps.roomInvaders.patternState(attackNumber);
         if (mode === 'cosmosBoss') {
             return typeof env.deps.cosmosBossPattern === 'function' ? env.deps.cosmosBossPattern(enemy.cosmosBossId, attackNumber) : null;
         }
-        return env.deps.authoredAtlas ? env.deps.authoredAtlas.patternState(enemy.apexMechanic, attackNumber) : null;
+        const plan=env.deps.authoredAtlas?.patternState(enemy.apexMechanic,attackNumber);
+        return signaturePreview(enemy,plan);
     }
 
 export function bossAuthoredBossPattern(env, enemy, attackNumber) { return env.deps.bossMoves.observer.pattern(enemy, attackNumber) || env.deps.bossMoves.shiftPattern(enemy, attackNumber); }

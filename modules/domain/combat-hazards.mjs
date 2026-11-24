@@ -1,3 +1,4 @@
+import { advanceHuntFields, huntFieldDamage, huntFieldName } from './hunt-fields.mjs';
 // Current owner and explicit service ports are supplied per call; no game or restored queues are captured.
 /** Existing automatic escape is limited to trial traps and final-boss combos; ordinary warnings only gate the approach. */
 function stateIsApexFight(c) { return c.owner.enemies.some(enemy => enemy.hp > 0 && enemy.patternMode === 'apex'); }
@@ -119,6 +120,7 @@ function stateHardHazardCells(c) {
 function stateUpdateCombatHazardEvasion(c, pStats) {
     if (c.owner.playerHp <= 0) return { avoiding: false, holdPosition: false };
     stateApplyTrialTrapTick(c, pStats, true);
+    if (c.owner.season>=10) advanceHuntFields(c.owner,c.deps.getCombatTime(),field=>applyHuntDamage(c,pStats,field));
     if (c.owner.playerHp <= 0) return { avoiding: false, holdPosition: false };
     const cells = stateHardHazardCells(c), warned = c.deps.getBossWarningCells(c.owner, c.deps.pendingEnemyCombatAttacks);
     const approach = stateIsApexFight(c) ? { hold: warned.length > 0, block: [] } : stateBossWarningApproach(c, warned);
@@ -126,6 +128,12 @@ function stateUpdateCombatHazardEvasion(c, pStats) {
     let avoiding = stateUpdateCombatHazardEscape(c, { cells, shouldAvoid: true }, pStats, c.deps.getCombatTime(), '위험 범위 회피');
     let frozen = c.owner.playerAilments.some(ail => ail.type === 'freeze' && ail.time > 0);
     return { avoiding: avoiding || frozen, holdPosition, warning: warned.length > 0, avoidCells: { hard: cells.concat(approach.block), soft: stateGroundHazardCells(c), warned: approach.block } };
+}
+
+function applyHuntDamage(c,stats,field) {
+    if (c.owner.playerHp<=0 || c.deps.getCombatTime()<c.owner.realmInvulnerableBarrierUntil) return;
+    const zone=c.deps.getZone(c.owner.currentZoneId);
+    stateDealTrialTrapDamage(c,{...zone,trapName:c.deps._t(huntFieldName(field.kind))},stats,field,huntFieldDamage(field,stats));
 }
 
 function stateDealTrialTrapDamage(c, zone, pStats, hazard, trapDamage) {

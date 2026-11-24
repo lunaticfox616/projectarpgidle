@@ -1,14 +1,13 @@
 /** A kill in the colony run, and when the wave's kills are in, the wave's end. */
 export function* killAdvanceColonyWaveOnKill(env, zone, enemy) {
     if (!zone || zone.id !== 'colony_run' || !env.owner.colony || !env.owner.colony.inRun) return;
-    killReleaseColonyBossLootOnKill(env, enemy);
+    rememberColonyLeader(env.owner.colony,enemy);
     env.owner.colony.kills = Math.max(0, Math.floor((env.owner.colony.kills || 0) + 1));
     if ((env.owner.colony.kills || 0) >= Math.max(1, Math.floor(env.owner.colony.requiredKills || 1))) (yield* killCompleteColonyWave(env, zone, enemy));
 }
 
-export function killReleaseColonyBossLootOnKill(env, enemy) {
-    if (env.owner.colony.wave%5===0 && enemy?.isBoss) env.owner.colony.bossLootCell={gx:enemy.gx,gy:enemy.gy};
-    if (env.owner.colony.bossLootCell) env.deps.actExplorationState.groundLoot.releaseEncounter(env.owner.colony,env.owner.colony.bossLootCell);
+function rememberColonyLeader(colony,enemy) {
+    if (colony.wave%5===0 && enemy.isBoss) colony.bossLootCell={gx:enemy.gx,gy:enemy.gy};
 }
 
 export function killGrantColonyWaveCurrencies(env, completedWave) {
@@ -48,6 +47,8 @@ export function* killCompleteColonyWave(env, zone, lastEnemy) {
 
 export function killReleaseCompletedColonyWaveLoot(env, completedWave, lastEnemy) {
     if(completedWave%5===0) {
+        const run=env.deps.getColonyRoomRun();
+        if (run) env.deps.actExplorationState.groundLoot.finishBoss(env.owner,run,env.owner.colony.bossLootCell || lastEnemy);
         env.deps.actExplorationState.groundLoot.releaseEncounter(env.owner.colony,env.owner.colony.bossLootCell || lastEnemy);
         env.owner.colony.lootPending=true;
     }

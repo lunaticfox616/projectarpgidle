@@ -73,6 +73,8 @@ export class DamageTextQueue {
             duration: this.getDamageTextDuration(config),
             x: x,
             y: y,
+            enemyId: config.enemyId,
+            finishAt: config.finishAt,
             offsetX: 0,
             offsetY: 0,
             driftX: 0,
@@ -104,9 +106,14 @@ export class DamageTextQueue {
         return true;
     }
 
+    endingFor(fx) {
+        const ended = this.lastBoss;
+        return ended?.scene === this.runtime.scene && ended.id === fx.enemyId && fx.start <= ended.until ? ended.finishAt : undefined;
+    }
+
     fromHit(fx, x, y, start) {
         this.spawnDamageText({
-            start, x, y,
+            start, x, y, enemyId: fx.enemyId, finishAt: this.endingFor(fx),
             value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
             crit: !!fx.crit, dot: !!fx.dot, dotType: fx.element || '',
             impactTier: fx.impactTier || 'normal', damageRatio: fx.damageRatio || 0,
@@ -114,5 +121,14 @@ export class DamageTextQueue {
             aggregateKey: fx.dot ? `dot:${fx.enemyId}:${fx.element || ''}`
                 : `${fx.skillName}:${fx.enemyId}:${Math.floor(fx.start / 250)}`
         });
+    }
+
+    finishBoss(id, fx) {
+        // The slow-motion camera can stretch visual milliseconds over several real seconds.
+        const finishAt = this.deps.performance.now() + 280;
+        this.lastBoss = { id, scene: this.runtime.scene, until: fx.start + fx.duration, finishAt };
+        for (const label of this.runtime.scene.damageTexts || []) {
+            if (label.enemyId === id) label.finishAt = finishAt;
+        }
     }
 }

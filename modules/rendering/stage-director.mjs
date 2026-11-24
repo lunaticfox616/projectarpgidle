@@ -119,7 +119,7 @@ class StageDirector {
     /** 'sighting' for a boss entrance, 'finisher' for a boss death, once each and only once it has begun; else null. */
     shotKind(fx, visualNow) {
         if (!fx || this.seen.has(fx) || visualNow < fx.start) return null;
-        if (fx.type === 'bossEntrance') return 'sighting';
+        if (fx.type === 'bossEntrance') return fx.phaseChange ? null : 'sighting';
         return fx.type === 'enemyDeath' && fx.boss ? 'finisher' : null;
     }
 
@@ -321,7 +321,7 @@ class StageDirector {
         const wrap = this.deps.document.getElementById('battlefield-wrap');
         if (!wrap) return;
         const transform = on ? `matrix(${cam.zoom},0,0,${cam.zoom},${cam.x},${cam.y})` : '';
-        for (const node of wrap.querySelectorAll('.battle-loot-layer, .battle-loot-air, #exploration-object-actions')) {
+        for (const node of wrap.querySelectorAll('.battle-loot-air, #exploration-object-actions')) {
             if (node.style.transform !== transform) { node.style.transform = transform; node.style.transformOrigin = on ? '0 0' : ''; }
         }
         this.domShown = on;

@@ -1,7 +1,11 @@
 // Each row is one stop between the entrance and the regional miniboss.
 // [action at the site, enemies guarding it, distinct sites, uninterrupted milliseconds per site].
-export const atlasExpeditions = Object.freeze({
-    hive: [['밀랍 봉인 깨기', 2, 2, 400], ['부화실 돌파', 6, 0, 0]],
+export const hiveBroods = /* @__PURE__ */ Object.freeze([
+    { id:'hive-worker', label:'일벌 고치', escort:'일벌 {count}마리', count:4 },
+    { id:'hive-guard', label:'호위벌 고치', escort:'정예 호위벌 {count}마리', count:1 }
+]);
+export const atlasExpeditions = /* @__PURE__ */ Object.freeze({
+    hive: [['밀랍 봉인 깨기', 2, 2, 400], ['깨뜨릴 고치 선택', 0, 2, 500, 'brood']],
     meteor: [['운석 파편 회수', 0, 3, 380], ['충돌핵 식히기', 2, 1, 1800]],
     breach: [['균열 닻 파괴', 3, 2, 350], ['균열 추격', 4, 0, 0]],
     underworld: [['광맥 발굴', 2, 3, 600]],

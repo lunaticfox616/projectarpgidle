@@ -1,3 +1,4 @@
+import { hatcheryTask, cocoonChoices, tappedCocoon } from './atlas-passage-floor.mjs';
 // Read-only large-map rendering. The player's saved fractional position also owns the camera.
 class ActExplorationView {
     constructor(deps) {
@@ -29,13 +30,33 @@ class ActExplorationView {
      * 함께 눌린다. 위에서 보는 전장에서는 둘이 같다. */
     projection(owner, width,height) {
         const run=this.deps.actExplorationState.current(owner),map=this.deps.actExplorationMap.forRun(run);
-        const cell=this.deps.actExplorationMotion.position(run,owner.gridPlayer),tile=this.stageTile(owner, run,map,width,height);
+        const room=run.source?.pocket==='hive' ? this.deps.actExplorationDoors.room(run) : null;
+        const task=hatcheryTask(run,room);
+        const cell=this.deps.actExplorationMotion.position(run,owner.gridPlayer),natural=this.stageTile(owner,run,map,width,height);
+        const frame=this.objectiveFrame(task,run,owner,{cell,width,natural});
+        const tile=frame?.tile ?? natural;
         const deep=tile*this.deps.stageView.depth(),centre=this.cameraCentre(owner, run,cell,{columns:width/tile,rows:height/deep,width,height});
+        if (frame) centre.gx=frame.gx;
         const mapX=this.snap(width/2-centre.gx*tile),mapY=this.snap(height*this.deps.stageView.anchorY()-centre.gy*deep);
-        this.shiftActors(run,{x:mapX,y:mapY,tile,deep});
-        return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
+        const p={tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*deep,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
+        p.cocoonChoices=task ? cocoonChoices(task,p,width,height) : null;
+        this.shiftActors(run,{x:mapX,y:mapY,tile,deep,task,choices:p.cocoonChoices});
+        return p;
+    }
+
+    // Keep both cocoons or the complete attack (including its return wave) and the player on screen.
+    objectiveFrame(task,run,owner,{cell,width,natural}) {
+        let range;
+        if (task) range={min:task.spots[0].gx,max:task.spots[1].gx};
+        else if (run.source?.arena && width/natural<this.NARROW_VIEW_COLUMNS) {
+            const boss=owner.enemies.find(e=>e.atlasPhase!=null && e.hp>0);
+            if (boss) range=this.deps.bossMoves.castRange(boss);
+        }
+        if (!range) return null;
+        const min=Math.min(range.min,cell.gx),max=Math.max(range.max,cell.gx);
+        return {gx:(min+max+1)/2,tile:Math.min(natural,Math.max(1,Math.floor(width/(max-min+2.8))))};
     }
 
     /** 무대의 칸 너비: 화면 너비와 높이를 따른다(stageView.tile). 휴대폰과 태블릿 세로에서는 방 그림이 화면 위끝까지 닿을 만큼은
@@ -188,11 +209,18 @@ class ActExplorationView {
 
     passageAt(owner,point) {
         const run=owner.actExploration;
-        if (run?.zoneId !== 'atlas_map' || run.source.pocket) return null;
+        if (run?.zoneId !== 'atlas_map' || !point) return null;
+        if (run.source?.pocket) return this.cocoonAt(run,point);
         const cell=this.cellAt(owner,point,true);
         if (!cell) return null;
         return owner.atlas.run?.passages?.sites.find(site => !site.used && Math.abs(cell.gx-site.gx)<=.58 &&
             cell.gy>=site.gy-1 && cell.gy<=site.gy+.5);
+    }
+
+    cocoonAt(run,point) {
+        const last=this.lastOrigin;
+        if (last?.run!==run || !last.choices || last.task.broken) return null;
+        return tappedCocoon(last.choices,point,last.tile);
     }
 
     /** Discovered ground is clear within the sight radius and dims with distance past it (≤40%). Undiscovered ground is not a wall
