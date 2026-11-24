@@ -9,7 +9,6 @@ const atlasSheetUi = createAtlasSheetView({
     get worldMapUi() { return worldMapUi; },
     get escapeHTML() { return escapeHTML; },
     get _t() { return _t; },
-    get ATLAS() { return ATLAS; },
-    get renderPixelIcon() { return renderPixelIcon; }
+    get ATLAS() { return ATLAS; }
 });
 safeExposeGlobals({ atlasSheetUi });

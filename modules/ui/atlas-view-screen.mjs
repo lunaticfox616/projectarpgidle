@@ -56,7 +56,7 @@ export function journeyState(runtime) {
 
 /** 지도 쪽: 천문도(atlasSheetUi)와 그 아래 띠(고른 것, 지침 보관함, 진행, 주 단추). */
 export function mapsViewHtml(runtime) {
-    const chart = runtime.deps.atlasSheetUi.chart({ node: runtime.state.selectedNode, held: node => stonesForNode(runtime, node).length > 0 });
+    const chart = runtime.deps.atlasSheetUi.chart({ node: runtime.state.selectedNode });
     return `<div class="atlas-sheet"><div class="as-chart-box">${chart}</div><div class="as-band">${pickCardHtml(runtime)}${stashCardHtml(runtime)}${progressCardHtml(runtime)}${goHtml(runtime)}</div></div>`;
 }
 

@@ -112,8 +112,12 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
   body[data-ui-skin] #ui-season-tree .loop-node-core::before { border-radius: 50%; }
   body[data-ui-skin] #ui-season-tree .loop-node-rank { border-radius: 999px; }
 }
-/* 예외: 천문도의 지도 핀은 양피지 위의 둥근 먹 핀이다(아틀라스 개편 D1, css/atlas-sheet.css). 핀의 완료 표시와 표지의 고리도 둥글다. */
-body[data-ui-skin] #ui-atlas :is(.as-pin > b, .as-pin > b::after, .as-pin.is-unsealed::before, .as-mark i) { border-radius: 50%; }
+/* 예외: 천문도의 지도 원판, 보스 자리의 테, 지침 보관함의 원판, 패시브 별은 사용자 패키지의 시뮬레이터처럼 둥글다(아틀라스 개편, css/atlas-sheet.css).
+   원판 뒤의 옅은 타원 둘은 시뮬레이터의 기운 잎 모양 그대로. */
+body[data-ui-skin] #ui-atlas :is(.as-pin > b, .as-gate, .as-tile > b, .ast-star i),
+body[data-ui-skin] #ui-atlas :is(.as-pin, .as-gate).is-unsealed::before { border-radius: 50%; }
+body[data-ui-skin] #ui-atlas .as-pin > b::before,
+body[data-ui-skin] #ui-atlas .as-pin > b::after { border-radius: 36% 64% 36% 64%; }
 /* 도트로 다시 찍은 로고(scripts/build-pixel-ui.cjs): 정수배로 키우고 번지지 않게 */
 :root body[data-ui-skin] #ui-rail-logo img { width: 104px; max-width: 104px; image-rendering: pixelated; }
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }

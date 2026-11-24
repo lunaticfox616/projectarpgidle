@@ -12,10 +12,19 @@ export function stoneTip(runtime, map) {
     return [mapName(runtime, map), tags, omen ? (0, runtime.deps._t)(omen.name) : '', ...map.mods.map(entry => runtime.deps.atlasMaps.describe(entry))].filter(Boolean).join('\n');
 }
 
+/** 지침 칸: 그 지침이 여는 천문도 표식과 같은 양피지 원판에 등급, 테와 안쪽 고리는 희귀도 빛깔. 수호자 지침은 보스 자리의 이름 판 빛깔(guardianTone). */
 export function tileHtml(runtime, map) {
-    const omen = map.omen && runtime.deps.lootOmens.describe(map.omen), picked = map.uid === runtime.state.selectedUid;
-    return `<button type="button" class="as-tile rarity-${map.rarity}${map.corrupted ? ' is-corrupted' : ''}${map.quality ? ' has-quality' : ''}" style="${mapTierStyle(runtime, map)}" aria-pressed="${picked}"
-            aria-label="${(0, runtime.deps.escapeHTML)(mapName(runtime, map))}" data-tip="${(0, runtime.deps.escapeHTML)(stoneTip(runtime, map))}" onclick="atlasUi.selectMap(${map.uid})">${icon(runtime, 'shard')}${omen ? `<i style="--omen:${omen.tone}"></i>` : ''}</button>`;
+    const omen = map.omen && runtime.deps.lootOmens.describe(map.omen), picked = map.uid === runtime.state.selectedUid, chart = runtime.deps.atlas.isMapStone(map);
+    const kind = chart ? `rarity-${map.rarity}` : 'is-guardian', tone = chart ? '' : ` style="--pin:${guardianTone(runtime, map)}"`;
+    return `<button type="button" class="as-tile ${kind}${map.corrupted ? ' is-corrupted' : ''}${map.quality ? ' has-quality' : ''}"${tone} aria-pressed="${picked}"
+            aria-label="${(0, runtime.deps.escapeHTML)(mapName(runtime, map))}" data-tip="${(0, runtime.deps.escapeHTML)(stoneTip(runtime, map))}" onclick="atlasUi.selectMap(${map.uid})"><b>${map.tier}</b>${omen ? `<i style="--omen:${omen.tone}"></i>` : ''}</button>`;
+}
+
+/** 수호자 지침의 빛깔: 그 싸움을 치르는 천문도 보스 자리(ATLAS.chartFights)의 권역 빛깔. */
+export function guardianTone(runtime, map) {
+    const rules = runtime.deps.ATLAS, gate = Object.keys(rules.chartFights).find(id => rules.chartFights[id] === map.node);
+    const boss = rules.starChart.bosses.find(row => row.id === gate);
+    return boss ? rules.starChart.regions[boss.region].color : rules.starChart.regions.solar.color;
 }
 
 /** 등급마다 한 줄: 천문도 지도의 지침은 높은 등급부터, 예전 수호자의 지도석은 맨 아래 한 줄. */

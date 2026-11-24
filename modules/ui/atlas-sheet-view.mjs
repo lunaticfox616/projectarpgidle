@@ -22,8 +22,11 @@ function initialize(runtime) {
     runtime.state.settled = false;
     runtime.state.centredOn = '';
     runtime.state.OUTER = Object.freeze(['outerSun', 'outerMoon']);
-    // 보스 자리 안의 도트 그림(modules/data/gem-presentation.mjs PIXEL_ICONS): 수호자는 방패, 태양 보스는 햇살, 달 보스는 둥근 달, 세계수의 두 입구는 틈.
-    runtime.state.GATE_ICON = Object.freeze({ guardian: 'shield', tree: 'rift', sunBoss: 'burst', moonBoss: 'orb' });
-    // 시작 육분의의 판은 육분의 그림 위의 세계 지도 표식(.as-home) 오른쪽 곁에 선다(css/atlas-sheet.css .mark-entry): 1등급 핀들의 위.
-    runtime.state.MARK_AT = Object.freeze({ entry: [50, 5.6] });
+    // 노드마다 권역의 빛깔(천문도 표의 regions): 지도 원판의 테, 보스 자리의 테와 이름 판.
+    const table = runtime.deps.ATLAS.starChart;
+    runtime.state.TONE = Object.freeze(Object.fromEntries([...table.maps, ...table.bosses].map(row => [row.id, table.regions[row.region].color])));
+    // 신전 갈래의 첫 길(6등급 신전 지도로 들어가는 길): 시뮬레이터처럼 조금 굵다.
+    runtime.state.FORKS = new Set(table.maps.filter(map => map.temple && map.tier === 6).map(map => map.id));
+    // 표지의 판 자리(시뮬레이터): 시작 육분의는 육분의 그림의 오른쪽 위(css/atlas-sheet.css .mark-entry가 왼쪽 끝을 맞춘다), 피나클 장치는 블랙홀 아래.
+    runtime.state.MARK_AT = Object.freeze({ entry: [55.6, 4.6], device: [50, 89.4] });
 }

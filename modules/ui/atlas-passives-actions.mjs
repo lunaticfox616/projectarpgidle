@@ -9,25 +9,27 @@ export function focusStar(runtime) {
 
 export function branchOf(runtime, star) { return runtime.deps.atlasPassives.branches.find(row => row.side === star.side); }
 
-/** 이음 하나: 양 끝을 모두 할당했으면 'done', 한쪽만 'lit', 아니면 'dim'(점선). 권역을 넘는 이음은 is-cross(다른 색). */
+/** 이음 하나(시뮬레이터 .atlas-star-links): 양 끝을 모두 할당했으면 'done'(굵게), 한쪽만 'lit'(실선), 아니면 'dim'(점선). 빛깔은 앞 별의 갈래, 권역을 넘는 이음은 is-cross(갈색). */
 export function linkHtml(runtime, [a, b]) {
     const stars = runtime.deps.atlasPassives.stars, taken = runtime.deps.game.atlas.passives, from = stars.get(a), to = stars.get(b);
     const ends = [a, b].filter(id => taken.includes(id)).length, state = ['dim', 'lit', 'done'][ends];
-    return `<line class="is-${state}${from.side === to.side ? '' : ' is-cross'}" x1="${from.point[0]}" y1="${from.point[1]}" x2="${to.point[0]}" y2="${to.point[1]}" vector-effect="non-scaling-stroke"/>`;
+    return `<line class="side-${from.side} is-${state}${from.side === to.side ? '' : ' is-cross'}" x1="${from.point[0]}" y1="${from.point[1]}" x2="${to.point[0]}" y2="${to.point[1]}" vector-effect="non-scaling-stroke"/>`;
 }
 
+/** 별(시뮬레이터 .atlas-star): 둥근 메달 안의 무늬(GLYPH)와 아래의 이름 판. 할당한 별은 갈래 빛깔로 차고, 관(최종 별)은 겹테. */
 export function starHtml(runtime, star, focusId) {
     const status = runtime.deps.atlasPassives.status(runtime.deps.game, star.id), kind = star.start ? ' kind-start' : star.keystone ? ' kind-keystone' : '';
     const name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(star.name)), label = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(star.label || star.name));
+    const glyph = runtime.state.GLYPH[star.start ? 'start' : status === 'locked' ? 'hollow' : 'full'];
     return `<button type="button" class="ast-star is-${status} side-${star.side}${kind}${star.id === focusId ? ' is-focus' : ''}" style="--x:${star.point[0]}%;--y:${star.point[1]}%"
-            aria-pressed="${star.id === focusId}" aria-label="${name}, ${(0, runtime.deps._t)(runtime.state.STATUS[status])}" onclick="atlasPassivesUi.pick('${star.id}')"><i aria-hidden="true"></i><span>${label}</span></button>`;
+            aria-pressed="${star.id === focusId}" aria-label="${name}, ${(0, runtime.deps._t)(runtime.state.STATUS[status])}" onclick="atlasPassivesUi.pick('${star.id}')"><i aria-hidden="true">${glyph}</i><span>${label}</span></button>`;
 }
 
-/** 세 기둥의 머리(갈래 이름)와 별 판: 별과 이음은 판의 백분율 자리에 선다(천문도 표의 point). */
+/** 세 기둥의 머리(작은 표, 갈래 이름, 그 갈래가 주는 것)와 별 판: 별과 이음은 판의 백분율 자리에 선다(천문도 표의 point). */
 export function boardHtml(runtime, focusId) {
-    const passives = runtime.deps.atlasPassives, heads = passives.branches.map(row => {
+    const passives = runtime.deps.atlasPassives, esc = text => (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(text)), heads = passives.branches.map(row => {
         const x = Math.round(row.stars.reduce((sum, id) => sum + passives.stars.get(id).point[0], 0) / row.stars.length);
-        return `<b class="side-${row.side}" style="--x:${x}%">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name))}</b>`;
+        return `<div class="side-${row.side}" style="--x:${x}%"><b>${runtime.state.HEAD_MARK[row.side]}${esc(row.name)}</b><small>${esc(runtime.state.FOCUS[row.side])}</small></div>`;
     }).join('');
     return `<div class="ast-board-box"><div class="ast-heads">${heads}</div><div class="ast-board" role="group" aria-label="${(0, runtime.deps._t)('패시브 별자리')}">
             <svg class="ast-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${passives.links.map(link => linkHtml(runtime, link)).join('')}</svg>

@@ -1,4 +1,5 @@
-// 천문도(아틀라스 개편 2026-11-24 D1): 양피지 그림 위의 길(SVG), 지도 표식(먹 핀), 보스 자리(마름모 핀과 이름 판), 시작 육분의와 피나클 장치.
+// 천문도(아틀라스 개편 2026-11-24 D1): 양피지 그림 위의 길(SVG), 지도 표식(양피지 원판), 보스 자리(그림의 문장 위 누르는 자리와 이름 판), 시작 육분의와 피나클 장치.
+// 모양은 사용자 패키지의 시뮬레이터(.atlas-world-map)를 따른다.
 // 고른 것과 그 아래 카드 띠는 js/atlas-ui.js가 그린다(atlas-view-pick, -stash, -progress). 색은 css/atlas-sheet.css.
 
 /** 길의 끝이 지나온 곳인지: 시작 육분의는 켰을 때, 노드는 완료했을 때. */
@@ -46,34 +47,46 @@ export function stateClasses(runtime, id, picked) {
         live && fresh.done.has(id) ? 'is-fresh' : '', live && fresh.open.has(id) ? 'is-unsealed' : ''].filter(Boolean).join(' ');
 }
 
-/** 지도 표식: 먹 핀 안에 천문도 등급. 지침이 있는 아직 깨지 않은 열린 지도에는 작은 점. 이름과 등급은 마우스를 올리면(data-tip), 고르면 핀 아래 판에. */
+/** 지도 표식(패키지 시뮬레이터의 모양): 양피지 원판 안에 천문도 등급, 테는 권역의 빛깔(--pin). 이름과 등급은 마우스를 올리면(data-tip),
+ * 고르면 이웃 표식을 덮지 않는 쪽의 판에(platePlace). */
 export function pinHtml(runtime, node, parts) {
-    const game = runtime.deps.game, status = shownStatus(runtime, node.id), tier = runtime.deps.atlas.effectiveTier(game, node);
-    const name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name)), held = status === 'open' && parts.held(node);
-    const tip = (0, runtime.deps.escapeHTML)(`${(0, runtime.deps._t)(node.name)} T${tier}`);
-    return `<button type="button" class="as-pin is-${status} ${stateClasses(runtime, node.id, parts.node)}${held ? ' has-stone' : ''}" style="--x:${node.point[0]}%;--y:${node.point[1]}%"
-            data-atlas-node="${node.id}" data-tip="${tip}" aria-pressed="${node.id === parts.node}" aria-label="${tip}" onclick="atlasSheetUi.tap('${node.id}')"><b>${tier}</b>${node.id === parts.node ? `<em>${name}</em>` : ''}</button>`;
+    const status = shownStatus(runtime, node.id), tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node), picked = node.id === parts.node;
+    const tip = (0, runtime.deps.escapeHTML)(`${(0, runtime.deps._t)(node.name)} T${tier}`), name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name));
+    return `<button type="button" class="as-pin is-${status} ${stateClasses(runtime, node.id, parts.node)}" style="--x:${node.point[0]}%;--y:${node.point[1]}%;--pin:${runtime.state.TONE[node.id]}"
+            data-atlas-node="${node.id}" data-tip="${tip}" aria-pressed="${picked}" aria-label="${tip}" onclick="atlasSheetUi.tap('${node.id}')"><b>${tier}</b>${picked ? `<em class="at-${platePlace(runtime, node)}">${name}</em>` : ''}</button>`;
 }
 
-/** 보스 자리: 마름모 핀(종류마다 도트 그림 하나)과 패키지의 이름 판(중간 보스, 태양 보스, 위 입구 같은). */
+/** 고른 지도의 이름 판 자리: 아래, 위, 오른쪽, 왼쪽 가운데 다른 표식과 천문도 가장자리에 덜 걸리는 첫 자리. 크기는 PC 천문도(약 800x446px) 기준의 어림. */
+export function platePlace(runtime, node) {
+    const width = (0, runtime.deps._t)(node.name).length * 12 + 12, at = point => [point[0] * 8, point[1] * 4.46], [x, y] = at(node.point);
+    const others = runtime.deps.atlas.nodes.filter(other => other.id !== node.id && other.gate !== 'outer').map(other => [...at(other.point), other.kind === 'gate' ? 22 : 12]);
+    const boxes = { below: [x - width / 2, y + 16, x + width / 2, y + 34], above: [x - width / 2, y - 34, x + width / 2, y - 16],
+        right: [x + 16, y - 9, x + 16 + width, y + 9], left: [x - 16 - width, y - 9, x - 16, y + 9] };
+    const hits = ([left, top, right, bottom]) => others.filter(([ox, oy, r]) => ox + r > left && ox - r < right && oy + r > top && oy - r < bottom).length
+        + Number(left < 0 || top < 0 || right > 800 || bottom > 446) * 9;
+    return Object.keys(boxes).reduce((best, key) => (hits(boxes[key]) < hits(boxes[best]) ? key : best), 'below');
+}
+
+/** 보스 자리(패키지 시뮬레이터의 모양): 그림에 이미 있는 문장(신전, 해, 달, 세계수의 두 틈) 위의 투명한 누르는 자리와 이름 판.
+ * 들어갈 수 있으면(is-ready) 테와 옅은 빛이 서고 판의 색이 뒤집힌다. 마친 자리는 판 앞에 표시. */
 export function gatePinHtml(runtime, node, parts) {
     const status = shownStatus(runtime, node.id), label = gateLabel(runtime, node), name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name));
-    const icon = (0, runtime.deps.renderPixelIcon)(runtime.state.GATE_ICON[node.id] || runtime.state.GATE_ICON[node.gate], 'as-gate-icon');
-    return `<button type="button" class="as-gate gate-${node.gate} is-${status} ${stateClasses(runtime, node.id, parts.node)}" style="--x:${node.point[0]}%;--y:${node.point[1]}%"
+    const ready = status === 'open' && !runtime.deps.game.atlas.run ? ' is-ready' : '';
+    return `<button type="button" class="as-gate gate-${node.gate} is-${status}${ready} ${stateClasses(runtime, node.id, parts.node)}" style="--x:${node.point[0]}%;--y:${node.point[1]}%;--pin:${runtime.state.TONE[node.id]}"
             data-atlas-node="${node.id}" data-tip="${name}" aria-pressed="${node.id === parts.node}" aria-label="${name}" onclick="atlasSheetUi.tap('${node.id}')">`
-        + `<span class="as-gate-mark">${icon}</span>${label ? `<small>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(label))}</small>` : ''}</button>`;
+        + `${label ? `<small>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(label))}</small>` : ''}</button>`;
 }
 
 /** 패키지의 이름 판(태양 보스, 달 보스, 위 입구, 아래 입구, 중간 보스). 외부 피나클은 판이 없다(피나클 장치가 대신한다). */
 export function gateLabel(runtime, node) { return runtime.deps.ATLAS.starChart.bosses.find(row => row.id === node.id)?.gate || ''; }
 
-/** 표지 둘: 시작 육분의(켤 수 있으면 손짓, 켰으면 표시)와 피나클 장치(외부 피나클 둘이 그 자리에 선다, 둘 중 하나가 열리면 열림). */
+/** 표지 둘(패키지 시뮬레이터의 이름 판): 시작 육분의(켤 수 있으면 손짓)와 피나클 장치(외부 피나클 둘이 그 자리에 선다, 둘 중 하나가 열리면 열림). */
 export function marksHtml(runtime, picked) {
     const marks = runtime.deps.ATLAS.starChart.landmarks;
     return [['entry', sextantState(runtime)], ['device', deviceState(runtime)]].map(([id, status]) => {
-        const name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(marks[id].name)), [x, y] = runtime.state.MARK_AT[id] || marks[id].point;
+        const name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(marks[id].name)), [x, y] = runtime.state.MARK_AT[id];
         return `<button type="button" class="as-mark mark-${id} is-${status} ${stateClasses(runtime, id, picked)}" style="--x:${x}%;--y:${y}%" data-atlas-mark="${id}"
-                aria-pressed="${id === picked}" onclick="atlasSheetUi.tap('${id}')"><i aria-hidden="true"></i><small>${name}</small></button>`;
+                aria-pressed="${id === picked}" onclick="atlasSheetUi.tap('${id}')">${name}</button>`;
     }).join('');
 }
 
@@ -90,11 +103,27 @@ export function deviceState(runtime) {
     return states.some(state => state !== 'locked') ? 'open' : 'locked';
 }
 
-/** 천문도의 길: 천문도 표의 SVG 경로를 그대로 그린다(0~100 상자를 그림에 맞춰 늘인다). 숨긴 길(권역 보스 → 외부 피나클)은 그리지 않는다. */
-export function routesHtml(runtime) {
-    const paths = runtime.deps.ATLAS.starChart.routes.filter(route => !route.hidden)
-        .map(route => `<path class="is-${routeState(runtime, route)}" d="${route.path}" vector-effect="non-scaling-stroke"/>`).join('');
+/** 천문도의 길: 천문도 표의 SVG 경로를 그대로, 패키지 시뮬레이터처럼 두 겹으로 그린다(아래에 밝은 테, 위에 갈래 빛깔의 가는 선).
+ * 0~100 상자를 그림에 맞춰 늘인다. 숨긴 길(권역 보스 → 외부 피나클)은 그리지 않는다. 고른 곳까지 가는 길이 아닌 길은 옅게(is-muted). */
+export function routesHtml(runtime, picked) {
+    const path = pathTo(runtime, picked), forks = runtime.state.FORKS;
+    const paths = runtime.deps.ATLAS.starChart.routes.filter(route => !route.hidden).map(route => {
+        const muted = path && !(path.has(route.to) && (route.from === 'entry' || path.has(route.from))) ? ' is-muted' : '';
+        return `<g class="as-route side-${route.side} is-${routeState(runtime, route)}${forks.has(route.to) ? ' is-fork' : ''}${muted}">`
+            + `<path class="as-route-casing" d="${route.path}" vector-effect="non-scaling-stroke"/><path class="as-route-ink" d="${route.path}" vector-effect="non-scaling-stroke"/></g>`;
+    }).join('');
     return `<svg class="as-routes" viewBox="${runtime.deps.ATLAS.starChart.viewBox.join(' ')}" preserveAspectRatio="none" aria-hidden="true">${paths}</svg>`;
+}
+
+/** 고른 노드에서 시작 육분의까지 거슬러 오르는 노드들(갈래가 둘인 보스 자리는 둘 다). 노드를 고르지 않았으면(표지, 없음) null: 모든 길이 짙다. */
+export function pathTo(runtime, picked) {
+    if (!runtime.deps.atlas.node(picked)) return null;
+    const routes = runtime.deps.ATLAS.starChart.routes, seen = new Set([picked]), queue = [picked];
+    while (queue.length) {
+        const id = queue.shift();
+        routes.filter(route => route.to === id && !seen.has(route.from)).forEach(route => { seen.add(route.from); queue.push(route.from); });
+    }
+    return seen;
 }
 
 /** 세계 지도로 돌아가는 단추: 세계 지도에서 아틀라스 입구가 선 바로 그 자리(2026-11-10 사용자). 누르면 입구와 같은 전환이 거꾸로 돈다. */
@@ -104,7 +133,7 @@ export function homeHtml(runtime) {
             onclick="worldMapUi.turnToWorld(this)"><i aria-hidden="true" style="background-image:url('${runtime.deps.worldMapUi.atlasIcon('tree', '#e2a94a', false, true)}')"></i></button>`;
 }
 
-/** parts: 고른 것(node: 노드 id나 표지 id)과 held(node)(그 지도에 쓸 지침이 있는가). 외부 피나클 둘은 그리지 않는다(피나클 장치가 대신한다). */
+/** parts: 고른 것(node: 노드 id나 표지 id). 외부 피나클 둘은 그리지 않는다(피나클 장치가 대신한다). */
 export function chart(runtime, parts) {
     rememberScroll(runtime);
     noteFresh(runtime);
@@ -112,7 +141,7 @@ export function chart(runtime, parts) {
     const nodes = runtime.deps.atlas.nodes.filter(node => node.gate !== 'outer');
     const pins = nodes.map(node => (node.kind === 'gate' ? gatePinHtml(runtime, node, parts) : pinHtml(runtime, node, parts))).join('');
     return `<div class="as-chart" role="group" aria-label="${(0, runtime.deps._t)('천문도')}" style="background-image:url('${runtime.deps.ATLAS.starChart.picture.src}')">
-            ${routesHtml(runtime)}${homeHtml(runtime)}${marksHtml(runtime, parts.node)}${pins}</div>`;
+            ${routesHtml(runtime, parts.node)}${homeHtml(runtime)}${marksHtml(runtime, parts.node)}${pins}</div>`;
 }
 
 /** 좁은 화면에서 천문도는 옆으로 민다. 다시 그리기 전에 민 자리를 적어 두고(rememberScroll), 그린 뒤에 그 자리로 돌린다(settle).
@@ -127,7 +156,8 @@ export function rememberScroll(runtime) {
 export function settle(runtime) {
     const box = runtime.deps.document.querySelector('#ui-atlas .as-chart-box');
     if (!box || box.scrollWidth <= box.clientWidth) return;
-    const focus = focusOf(box), key = focus ? focus.dataset.atlasNode || focus.dataset.atlasMark : '';
+    const focus = focusOf(box), key = focusKey(focus);
+    if (runtime.state.settled && key === runtime.state.centredOn) return; // 이 그림은 이미 자리를 잡았다(창 크기가 바뀌어 다시 불림): 그리기 전의 자리로 되돌리지 않는다
     const centre = key !== runtime.state.centredOn || runtime.state.scrollLeft === null;
     box.scrollLeft = centre && focus ? focus.offsetLeft - box.clientWidth / 2 : runtime.state.scrollLeft ?? box.scrollLeft;
     Object.assign(runtime.state, { settled: true, centredOn: key });
@@ -137,6 +167,8 @@ export function settle(runtime) {
 export function focusOf(box) {
     return ['.is-selected', '.is-running', '.as-mark.is-ready', '.as-pin.is-open'].map(selector => box.querySelector(selector)).find(Boolean) || null;
 }
+
+export function focusKey(focus) { return focus ? focus.dataset.atlasNode || focus.dataset.atlasMark : ''; }
 
 export function done(runtime, id) { return ['complete', 'bonus'].includes(runtime.deps.atlas.status(runtime.deps.game, id)); }
 
