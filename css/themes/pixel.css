@@ -373,9 +373,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   justify-content: center;
   gap: 14px;
   max-width: 440px;
-  min-height: 170px;
-  margin: 48px auto 16px;
-  padding: 24px;
+  margin: 16px auto;
+  padding: 16px 24px;
   border: var(--px-light-border) solid transparent;
   border-image: var(--px-light-frame);
   background: var(--px-panel);
@@ -384,6 +383,15 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
+}
+/* 안내 판 위의 원환 뱀(루프 패시브 트리 가운데의 그 그림, 잠긴 동안은 어두운 놋빛 그림자) */
+:root body[data-ui-skin] #loop-passive-locked:not([hidden])::before {
+  content: '';
+  width: 84px;
+  height: 84px;
+  background: linear-gradient(135deg, rgba(235, 232, 219, .5), rgba(211, 181, 116, .3));
+  -webkit-mask: url('../../assets/ui/loop-passive-ouroboros-v3.png') center / contain no-repeat;
+  mask: url('../../assets/ui/loop-passive-ouroboros-v3.png') center / contain no-repeat;
 }
 /* 구글 로그인 버튼은 구글 표기 규정의 글꼴(Google Sans, css/startup.css)을 그대로 둔다. 카카오는 공식 그림 버튼. */
 :root body[data-ui-skin] #startup-overlay #btn-startup-google { font-family: 'Google Sans', sans-serif; }

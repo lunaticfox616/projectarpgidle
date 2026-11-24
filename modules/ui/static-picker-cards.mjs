@@ -16,11 +16,18 @@ export function getCraftPickerCardHtml(runtime, item, options) {
     const presentation = craftPickerCardPresentation(runtime, item, options);
     options = presentation.options;
     const { selected, rarity, slotLabel, sourceBadge, extraClass, exceptionalStars } = presentation;
-    return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
+    return `<button type="button" class="craft-picker-card has-art ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
+        ${craftPickerArtHtml(runtime, item)}
         <div class="item-title ${rarity}" style="font-size:12px;">[${(0, runtime.deps.escapeHTML)((0, runtime.deps.getItemSlotDisplayLabel)(item, slotLabel))}] ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(item.name || '장비'))}${exceptionalStars}${sourceBadge}${item.encroached ? (0, runtime.deps._t)(' <span style="color:#b084ff;">(잠식)</span>') : ''}${item.locked ? ' 🔒' : ''}</div>
         <div class="item-base-line" style="font-size:12px;">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(item.baseName || ''))}</div>
         ${getCraftPickerItemLines(runtime, item)}
     </button>`;
+}
+
+/** The item's picture in a rarity-toned frame (the bag's own picture of it); an empty frame for an empty slot. */
+function craftPickerArtHtml(runtime, item) {
+    if (!item) return '<span class="craft-picker-art is-empty" aria-hidden="true"></span>';
+    return `<span class="craft-picker-art" style="--item-rarity:${(0, runtime.deps.escapeHTML)((0, runtime.deps.getRarityColor)(item.rarity))}"><img src="${(0, runtime.deps.escapeHTML)((0, runtime.deps.getEquipmentGridVisualAsset)(item))}" alt="" draggable="false"></span>`;
 }
 
 function craftPickerCardPresentation(runtime, item, options) {
@@ -50,7 +57,7 @@ export function getCraftPickerBodyHtml(runtime, kind, browse = {}) {
         return `<div class="paperdoll craft-picker-equip-grid">${slots.map(slot => {
             let item = runtime.deps.game.equipment && runtime.deps.game.equipment[slot];
             let slotClass = `slot-box slot-${slot}`;
-            if (!item) return `<button type="button" class="craft-picker-card ${slotClass} empty" disabled><div style="font-weight:800;">[${(0, runtime.deps.escapeHTML)((0, runtime.deps.getItemSlotDisplayLabel)(null, slot))}]</div><div style="color:var(--copy-muted); margin-top:5px;">${(0, runtime.deps._t)('비어있음')}</div></button>`;
+            if (!item) return `<button type="button" class="craft-picker-card has-art ${slotClass} empty" disabled>${craftPickerArtHtml(runtime, null)}<div style="font-weight:800;">[${(0, runtime.deps.escapeHTML)((0, runtime.deps.getItemSlotDisplayLabel)(null, slot))}]</div><div style="color:var(--copy-muted); margin-top:5px;">${(0, runtime.deps._t)('비어있음')}</div></button>`;
             return getCraftPickerCardHtml(runtime, item, {
                 slotLabel: slot,
                 selected: currentIsEquip && currentRef === slot,

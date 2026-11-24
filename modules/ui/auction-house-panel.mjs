@@ -8,7 +8,7 @@
  */
 import { tr, esc, num, paint } from './auction-house-format.mjs';
 import { hallActive } from './auction-house-hall.mjs';
-import { openKinds } from './auction-house-kinds.mjs';
+import { lotArtSrc, openKinds } from './auction-house-kinds.mjs';
 import { liveQuery, lineChips, panelCount, hasConditions, statName, categoryOf, kindLabel, slotName, VARIANT_LABELS, AFFORD_CHIP } from './auction-house-conditions.mjs';
 
 const SOURCES = Object.freeze([['all', '모든 출처'], ['merchant', '상인'], ['user', '다른 플레이어']]);
@@ -32,12 +32,26 @@ function tabHtml(runtime, attr, tab) {
     return `<button type="button" class="psd-tab ah-cat${tab.on ? ' is-on' : ''}" ${attr}="${esc(runtime, tab.value)}" aria-pressed="${tab.on}">${tab.art || ''}<span>${esc(runtime, tab.label)}</span></button>`;
 }
 
-/** The category strip: 전체, each gear slot, each open kind that is not gear; at its end the 최근 거래 switch. */
+/** A strip tab's picture ('' without an address). */
+const artHtml = (runtime, src) => (src ? `<img src="${esc(runtime, src)}" alt="" draggable="false">` : '');
+
+/** The picture of a kind that is not gear: that of a lot of the kind on sale, kept once found ('' until the heads are built). */
+function kindArtSrc(runtime, kind) {
+    const kept = runtime.kindArt || (runtime.kindArt = new Map());
+    if (!kept.has(kind) && runtime.headsReady) {
+        const { auctionHouse, game } = runtime.deps, now = runtime.deps.now(), head = auctionHouse.lotHeads(game, now).find(row => row.kind === kind);
+        const lot = head ? auctionHouse.lot(game, head.id, now) : null;
+        if (lot) kept.set(kind, lotArtSrc(runtime, lot));
+    }
+    return kept.get(kind) || '';
+}
+
+/** The category strip: 전체, each gear slot with the slot's picture, each open kind that is not gear with a lot's picture; at its end the 최근 거래 switch. */
 function catsHtml(runtime) {
     const chosen = categoryOf(liveQuery(runtime)), rules = runtime.deps.auctionHouse.searchRules, recent = recentMode(runtime);
-    const rows = [['all', tr(runtime, '전체')], ...rules.slots.map(slot => [`slot:${slot}`, slotName(runtime, slot)]),
-        ...openKinds(runtime).filter(kind => kind !== 'gear').map(kind => [`kind:${kind}`, kindLabel(runtime, kind)])];
-    return `${rows.map(([value, label]) => tabHtml(runtime, 'data-ah-cat', { value, label, on: value === chosen })).join('')}
+    const rows = [['all', tr(runtime, '전체'), ''], ...rules.slots.map(slot => [`slot:${slot}`, slotName(runtime, slot), runtime.deps.getEquipmentGridVisualAsset({ slot })]),
+        ...openKinds(runtime).filter(kind => kind !== 'gear').map(kind => [`kind:${kind}`, kindLabel(runtime, kind), kindArtSrc(runtime, kind)])];
+    return `${rows.map(([value, label, src]) => tabHtml(runtime, 'data-ah-cat', { value, label, on: value === chosen, art: artHtml(runtime, src) })).join('')}
         <button type="button" class="psd-tab ah-recent${recent ? ' is-on' : ''}" data-ah-mode="${recent ? 'open' : 'recent'}" aria-pressed="${recent}"><span>${esc(runtime, tr(runtime, '최근 거래'))}</span></button>`;
 }
 
@@ -57,7 +71,7 @@ function rarityRows(runtime) {
 /** The search bar: the box with its suggestions, the rarity select, 검색, the 조건 button (its state and count patched by patchCond), 저장. */
 function barHtml(runtime, values) {
     const query = liveQuery(runtime), label = runtime.deps._t('이름이나 옵션 검색'), rarity = tr(runtime, '등급');
-    return `<span class="ah-name-box is-name"><input type="search" class="ah-search psd-input" data-ah-search role="combobox" aria-autocomplete="list" aria-expanded="false" value="${esc(runtime, typed(values, query.name))}" placeholder="${esc(runtime, label)}" aria-label="${esc(runtime, label)}" autocomplete="off" spellcheck="false">
+    return `<span class="ah-name-box is-name"><input type="search" class="ah-search psd-search" data-ah-search role="combobox" aria-autocomplete="list" aria-expanded="false" value="${esc(runtime, typed(values, query.name))}" placeholder="${esc(runtime, label)}" aria-label="${esc(runtime, label)}" autocomplete="off" spellcheck="false">
         <span class="ah-suggest" role="listbox" data-ah-suggest hidden></span></span>
         <select class="ah-rarity" data-ah-filter="rarity" aria-label="${esc(runtime, rarity)}">${optionsHtml(runtime, rarityRows(runtime), query.rarity)}</select>
         <button type="button" class="psd-btn is-primary ah-find" data-ah-find>${esc(runtime, tr(runtime, '검색'))}</button>

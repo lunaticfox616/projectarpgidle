@@ -1,14 +1,22 @@
-/* 혼돈 심화 등반(js/loop-climb-ui.js, 2026-10-09 다시 그림). 머리 수치, 루프 조건 체크 목록, 단추, 다시 입장 줄, 예상 획득 칩,
-   영구 강화 단추(능력치 색 --stat-tone). */
+/* 혼돈 심화 등반(modules/ui/loop-climb-markup.mjs, 2026-10-09 다시 그림, 2026-11-24 그림을 넣음). 맨 위는 돌 고리 그림 판(루프 연출의 그 고리:
+   루프 조건을 채우기 전에는 잠든 고리, 채우면 깨어난 고리)이고 고리 양옆에 심화층과 포인트, 그 아래 판에 루프 조건 등불이 선다. 이어서 단추,
+   다시 입장 줄, 예상 획득 장부(한 판의 네 칸), 영구 강화 단추(능력치 색 --stat-tone). */
 @layer features {
   #ui-loop10-panel { display: grid; gap: 10px; }
-  .climb-head { display: flex; align-items: center; gap: 16px; }
-  .climb-emblem { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #5e3a80;
-    background: radial-gradient(circle at 50% 45%, rgba(199, 140, 255, .25), transparent 70%), #0d0a12; color: #dcaeff; font-size: 24px; }
-  .climb-head small { display: block; color: var(--px-copy-muted, #a39883); font-size: 11px; }
-  .climb-head b { color: #c7a6ff; font-size: 22px; font-weight: 400; line-height: 1; }
+  .climb-scene { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; min-height: 216px; padding: 10px; overflow: hidden;
+    border: 1px solid #0d0b0f; background: #0d0a12 url('../assets/ui/loop-pixel-abyss.webp') center 8% / cover no-repeat; image-rendering: pixelated;
+    box-shadow: inset 0 0 0 1px #4a3a26; }
+  .climb-scene.is-ready { background-image: url('../assets/ui/loop-pixel-rewind.webp'); }
+  .climb-scene::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(90deg, rgba(8, 6, 10, .72) 0%, rgba(8, 6, 10, 0) 34%, rgba(8, 6, 10, 0) 66%, rgba(8, 6, 10, .72) 100%),
+      linear-gradient(180deg, rgba(8, 6, 10, 0) 55%, rgba(8, 6, 10, .8) 100%); }
+  .climb-scene > * { position: relative; }
+  .climb-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 6px; text-shadow: 0 1px 0 #000, 0 0 6px #000; }
+  .climb-head > div:last-child { text-align: right; }
+  .climb-head small { display: block; margin-bottom: 4px; color: #cfc4ad; font-size: 11px; }
+  .climb-head b { color: #c7a6ff; font-size: 30px; font-weight: 400; line-height: 1; }
   .climb-head b.is-points { color: #f3d28c; }
-  .climb-gates { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
+  .climb-gates { display: grid; gap: 4px; padding: 7px 10px; border: 1px solid #0d0b0f; background: rgba(12, 9, 8, .86); box-shadow: inset 0 0 0 1px #3a2f20; }
   .climb-gates > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
   .climb-gates ul { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
   .climb-gates li { display: flex; align-items: center; gap: 8px; color: #8a7f6c; font-size: 12px; }
@@ -22,12 +30,14 @@
   .climb-reentry > button { justify-self: end; }
   .climb-gains { display: grid; gap: 6px; }
   .climb-gains > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
-  .climb-gains > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .climb-gain { display: grid; justify-items: center; gap: 1px; padding: 6px 4px; border: 1px solid #241d14; background: rgba(10, 8, 6, .45); }
-  .climb-gain b { color: #6f6656; font-size: 16px; font-weight: 400; }
-  .climb-gain small { color: var(--px-copy-muted, #a39883); font-size: 11px; }
-  .climb-gain.is-up { border-color: #3d5a26; }
-  .climb-gain.is-up b { color: #9fd46a; }
+  .climb-gains > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #0d0b0f; background: rgba(10, 8, 6, .5);
+    box-shadow: inset 0 0 0 1px #3a2f20; }
+  .climb-gain { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 7px 10px; }
+  .climb-gain + .climb-gain { border-left: 1px solid #2a2218; }
+  .climb-gain b { order: 2; color: #5d5547; font-size: 14px; font-weight: 400; }
+  .climb-gain small { color: #7d7362; font-size: 12px; }
+  .climb-gain.is-up b { color: #9fd46a; text-shadow: 0 0 6px rgba(159, 212, 106, .45); }
+  .climb-gain.is-up small { color: var(--px-copy, #e8dcc0); }
   .climb-growth > summary { display: flex; align-items: baseline; gap: 10px; }
   .climb-growth > summary b { margin-left: auto; color: #f3d28c; font-size: 12px; font-weight: 400; }
   .climb-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 8px; }
@@ -39,6 +49,10 @@
   .climb-stat em { grid-area: cost; color: #8a7f6c; font-size: 11px; font-style: normal; }
   @media (max-width: 560px) {
     .climb-gains > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .climb-gain:nth-child(3) { border-left: 0; }
+    .climb-gain:nth-child(n + 3) { border-top: 1px solid #2a2218; }
+    .climb-scene { min-height: 190px; }
+    .climb-head b { font-size: 24px; }
     .climb-reentry { grid-template-columns: minmax(0, 1fr) auto; }
     .climb-reentry > button { grid-column: 1 / -1; justify-self: stretch; }
   }

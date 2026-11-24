@@ -81,8 +81,14 @@
   :is(.stump-box-summary, .stump-box-more) h3 small { color: var(--px-copy-muted, #a39883); font-size: 12px; font-weight: 400; }
   /* 탭: 고른 것만 밝게. 한 번에 하나만 보여 줘 줄지어 쌓이지 않는다 */
   .stump-more-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #2a2218; }
-  /* 접혀 있으면(누른 탭이 없으면) 탭 줄만 */
+  /* 접혀 있으면(누른 탭이 없으면) 탭 줄만: 바깥 판도 걷어 탭 줄이 상자 속 상자로 보이지 않는다(2026-11-24) */
   .stump-more-tabs:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+  .stump-box-more:not(:has(.stump-more-body)) { padding: 0; border: 0; background: none; box-shadow: none; }
+  /* 탭 이름 앞의 도트 아이콘(잎, 자물쇠, 보석, 구슬): 탭의 글빛을 따른다 */
+  #tab-stump .stump-more-tab { display: inline-flex; flex: 1 1 auto; align-items: center; justify-content: center; gap: 4px; padding-inline: 2px; }
+  .stump-more-icon { flex: none; width: 11px; height: 11px; filter: drop-shadow(1px 1px 0 #000); }
+  .stump-more-icon :is(.m, .f) { fill: currentColor; }
+  .stump-more-icon .f { opacity: .55; }
   /* 접는 칸(옵션 합계, 2026-10-25): 한 줄 단추, 펼치면 아래에 목록 */
   #tab-stump .stump-fold { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 2px 8px; font-size: 13px; color: #f0cf86; background: linear-gradient(90deg, rgba(243, 210, 140, .18), rgba(243, 210, 140, .04)); box-shadow: inset 0 0 0 1px #6f5a33; }
   #tab-stump .stump-fold small { margin-left: auto; color: #cdb98c; font-size: 12px; }

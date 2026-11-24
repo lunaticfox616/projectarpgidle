@@ -661,7 +661,6 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '탐험 항목': 'Exploration entries',
         '이야기 저널': 'Story journal',
         '이야기 저널 자동 표시': 'Show story journal automatically',
-        '액트와 특수 콘텐츠의 기록을 모아 세계의 단서와 영구 보너스를 해금합니다.': 'Gather records from acts and special content to unlock clues about the world and permanent bonuses.',
         '도감': 'Codex',
         '도감 항목': 'Codex entries',
         '나무 도감': 'Tree codex',

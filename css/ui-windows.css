@@ -279,10 +279,13 @@
 .background-result-growth { margin: 0; color: var(--color-success); font-size: 12px; line-height: 1.5; }
 .background-result-growth strong { color: inherit; }
 .background-result-notes { display: grid; gap: 4px; margin: 0; padding: 10px 0 0; border-top: 1px solid var(--color-line); list-style: none; font-size: 12px; line-height: 1.5; }
-.background-result-notes li { padding-left: 8px; border-left: 2px solid currentColor; overflow-wrap: anywhere; }
+.background-result-notes li { display: flex; align-items: flex-start; gap: 7px; overflow-wrap: anywhere; }
+.background-result-note-icon { flex: none; width: 13px; height: 13px; margin-top: 2px; filter: drop-shadow(1px 1px 0 #000); }
+.background-result-note-icon :is(.m, .f) { fill: currentColor; }
+.background-result-note-icon .f { opacity: .55; }
 .background-result-notes .bad { color: var(--color-danger); }
 .background-result-notes .warn { color: var(--result-warn); }
-.background-result-notes .info { border-left-color: var(--color-line); color: var(--color-text-tertiary); }
+.background-result-notes .info { color: var(--color-text-tertiary); }
 .background-combat-result-card footer { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--color-line-strong); background: var(--color-control); }
 .background-combat-result-card footer button { min-height: 40px; min-width: 96px; padding: 8px 14px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 13px; }
 .background-combat-result-card footer .background-result-continue { background: var(--color-control); color: var(--color-accent-gold); }
