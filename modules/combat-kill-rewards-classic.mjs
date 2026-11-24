@@ -67,7 +67,7 @@ export const loot = createKillLoot(delivery, drops, {
     get supports() { return window.GameModules.combat.supports; }, get contentMultiplier() { return getContentDropRateMultiplier; },
     get content() { return contentProgression; }, get floor() { return actExplorationState.groundLoot; },
     get chances() { return getEquipmentDropChances; }, get wildTalisman() { return rollWildTalismanDrop; },
-    get atlasPassives() { return atlasPassives; }, get gemMultiplier() { return getEnemyGemDropMul; },
+    get gemMultiplier() { return getEnemyGemDropMul; },
     get runeReward() { return rollEnemyGemReward; }, get gems() { return gemDropRewards; },
     get stats() { return getPlayerStats; }, get cores() { return coreItems; }, get generateJewel() { return generateJewelDrop; },
     get receiveJewel() { return receiveJewelDrop; }, get awardCurrency() { return awardCurrency; }

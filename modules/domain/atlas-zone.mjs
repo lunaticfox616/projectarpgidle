@@ -1,6 +1,6 @@
 import { atlasCoreBonusOf } from './atlas-bonuses.mjs';
 import { atlasCoreActiveFragments } from './atlas-loadout.mjs';
-import { atlasCoreMapGameTier } from './atlas-graph.mjs';
+import { atlasCoreMapGameTier, atlasCoreChartRun } from './atlas-graph.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
 import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
 
@@ -64,14 +64,13 @@ export function atlasCoreBuildZone(env, state, run) {
         areaLevel: env.deps.ATLAS.areaLevel.base + (tier - 1) * env.deps.ATLAS.areaLevel.perTier,
         // 루프 인플레이션 대신 등급이 정한 고정 루프 · 깊이 (combat getLoopDifficultyInputs · state getAbyssMonsterScales).
         fixedSeason: depth - env.deps.ATLAS.difficulty.loopBehindDepth, equivalentDepth: depth, equivalentChaosDepth: depth,
-        mapHpMul: fx.hp * more('monsterLife'), mapDamageMul: fx.damage * more('monsterDamage'),
+        mapHpMul: fx.hp, mapDamageMul: fx.damage,
         bossMods: { hpMul: fx.bossHp * more('bossLife') * boss.hpMul * boost.hp * memory.hp,
             damageMul: fx.bossDamage * more('bossLife') * boss.damageMul * boost.damage * memory.damage },
         // 불타는 땅: 불길 웅덩이(옵션 문구 그대로 불 원소로 터진다).
         ...(fx.hazard ? { trialHazard: { ...env.deps.ATLAS.burningGround, persistent: true }, trapElements: fx.groundElements } : {}),
         atlasNode: node.id, atlasRegion: node.region, atlasTier: tier, atlasChartTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
-        // 황금 방(data/atlas.js goldenRoom)과 보급 상자 규칙(열매 갈래의 황금 수확, 보급 각인).
-        atlasGolden: run.golden, atlasChest: atlasCoreChestRules(bonus),
+        ...atlasCoreRewardFields(env, run),
         atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
         packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
         atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, bossVisualId: run.board ? null : node.bossVisualId,
@@ -85,7 +84,12 @@ export function atlasCoreBuildZone(env, state, run) {
     };
 }
 
-/** What a stash map would be on a node (its own by default) with the current passives and loadout (the device card). */
+/** 황금 방(data/atlas.js goldenRoom), 보급 상자 규칙(보급 각인, 기운), 장비 상자를 여는 런인지(천문도 일반 지도: 그 보스의 보상은 첫 장비 상자다). */
+export function atlasCoreRewardFields(env, run) {
+    return { atlasGolden: run.golden, atlasChest: atlasCoreChestRules(run.bonus), atlasGearBoxes: atlasCoreChartRun(env, run) };
+}
+
+/** What a stash map would be on a node (its own by default) with the current loadout and epoch perks (the device card). */
 export function atlasCorePreview(env, state, map, nodeId = map.node) {
     return atlasCoreBuildZone(env, state, { map: { ...map, node: nodeId }, bonus: atlasCoreBonusOf(env, state, atlasCoreActiveFragments(env, state)), encounters: [], golden: [] });
 }

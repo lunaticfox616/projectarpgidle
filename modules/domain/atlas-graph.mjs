@@ -56,10 +56,6 @@ export function atlasCoreStatus(env, state, id) {
 
 export function atlasCoreReachable(env, state, id) { return atlasCoreStatus(env, state, id) !== 'locked'; }
 
-/** 아틀라스 패시브 포인트. 예전 바퀴는 닫혔다(저장의 패시브는 불러올 때 모두 풀린다): B 단계가 별 24개와 이정표(천문도의 passive.milestones)로 채운다.
- * 그때 (env, state)를 받게 된다: 부르는 곳은 atlas.points(state)와 atlas-restore의 패시브 정규화 둘이다. */
-export function atlasCorePoints() { return 0; }
-
 /** The highest chart tier among the completed maps (starter and reward stones follow it). */
 export function atlasCoreBestTier(env, state) { return Math.max(0, ...state.atlas.completed.map(id => env.BY_ID.get(id)).filter(node => node?.kind === 'map').map(node => node.tier)); }
 

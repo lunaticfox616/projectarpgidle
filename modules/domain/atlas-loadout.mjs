@@ -1,4 +1,4 @@
-import { atlasCoreSlots, atlasCoreBonusOf } from './atlas-bonuses.mjs';
+import { atlasCoreSlots } from './atlas-bonuses.mjs';
 
 /** 각인 홈 설정: 지도를 열 때(자동 지도 포함) 이 순서대로, 가진 것만 하나씩 쓴다. */
 export function atlasCoreSetLoadout(env, state, ids) {
@@ -13,13 +13,9 @@ export function atlasCoreActiveFragments(env, state, rooms = Infinity) {
         && (!env.FRAGMENTS.get(id).encounter || (env.deps.atlasEncounters.isOpen(env.FRAGMENTS.get(id).encounter, state.season, state) && free-- > 0)));
 }
 
-/** One of each active fragment; the keep passive may save one. `spent` is what really left the stock (cancel refunds it). */
-export function atlasCoreUseFragments(env, state, rooms, random) {
-    const keep = atlasCoreBonusOf(env, state).fragmentKeep / 100, used = atlasCoreActiveFragments(env, state, rooms), spent = [];
-    for (const id of used) {
-        if (random() < keep) continue;
-        state.atlas.fragments[id] -= 1;
-        spent.push(id);
-    }
-    return { used, spent };
+/** One of each active fragment leaves the stock. `spent` is what left it (cancel refunds it). */
+export function atlasCoreUseFragments(env, state, rooms) {
+    const used = atlasCoreActiveFragments(env, state, rooms);
+    for (const id of used) state.atlas.fragments[id] -= 1;
+    return { used, spent: [...used] };
 }

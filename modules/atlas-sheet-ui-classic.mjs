@@ -15,7 +15,6 @@ const atlasSheetUi = createAtlasSheetView({
     get _t() { return _t; },
     get ATLAS() { return ATLAS; },
     get atlasEndgame() { return atlasEndgame; },
-    get atlasPassives() { return atlasPassives; },
     get lootOmens() { return lootOmens; },
     get ACT_EXPLORATION_MAPS() { return ACT_EXPLORATION_MAPS; }
 });

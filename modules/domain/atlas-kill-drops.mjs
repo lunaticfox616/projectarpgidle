@@ -18,7 +18,7 @@ export function atlasCoreDropTier(env, tier, random, bonus) {
     return roll < up + drops.tierSame ? tier : tier - 1 - Math.floor(random() * 3);
 }
 
-/** A kill in a map: elites and bosses drop more, item quantity and the sustain passives count; drops wait in the run until the
+/** A kill in a map: elites and bosses drop more, item quantity and the map drop bonus count; drops wait in the run until the
  * boss falls. Outside the atlas, bosses of chaos 20 and deeper sometimes drop a low map straight to the stash (the way back in). */
 export function atlasCoreDropFromKill(env, state, zone, enemy, random = Math.random) {
     if (atlasCoreIsBoardRun(state)) return [];

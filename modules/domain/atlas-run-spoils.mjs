@@ -3,17 +3,25 @@ import { atlasSessionNotify } from './atlas-run-events.mjs';
 /** 수호자의 뿌리 입장권, 정점의 보상은 지도가 끝난 뒤라 바로 지갑으로 간다. 일반 지도의 장비 상자는 그 자리에서 연다. */
 export function* atlasSessionGrantSpoils(env, owner, result, zone) {
     if (result.board) (yield* atlasSessionGrantBoardSpoils(env, owner, result.board, zone));
-    if (result.gearBoxes) (yield* atlasSessionOpenGearBoxes(env, owner, result, zone));
+    (yield* atlasSessionGrantChartSpoils(env, owner, result, zone));
     if (result.ticket) (yield { kind: 'atlasSessionEffectAwardCurrency', args: [result.ticket, 1] });
     for (const [key, amount] of result.rewards || []) (yield { kind: 'atlasSessionEffectAwardCurrency', args: [key, amount] });
     if (result.endgame) (yield* atlasSessionGrantEndgameSpoils(env, result.endgame, result.tier));
     if (result.memory && result.memory.spoils) (yield* atlasSessionGrantMemorySpoils(env, result.memory.spoils, result.tier, zone));
 }
 
-/** 장비 상자(개편 A2): 지도 보스 보상을 상자 수만큼 더 굴리고(js/atlas-finds.js openGearBoxes, 런의 지도석 uid로 정한 굴림), 그 상자들만의
- * 영수증(combatLootReceipts.captureApart, 지도 영수증 밖이면 null)을 결과 카드에 남긴다. */
+/** 천문도 일반 지도의 몫: 장비 상자와 달의 별(dewChance)이 찾은 형체 없는 이슬(별이 준 지침은 완료가 이미 보관함에 넣었다). */
+export function* atlasSessionGrantChartSpoils(env, owner, result, zone) {
+    if (result.gearBoxes) (yield* atlasSessionOpenGearBoxes(env, owner, result, zone));
+    const dew = result.stars ? result.stars.dew : 0;
+    if (dew) (yield { kind: 'atlasSessionEffectAwardCurrency', args: ['formlessDew', dew] });
+}
+
+/** 장비 상자(개편 A2, B): 지도 보스 보상을 상자 수만큼 굴리고(첫 상자가 그 지도 보스의 보상이다, js/atlas-finds.js openGearBoxes, 런의
+ * 지도석 uid로 정한 굴림, 상급 상자는 희귀도 바닥 한 단계 위), 그 상자들만의 영수증(combatLootReceipts.captureApart, 지도 영수증 밖이면
+ * null)을 결과 카드에 남긴다. */
 export function* atlasSessionOpenGearBoxes(env, owner, result, zone) {
-    const opened = (yield { kind: 'atlasSessionEffectOpenGearBoxes', args: [owner, zone, result.gearBoxes, result.boxSeed] });
+    const opened = (yield { kind: 'atlasSessionEffectOpenGearBoxes', args: [owner, zone, { count: result.gearBoxes, fine: result.gearFine || 0, seed: result.boxSeed }] });
     env.deps.atlas.keepBoxes(owner, opened);
 }
 

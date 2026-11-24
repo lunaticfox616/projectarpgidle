@@ -25,14 +25,29 @@ export function returnText(runtime, detail) {
     return ' → 특수 도전을 마치고 원래 사냥터로 돌아갑니다.';
 }
 
-/** 받은 지도석 알림(토스트): 첫 완료가 연 지도의 지도석, 마지막 포털이 닫혀 돌려받은 지도석. 방치 정산 중에는 띄우지 않는다. */
+/** 받은 지도석 알림(토스트): 첫 완료가 연 지도와 패시브 별이 준 지도석, 마지막 포털이 닫혀 돌려받은 지도석, 별이 찾은 형체 없는 이슬.
+ * 방치 정산 중에는 띄우지 않는다. */
 export function stoneToast(runtime, detail) {
     // 검사 런타임(scripts/lib/replay-fixture.js)에는 토스트가 없다.
     if (runtime.deps.game.isBackgroundCalculation || typeof runtime.deps.showGameToast !== 'function') return;
-    const granted = detail.kind === 'complete' ? (detail.granted || []).length : 0;
+    const granted = grantedCount(detail);
     const text = granted ? (0, runtime.deps._t)('새 지도석 {count}개를 얻었습니다.', { count: granted })
         : detail.kind === 'failed' && detail.refund ? (0, runtime.deps._t)('포털이 모두 닫혀 {tier}등급 지도석 1개를 돌려받았습니다.', { tier: detail.refund.tier }) : '';
     if (text) (0, runtime.deps.showGameToast)(text, { tone: 'reward', duration: 3600 });
+    const dew = detail.kind === 'complete' && detail.stars ? detail.stars.dew : 0;
+    if (dew) dewToast(runtime, (0, runtime.deps._t)('형체 없는 이슬 {count}개를 얻었습니다.', { count: dew }));
+}
+
+/** A clear's stones: one per newly opened map and the ones the passive stars gave. */
+function grantedCount(detail) {
+    if (detail.kind !== 'complete') return 0;
+    return (detail.granted || []).length + (detail.stars ? detail.stars.stones.length : 0);
+}
+
+/** 형체 없는 이슬 알림(토스트): 달의 별이 찾은 이슬, 입장 때 남긴 이슬(atlas-view-actions open). */
+export function dewToast(runtime, text) {
+    if (runtime.deps.game.isBackgroundCalculation || typeof runtime.deps.showGameToast !== 'function') return;
+    (0, runtime.deps.showGameToast)(text, { tone: 'reward', duration: 3600 });
 }
 
 export function announce(runtime, detail) {

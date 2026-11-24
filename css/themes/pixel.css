@@ -822,7 +822,6 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
   /* 원판 폭은 짝수 px, 가운데는 정수 px로 옮겨 맞춘다: 노드와 숫자가 반 화소에 놓였다(2026-10-21). */
   :root body[data-ui-skin] #ui-atlas .atlas-chart { width: round(down, min(100%, 660px, max(320px, calc(100dvh - 460px))), 2px);
     margin: 0; align-self: flex-start; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
-  :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 572px))); }
 }
 /* 고른 쪽이 보이게: 휴대폰 구역 단추(판/보관함 등)와 탐험 지도의 방식(보스 직행 · 전체 탐색 · 직접 이동) — 도트 단추 재질이
    고른 표시를 덮어 고른 것과 아닌 것이 똑같았다(검토 4차) */

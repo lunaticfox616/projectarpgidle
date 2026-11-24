@@ -1,85 +1,102 @@
+// 아틀라스 패시브의 별 24개(천문도 표 passive, 개편 2026-11-24 B). env: { deps, STARS, NEIGHBOURS, STARTS, MILESTONES, MAX, MAP_IDS, KEYS }.
 
+export function atlasStarTaken(state) { return state.atlas.passives; }
 
-export function atlasPassiveTaken(state) { return state.atlas.passives; }
+/** 이정표가 세는 수: 첫 완료한 천문도의 일반 지도(보스, 후반 싸움, 기억 싸움과 다시 깬 지도는 세지 않는다). */
+export function atlasStarFirstClears(env, state) { return state.atlas.completed.filter(id => env.MAP_IDS.has(id)).length; }
 
-export function atlasPassiveSupported(node, has) { return !node.requires.length || node.requires.some(has); }
-
-export function atlasPassiveLoopOf(env, id) {
-    const node = env.NODES.get(id);
-    const rooms = node ? Object.keys(node.effect).filter(key => env.ROOM_LOOPS.has(key)).map(key => env.ROOM_LOOPS.get(key)) : [];
-    return node ? Math.max(node.minLoop || 0, rooms.length ? Math.min(...rooms) : 0) : 0;
+/** 패시브 포인트: 지나온 이정표 하나에 1점, 시대 재생 특전 오래된 수액의 점수를 더하되 최대(18)를 넘지 않는다. */
+export function atlasStarPoints(env, state) {
+    const clears = atlasStarFirstClears(env, state), reached = env.MILESTONES.filter(need => need <= clears).length;
+    return Math.min(env.MAX, reached + env.deps.atlasEpoch.points(state));
 }
 
-export function atlasPassiveWaits(env, state, id) { return (Number(state.season) || 1) < atlasPassiveLoopOf(env, id); }
+export function atlasStarAvailable(env, state) { return Math.max(0, atlasStarPoints(env, state) - atlasStarTaken(state).length); }
 
-export function atlasPassiveAvailable(env, state) { return env.deps.atlas.points(state) - atlasPassiveTaken(state).length; }
-
-/** Points that can be spent now: no more than the nodes still open to take this loop (the tab badge; a point beyond them stays
- * banked for a later loop's nodes instead of a "+N" that never clears, 2026-10-18). */
-export function atlasPassiveSpendable(env, state) {
-    const list = atlasPassiveTaken(state), open = [...env.NODES.keys()].filter(id => !list.includes(id) && !atlasPassiveWaits(env, state, id)).length;
-    return Math.max(0, Math.min(atlasPassiveAvailable(env, state), open));
+/** 다음 1점의 이정표(첫 완료 수), 모두 지났으면 null. */
+export function atlasStarNextMilestone(env, state) {
+    const clears = atlasStarFirstClears(env, state);
+    return env.MILESTONES.find(need => need > clears) ?? null;
 }
 
-export function atlasPassiveReason(env, state, id) {
-    const node = env.NODES.get(id), list = atlasPassiveTaken(state);
-    if (!node) return '없는 패시브입니다.';
-    if (list.includes(id)) return '이미 찍은 패시브입니다.';
-    if (atlasPassiveWaits(env, state, id)) return env.deps._t('루프 {id}부터 찍을 수 있습니다.', { id: atlasPassiveLoopOf(env, id) });
-    if (atlasPassiveAvailable(env, state) < 1) return '아틀라스 포인트가 부족합니다. 노드를 완료하거나 보너스를 달성하세요.';
-    return atlasPassiveSupported(node, req => list.includes(req)) ? '' : '이어진 패시브를 먼저 찍으세요.';
-}
+/** 시작 별이거나, 이어진 별 하나가 list에 있다. */
+export function atlasStarReachable(env, id, list) { return env.STARTS.has(id) || [...(env.NEIGHBOURS.get(id) || [])].some(other => list.includes(other)); }
 
-export function atlasPassiveAllocate(env, state, id) {
-    const why = atlasPassiveReason(env, state, id);
-    if (!why) atlasPassiveTaken(state).push(id);
-    return why;
-}
-
-export function atlasPassiveRefundReason(env, state, id) {
-    const list = atlasPassiveTaken(state);
-    if (!list.includes(id)) return '찍지 않은 패시브입니다.';
-    const orphaned = list.some(other => other !== id && env.NODES.get(other).requires.includes(id)
-        && !atlasPassiveSupported(env.NODES.get(other), req => req !== id && list.includes(req)));
-    return orphaned ? '이 패시브에 이어진 패시브를 먼저 되돌리세요.' : '';
-}
-
-export function atlasPassiveRefund(env, state, id) {
-    const why = atlasPassiveRefundReason(env, state, id);
-    if (!why) state.atlas.passives = atlasPassiveTaken(state).filter(entry => entry !== id);
-    return why;
-}
-
-export function atlasPassiveStatus(env, state, id) {
-    if (atlasPassiveTaken(state).includes(id)) return 'taken';
-    if (atlasPassiveWaits(env, state, id)) return 'locked';
-    return atlasPassiveSupported(env.NODES.get(id), req => atlasPassiveTaken(state).includes(req)) ? 'open' : 'locked';
-}
-
-/** Summed effects of the given passive ids (and extra effect objects, e.g. fragments) — keys from ATLAS_PASSIVES.labels. */
-export function atlasPassiveSum(env, ids, extras = []) {
-    const total = {};
-    for (const effect of [...ids.map(id => env.NODES.get(id).effect), ...extras]) {
-        for (const [key, value] of Object.entries(effect)) total[key] = (total[key] || 0) + value;
-    }
-    return total;
-}
-
-export function atlasPassiveEffects(env, state) { return atlasPassiveSum(env, atlasPassiveTaken(state)); }
-
-/** A switch-like effect (e.g. bee events) is on once any taken passive grants it. Safe before the atlas state exists. */
-export function atlasPassiveHas(env, state, key) { return !!(state && state.atlas && Array.isArray(state.atlas.passives)) && (atlasPassiveEffects(env, state)[key] || 0) > 0; }
-
-/** Save boundary: known, unique, supported (a keystone may have been kept by its later notable) and within the points. */
-export function atlasPassiveNormalize(env, raw, points) {
-    const wanted = [...new Set(Array.isArray(raw) ? raw : [])].filter(id => env.NODES.has(id)), list = [];
-    for (let grew = true; grew;) {
-        grew = false;
-        for (const id of wanted) {
-            if (list.includes(id) || list.length >= points || !atlasPassiveSupported(env.NODES.get(id), req => list.includes(req))) continue;
-            list.push(id);
-            grew = true;
+/** list의 모든 별이 list 안의 별을 거쳐 할당된 시작 별에 이어져 있는가. */
+export function atlasStarConnected(env, list) {
+    const seen = new Set(list.filter(id => env.STARTS.has(id))), queue = [...seen];
+    while (queue.length) {
+        for (const next of env.NEIGHBOURS.get(queue.pop())) {
+            if (!list.includes(next) || seen.has(next)) continue;
+            seen.add(next);
+            queue.push(next);
         }
     }
+    return seen.size === new Set(list).size;
+}
+
+/** 열린 지도(어떤 싸움이든)가 있는 동안은 별을 바꾸지 않는다. */
+export function atlasStarLockedReason(state) { return state.atlas.run ? '열린 탐사를 마치면 변경할 수 있습니다.' : ''; }
+
+/** 할당을 막는 까닭, 할 수 있으면 ''. 이미 할당한 별도 ''(할당은 아무것도 하지 않는다). */
+export function atlasStarReason(env, state, id) {
+    const locked = atlasStarLockedReason(state), list = atlasStarTaken(state);
+    if (locked || list.includes(id)) return locked;
+    if (!env.STARS.has(id) || !atlasStarReachable(env, id, list)) return '연결된 별 중 하나를 먼저 할당해야 합니다.';
+    return atlasStarAvailable(env, state) < 1 ? '사용 가능한 패시브 포인트가 필요합니다.' : '';
+}
+
+export function atlasStarAllocate(env, state, id) {
+    const why = atlasStarReason(env, state, id);
+    if (!why && !atlasStarTaken(state).includes(id)) atlasStarTaken(state).push(id);
+    return why;
+}
+
+/** 회수를 막는 까닭: 열린 지도, 남은 별이 시작 별과 끊기는 회수. 할당하지 않은 별은 ''(회수는 아무것도 하지 않는다). */
+export function atlasStarRefundReason(env, state, id) {
+    const locked = atlasStarLockedReason(state), list = atlasStarTaken(state);
+    if (locked || !list.includes(id)) return locked;
+    return atlasStarConnected(env, list.filter(other => other !== id)) ? '' : '시작 별과의 연결이 끊기는 별부터 회수해야 합니다.';
+}
+
+export function atlasStarRefund(env, state, id) {
+    const why = atlasStarRefundReason(env, state, id);
+    if (!why) state.atlas.passives = atlasStarTaken(state).filter(other => other !== id);
+    return why;
+}
+
+/** 'taken' | 'open' | 'locked': 할당함, 이어져 있어 할당할 수 있는 자리, 이어지지 않은 자리(포인트와 열린 지도는 따지지 않는다). */
+export function atlasStarStatus(env, state, id) {
+    const list = atlasStarTaken(state);
+    if (list.includes(id)) return 'taken';
+    return atlasStarReachable(env, id, list) ? 'open' : 'locked';
+}
+
+/** side 쪽 별의 효과 합(천문도의 그 side 지도에만 닿는다). 키는 별들의 bonuses 키, 없는 효과는 0. side가 null이면 모두 0. */
+export function atlasStarTerms(env, state, side) {
+    const terms = Object.fromEntries(env.KEYS.map(key => [key, 0]));
+    const stars = side && state ? atlasStarTaken(state).map(id => env.STARS.get(id)).filter(star => star.side === side) : [];
+    for (const star of stars) for (const [key, value] of Object.entries(star.bonuses)) terms[key] += value;
+    return terms;
+}
+
+/** 저장 경계: 아는 별만, 한 번씩, 저장된 차례대로 시작 별에 이어지는 것만, 포인트 안에서(그 저장의 완료와 시대 재생 특전으로 센다). */
+export function atlasStarNormalize(env, raw, state) {
+    const wanted = [...new Set(Array.isArray(raw) ? raw : [])].filter(id => env.STARS.has(id)), budget = atlasStarPoints(env, state), list = [];
+    for (let grew = true; grew;) {
+        const next = wanted.find(id => !list.includes(id) && list.length < budget && atlasStarReachable(env, id, list));
+        grew = next !== undefined;
+        if (grew) list.push(next);
+    }
     return list;
+}
+
+/** A saved open run's frozen star terms: the known keys, finite and bounded (an older run has none: all 0). */
+export function atlasStarNormalizeTerms(env, raw) {
+    const terms = {};
+    for (const key of env.KEYS) {
+        const value = Number(raw && raw[key]);
+        terms[key] = Number.isFinite(value) ? Math.max(-10, Math.min(1000, value)) : 0;
+    }
+    return terms;
 }

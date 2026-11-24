@@ -1,4 +1,5 @@
 import { render } from './atlas-view-screen.mjs';
+import { dewToast } from './atlas-view-announcements.mjs';
 import { viewOpen, ledger, selectedMap, mapName, sortedStash, sumOf, tierCounts, nodeName, heldLate, stoneForNode, dewChoice } from './atlas-view-model.mjs';
 
 export function openPanel(runtime) {
@@ -225,6 +226,8 @@ export function open(runtime) {
     if (!map) return;
     const reason = runtime.deps.atlasRun.open(map.uid, runtime.state.selectedNode ?? undefined, dewChoice(runtime, map).on);
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
+    // 달의 별(dewKeep)이 이슬을 남겼다: 이슬 입장의 효과는 그대로.
+    if (runtime.deps.game.atlas.run?.dewKept) dewToast(runtime, (0, runtime.deps._t)('형체 없는 이슬을 보존했습니다.'));
     // 이슬 선택은 한 번의 입장에만 쓴다: 다음 지도석이 모르게 이슬을 쓰지 않게.
     Object.assign(runtime.state, { selectedUid: null, useDew: false });
     refresh(runtime);

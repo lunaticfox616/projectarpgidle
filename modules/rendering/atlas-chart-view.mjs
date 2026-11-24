@@ -1,13 +1,13 @@
-import { paint, paintWheel, mix, createBarkPainter } from './atlas-chart-paint.mjs';
+import { paint, mix, createBarkPainter } from './atlas-chart-paint.mjs';
 
 /** Owns chart palette and painters. Receives the chart model; never changes game state. */
 export function createAtlasChartArt(deps) {
     const runtime = { deps, state: {}, handlers: {}, api: null };
-    const handlers = { paint, paintWheel };
+    const handlers = { paint };
     for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(undefined, runtime);
     initialize(runtime);
     runtime.handlers.barkAt = createBarkPainter(runtime);
-    runtime.api = Object.freeze({ paint: runtime.handlers.paint, paintWheel: runtime.handlers.paintWheel });
+    runtime.api = Object.freeze({ paint: runtime.handlers.paint });
 
     return runtime.api;
 }
@@ -39,11 +39,5 @@ function initialize(runtime) {
         open: tint => ({ rim: runtime.state.GOLD, face: mix(runtime, runtime.state.WOOD, tint, 0.3), shine: mix(runtime, runtime.state.GOLD, tint, 0.4) }),
         complete: tint => ({ rim: mix(runtime, tint, runtime.state.GOLD_HI, 0.35), face: mix(runtime, tint, runtime.state.WOOD_DARK, 0.35), shine: mix(runtime, tint, runtime.state.GOLD_HI, 0.55) }),
         bonus: tint => ({ rim: runtime.state.GOLD_HI, face: mix(runtime, tint, runtime.state.WOOD_DARK, 0.25), shine: runtime.state.GOLD_HI })
-    });
-    runtime.state.WHEEL_UNITS = Object.freeze({ root: 3.6, small: 2.8, notable: 4, keystone: 4.6 });
-    runtime.state.WHEEL_LOOKS = Object.freeze({
-        taken: tint => ({ rim: runtime.state.GOLD, face: mix(runtime, tint, runtime.state.WOOD_DARK, 0.15), shine: runtime.state.GOLD_HI }),
-        open: tint => ({ rim: runtime.state.SAP, face: mix(runtime, runtime.state.WOOD, tint, 0.3), shine: mix(runtime, runtime.state.SAP, runtime.state.GOLD_HI, 0.3) }),
-        locked: tint => ({ rim: mix(runtime, runtime.state.DIM, tint, 0.25), face: runtime.state.WOOD_DARK, shine: mix(runtime, runtime.state.DIM, tint, 0.2) })
     });
 }

@@ -180,39 +180,6 @@ export function paint(runtime, canvas, size, model) {
     return true;
 }
 
-/** A wheel's ground: a small cross-section — growth rings, the wheel's ring tracks, its colour dithered in, a bronze rim. */
-export function wheelGround(runtime, x, y, buf, model) {
-    const c = buf.size / 2, r = Math.hypot(x + 0.5 - c, y + 0.5 - c) * buf.dot;
-    if (r > 49) return null;
-    if (r > 49 - buf.dot) return runtime.state.BRONZE;
-    if (model.rings.some(radius => radius && Math.abs(r - radius) < buf.dot * 0.5)) return runtime.state.TRACK;
-    const base = Math.floor(r / 2.2) % 2 ? runtime.state.WOOD : runtime.state.WOOD_DARK;
-    return runtime.state.BAYER[(y % 4) * 4 + (x % 4)] / 16 < 0.14 + 0.16 * r / 49 ? mix(runtime, base, model.tint, 0.28) : base;
-}
-
-/** Passives are round stones: notables and keystones carry an inner ring, a keystone an outer one as well. */
-export function paintWheelNode(runtime, buf, node, tint) {
-    const at = toDots(runtime, node, buf), r = Math.max(2, Math.round(runtime.state.WHEEL_UNITS[node.rank] / buf.dot));
-    const look = (runtime.state.WHEEL_LOOKS[node.state] || runtime.state.WHEEL_LOOKS.locked)(tint), outer = node.rank === 'keystone' ? r + 2 : r;
-    fillCircle(runtime, buf, { x: at.x + 1, y: at.y + 1 }, outer, runtime.state.INK);
-    if (outer > r) ringCircle(runtime, buf, at, outer, look.rim);
-    fillCircle(runtime, buf, at, r, look.rim);
-    fillCircle(runtime, buf, at, r - 1, look.face);
-    if (node.rank === 'notable' || node.rank === 'keystone') ringCircle(runtime, buf, at, r - 2, mix(runtime, look.rim, look.face, 0.55));
-    shine(runtime, buf, at, r - 1, look.shine);
-}
-
-/** Paints one wheel at size × size dots. model: {tint:'#hex', rings:[radius…], nodes:[{x,y,rank,state}], links:[{from,to,arc?,state}]}. */
-export function paintWheel(runtime, canvas, size, model) {
-    const buf = canvasBuffer(runtime, canvas, size), tint = hex(runtime, model.tint);
-    if (!buf) return false;
-    fillGround(runtime, buf, (x, y) => wheelGround(runtime, x, y, buf, { rings: model.rings, tint }));
-    paintLinks(runtime, buf, model.links);
-    model.nodes.forEach(node => paintWheelNode(runtime, buf, node, tint));
-    buf.context.putImageData(buf.image, 0, 0);
-    return true;
-}
-
 export function hex(runtime, value) { return [1, 3, 5].map(i => parseInt(value.slice(i, i + 2), 16)); }
 
 export function mix(runtime, a, b, t) { return a.map((v, i) => Math.round(v + (b[i] - v) * t)); }

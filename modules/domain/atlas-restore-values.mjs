@@ -28,17 +28,19 @@ export function atlasCoreRoomIds(value) { return [...new Set(Array.isArray(value
 
 export function atlasCoreRoomTypes(env, value) { return [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(env.deps.ATLAS.encounters, type)); }
 
-/** The open map's portals (1 .. its cap) and its 형체 없는 이슬 entry flag: only a chart map opened from a stone carries one (older saves: none). */
-function restorePortals(env, raw, map, bonus) {
-    const dew = raw.dew === true && atlasCoreChartRun(env, { map, board: raw.board }), portals = Math.floor(Number(raw.portals));
-    return { portals: portals >= 1 && portals <= atlasCorePortalCap(env, dew, bonus) ? portals : 1, dew };
+/** The open map's star terms (frozen at entry; only a chart map opened from a stone has any, older saves: none), portals (1 .. its cap)
+ * and its 형체 없는 이슬 entry flags. */
+function restorePortals(env, raw, map) {
+    const chart = atlasCoreChartRun(env, { map, board: raw.board }), stars = env.deps.atlasPassives.normalizeTerms(chart ? raw.stars : null);
+    const dew = raw.dew === true && chart, portals = Math.floor(Number(raw.portals));
+    return { portals: portals >= 1 && portals <= atlasCorePortalCap(env, dew, stars) ? portals : 1, dew, dewKept: dew && raw.dewKept === true, stars };
 }
 
 export function atlasCoreNormalizeRun(env, raw, validMap) {
     const map = raw && validMap(raw.map);
     if (!map) return null;
     const bonus = atlasCoreNormalizeBonus(env, raw.bonus);
-    return { map, ...restorePassages(raw.passages), ...restorePortals(env, raw, map, bonus),
+    return { map, ...restorePassages(raw.passages), ...restorePortals(env, raw, map),
         drops: (Array.isArray(raw.drops) ? raw.drops : []).map(validMap).filter(Boolean).slice(0, env.deps.ATLAS.stashCap),
         found: atlasCoreFragmentIds(env, raw.found, env.deps.ATLAS.fragmentRules.held), fragments: atlasCoreFragmentIds(env, raw.fragments, env.deps.ATLAS.fragments.length),
         spent: atlasCoreFragmentIds(env, raw.spent, env.deps.ATLAS.fragments.length), cleared: atlasCoreRoomIds(raw.cleared), bonus,

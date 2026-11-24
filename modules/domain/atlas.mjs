@@ -1,9 +1,9 @@
 /** 세계수 아틀라스 (docs/atlas-endgame-20260930.md 3절): 저장 상태 · 노드 그래프 · 지도 장치 런 · 지도석 · 각인 드롭 · 자동 지도.
  * 전투 함수는 부르지 않는다 — 이동 · 보스 처치 정산 · 쓰러짐은 js/atlas-run.js가 이 모듈의 상태 전이를 부른다.
  * 루프를 넘어 남는 것: 해금 · 완료 · 보너스 · 패시브 · 자동 지도 · 각인 홈 설정. 루프마다 비우는 것: 지도석 · 각인 · 열린 지도.
- * 지도를 열 때 패시브와 각인의 효과를 런에 고정한다(run.bonus): 열린 지도 도중에 패시브를 바꿔도 그 지도는 그대로다.
+ * 지도를 열 때 각인과 시대 재생 특전의 효과(run.bonus)와 그 지도 쪽 패시브 별의 효과(run.stars)를 런에 고정한다.
  */
-import { atlasCoreLateNode, atlasCorePosition, atlasCoreStatus, atlasCoreReachable, atlasCorePoints, atlasCoreBestTier, atlasCoreBestGameTier, atlasCoreEffectiveTier, atlasCoreGameTier, atlasCoreMapGameTier, atlasCoreHasTickets, atlasCoreIsMapStone } from './atlas-graph.mjs';
+import { atlasCoreLateNode, atlasCorePosition, atlasCoreStatus, atlasCoreReachable, atlasCoreBestTier, atlasCoreBestGameTier, atlasCoreEffectiveTier, atlasCoreGameTier, atlasCoreMapGameTier, atlasCoreHasTickets, atlasCoreIsMapStone } from './atlas-graph.mjs';
 import { atlasCoreRenameSavedIds } from './atlas-restore-values.mjs';
 import { atlasCoreDefaults } from './atlas-state.mjs';
 import { atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreBeginReason, atlasCoreMatchesNode, atlasCoreMapDestination, atlasCoreDewReason } from './atlas-access.mjs';
@@ -72,6 +72,7 @@ function createAtlasEnvironment(deps) {
     env.LINKS = Object.freeze(env.deps.ATLAS.starChart.routes.filter(route => env.BY_ID.has(route.from)).map(route => Object.freeze([route.from, route.to])));
     env.NEIGHBOURS = new Map(env.NODES.map(node => [node.id, env.LINKS.filter(([, to]) => to === node.id).map(([from]) => from)]));
     env.CHART_TIERS = env.deps.ATLAS.starChart.tiers;
+    env.EFFECT_KEYS = Object.freeze(Object.keys(env.deps.ATLAS.effectLabels));
     env.FRAGMENTS = new Map(env.deps.ATLAS.fragments.map(fragment => [fragment.id, fragment]));
     env.RARITY_RANK = { normal: 0, magic: 1, rare: 2 };
     env.zones = new WeakMap();
@@ -95,7 +96,6 @@ function createAtlasGraphApi(env) {
         runOpenReason: atlasCoreRunOpenReason,
         status: (...args) => atlasCoreStatus(env, ...args),
         reachable: (...args) => atlasCoreReachable(env, ...args),
-        points: () => atlasCorePoints(),
         bestTier: (...args) => atlasCoreBestTier(env, ...args),
         bestGameTier: (...args) => atlasCoreBestGameTier(env, ...args),
         sync: (...args) => atlasCoreSync(env, ...args),
@@ -150,7 +150,7 @@ function createAtlasRunApi(env) {
         markCleared: atlasCoreMarkCleared,
         keepLoot: (...args) => atlasCoreKeepLoot(env, ...args),
         keepBoxes: (...args) => atlasCoreKeepBoxes(env, ...args),
-        portalCap: run => atlasCorePortalCap(env, run.dew === true, run.bonus),
+        portalCap: run => atlasCorePortalCap(env, run.dew === true, run.stars),
         dewReason: (...args) => atlasCoreDewReason(env, ...args),
         usePortal: (...args) => atlasCoreUsePortal(env, ...args),
         close: (...args) => atlasCoreClose(env, ...args),

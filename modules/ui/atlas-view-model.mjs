@@ -18,8 +18,7 @@ export function tierStyle(runtime, tier) { return `--atlas-tier:${runtime.deps.a
 /** 지도석의 빛깔: 지도 노드의 지도석은 천문도 등급을 싸움 등급으로 바꿔서. */
 export function mapTierStyle(runtime, map) { return tierStyle(runtime, runtime.deps.atlas.mapGameTier(runtime.deps.game, map)); }
 
-/** 패시브 쪽은 별 24개(개편의 B 단계)가 올 때까지 닫혀 있다: 예전 바퀴는 포인트가 없어 찍을 수 없다. */
-export function viewOpen(runtime, id) { return id !== 'passives' && (id !== 'board' || runtime.deps.atlasBoard.unlocked(runtime.deps.game)); }
+export function viewOpen(runtime, id) { return id !== 'board' || runtime.deps.atlasBoard.unlocked(runtime.deps.game); }
 
 export function sortedStash(runtime) { return [...ledger(runtime).stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid); }
 

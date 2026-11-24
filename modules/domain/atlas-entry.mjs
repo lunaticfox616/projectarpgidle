@@ -1,8 +1,9 @@
 import { atlasCoreBeginReason, atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreMapDestination } from './atlas-access.mjs';
 import { atlasCoreEncounterRooms } from './atlas-zone.mjs';
 import { atlasCoreUseFragments } from './atlas-loadout.mjs';
-import { atlasCoreBonusOf, atlasCoreZERO, atlasCorePortalCap } from './atlas-bonuses.mjs';
-import { atlasCoreEffectiveTier } from './atlas-graph.mjs';
+import { atlasCoreBonusOf, atlasCoreZERO, atlasCorePortalCap, atlasCoreStarTerms } from './atlas-bonuses.mjs';
+import { atlasCoreEffectiveTier, atlasCoreChartRun } from './atlas-graph.mjs';
+import { createSeededRng } from '../common/numbers.mjs';
 
 /** Consumes the map (and its fragments): from here the run owns it — portals, content rooms, drops held until the boss falls.
  * entry: [random, nodeId, dew]. The run takes the chosen node (or, without one, where the stone goes: atlasCoreMapDestination) for its
@@ -19,22 +20,25 @@ export function atlasCoreBegin(env, state, uid, returnZoneId, ...entry) {
     return '';
 }
 
-/** 이슬 입장: 지갑에서 이슬을 내고 런은 이슬 포털 수로 시작한다(취소하면 atlasCoreCancel이 돌려준다). */
+/** 이슬 입장: 런은 이슬 포털 수로 시작하고 지갑에서 이슬을 낸다(취소하면 atlasCoreCancel이 돌려준다). 달의 별 dewKeep %로 이슬을 내지
+ * 않는다(dewKept, 이슬 입장의 효과는 그대로). 그 굴림은 지도석 uid로 정해 다시 불러와도 같다. */
 export function atlasCoreUseDew(env, state) {
     const run = state.atlas.run;
-    state.currencies.formlessDew -= env.deps.ATLAS.dewEntry.cost;
     run.dew = true;
-    run.portals = atlasCorePortalCap(env, true, run.bonus);
+    run.portals = atlasCorePortalCap(env, true, run.stars);
+    run.dewKept = createSeededRng(`atlas-star:${run.map.uid}:dewKeep`)() * 100 < run.stars.dewKeep;
+    if (!run.dewKept) state.currencies.formlessDew -= env.deps.ATLAS.dewEntry.cost;
 }
 
 /** The last result stays on screen while the next map runs (자동 지도 chains maps). */
 export function atlasCoreStartRun(env, state, map, returnZoneId, random) {
-    const rooms = atlasCoreEncounterRooms(env, map), { used, spent } = atlasCoreUseFragments(env, state, rooms, random), bonus = env.deps.lootOmens.runBonus(atlasCoreBonusOf(env, state, used), map);
+    const rooms = atlasCoreEncounterRooms(env, map), { used, spent } = atlasCoreUseFragments(env, state, rooms), bonus = env.deps.lootOmens.runBonus(atlasCoreBonusOf(env, state, used), map);
+    const stars = atlasCoreStarTerms(env, state, map, atlasCoreChartRun(env, { map }));
     const forced = used.map(id => env.FRAGMENTS.get(id).encounter).filter(Boolean);
     const fieldDiscoveries = rooms > 0 && env.deps.actExplorationDoors.session();
     const encounters = env.deps.atlasEncounters.roll(bonus, forced, random, rooms, { awake: env.deps.atlasEndgame.awakened(state), loop: state.season,
         fieldDiscoveries, region: (env.BY_ID.get(map.node) || {}).region }, state);
-    state.atlas.run = { map, portals: atlasCorePortalCap(env, false, bonus), dew: false, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
+    state.atlas.run = { map, portals: atlasCorePortalCap(env, false, stars), dew: false, dewKept: false, drops: [], found: [], fragments: used, spent, cleared: [], bonus, stars,
         encounters, ...(fieldDiscoveries ? { passages: { tried: [], sites: [] } } : {}), golden: env.deps.atlasEncounters.golden(encounters, bonus, map.uid),
         returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null, endgame: env.deps.atlasEndgame.runExtra(state, env.BY_ID.get(map.node), random) };
 }
@@ -57,7 +61,7 @@ export function atlasCoreBeginBoard(env, state, returnZoneId) {
     if (!board) return '주사위를 굴려 지도 칸에 도착하세요.';
     const map = env.deps.atlasMaps.create(board.node, board.tier);
     map.uid = state.atlas.nextUid++;
-    state.atlas.run = { map, portals: 1, dew: false, drops: [], found: [], fragments: [], spent: [], cleared: [], bonus: atlasCoreZERO(env),
+    state.atlas.run = { map, portals: 1, dew: false, dewKept: false, drops: [], found: [], fragments: [], spent: [], cleared: [], bonus: atlasCoreZERO(env), stars: atlasCoreStarTerms(env, state, map, false),
         encounters: [], golden: [], returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null,
         endgame: env.deps.atlasEndgame.normalizeRun(null), board };
     return '';

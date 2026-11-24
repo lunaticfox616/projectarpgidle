@@ -247,9 +247,7 @@ const meteorProgressRules = createMeteorProgress({
     get getCombatTime() { return getCombatTime; },
     get clampNumber() { return clampNumber; },
     get METEOR_SITE_UNLOCK_ACT() { return METEOR_SITE_UNLOCK_ACT; },
-    get atlasPassives() { return atlasPassives; },
     get rndChoice() { return rndChoice; },
-    get METEOR_CONSTELLATION_POOL() { return METEOR_CONSTELLATION_POOL; },
     get getZone() { return getZone; }
 });
 const meteorProgress = Object.freeze({ ...meteorProgressRules,

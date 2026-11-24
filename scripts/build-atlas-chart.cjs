@@ -6,8 +6,9 @@
  *   node scripts/build-atlas-chart.cjs --check   # 쓰지 않고, 표가 JSON과 다르면 1로 끝난다
  *
  * scripts/smoke-atlas.js가 render()로 같은 비교를 한다(JSON과 표가 어긋나면 npm test가 멈춘다).
- * 옮기는 것: 지도 50곳과 보스 10곳(자리, 부모, 굽이 점), 길 62개(SVG 경로), 표식, 권역, 패시브 별과 이음(B 단계가 쓴다).
- * 옮기지 않는 것: 시뮬레이터의 편집기 설정(layout), 미적용 항목(underReview), 별의 설명 글(화면 글은 D 단계가 쓴다).
+ * 옮기는 것: 지도 50곳과 보스 10곳(자리, 부모, 굽이 점), 길 62개(SVG 경로), 표식, 권역, 패시브 별 24개(자리, 효과 수치와 효과 글)와
+ * 이음 37개, 시작 별, 이정표. 효과 글의 가운뎃점은 쉼표로 바꾼다(화면 글 규칙).
+ * 옮기지 않는 것: 시뮬레이터의 편집기 설정(layout), 미적용 항목(underReview), 갈래의 아이콘과 초점 글.
  */
 'use strict';
 const fs = require('node:fs');
@@ -51,9 +52,12 @@ function routeRow(route) {
     return { from: route.from, to: route.to, side: route.side, hidden: route.hidden === true, guardianEntry: route.guardianEntry === true, path: route.svgPath };
 }
 
-function starRow(star) {
+/** 화면 글에는 가운뎃점을 쓰지 않는다: 패키지의 효과 글에 있는 것은 쉼표로. */
+const plainText = text => String(text).replace(/\s*·\s*/g, ', ');
+
+function starRow(star, starts) {
     return { id: star.id, name: star.name, label: star.label || null, side: star.side, branch: star.branchName, point: star.point,
-        parent: star.parent || null, keystone: star.keystone === true, bonuses: star.bonuses, neighbors: star.neighbors };
+        start: starts.includes(star.id), keystone: star.keystone === true, bonuses: star.bonuses, effect: plainText(star.effect), neighbors: star.neighbors };
 }
 
 /** 새 천문도의 노드가 쓰는 권역만(JSON에는 시뮬레이터의 예전 화면이 쓰는 canopy, sanctum, trunk도 있다). */
@@ -69,8 +73,10 @@ function check(chart) {
     for (const node of chart.maps) if (!known(node.parent) || !Number.isInteger(node.tier) || node.tier < 1 || node.tier > chart.tiers) fail(`지도 ${node.id}`);
     for (const node of chart.bosses) if (!node.parents.every(known) || !node.keys.every(known)) fail(`보스 ${node.id}`);
     for (const route of chart.routes) if (!known(route.from) || !ids.has(route.to) || !/^M[\d.,\sLQ-]+$/.test(route.path)) fail(`길 ${route.from} → ${route.to}`);
-    const stars = new Set(chart.passive.stars.map(star => star.id));
-    if (!chart.passive.links.every(link => link.every(id => stars.has(id))) || !chart.passive.starts.every(id => stars.has(id))) fail('패시브 이음');
+    const passive = chart.passive, stars = new Set(passive.stars.map(star => star.id));
+    if (stars.size !== 24 || passive.links.length !== 37 || passive.starts.length !== 3) fail(`별 ${stars.size}, 이음 ${passive.links.length}, 시작 ${passive.starts.length}`);
+    if (!passive.links.every(link => link.every(id => stars.has(id))) || !passive.starts.every(id => stars.has(id))) fail('패시브 이음');
+    if (passive.milestones.length !== passive.maximumPoints || passive.milestones.some((n, i) => i && n <= passive.milestones[i - 1])) fail('이정표');
 }
 
 function build(source) {
@@ -82,7 +88,7 @@ function build(source) {
         regions: usedRegions(source.regions, [...maps, ...bosses]), landmarks: source.landmarks, maps, bosses, routes: source.routes.map(routeRow),
         passive: { maximumPoints: source.passive.maximumPoints, milestones: source.passive.milestones, starts: source.passive.starts,
             links: source.passive.links, branches: source.passive.branches.map(row => ({ side: row.side, name: row.name, stars: row.stars.map(star => star.id) })),
-            stars: Object.values(source.passive.stars).map(starRow) }
+            stars: Object.values(source.passive.stars).map(star => starRow(star, source.passive.starts)) }
     };
     check(chart);
     return chart;
@@ -99,7 +105,7 @@ function render(source = JSON.parse(fs.readFileSync(SOURCE, 'utf8'))) {
     return `// 천문도(아틀라스 개편 2026-11-24)의 구조 표. scripts/build-atlas-chart.cjs가 modules/data/sources/atlas-structure.json에서 만든다.\n`
         + `// 손으로 고치지 않는다: JSON을 고치고 도구를 다시 돌린다(어긋나면 scripts/smoke-atlas.js가 멈춘다).\n`
         + `// 좌표는 그림(picture)의 백분율, 길(routes[].path)은 viewBox 0 0 100 100의 SVG 경로다. maps[].parent의 'entry'는 시작 육분의.\n`
-        + `// passive는 B 단계(별 24개)가 쓴다: 지금은 읽는 곳이 없다.\n`
+        + `// passive: 아틀라스 패시브의 별 24개(js/atlas-passives.js). 별의 side는 효과가 닿는 지도의 side, bonuses는 그 효과 수치다.\n`
         + `const freeze = value => {\n    if (value && typeof value === 'object') Object.values(value).forEach(freeze);\n    return Object.freeze(value);\n};\n`
         + `const ATLAS_CHART = freeze({\n${plain.map(key => `    ${key}: ${JSON.stringify(chart[key])}`).join(',\n')},\n`
         + `${listText('maps', chart.maps)},\n${listText('bosses', chart.bosses)},\n${listText('routes', chart.routes)},\n${passive}\n});\nexport { ATLAS_CHART };\n`;

@@ -26,7 +26,7 @@ export function atlasEraRebirth(env, state) {
     epoch.essence += gained;
     Object.assign(state.atlas, { sextant: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, lastResult: null, starterSeason: 0 });
     env.deps.atlasEndgame.reset(state); // 후반부(깨어남 · 처치 · 재료 · 마름 · 목격)도 처음부터
-    env.deps.atlas.setLoadout(state, state.atlas.loadout); // the passive slot is gone with the passives
+    env.deps.atlas.setLoadout(state, state.atlas.loadout); // a slot bought with the old wheel is gone
     return '';
 }
 
@@ -47,7 +47,7 @@ export function atlasEraBuy(env, state, id) {
     return '';
 }
 
-/** Effect objects for the atlas bonus sum (keys shared with the passives): each perk's effect × its rank. */
+/** Effect objects for the atlas bonus sum (keys of ATLAS.effectLabels): each perk's effect × its rank. */
 export function atlasEraEffects(env, state) {
     return env.deps.ATLAS.epoch.perks.filter(perk => perk.effect && atlasEraRank(state, perk.id))
         .map(perk => Object.fromEntries(Object.entries(perk.effect).map(([key, value]) => [key, value * atlasEraRank(state, perk.id)])));

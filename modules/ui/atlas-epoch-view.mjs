@@ -12,6 +12,6 @@ export function createAtlasEpochView(deps) {
 }
 
 function initialize(runtime) {
-    runtime.state.labels = runtime.deps.ATLAS_PASSIVES.labels;
+    runtime.state.labels = runtime.deps.ATLAS.effectLabels;
     runtime.state.lastRebirth = null;
 }

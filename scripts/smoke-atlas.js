@@ -3,7 +3,8 @@
 // rarity rules and crafting roles, a chart tier is exactly as hard as the chaos depth of its game tier at that depth's loop, a map opened
 // from the device is fought through the real combat loop to completion, auto-map, portals, the runs of stage A2 (a stone of the map's own
 // tier, one stone per newly opened map, the last portal's refund, the dew entry, 장비 상자 rolled from the run's stone, stones delivered
-// over the stash cap), save round trips, the loop reset, and a save
+// over the stash cap), the passive stars of stage B (milestone points with the epoch perk and the cap, start stars, links, taking back,
+// no change during a run, trimming on load, 시대 재생, every bonus key on its own side only, seeded rolls), save round trips, the loop reset, and a save
 // from before the chart (old node ids, game-tier stones, an open map) is moved once and never twice.
 const fs = require('node:fs');
 const chartTable = require('./build-atlas-chart.cjs');
@@ -296,12 +297,12 @@ assert.equal(cleared.stash, ATLAS_STARTER() + 4 - 1 + cleared.result.drops + 1, 
 assert.deepEqual(cleared.result.granted, copy(`atlas.nodes.filter(node => node.parent === '${first.node}').map(node => ({ node: node.id, tier: node.tier }))`),
     'the first clear gives one stone for the map it opened');
 assert.equal(cleared.result.boxes.count, 1, 'an ordinary clear opens one 장비 상자');
-assert.ok(cleared.result.boxes.total >= 2, 'and the box holds the map boss reward once more');
+assert.ok(cleared.result.boxes.total >= 2 && cleared.result.boxes.total <= 3, 'and the box is the map boss reward itself (two or three pieces), not one more roll');
 assert.ok(cleared.result.drops >= 1, 'the node boss always drops a map');
 const children = copy(`atlas.nodes.filter(node => node.parent === '${first.node}').map(node => atlas.status(game, node.id))`);
 assert.deepEqual(children, ['open'], 'completing a map opens its child');
 assert.equal(copy(`atlas.nodes.filter(node => node.kind === 'map' && node.tier === 2 && node.parent !== '${first.node}').every(node => atlas.status(game, node.id) === 'locked')`), true, 'and no other branch');
-assert.equal(run(`atlas.points(game)`), 0, 'no passive points until the 24 stars arrive (stage B)');
+assert.equal(run(`atlasPassives.points(game)`), 1, 'the first distinct first clear is the first milestone: one passive point');
 assert.deepEqual(copy('game.atlas.passives'), []);
 const held = run('game.atlas.stash.length');
 assert.match(run(`game.pendingLoopDecision=true;atlasRun.open(game.atlas.stash[0].uid)`), /루프 정산/, 'no map opens while the loop decision waits');
@@ -442,8 +443,7 @@ for(const before of [0,98,99]) {
     assert.equal(fragmentRun('game.atlas.lastResult.lostFragments'),0,'older completion receipts invent no discarded fragments');
 }
 
-// A map keeps the bonus it was opened with, even if its sources change before completion (the atlas passives are closed until the
-// 24 stars arrive, so an epoch perk stands in for them).
+// A map keeps the bonus it was opened with, even if its sources change before completion (an epoch perk; the stars' terms: below).
 for(const perkBefore of [true,false]) {
     const {run: bonusRun}=fixture(841);
     bonusRun(`game.season=50;game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);game.atlas.sextant=true;
@@ -684,10 +684,140 @@ for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
     chart(`oldShape.atlas.run.dew='yes';oldShape.atlas.lastResult={ ...oldShape.atlas.lastResult, granted:[{node:'nowhere'},{node:'sun4',tier:99},'x'], boxes:{count:'2',total:-4,items:'x'},
         refund:{node:'sun1'} };`);
     const half = read('mergeDefaults(oldShape).atlas');
-    assert.deepEqual([half.run.dew, half.lastResult.granted, half.lastResult.boxes, half.lastResult.refund], [false, [{ node: 'sun4', tier: 6 }], { count: 2, total: 0, items: [] }, null],
+    assert.deepEqual([half.run.dew, half.lastResult.granted, half.lastResult.boxes, half.lastResult.refund], [false, [{ node: 'sun4', tier: 6 }], { count: 2, fine: 0, total: 0, items: [] }, null],
         'half-written values are cleaned: unknown maps dropped, tiers from the chart, no refund on a clear');
     chart("oldShape.atlas.run.dew=true;oldShape.atlas.run.portals=3;");
     assert.deepEqual(read('[mergeDefaults(oldShape).atlas.run.dew, mergeDefaults(oldShape).atlas.run.portals]'), [true, 1], 'a dew run keeps its one portal');
+}
+
+// ---------------------------------------------------------------- the passive stars (stage B): points, allocation, side-scoped effects
+{
+    const { run: sky, runtime: skyRuntime } = fixture(853);
+    const read = code => JSON.parse(sky(`JSON.stringify(${code})`));
+    sky(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+        game.settings.showDeathNotice=false;game.settings.mapCompleteAction='stop';atlas.sync(game);game.atlas.stash=[];game.atlas.sextant=true;
+        var chartMaps = atlas.nodes.filter(node => node.kind === 'map').map(node => node.id);
+        var give = (node, tier) => { const map = { ...atlasMaps.create(node, tier), uid: game.atlas.nextUid++ }; game.atlas.stash.push(map); return map.uid; };
+        var clears = n => { game.atlas.completed = chartMaps.slice(0, n); };`);
+    // Points: one per milestone of distinct first clears of ordinary chart maps (18 at 50).
+    const milestones = [1, 2, 3, 5, 6, 8, 10, 12, 15, 18, 22, 26, 30, 34, 38, 42, 46, 50];
+    const table = read('Array.from({ length: 51 }, (_, n) => (clears(n), atlasPassives.points(game)))');
+    assert.deepEqual(table, Array.from({ length: 51 }, (_, n) => milestones.filter(need => need <= n).length), 'the milestone table');
+    assert.deepEqual(milestones.map(need => table[need]), milestones.map((_, i) => i + 1), 'each milestone is one more point');
+    sky("clears(4);game.atlas.completed.push('apex_gardener','sunBoss','nowhere');");
+    assert.equal(read('atlasPassives.points(game)'), 3, 'late fights and boss nodes are not counted');
+    sky("clears(0);var again = give('sun1', 1);atlas.begin(game, again, 29, () => .5, 'sun1');atlas.complete(game);again = give('sun1', 1);atlas.begin(game, again, 29, () => .5, 'sun1');atlas.complete(game);");
+    assert.deepEqual(read('[game.atlas.completed, atlasPassives.points(game), atlasPassives.nextMilestone(game)]'), [['sun1'], 1, 2], 'a repeat clear counts once');
+    // The epoch perk 오래된 수액 adds its points at once but the total stays at 18.
+    sky('clears(10);game.atlas.epoch.perks.points=5;');
+    assert.equal(read('atlasPassives.points(game)'), 17, '7 milestones + 10 perk points');
+    sky('clears(30);');
+    assert.equal(read('atlasPassives.points(game)'), 18, 'never above 18');
+    sky('clears(0);');
+    assert.equal(read('atlasPassives.points(game)'), 10, 'right after a 시대 재생 the perk points are there');
+    sky('delete game.atlas.epoch.perks.points;clears(3);');
+    // Start stars, the link rule, the budget.
+    assert.equal(read("atlasPassives.allocate(game, 'sunGold')"), '연결된 별 중 하나를 먼저 할당해야 합니다.', 'a star needs an allocated neighbour');
+    assert.equal(read("atlasPassives.allocate(game, 'sunHarvest')"), '', 'a start star needs nothing');
+    assert.equal(read("atlasPassives.allocate(game, 'treeAlidade')"), '', 'a cross-region link carries');
+    assert.equal(read("atlasPassives.allocate(game, 'sunGold')"), '');
+    assert.equal(read("atlasPassives.allocate(game, 'moonDew')"), '사용 가능한 패시브 포인트가 필요합니다.', 'no point left');
+    assert.deepEqual(read("['sunGold', 'treeTier', 'moonKeep'].map(id => atlasPassives.status(game, id))"), ['taken', 'open', 'locked']);
+    // Taking back: refused when it cuts a star off its start, allowed while another path remains.
+    sky('clears(6);');
+    assert.equal(read("atlasPassives.allocate(game, 'sunWard')"), '');
+    assert.equal(read("atlasPassives.refund(game, 'sunGold')"), '시작 별과의 연결이 끊기는 별부터 회수해야 합니다.', 'sunWard would hang loose');
+    assert.equal(read("atlasPassives.allocate(game, 'treeTier')"), '');
+    assert.equal(read("atlasPassives.refund(game, 'sunHarvest')"), '', 'sunGold still reaches treeAlidade through treeTier');
+    assert.deepEqual(read('game.atlas.passives'), ['treeAlidade', 'sunGold', 'sunWard', 'treeTier']);
+    // No change while a run is open (any run).
+    sky("var open = give('sun1', 1);atlas.begin(game, open, 29, () => .5, 'sun1');");
+    assert.equal(read("atlasPassives.allocate(game, 'sunHarvest')"), '열린 탐사를 마치면 변경할 수 있습니다.');
+    assert.equal(read("atlasPassives.refund(game, 'sunWard')"), '열린 탐사를 마치면 변경할 수 있습니다.');
+    sky('atlas.cancel(game);');
+    // Trimming on load: unknown (old wheel) ids out, only stars reaching a start, within the points; loading twice changes nothing.
+    sky(`clears(2);game.atlas.passives=['sunGold','s_r','l_r','sunHarvest','moonKeep','moonDew','sunHarvest'];
+        var trimmed = mergeDefaults(JSON.parse(serializeSaveState(game))).atlas.passives;`);
+    assert.deepEqual(read('trimmed'), ['sunHarvest', 'sunGold'], 'old ids dropped, the rest trimmed to connected stars within 2 points');
+    sky('game.atlas.passives=trimmed;');
+    assert.deepEqual(read('mergeDefaults(JSON.parse(serializeSaveState(mergeDefaults(JSON.parse(serializeSaveState(game)))))).atlas.passives'), ['sunHarvest', 'sunGold'], 'and a second load keeps them');
+    // 시대 재생 empties the stars.
+    sky("game.atlas.seeds=ATLAS.seeds.max;");
+    assert.equal(read('atlasEpoch.rebirth(game)'), '');
+    assert.deepEqual(read('[game.atlas.passives, atlasPassives.points(game)]'), [[], 0]);
+    sky('game.atlas.sextant=true;');
+    // Side scope: the solar stars reach 태양 maps only, never a 달 map or a fight off the chart; the terms are frozen at entry.
+    const solar = read("atlasPassives.branches.find(row => row.side === 'solar').stars");
+    sky(`clears(26);game.atlas.passives=${JSON.stringify(solar)};`);
+    assert.deepEqual(read('game.atlas.passives'), solar);
+    sky("var sunStone = give('sun1', 1);atlas.begin(game, sunStone, 29, () => .5, 'sun1');var sunRun = game.atlas.run;");
+    const sunTerms = read('sunRun.stars');
+    assert.deepEqual([sunTerms.chestChance, sunTerms.gradeChance, sunTerms.highTierChestChance, sunTerms.portals, sunTerms.ordinaryPortals, sunTerms.dewChance],
+        [26, 45, 24, -1, 1, 0], 'every 태양 star on a 태양 map');
+    assert.equal(read('sunRun.portals'), 3, 'sunGreed -1 and sunWard +1 on a standard entry');
+    sky('atlas.cancel(game);game.currencies.formlessDew=1;atlas.begin(game, sunStone, 29, () => .5, "sun1", true);');
+    assert.equal(read('game.atlas.run.portals'), 1, 'a dew entry: 1 - 1, at least 1 (sunWard is for standard entries)');
+    sky("atlas.cancel(game);var moonStone = give('moon1', 1);atlas.begin(game, moonStone, 29, () => .5, 'moon1');");
+    assert.ok(Object.values(read('game.atlas.run.stars')).every(value => value === 0), 'a 달 map gets none of them');
+    sky("atlas.cancel(game);memoryDungeon.give(game,'sun1',1);atlas.beginMemory(game,'sun1',1,29,()=>.5);");
+    assert.deepEqual([Object.values(read('game.atlas.run.stars')).every(value => value === 0), read('game.atlas.run.portals')], [true, 3], 'a memory fight gets none');
+    sky("atlas.close(game, 'failed');atlas.begin(game, sunStone, 29, () => .5, 'sun1');game.atlas.passives=[];");
+    assert.equal(read('game.atlas.run.stars.chestChance'), 26, 'the run keeps the terms it was opened with');
+    assert.equal(read('mergeDefaults(JSON.parse(serializeSaveState(game))).atlas.run.stars.chestChance'), 26, 'also after a reload');
+    sky('atlas.cancel(game);');
+    // Each key on a run (terms set straight to 100 or 0 to read the rule): boxes, 상급, dew, dew keeping, stones, portals.
+    const outcome = (node, tier, terms, extra = '') => read(`(() => { game.atlas.run=null;game.atlas.passives=[];game.atlas.completed=chartMaps.filter(id => atlas.node(id).tier < ${tier});
+        const uid = give('${node}', ${tier}); ${extra}
+        game.currencies.formlessDew = 5;atlas.begin(game, uid, 29, () => .5, '${node}', ${extra.includes('dew') ? 'true' : 'false'});
+        Object.assign(game.atlas.run.stars, ${JSON.stringify(terms)});const dewAfterEntry = game.currencies.formlessDew;
+        const end = atlas.complete(game);
+        return { boxes: end.gearBoxes, fine: end.gearFine, stars: game.atlas.lastResult.stars, dewAfterEntry, stash: game.atlas.stash.map(map => [map.node, map.tier]) };
+    })()`);
+    assert.equal(outcome('sun1', 1, {}).boxes, 1, 'standard: one box (the boss reward)');
+    assert.equal(outcome('sun1', 1, {}, '/*dew*/').boxes, 2, 'dew: two boxes');
+    assert.equal(outcome('sun1', 1, { chestChance: 100 }).boxes, 2, 'chestChance: one more box');
+    assert.equal(outcome('sun1', 1, { highTierChestChance: 100 }).boxes, 1, 'highTierChestChance below T8: nothing');
+    assert.equal(outcome('sunBarkCoast', 8, { highTierChestChance: 100 }).boxes, 2, 'highTierChestChance on T8: one more box');
+    assert.equal(outcome('sun1', 1, { dewChestChance: 100 }).boxes, 1, 'dewChestChance without dew: nothing');
+    assert.equal(outcome('sun1', 1, { dewChestChance: 100 }, '/*dew*/').boxes, 3, 'dewChestChance on a dew entry: one more box');
+    assert.equal(outcome('sun1', 1, { gradeChance: 100 }).fine, 1, 'gradeChance: one box is 상급');
+    assert.equal(outcome('inner1', 1, { firstChest: 1 }).boxes, 2, 'firstChest: one more box on a first clear');
+    assert.equal(read(`(() => { const uid = give('inner1', 1);atlas.begin(game, uid, 29, () => .5, 'inner1');
+        Object.assign(game.atlas.run.stars, { firstChest: 1 });return atlas.complete(game).gearBoxes; })()`), 1, 'and none on a repeat clear');
+    assert.deepEqual(outcome('moon1', 1, { dewChance: 100 }).stars, { dew: 1, dewKept: false, stones: [] }, 'dewChance: one 형체 없는 이슬');
+    assert.deepEqual(read(`(() => { game.atlas.run=null;game.atlas.completed=chartMaps.slice(0, 26);game.atlas.passives=['moonDew','moonKeep','moonReservoir','moonCycle','moonTide','moonPortal'];
+        return [atlasPassives.terms(game, 'lunar').dewKeep, atlasPassives.terms(game, 'solar').dewKeep, atlasPassives.terms(game, 'lunar').dewPortals]; })()`), [45, 0, 1]);
+    // dewKeep: over many stones, the dew stays exactly when the stone's roll hits (about 45 %); the dew entry and moonPortal still apply.
+    const keeps = read(`Array.from({ length: 40 }, () => { game.atlas.run=null;game.currencies.formlessDew=1;const uid = give('moon1', 1);atlas.begin(game, uid, 29, () => .5, 'moon1', true);
+        const row = [game.atlas.run.dewKept, game.currencies.formlessDew, game.atlas.run.portals];atlas.cancel(game);row.push(game.currencies.formlessDew);return row; })`);
+    assert.ok(keeps.every(([kept, after, portals, cancelled]) => after === (kept ? 1 : 0) && portals === 2 && cancelled === 1), 'a kept dew is not spent and not given back twice');
+    assert.ok(keeps.some(row => row[0]) && keeps.some(row => !row[0]), 'some stones keep it, some do not');
+    sky('game.atlas.passives=[];');
+    assert.deepEqual(outcome('inner1', 1, { alidadeChance: 100 }).stars.stones, [{ node: 'inner1', tier: 1 }], 'alidadeChance: a stone of the map just cleared');
+    const up = outcome('inner1', 1, { tierChance: 100 });
+    assert.deepEqual(up.stars.stones, [{ node: 'innerBarkFold', tier: 2 }], 'tierChance: a stone of the higher child');
+    assert.equal(outcome('innerGardenSeal', 10, { tierChance: 100 }).stars, null, 'tierChance on T10: nothing');
+    assert.equal(outcome('inner1', 1, { portals: 1 }).boxes, 1);
+    // Rolls come from the run's stone: the same stone rolls the same chest, 상급, dew and stones, reloaded or not, whatever Math.random says.
+    const seeded = loadMidRun => {
+        sky(`game.currentZoneId=29;game.atlas.run=null;game.atlas.completed=['inner1'];game.atlas.passives=[];game.atlas.stash=[{ ...atlasMaps.create('innerBarkFold', 2), uid: 4242 }];game.atlas.nextUid=4243;game.currencies.formlessDew=0;`);
+        assert.equal(sky("atlasRun.open(4242, 'innerBarkFold')"), '');
+        sky('Object.assign(game.atlas.run.stars, { chestChance: 50, gradeChance: 50, dewChance: 50, alidadeChance: 50, tierChance: 50 });');
+        if (loadMidRun) sky('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+        skyRuntime.Math.random = loadMidRun ? () => 0.01 : () => 0.99;
+        sky('var realPick = grantEquipmentPick; grantEquipmentPick = () => [];');
+        try { sky('atlasRun.finish(getZone(game.currentZoneId));'); }
+        finally { sky('grantEquipmentPick = realPick;'); }
+        return read('[game.atlas.lastResult.boxes.count, game.atlas.lastResult.boxes.fine, game.atlas.lastResult.stars, game.currencies.formlessDew]');
+    };
+    const once = seeded(false), twice = seeded(true);
+    assert.deepEqual(twice, once, 'the star rolls are the same after a reload');
+    assert.equal(once[3], once[2] ? once[2].dew : 0, 'the dew found reaches the wallet once');
+    // Old saves: a run without star terms and a result without stars load with zeros; loading twice changes nothing.
+    sky("game.atlas.run=null;var oldUid = give('sun1', 1);atlas.begin(game, oldUid, 29, () => .5, 'sun1');var starless = JSON.parse(serializeSaveState(game));delete starless.atlas.run.stars;delete starless.atlas.run.dewKept;delete starless.atlas.lastResult.stars;");
+    const loaded = read('mergeDefaults(starless).atlas');
+    assert.ok(Object.values(loaded.run.stars).every(value => value === 0) && loaded.run.dewKept === false && loaded.lastResult.stars === null);
+    assert.deepEqual(read('mergeDefaults(JSON.parse(serializeSaveState(mergeDefaults(starless)))).atlas'), loaded);
 }
 
 // ---------------------------------------------------------------- save boundary and the loop
@@ -819,7 +949,7 @@ assert.equal(copy(`atlas.dropFromKill(game, getZone(getAbyssZoneIdForDepth(12)),
         [[[], [], null, false], [[], [], null, false], [[[4, 1]], [], null, false]], 'garbage, wrong shapes and half-written stones load; a stale open map still gives its stone back');
 }
 
-console.log('atlas: star chart (50 maps, 10 closed gates) = its JSON, 시작 육분의, map rarity/crafting rules, chart tier = chaos depth of its game tier, real map clear, auto-map, portals, entry by tier, first-clear stones, refund, dew entry, 장비 상자, over-cap delivery, save/migration, loop reset: OK');
+console.log('atlas: star chart (50 maps, 10 closed gates) = its JSON, 시작 육분의, map rarity/crafting rules, chart tier = chaos depth of its game tier, real map clear, auto-map, portals, entry by tier, first-clear stones, refund, dew entry, 장비 상자, over-cap delivery, passive stars and their side-scoped effects, save/migration, loop reset: OK');
 
 // Board rewards survive reload and cannot be settled twice. Independent game fixture.
 for (const action of ['stop', 'nextZone']) {

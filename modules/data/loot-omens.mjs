@@ -6,7 +6,7 @@
 //          고유(unique)일 확률(세기를 곱한다).
 //   gear: 장비 기대 개수 배율(quantity), 부위 가중치(slots), 고유 확률 배율(unique), 드랍 변형 배율(variant: 복제, 묶음, 타락).
 //          배율은 세기만큼 커진다: 1 + (값 − 1) × 세기.
-//   bonus: 그 지도 런의 아틀라스 효과(data/atlas-passives.js labels의 키)에 값 × 세기를 더한다.
+//   bonus: 그 지도 런의 아틀라스 효과(data/atlas.js effectLabels의 키)에 값 × 세기를 더한다.
 // 보물 무리: 지도의 보통 무리가 treasure.packChance로 "보물을 품은" 무리가 되고, 금빛 테를 두른 그 무리의 일반 몬스터 하나가 쓰러지면
 // 기운 하나의 목록에서 rolls번, 희귀 장비 rareGear개, uniqueChance로 고유 하나를 쏟아낸다. 그중 golden.chance는 황금 보물이다.
 // 모든 수치는 첫 제안값이다(드랍 시뮬레이터 `npm run drop:sim`, 명령줄 `node scripts/drop-simulate.js`).

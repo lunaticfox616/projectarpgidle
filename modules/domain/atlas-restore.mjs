@@ -4,7 +4,6 @@ import { atlasAutoUnlocked } from './atlas-auto.mjs';
 import { atlasCoreNormalizeResult, atlasCoreNormalizeTally } from './atlas-receipts.mjs';
 import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
 import { atlasCoreCancel } from './atlas-completion.mjs';
-import { atlasCorePoints } from './atlas-graph.mjs';
 import { atlasChartMove, atlasChartStaleRun } from './atlas-chart-migration.mjs';
 
 /** 보관함에 둘 수 있는 것: 지도 노드의 지도석(천문도 등급을 넘는 손상된 등급은 가장 높은 등급으로)과 예전 수호자의 지도석(C 단계까지 그대로 둔다). */
@@ -52,7 +51,7 @@ export function atlasCoreNormalize(env, state) {
     const { done, bonus } = clearedNodes(env, raw), run = atlasCoreNormalizeRun(env, raw.run, validMap);
     const epoch = env.deps.atlasEpoch.normalize(raw.epoch);
     const next = { ...atlasCoreDefaults(env), unlocked: raw.unlocked === true || journeyUnlocked, sextant: raw.sextant === true, completed: done, bonus,
-        passives: env.deps.atlasPassives.normalize(raw.passives, atlasCorePoints()), epoch,
+        passives: [], epoch,
         stash: restoreStash(env, raw, validMap),
         fragments: atlasCoreNormalizeFragments(env, raw.fragments), run, lastResult: atlasCoreNormalizeResult(env, raw.lastResult), endgame: env.deps.atlasEndgame.normalize(raw.endgame, pinnacleDone),
         memory: atlasCoreNormalizeMemory(env, raw.memory), leaves: env.deps.memoryLeaves.normalize(raw.leaves), board: env.deps.atlasBoard.normalize(raw.board), tally: atlasCoreNormalizeTally(raw.tally),
@@ -61,6 +60,8 @@ export function atlasCoreNormalize(env, state) {
     const savedNext = Math.floor(Number(raw.nextUid));
     next.nextUid = Math.min(Number.MAX_SAFE_INTEGER, Math.max(Number.isSafeInteger(savedNext) ? savedNext : 1, ...[...uids].map(uid => uid + 1), 1));
     state.atlas = next;
+    // 패시브의 별: 그 저장의 첫 완료와 시대 재생 특전으로 센 포인트 안에서, 시작 별에 이어지는 것만(예전 바퀴의 id는 모르는 id라 빠진다).
+    next.passives = env.deps.atlasPassives.normalize(raw.passives, state);
     restoreWheelAccess(state, raw);
     atlasCoreRestoreBoardRun(env, raw, state);
     atlasCoreSetLoadout(env, state, Array.isArray(raw.loadout) ? raw.loadout : []);

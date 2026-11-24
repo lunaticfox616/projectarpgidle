@@ -66,7 +66,7 @@ export function atlasSessionEmptyRoom(env, owner, enemy) {
 }
 
 export function* atlasSessionClearRoom(env, owner, zone, room, maps) {
-    const rewards = env.deps.atlasEncounters.rewards(zone, room, owner.atlas.run.bonus, Math.random);
+    const rewards = env.deps.atlasEncounters.rewards(zone, room, Math.random);
     for (const [key, amount] of rewards) (yield { kind: 'atlasSessionEffectAwardEnemyLootCurrency', args: [key, amount] });
     const needsFallback = !rewards.length && (zone.pocket === room || zone.exploration?.challenges?.includes(room));
     if (needsFallback || Math.random() < env.deps.ATLAS.encounters[room].mapChance) maps.push(...env.deps.atlas.extraMap(owner));
@@ -77,7 +77,7 @@ export function* atlasSessionClearRoom(env, owner, zone, room, maps) {
 }
 
 export function* atlasSessionGiveNurseryGifts(env, owner, zone) {
-    const gifts = env.deps.atlasEncounters.nurseryGifts(zone, owner.atlas.run.bonus, Math.random);
+    const gifts = env.deps.atlasEncounters.nurseryGifts(zone);
     for (let i = 0; i < gifts; i++) (yield { kind: 'atlasSessionEffectGrantNurseryGift', args: [owner, zone] });
 }
 

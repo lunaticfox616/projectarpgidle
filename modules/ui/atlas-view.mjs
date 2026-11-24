@@ -41,7 +41,7 @@ function initialize(runtime) {
     runtime.state.CRAFT_ORDER = ['magicBud', 'sapBud', 'formlessDew', 'blightSpore', 'pruningShears', 'goldenRule', 'deepWhetstone', 'emberBranch'];
     runtime.state.FLOWER_COLORS = Object.keys(runtime.deps.LOOT_OMENS.flowers);
     // 한 장 화면의 천문도는 SVG와 표식이라 칠할 것이 없고 옆으로 민 자리만 되돌린다. 예전 화면(개발 설정)만 캔버스를 칠한다.
-    runtime.state.PAINT = { maps: () => (runtime.deps.atlasSheetUi.on() ? runtime.deps.atlasSheetUi.settle() : paintChart(runtime)), passives: () => runtime.deps.atlasPassivesUi.paint(), epoch: () => {}, late: () => {}, memory: () => {}, board: () => {} };
+    runtime.state.PAINT = { maps: () => (runtime.deps.atlasSheetUi.on() ? runtime.deps.atlasSheetUi.settle() : paintChart(runtime)), passives: () => {}, epoch: () => {}, late: () => {}, memory: () => {}, board: () => {} };
     runtime.state.LEAF_RANK = 1.5;
     runtime.state.VIEW_TABS = Object.freeze([['maps', '지도'], ['passives', '패시브'], ['late', '최종'], ['memory', '기억'], ['epoch', '시대'], ['board', '나이테 원정']]);
     runtime.state.VIEWS = { maps: () => mapsViewHtml(runtime), passives: () => runtime.deps.atlasPassivesUi.html(), epoch: () => runtime.deps.atlasEpochUi.html(), late: () => runtime.deps.atlasEndgameUi.html(),

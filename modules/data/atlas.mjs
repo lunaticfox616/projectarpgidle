@@ -26,30 +26,6 @@ const frontierEncounters = Object.freeze(Object.fromEntries(Object.entries(regio
         enemy: { hp: 1.4, damage: 1.1, attack: 1, exp: 1.4 },
         rewards: [[currency, 1, 0.04]], chest: [currency, 1], golden: [[currency, 1]], mapChance: 0.12 })])));
 
-const frontierLabels = Object.freeze(Object.fromEntries(Object.entries(frontierEncounters).map(([key, row]) => [key, [row.name, '%p']])));
-
-// Each wheel uses the existing radial layout and allocation rules. A branch can be specialised without buying a neighbour.
-function expedition(id, name, tint, keys) {
-    const nodes = [[id + '_r', name, [], Object.fromEntries(keys.map(key => [key, 2]))]];
-    const branches = ['a', 'b', 'c'];
-    branches.forEach((letter, i) => {
-        const key = keys[i], branch = id + '_' + letter, next = id + '_' + branches[(i + 1) % 3];
-        const title = frontierEncounters[key].name, keystone = keys[3 + (i % (keys.length - 3))];
-        nodes.push([branch + '1', title, [id + '_r'], { [key]: 6 }], [branch + '2', title, [branch + '1'], { [key]: 6 }],
-            [branch + 'N', title, [branch + '2'], { [key]: 10 }, true], [branch + 'T', title, [branch + 'N'], { [key]: 8 }],
-            [branch + branches[(i + 1) % 3], name, [branch + '2', next + '2'], { [key]: 3, [keys[(i + 1) % 3]]: 3 }],
-            [id + '_k' + (i + 1), frontierEncounters[keystone].name, [branch + 'N', next + 'N'], { [keystone]: 9 }, 'key']);
-    });
-    return { id, name, tint, nodes };
-}
-
-const frontierWheels = [
-    expedition('depths', '심층 원정', '#649396', ['underworld', 'ocean', 'colony', 'labyrinth']),
-    expedition('horizon', '경계 원정', '#9185bf', ['sky', 'cosmos', 'timerift', 'trials']),
-    expedition('traces', '흔적 원정', '#968056', ['fossil', 'memoryDungeon', 'ringRoute', 'fishing']),
-    expedition('ordeals', '시련 원정', '#a26862', ['duel', 'battleTrials', 'chaosRealm', 'beyond', 'deepChaos'])
-];
-
 // 천문도의 권역 id → 게임의 권역 id(개편 2026-11-24: 태고의 바다였던 sanctum이 기억의 회랑, 창공의 경계였던 canopy가 은하를 직조하는
 // 신전, 최초의 경계였던 trunk가 세계수 내면의 내용을 맡는다).
 const chartRegions = Object.freeze({ roots: 'roots', garden: 'garden', veil: 'sanctum', cloud: 'canopy', interior: 'trunk' });
@@ -88,7 +64,6 @@ const chartHosts = Object.freeze(Object.fromEntries(Object.keys(contentRows).fla
 // 세계수 아틀라스 (docs/atlas-endgame-20260930.md 3절): 지역 · 노드 · 지도석 옵션과 규칙 수치. 모든 수치는 첫 제안값이다.
 // 지도와 보스의 자리, 길은 천문도(data/atlas-chart.js)가 정하고 js/atlas.js가 읽는다.
 const ATLAS = Object.freeze({
-    frontierLabels, frontierWheels,
     zoneId: 'atlas_map',
     // 아틀라스는 마지막 엔드게임(2026-11-06 사용자: 루프 25쯤, 지금 열리는 때는 너무 어렵다): 이 루프부터 이번 루프의 혼돈 20을 깨면 열린다.
     // 이미 열린 저장은 그대로다. 등급의 난이도는 루프와 상관없이 같다(아래 difficulty).
@@ -96,9 +71,12 @@ const ATLAS = Object.freeze({
     // 보관함 한도: 떨어진 지도석, 합치기, 제작은 한도에서 멈춘다. 첫 완료의 지도석, 포털 환급, 시작 육분의의 지도석은 한도를 넘어도 들어온다.
     stashCap: 120,
     portals: 3,
-    // 일반 지도를 완료하면 장비 상자(지도 보스 보상 한 번 더). 형체 없는 이슬 입장: 이슬 1개를 더 쓰고 포털 1개, 장비 상자 2개(개편 2026-11-24 A2).
+    // 일반 지도를 완료하면 장비 상자: 첫 상자가 지도 보스의 보상이다(개편 B, 보통 입장은 더 굴리지 않는다). 형체 없는 이슬 입장: 이슬 1개를
+    // 더 쓰고 포털 1개, 장비 상자 2개(지도 보스 보상 한 번 더). 패시브의 별이 상자를 더한다(js/atlas-passives.js).
     gearBoxes: 1,
     dewEntry: Object.freeze({ cost: 1, portals: 1, gearBoxes: 2 }),
+    // 별의 highTierChestChance가 닿는 천문도 등급(T8 이상).
+    highTier: 8,
     // 등급 T의 몬스터 = 혼돈 깊이 D(T) = 20 + 2(T−1)을 그 깊이가 관문인 루프(D − 10)에서 만난 것과 같다.
     // 1등급은 루프 10 · 혼돈 20의 몬스터, 16등급은 루프 40 · 심화 50. 루프가 올라도 등급의 난이도는 그대로다.
     difficulty: Object.freeze({ baseDepth: 20, depthPerTier: 2, loopBehindDepth: 10 }),
@@ -190,8 +168,19 @@ const ATLAS = Object.freeze({
         { id: 'shockedGround', kind: 'suffix', text: '예고 후 감전 지대가 5초 지속, 받는 피해 증가', min: 0, max: 0, quantity: [7, 10], rarity: [5, 7] },
         { id: 'monsterEvasion', kind: 'suffix', text: '몬스터 회피 확률 +{v}%', min: 10, max: 20, quantity: [5, 8], rarity: [3, 4] }
     ].map(Object.freeze)),
+    // 지도 런의 효과(run.bonus)의 키와 이름: 각인(fragments), 시대 재생 특전(epoch.perks), 지도석의 기운(data/loot-omens.js bonus)이 더한다.
+    // 이름 뒤의 표시는 수치 뒤에 붙는 단위다('on'은 값 없이 이름만). 아틀라스 패시브의 별은 이 합에 들어가지 않는다(지도의 권역마다 따로,
+    // js/atlas-passives.js terms).
+    effectLabels: Object.freeze({
+        mapDrop: ['지도석 드롭', '%'], mapTierUp: ['높은 등급 지도석', '%p'], mapRarity: ['마법과 희귀 지도석', '%'], mapQuality: ['품질 붙은 지도석', '%p'],
+        starter: ['루프 시작 지도석', '개'], quantity: ['아이템 수량', '%'], rarity: ['아이템 희귀도', '%'], packSize: ['무리마다 몬스터', ''],
+        extraElite: ['전투 방 정예', '%p'], fragmentDrop: ['각인 드롭', '%'], bossMap: ['보스 추가 지도석', '%p'], bossRarity: ['보스 아이템 희귀도', '%'],
+        slots: ['각인 홈', '개'], bossLife: ['보스 생명력과 피해', '%'], encounterExtra: ['지도마다 조우', '개'], goldenRoom: ['황금 방', '%p'],
+        chestGrade: ['은빛과 황금 보급 상자', '%'], chestExtra: ['보급 상자', '개'], chestMinGrade: ['보급 상자가 모두 은빛 이상', 'on'],
+        memoryDrop: ['보스의 기억', '%'], variantChance: ['보스 변이체', '%p'], omenBearer: ['뿌리를 품은 몬스터', '%']
+    }),
     // 각인: 지도 장치 홈(기본 2)에 끼워 두면 지도를 열 때 1개씩 쓴다. 지도 안 정예 · 보스가 떨어뜨리고 루프마다 비운다.
-    // effect 키는 아틀라스 패시브와 같다(js/atlas-passives.js). encounter는 그 콘텐츠 방을 반드시 만든다.
+    // effect 키는 effectLabels의 키다. encounter는 그 콘텐츠 방을 반드시 만든다.
     // minLoop(또는 encounter 방의 minLoop) 전에는 떨어지지 않고 지도 장치에도 보이지 않는다(js/atlas.js fragmentOpen).
     fragments: Object.freeze([
         { id: 'packs', name: '무리 각인', effect: { packSize: 1, quantity: 8 } },
@@ -213,7 +202,7 @@ const ATLAS = Object.freeze({
     fragmentRules: Object.freeze({ slots: 2, elite: 0.03, boss: 0.25, cap: 99, held: 50 }),
     // 지도 속 콘텐츠 방: 정예가 이끄는 무리(보스 관문을 함께 봉인)에 그 콘텐츠의 적 보정이 붙고, 방을 비우면 그 콘텐츠의 재화를 맵
     // 전리품으로 받는다(쓰러지면 잃는다). 보상 [재화, 기본, 등급당] — 기대값의 소수부는 확률로 1개 더.
-    // chance: 지도마다 그 방이 생길 기본 확률(%). 패시브 · 각인이 더한다. 지도마다 굴려 생기는 방은 encounterLimit개까지.
+    // chance: 지도마다 그 방이 생길 확률(%). 각인은 그 방을 반드시 만든다. 지도마다 굴려 생기는 방은 encounterLimit개까지.
     // roster: 그 콘텐츠의 실제 외형을 일반/정예별로 순환 배치한다. 이름과 공격 방식은 data/bosses.js의 같은 외형을 따른다.
     encounters: Object.freeze({
         ...frontierEncounters,
@@ -272,13 +261,13 @@ const ATLAS = Object.freeze({
             rewards: Object.freeze([['formlessDew', 1, 0.1]]), mapChance: 0.1 })
     }),
     encounterLimit: 1,
-    // 황금 방(2026-10-09 사용자 "더 좋은 상자가 뜰 확률"): 지도의 콘텐츠 방이 chance %(+ 패시브 goldenRoom %p)로 황금 방이 된다.
+    // 황금 방(2026-10-09 사용자 "더 좋은 상자가 뜰 확률"): 지도의 콘텐츠 방이 chance %(+ 지도석 기운의 goldenRoom %p)로 황금 방이 된다.
     // 몬스터가 hpMul, damageMul만큼 세고 금빛 테를 두르며, 방을 비우면 보상이 rewardMul배에 그 방의 golden 보상이 더해진다
     // (묘목장은 선물 하나 더). 지도 uid와 방 종류의 해시로 정해 지도마다 고정이고 다른 굴림을 밀지 않는다. 제단(late)은 아니다.
     goldenRoom: Object.freeze({ chance: 5, hpMul: 1.4, damageMul: 1.2, rewardMul: 3, outline: '#ffd75e', sparks: '#fff1a8', prefix: '황금' }),
     // 목록 보상(기폭제, 기름)에서 그 지도 지역의 것(encounters[].regionKeys)이 나오는 몫. 나머지는 목록에서 무작위.
     encounterRegionShare: 0.5,
-    // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(패시브와 각인의 몫과 따로). 루프 75에 하나 더(2026-10-09,
+    // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(기운의 몫과 따로). 루프 75에 하나 더(2026-10-09,
     // 루프 50 이후 이정표).
     encounterLoopBonus: Object.freeze([Object.freeze({ loop: 50, extra: 1, unlock: 'roomOne' }), Object.freeze({ loop: 75, extra: 1, unlock: 'roomTwo' })]),
     // 깨어난 뒤의 제단(late)은 콘텐츠 방 자리를 나눠 쓰지 않고 따로 이만큼까지(그래서 깨어나도 기존 방 확률이 줄지 않는다).
@@ -310,6 +299,7 @@ const ATLAS = Object.freeze({
     // 아이템 수량 +quantity%, 희귀도 +rarity%, 고유 중 체이싱 고유 확률 +chase%(js/atlas-maps.js effects, chaseMul).
     overTier: Object.freeze({ from: 16, quantity: 8, rarity: 12, chase: 25 }),
     // 시대 재생(아틀라스 위의 환생 층): 씨앗 4개를 모으면 아틀라스 진행(완료 · 보너스 · 패시브 · 씨앗)을 되돌리고 세계수 정수를 받는다.
+    // 오래된 수액의 points는 패시브 포인트다: 이정표의 포인트와 더해 passive.maximumPoints(18)를 넘지 않는다(js/atlas-passives.js).
     // 정수 = 기본 + 완료 5개마다 1 + 보너스 5개마다 1 + 씨앗마다 1. 특전 한 단계의 값 = 다음 단계 번호 × costStep.
     epoch: Object.freeze({
         essence: Object.freeze({ base: 2, perCompleted: 5, perBonus: 5, perSeed: 1 }),

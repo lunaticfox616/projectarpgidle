@@ -83,7 +83,7 @@ export function chartHtml(runtime, picked, matchingStones) {
 /** 아틀라스의 모든 쪽이 쓰는 윗줄(js/atlas-ui.js render). chart: 지도 쪽을 그리는 중인가(처음 보는 완료는 지도 쪽에서만 밝힌다). */
 export function top(runtime, chart) {
     if (chart) noteFresh(runtime);
-    // 깨어난 아틀라스는 후반 싸움만큼 넓어진다. 패시브 포인트는 별 24개(B 단계)가 오기 전까지 없다.
+    // 깨어난 아틀라스는 후반 싸움만큼 넓어진다(패시브 포인트는 패시브 쪽 탭의 표시와 그 화면에서).
     const st = runtime.deps.game.atlas, total = runtime.deps.atlas.nodes.length + (runtime.deps.atlasEndgame.awakened(runtime.deps.game) ? runtime.deps.atlas.lateNodes.length : 0);
     const firstNew = st.seeds - runtime.state.fresh.seeds, live = revealing(runtime);
     const seeds = Array.from({ length: runtime.deps.ATLAS.seeds.max }, (_, i) => `<i class="${i < st.seeds ? 'is-on' : ''}${live && i >= firstNew && i < st.seeds ? ' is-fresh' : ''}"></i>`).join('');

@@ -2,10 +2,11 @@ import { atlasCoreAddFragments, atlasCoreStore, atlasCoreDeliver } from './atlas
 import { atlasCoreCompleted, atlasCoreChartRun, atlasCoreReachable } from './atlas-graph.mjs';
 import { atlasCoreBossSpoils } from './atlas-boss-rewards.mjs';
 import { atlasCoreGrantStone } from './atlas-map-drops.mjs';
-import { atlasCoreNormalizeResultEndgame, atlasCoreCompletedMemoryResult, atlasCoreNormalizeLoot, atlasCoreNormalizeResultMaterials, atlasCoreNormalizeResultMemory, atlasCoreNormalizeBoxes } from './atlas-receipts.mjs';
+import { atlasCoreNormalizeResultEndgame, atlasCoreCompletedMemoryResult, atlasCoreNormalizeLoot, atlasCoreNormalizeResultMaterials, atlasCoreNormalizeResultMemory, atlasCoreNormalizeBoxes, atlasCoreNormalizeStarGains } from './atlas-receipts.mjs';
+import { atlasStarBoxes, atlasStarClearGains } from './atlas-star-rewards.mjs';
 
 /** Travel failed right after opening: the untouched map (or the pinnacle's tickets) and its fragments go back, and so does a dew
- * entry's 형체 없는 이슬 (nothing was fought yet). */
+ * entry's 형체 없는 이슬 unless a star kept it (nothing was fought yet). */
 export function atlasCoreCancel(env, state) {
     const run = state.atlas.run;
     if (!run) return;
@@ -14,7 +15,7 @@ export function atlasCoreCancel(env, state) {
     else if (run.map.node === env.PINNACLE.id) for (const key of env.deps.ATLAS.pinnacle.tickets) state.currencies[key] += 1;
     else if (env.deps.atlasEndgame.isFight(run.map.node)) env.deps.atlasEndgame.refund(state, run.map.node);
     else state.atlas.stash.unshift(run.map);
-    if (run.dew) state.currencies.formlessDew = (state.currencies.formlessDew || 0) + env.deps.ATLAS.dewEntry.cost;
+    if (run.dew && !run.dewKept) state.currencies.formlessDew = (state.currencies.formlessDew || 0) + env.deps.ATLAS.dewEntry.cost;
     atlasCoreAddFragments(env, state, run.spent);
     state.atlas.run = null;
 }
@@ -27,31 +28,28 @@ export function atlasCoreGrantOpened(env, state, locked) {
     return maps.map(map => ({ node: map.node, tier: map.tier }));
 }
 
-/** 일반 지도의 장비 상자 수: 지도석으로 연 천문도 지도만(이슬 입장은 둘). */
-export function atlasCoreGearBoxes(env, run) {
-    if (!atlasCoreChartRun(env, run)) return 0;
-    return run.dew ? env.deps.ATLAS.dewEntry.gearBoxes : env.deps.ATLAS.gearBoxes;
-}
-
 /** A ring board map down (js/atlas-board.js complete): its rewards go to the board, never completion, bonus or the stash. */
 export function atlasCoreCompleteBoard(env, state, run) {
     const board = env.deps.atlasBoard.complete(state, run.board);
     if (!board) return null;
     state.atlas.run = null;
     state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome: 'complete', first: false, bonus: false, drops: 0, lost: 0,
-        fragments: 0, lostFragments: 0, lostMaterials: [], memory: null, granted: [], boxes: null, refund: null };
+        fragments: 0, lostFragments: 0, lostMaterials: [], memory: null, granted: [], boxes: null, refund: null, stars: null };
     return { ...state.atlas.lastResult, board, returnZoneId: run.returnZoneId };
 }
 
-/** A completed map's receipt (atlas-receipts normalizes the same shape). boxes: 장비 상자 to open (their items arrive with atlasCoreKeepBoxes). */
+/** A completed map's receipt (atlas-receipts normalizes the same shape). boxes: 장비 상자 to open { count, fine } (their items arrive
+ * with atlasCoreKeepBoxes). stars: what the passive stars added (atlas-star-rewards atlasStarClearGains), null off the chart. */
 export function atlasCoreClearReceipt(env, run, parts) {
-    const { first, bonus, stored, fragments, granted, boxes } = parts;
+    const { first, bonus, stored, fragments, granted, boxes, stars } = parts;
     return { nodeId: run.map.node, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored, lost: run.drops.length - stored, fragments,
-        lostFragments: run.found.length - fragments, lostMaterials: [], granted, boxes: atlasCoreNormalizeBoxes(env, { count: boxes }), refund: null };
+        lostFragments: run.found.length - fragments, lostMaterials: [], granted, boxes: atlasCoreNormalizeBoxes(env, boxes), refund: null,
+        stars: atlasCoreNormalizeStarGains(env, stars) };
 }
 
 /** Boss down: completion (and the bonus for a rare map) count once per node; the run's drops go to the stash, the maps the first clear
- * opened give their stones, and an ordinary chart map has 장비 상자 to open (gearBoxes, rolled from boxSeed by the run layer). */
+ * opened give their stones, the passive stars add theirs, and an ordinary chart map has 장비 상자 to open (gearBoxes, the first of them the
+ * map boss's own reward, rolled from boxSeed by the run layer; gearFine of them one rarity step higher). */
 export function atlasCoreComplete(env, state) {
     const run = state.atlas.run;
     if (!run) return null;
@@ -64,10 +62,10 @@ export function atlasCoreComplete(env, state) {
     const bonus = !recalled && run.map.rarity === 'rare' && !state.atlas.bonus.includes(id);
     if (bonus) state.atlas.bonus.push(id);
     const stored = atlasCoreStore(env, state, run.drops), fragments = atlasCoreAddFragments(env, state, run.found);
-    const granted = atlasCoreGrantOpened(env, state, locked), boxes = atlasCoreGearBoxes(env, run);
+    const granted = atlasCoreGrantOpened(env, state, locked), boxes = atlasStarBoxes(env, run, first), stars = atlasStarClearGains(env, state, run);
     state.atlas.run = null;
     state.atlas.tally.maps += 1;
-    state.atlas.lastResult = atlasCoreClearReceipt(env, run, { first, bonus, stored, fragments, granted, boxes });
+    state.atlas.lastResult = atlasCoreClearReceipt(env, run, { first, bonus, stored, fragments, granted, boxes, stars });
     // 기억 싸움은 그 보스의 기억 보상만(입장권, 씨앗, 후반부 보상과 처치 수는 원래 싸움의 몫), 다른 싸움은 기억을 남길 수 있다.
     const node = env.BY_ID.get(id), memory = env.deps.memoryDungeon.settle(state, node, run.map, Math.random, run.bonus);
     const endgame = recalled ? null : env.deps.atlasEndgame.onComplete(state, node, run);
@@ -75,13 +73,14 @@ export function atlasCoreComplete(env, state) {
     Object.assign(state.atlas.lastResult, { seed: spoils.seed === true, seeds: state.atlas.seeds, endgame: atlasCoreNormalizeResultEndgame(env, endgame),
         memory: atlasCoreCompletedMemoryResult(env, run.map, memory) });
     // The event keeps its payout contract; only lastResult stores the bounded presentation receipt above.
-    return { ...state.atlas.lastResult, ...spoils, endgame, memory, returnZoneId: run.returnZoneId, gearBoxes: boxes, boxSeed: `atlas-box:${run.map.uid}` };
+    return { ...state.atlas.lastResult, ...spoils, endgame, memory, returnZoneId: run.returnZoneId, gearBoxes: boxes.count, gearFine: boxes.fine,
+        boxSeed: `atlas-box:${run.map.uid}` };
 }
 
 /** The 장비 상자 just opened (atlas-run-spoils): their own loot receipt (null outside a map receipt) joins the result card under its heading. */
 export function atlasCoreKeepBoxes(env, state, opened) {
     const result = state.atlas.lastResult;
-    if (result?.boxes && opened) result.boxes = atlasCoreNormalizeBoxes(env, { count: result.boxes.count, total: opened.equipmentCount, items: opened.items });
+    if (result?.boxes && opened) result.boxes = atlasCoreNormalizeBoxes(env, { ...result.boxes, total: opened.equipmentCount, items: opened.items });
 }
 
 /** An ordinary room emptied in the open map stays empty when a portal re-enters it: it is the same map. */
@@ -120,7 +119,7 @@ export function atlasCoreClose(env, state, outcome) {
         lost: run.drops.length, fragments: 0, lostFragments: run.found.length,
         lostMaterials: atlasCoreNormalizeResultMaterials(env, Object.entries(run.endgame.items), env.deps.ATLAS_ENDGAME.itemCap * 10),
         seed: false, seeds: state.atlas.seeds, endgame: null,
-        memory: atlasCoreNormalizeResultMemory(env, { foughtTier: run.map.memory }, true), granted: [], boxes: null, refund: null };
+        memory: atlasCoreNormalizeResultMemory(env, { foughtTier: run.map.memory }, true), granted: [], boxes: null, refund: null, stars: null };
     // Floor drops already entered this receipt when produced; the existing departure still collects them exactly once.
     atlasCoreKeepLoot(env, state, state.explorationLoot);
     return { returnZoneId: run.returnZoneId };

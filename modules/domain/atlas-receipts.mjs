@@ -56,17 +56,28 @@ export function atlasCoreNormalizeGivenStone(env, raw) {
     return node?.kind === 'map' ? { node: node.id, tier: node.tier } : null;
 }
 
-/** 장비 상자 on the result card: how many were opened, how many items they gave and the notable ones (the loot receipt's item rows). null: none. */
+/** 장비 상자 on the result card: how many were opened (fine: how many of them were 상급), how many items they gave and the notable ones
+ * (the loot receipt's item rows). null: none. */
 export function atlasCoreNormalizeBoxes(env, raw) {
-    const count = Math.floor(Number(raw && raw.count));
+    const count = Math.min(9, Math.floor(Number(raw && raw.count)));
     if (!(count >= 1)) return null;
-    return { count: Math.min(9, count), total: Math.max(0, Math.min(99, Math.floor(Number(raw.total) || 0))), items: env.deps.combatLootReceipts.cleanItems(raw.items) };
+    return { count, fine: Math.max(0, Math.min(count, Math.floor(Number(raw.fine) || 0))), total: Math.max(0, Math.min(99, Math.floor(Number(raw.total) || 0))),
+        items: env.deps.combatLootReceipts.cleanItems(raw.items) };
+}
+
+/** What the passive stars added to a clear: 형체 없는 이슬 found (0 or 1), the dew kept at entry, the stones given. null: nothing. */
+export function atlasCoreNormalizeStarGains(env, raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const stones = (Array.isArray(raw.stones) ? raw.stones : []).slice(0, 2).map(row => atlasCoreNormalizeGivenStone(env, row)).filter(Boolean);
+    const gains = { dew: raw.dew === 1 ? 1 : 0, dewKept: raw.dewKept === true, stones };
+    return gains.dew || gains.dewKept || stones.length ? gains : null;
 }
 
 /** What the clear or the failure gave besides loot (presentation only: loading it never grants anything). */
 function normalizeGiven(env, raw, failed) {
     const granted = failed || !Array.isArray(raw.granted) ? [] : raw.granted.slice(0, env.MAP_NODES.length).map(row => atlasCoreNormalizeGivenStone(env, row)).filter(Boolean);
-    return { granted, boxes: failed ? null : atlasCoreNormalizeBoxes(env, raw.boxes), refund: failed ? atlasCoreNormalizeGivenStone(env, raw.refund) : null };
+    return { granted, boxes: failed ? null : atlasCoreNormalizeBoxes(env, raw.boxes), refund: failed ? atlasCoreNormalizeGivenStone(env, raw.refund) : null,
+        stars: failed ? null : atlasCoreNormalizeStarGains(env, raw.stars) };
 }
 
 export function atlasCoreNormalizeResult(env, raw) {

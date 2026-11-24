@@ -11,6 +11,7 @@ import { atlasFindReceiveMemoryLeaf } from './atlas-finds-memory.mjs';
 export function createAtlasFinds(deps) {
     const env = { deps };
     env.MAP_BOSS_KINDS = new Set(['map', 'guardian']);
+    env.FINE_FLOOR = Object.freeze({ normal: 'magic', magic: 'rare' });
     return Object.freeze({ onAtlasKill: (...args) => atlasFindOnAtlasKill(env, ...args), dressTreasurePack: (...args) => atlasFindDressTreasurePack(env, ...args), receiveMemoryLeaf: (...args) => atlasFindReceiveMemoryLeaf(env, ...args),
         openGearBoxes: (...args) => atlasFindOpenGearBoxes(env, ...args) });
 }

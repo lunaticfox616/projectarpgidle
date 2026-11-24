@@ -65,7 +65,7 @@ export function lootConsumeRoll(env, iterator, say) {
 function logOrPresentNotice(env, note, say) {
     const args = lootLogArguments(env, note);
     if (!args) return notices[note.action](env, note);
-    if (note.action === 'equipmentLog' || note.action === 'beeEvent') env.deps.addLog(...args);
+    if (note.action === 'equipmentLog') env.deps.addLog(...args);
     else if (!note.deferred) say(...args);
 }
 

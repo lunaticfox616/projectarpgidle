@@ -30,7 +30,6 @@ const atlasUi = createAtlasView({
     get atlasChartArt() { return atlasChartArt; },
     get ResizeObserver() { return typeof ResizeObserver === 'undefined' ? undefined : ResizeObserver; },
     get showInfoTooltipHtml() { return typeof showInfoTooltipHtml === 'undefined' ? undefined : showInfoTooltipHtml; },
-    get ATLAS_PASSIVES() { return ATLAS_PASSIVES; },
     get atlasPassives() { return atlasPassives; },
     get atlasEndgame() { return atlasEndgame; },
     get atlasEncounters() { return atlasEncounters; },

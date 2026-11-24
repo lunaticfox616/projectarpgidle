@@ -92,27 +92,6 @@
 #ui-atlas .as-go .atlas-primary{min-width:120px;padding:8px 18px;font-size:15px}
 #ui-atlas .as-loaded{display:inline-flex;align-items:center;gap:6px;font-size:12px}
 #ui-atlas .as-loaded b{min-width:20px;padding:0 4px;border:2px solid var(--tone);color:var(--tone);font-weight:400;text-align:center}
-/* 패시브 쪽: 왼쪽 줄에 다섯 바퀴의 작은 그림, 가운데 고른 바퀴, 오른쪽에 노드 설명과 합계, 아래에 포인트 막대 */
-#ui-atlas .as-passives{display:grid;grid-template-columns:156px minmax(0,1fr);gap:10px 14px;padding:10px 12px}
-#ui-atlas .as-wheel-rail{display:grid;gap:5px;align-content:start}
-#ui-atlas .as-passives .as-wheel-rail>button{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto auto;gap:1px 8px;align-items:center;min-height:0;padding:4px 6px;text-align:left;font-size:12px}
-#ui-atlas .as-wheel-rail .atlas-wheel-art{grid-row:1/-1;width:48px;margin:0}
-#ui-atlas .as-wheel-rail b{font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#f4ead6);line-height:1.2}
-#ui-atlas .as-wheel-rail small{color:var(--atlas-muted);font-size:11px}
-#ui-atlas .as-wheel-rail i{height:3px;background:linear-gradient(90deg,var(--tint) var(--fill),#2a2218 var(--fill))}
-#ui-atlas .as-wheel-rail>button[aria-pressed="true"]{box-shadow:inset 3px 0 0 var(--tint);background:color-mix(in srgb,var(--tint) 16%,var(--atlas-raised))}
-#ui-atlas .as-passives .atlas-wheel{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);column-gap:16px;align-items:start}
-#ui-atlas .as-passives .atlas-wheel[hidden]{display:none}
-#ui-atlas .as-wheel-side h3{margin:0 0 4px;font-size:15px;font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#fff4d6)}
-#ui-atlas .as-wheel-side h4{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--atlas-line);font-size:12px;font-weight:400;color:var(--atlas-gold)}
-#ui-atlas .as-wheel-side .atlas-wheel-note{min-height:54px;margin:0;font-size:12px}
-#ui-atlas .as-passive-totals{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:12px}
-#ui-atlas .as-passive-totals li{display:flex;justify-content:space-between;gap:8px;padding:1px 0;border-bottom:1px dotted #2a2218}
-#ui-atlas .as-passive-totals b{font-weight:400;color:#9fd46a;white-space:nowrap}
-#ui-atlas .as-passive-points{grid-column:1/-1;position:relative;margin:0;height:18px;border:1px solid var(--atlas-edge);background:#0c0a08}
-#ui-atlas .as-passive-points::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#4f9a93,#2c5f5a)}
-#ui-atlas .as-passive-points b{position:relative;display:block;padding:0 8px;line-height:16px;font-weight:400;font-size:12px;color:#e6fffb;text-shadow:1px 1px 0 #000}
-@container (max-width:640px){#ui-atlas .as-passives{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-wheel-rail{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}#ui-atlas .as-passives .atlas-wheel{grid-template-columns:minmax(0,1fr)}}
 /* 세계 지도의 아틀라스 입구(js/world-map-ui.js atlasEntranceHtml): 글 없이 표식만. 누르면 색이 뒤집히고(.is-turning) 그 자리에서 새 그림이 원으로 퍼진다(.wm-turn).
    아틀라스 지도의 같은 자리에는 세계 지도로 돌아가는 단추(.as-home)가 서고 같은 전환이 거꾸로 돈다. */
 #ui-exploration-atlas .wm-atlas-entrance.is-icon,#ui-atlas .atlas-sheet button.as-home{position:absolute;z-index:6;width:clamp(30px,5cqw,40px);height:clamp(30px,5cqw,40px);min-height:0;padding:0;border:0;background:none;box-shadow:none;transform:translate(-50%,-50%);cursor:pointer}
@@ -128,4 +107,58 @@
 /* 좁은 창: 서랍이 차트 아래로, 도크는 세로로. 휴대폰의 단추는 누르는 자리 44px를 지키므로(공통 규칙) 표식도 그 크기로 서고, 천문도는 예순 표식이
    서로 덮지 않는 너비(900px)를 지킨 채 옆으로 민다. */
 @container (max-width:640px){#ui-atlas .as-body{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-chart-box{overflow-x:auto}#ui-atlas .as-chart{min-width:900px}#ui-atlas .atlas-sheet button.as-node,#ui-atlas .atlas-sheet button.as-node.kind-gate{--n:44px}#ui-atlas .as-stone{font-size:13px}#ui-atlas .as-drawer{contain:none;overflow:visible}#ui-atlas .as-dock{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-go{justify-items:stretch;max-width:none}}
+/* 패시브 별자리(js/atlas-passives-ui.js, 개편 2026-11-24 B): 왼쪽에 세 기둥(태양, 세계수, 달)의 별 판, 오른쪽에 포인트 줄과 고른 별의 상자.
+   별은 판의 백분율 자리에 선 단추(누르는 자리는 별 그림보다 넓다), 이음은 그 아래 SVG 선. 이음은 한쪽 끝이 할당되기 전까지 점선, 권역을
+   넘는 이음은 푸른 회색, 양쪽 끝을 할당하면 굵다. 색은 이 화면의 --atlas-* 와 갈래의 빛깔(태양 금빛, 세계수 이끼빛, 달 은빛)만 쓴다. */
+#ui-atlas .atlas-stars{--ast-solar:#e0b062;--ast-interior:#a9c77a;--ast-lunar:#a9bedc;display:grid;grid-template-columns:minmax(0,1fr) 260px;grid-template-rows:auto minmax(0,1fr);grid-template-areas:"board points" "board side";gap:12px 14px;padding:12px 14px}
+#ui-atlas .ast-board-box{grid-area:board}
+#ui-atlas .ast-points{grid-area:points}
+#ui-atlas .ast-side{grid-area:side}
+#ui-atlas .ast-board-box{min-width:0;border:1px solid #5a4322;box-shadow:0 0 0 1px #c7ac6333,0 6px 18px #00000080;background:radial-gradient(ellipse at 50% 40%,#1c1824,#0f0d13 70%)}
+#ui-atlas .ast-heads{position:relative;height:30px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .ast-heads b{position:absolute;left:calc(var(--x) * .9 + 5%);top:50%;transform:translate(-50%,-50%);font-weight:400;font-size:14px;letter-spacing:2px}
+#ui-atlas .ast-heads b.side-solar{color:var(--ast-solar)}
+#ui-atlas .ast-heads b.side-interior{color:var(--ast-interior)}
+#ui-atlas .ast-heads b.side-lunar{color:var(--ast-lunar)}
+/* 판: 별의 자리(0~100)를 안쪽 90%에 펴서 가장자리 별과 이름이 잘리지 않는다 */
+#ui-atlas .ast-board{position:relative;height:clamp(420px,62vh,600px);margin:0 5% 0;padding:0}
+#ui-atlas .ast-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+#ui-atlas .ast-links line{stroke:#6b5a3e;stroke-width:1.5px;stroke-dasharray:4 4;opacity:.75}
+#ui-atlas .ast-links line.is-cross{stroke:#62788a;stroke-dasharray:2 4}
+#ui-atlas .ast-links line.is-lit{stroke:#a88a52;stroke-dasharray:none;opacity:1}
+#ui-atlas .ast-links line.is-lit.is-cross{stroke:#8aa3b6}
+#ui-atlas .ast-links line.is-done{stroke:var(--atlas-gold-hi);stroke-width:3px;stroke-dasharray:none;opacity:1}
+#ui-atlas .ast-links line.is-done.is-cross{stroke:#c3d6e6}
+#ui-atlas .atlas-stars button.ast-star{--tone:var(--ast-interior);position:absolute;left:var(--x);top:var(--y);z-index:2;width:34px;height:34px;margin:-17px 0 0 -17px;min-width:0;min-height:0;padding:0;border:0;background:none;box-shadow:none;cursor:pointer;overflow:visible}
+#ui-atlas .atlas-stars button.ast-star.side-solar{--tone:var(--ast-solar)}
+#ui-atlas .atlas-stars button.ast-star.side-lunar{--tone:var(--ast-lunar)}
+/* 별 그림: 마름모 돌. 잠긴 별은 어둡고, 할당할 수 있는 별은 테만 빛나고, 할당한 별은 갈래의 빛깔로 찬다. 시작 별은 겹테, 관(최종 별)은 크고 바깥 테 */
+#ui-atlas .ast-star i{position:absolute;left:50%;top:50%;width:14px;height:14px;transform:translate(-50%,-50%) rotate(45deg);border:2px solid #4d4436;background:#17141b}
+#ui-atlas .ast-star.is-open i{border-color:var(--tone);background:#221d18;animation:as-beckon 1.8s steps(4,end) infinite}
+#ui-atlas .ast-star.is-taken i{border-color:#fff1c9;background:var(--tone);box-shadow:0 0 6px var(--tone)}
+#ui-atlas .ast-star.kind-start i{outline:2px solid color-mix(in srgb,var(--tone) 55%,transparent);outline-offset:2px}
+#ui-atlas .ast-star.kind-keystone i{width:18px;height:18px;outline:2px solid color-mix(in srgb,var(--tone) 70%,transparent);outline-offset:3px}
+#ui-atlas .ast-star span{position:absolute;left:50%;top:calc(100% - 4px);transform:translateX(-50%);padding:0 3px;background:#0f0d13cc;color:var(--atlas-muted);font-size:12px;line-height:1.3;white-space:nowrap;pointer-events:none}
+#ui-atlas .ast-star.is-taken span{color:var(--atlas-ink)}
+#ui-atlas .ast-star:is(.is-focus,:hover,:focus-visible){z-index:3}
+#ui-atlas .ast-star:is(.is-focus,:hover,:focus-visible) i{filter:drop-shadow(0 0 3px #fff4d6);animation:none}
+#ui-atlas .ast-star.is-focus span{color:#fff4d6;outline:1px solid var(--atlas-edge)}
+/* 오른쪽: 포인트 줄과 고른 별 */
+#ui-atlas .ast-side{display:grid;align-content:start;gap:10px;min-width:0}
+#ui-atlas .ast-points{display:grid;gap:4px}
+#ui-atlas .ast-meter{position:relative;margin:0;height:20px;border:1px solid var(--atlas-edge);background:#0c0a08}
+#ui-atlas .ast-meter::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#b98f45,#7c5b24)}
+#ui-atlas .ast-meter b{position:relative;display:block;padding:0 8px;line-height:18px;font-weight:400;font-size:12px;color:#fff1c9;text-shadow:1px 1px 0 #000}
+#ui-atlas .ast-next{margin:0;font-size:12px;color:var(--atlas-muted)}
+#ui-atlas .ast-detail{--tone:var(--ast-interior);display:grid;gap:6px;padding:10px 12px;border:1px solid var(--atlas-edge);border-left:3px solid var(--tone);background:var(--atlas-panel)}
+#ui-atlas .ast-detail.side-solar{--tone:var(--ast-solar)}
+#ui-atlas .ast-detail.side-lunar{--tone:var(--ast-lunar)}
+#ui-atlas .ast-detail small{color:var(--atlas-muted);font-size:12px}
+#ui-atlas .ast-detail h3{margin:0;font-size:16px;font-weight:400;color:color-mix(in srgb,var(--tone) 45%,#fff4d6)}
+#ui-atlas .ast-detail p{margin:0;font-size:13px;line-height:1.5}
+#ui-atlas .ast-detail .ast-reason{color:#e0a08a;font-size:12px}
+#ui-atlas .ast-detail .atlas-primary{justify-self:start;min-width:110px;min-height:36px;padding:6px 16px}
+/* 좁은 창: 포인트 줄, 판, 고른 별의 상자가 한 줄로. 상자는 화면 아래에 붙고(고른 별이 그 밑에 깔리면 js/atlas-passives-ui.js pick이 별을 가운데로 민다),
+   판 아래에 상자만큼의 자리를 둔다. 휴대폰의 별은 누르는 자리 44px(공통 규칙), 판은 별 사이가 그보다 넓은 높이 */
+@container (max-width:640px){#ui-atlas .atlas-stars{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-template-areas:"points" "board" "side";padding:8px}#ui-atlas .ast-side{position:sticky;bottom:0;z-index:4;padding-top:6px;background:linear-gradient(180deg,transparent,var(--atlas-deep) 8px)}#ui-atlas .ast-board{height:560px;margin:0 4%}#ui-atlas .atlas-stars button.ast-star{width:44px;height:44px;margin:-22px 0 0 -22px}#ui-atlas .ast-star span{font-size:11px;top:calc(100% - 9px)}#ui-atlas .ast-detail .atlas-primary{min-height:44px;min-width:150px}}
 }

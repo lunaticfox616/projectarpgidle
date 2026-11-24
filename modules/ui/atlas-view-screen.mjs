@@ -6,7 +6,7 @@ import { resultHtml } from './atlas-view-results.mjs';
 
 /** The views for the map window's second tab row: { select(id), items: [{ id, label, badge, on }] }. */
 export function pages(runtime) {
-    const free = runtime.deps.atlasPassives.spendable(runtime.deps.game), memories = runtime.deps.memoryDungeon.total(runtime.deps.game);
+    const free = runtime.deps.atlasPassives.available(runtime.deps.game), memories = runtime.deps.memoryDungeon.total(runtime.deps.game);
     const badges = { passives: free ? `+${free}` : '', memory: memories ? String(memories) : '' };
     return { select: runtime.handlers.setView, items: runtime.state.VIEW_TABS.filter(([id]) => viewOpen(runtime, id)).map(([id, label]) => ({ id, label, badge: badges[id], on: runtime.state.view === id })) };
 }
@@ -20,10 +20,10 @@ export function progressLine(runtime) {
 
 export function headerHtml(runtime) {
     // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).
-    const st = ledger(runtime), total = runtime.deps.atlas.nodes.length + (runtime.deps.atlasEndgame.awakened(runtime.deps.game) ? runtime.deps.atlas.lateNodes.length : 0), free = runtime.deps.atlasPassives.spendable(runtime.deps.game);
+    const st = ledger(runtime), total = runtime.deps.atlas.nodes.length + (runtime.deps.atlasEndgame.awakened(runtime.deps.game) ? runtime.deps.atlas.lateNodes.length : 0), free = runtime.deps.atlasPassives.available(runtime.deps.game);
     const stat = (label, value, tone) => `<span class="atlas-stat" style="--stat-tone:${tone}">${label} <b>${value}</b></span>`;
     const stats = stat('완료', `${st.completed.length}/${total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
-        + stat('씨앗', `${st.seeds}/${runtime.deps.ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${runtime.deps.atlas.points(runtime.deps.game)}${free ? (0, runtime.deps._t)(' (남음 {free})', { free }) : ''}`, '#7fd6cf');
+        + stat('씨앗', `${st.seeds}/${runtime.deps.ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${runtime.deps.atlasPassives.points(runtime.deps.game)}${free ? (0, runtime.deps._t)(' (남음 {free})', { free }) : ''}`, '#7fd6cf');
     return `<header class="atlas-head"><span class="atlas-stats">${stats}</span>
             <label class="atlas-auto" data-tip="${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '자동 지도 · 정점 정복 후')}</span>
             <small>${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}</small></label></header>`;

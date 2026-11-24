@@ -77,7 +77,7 @@ const DEFAULT_GAME_BLUEPRINT = {
     // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted} (grants may exceed ATLAS.stashCap); run: the open map
     // {map,portals,dew,drops,returnZoneId} (dew: a 형체 없는 이슬 entry). lastResult also lists granted/refund stones and 장비 상자.
     // sextant: 시작 육분의 activated this epoch (opens the four tier 1 maps). A map item's tier is its chart tier 1..10 (js/atlas.js gameTier).
-    // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
+    // passives: allocated passive star ids (ATLAS.starChart.passive, js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
     // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).
     // endgame: the awakened late atlas (js/atlas-endgame.js) — kills, materials, blight, witness; survives loops, not the epoch.
     atlas: { version: 1, unlocked: false, sextant: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, autoGuardians: true, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
