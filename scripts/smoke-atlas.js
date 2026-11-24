@@ -1,11 +1,13 @@
 // 세계수 아틀라스 (data/atlas-chart.js · data/atlas.js · js/atlas-maps.js · js/atlas.js · js/atlas-run.js, docs/atlas-endgame-20260930.md 3절):
-// the star chart (50 maps, 10 closed boss gates, one parent each, 시작 육분의) is whole and equals its source JSON, map items follow their
+// the star chart (50 maps, 10 boss gates on the existing fights, one parent each, 시작 육분의) is whole and equals its source JSON, map items follow their
 // rarity rules and crafting roles, a chart tier is exactly as hard as the chaos depth of its game tier at that depth's loop, a map opened
 // from the device is fought through the real combat loop to completion, auto-map, portals, the runs of stage A2 (a stone of the map's own
 // tier, one stone per newly opened map, the last portal's refund, the dew entry, 장비 상자 rolled from the run's stone, stones delivered
 // over the stash cap), the passive stars of stage B (milestone points with the epoch perk and the cap, start stars, links, taking back,
-// no change during a run, trimming on load, 시대 재생, every bonus key on its own side only, seeded rolls), save round trips, the loop reset, and a save
-// from before the chart (old node ids, game-tier stones, an open map) is moved once and never twice.
+// no change during a run, trimming on load, 시대 재생, every bonus key on its own side only, seeded rolls), the boss gates of stage C (the chart's
+// open rule, a free first kill with 3 portals, the existing cost afterwards, kills under the existing ids, guardian stones by branch, 「나이테 왕」,
+// the 최종 tab following the gate), save round trips, the loop reset, and a save from before the chart (old node ids, game-tier stones, an open
+// map) is moved once and never twice.
 const fs = require('node:fs');
 const chartTable = require('./build-atlas-chart.cjs');
 const assert = require('node:assert/strict');
@@ -42,7 +44,7 @@ const graph = copy(`(() => {
         linksValid: atlas.links.every(([a, b]) => ids.includes(a) && ids.includes(b) && a !== b), links: atlas.links.length,
         routes: ATLAS.starChart.routes.length, hidden: ATLAS.starChart.routes.filter(route => route.hidden).length,
         inside: atlas.nodes.map(node => atlas.position(node)).every(({ x, y }) => x > 3 && x < 97 && y > 3 && y < 97),
-        gateStatus: [...new Set(gates.map(node => atlas.status(state, node.id)))], gateKinds: gates.map(node => node.gate).sort(),
+        gateStatus: gates.map(node => [node.id, atlas.status(state, node.id)]), gateKinds: gates.map(node => node.gate).sort(), fights: gates.map(node => [node.id, node.fight]),
         legacy: ['roots_g', 'trunk_g', 'canopy_g', 'garden_g', 'sanctum_g', 'pinnacle'].map(id => [atlas.node(id).kind, atlas.nodes.includes(atlas.node(id)), atlas.status(state, id)]),
         content: ['sun1', 'sunWarmQuarry', 'sun4', 'inner1', 'inner2'].map(id => [atlas.node(id).boss, atlas.node(id).act, atlas.node(id).bossVisualId]),
         hosts: [atlas.hosts('roots_0'), atlas.hosts('garden_5'), atlas.hosts('trunk_0'), atlas.hosts('nowhere')] };
@@ -61,9 +63,12 @@ assert.deepEqual([graph.routes, graph.hidden, graph.links], [62, 2, 58], '62 rou
 assert.deepEqual(graph.before, [], 'nothing is open before 시작 육분의 is activated');
 assert.deepEqual(graph.entry.sort(), ['inner1', 'inner2', 'moon1', 'sun1'], 'the sextant opens the four tier 1 maps');
 assert.deepEqual([graph.reached, graph.steps], [50, 10], 'clearing maps outward opens every map, one tier at a time');
-assert.deepEqual(graph.gateStatus, ['locked'], 'the boss gates stay closed whatever is cleared (stage C wires them)');
+assert.deepEqual(Object.fromEntries(graph.gateStatus), { sunBoss: 'locked', moonBoss: 'locked', gardener: 'open', abyss: 'open', outerSun: 'locked', outerMoon: 'locked',
+    rootsGuardian: 'open', furnaceGuardian: 'open', memoryGuardian: 'open', weavingGuardian: 'open' }, 'every map cleared: the guardians and tree bosses open, keys and region bosses still wait');
 assert.deepEqual(graph.gateKinds, ['guardian', 'guardian', 'guardian', 'guardian', 'outer', 'outer', 'region', 'region', 'tree', 'tree']);
-assert.deepEqual(graph.legacy, [...Array(5).fill(['guardian', false, 'locked']), ['pinnacle', false, 'locked']], 'the old guardians and pinnacle stay defined, off the chart and closed');
+assert.deepEqual(Object.fromEntries(graph.fights), { sunBoss: 'pinnacle_underking', moonBoss: 'cosmos_astra', gardener: 'apex_gardener', abyss: 'pinnacle', outerSun: 'woodsman',
+    outerMoon: 'pinnacle_observer', rootsGuardian: 'roots_g', furnaceGuardian: 'garden_g', memoryGuardian: 'sanctum_g', weavingGuardian: 'canopy_g' }, 'the stage C pairing table');
+assert.deepEqual(graph.legacy, [...Array(5).fill(['guardian', false, 'open']), ['pinnacle', false, 'open']], 'the guardians and the pinnacle stay off the chart and open with their gate (「나이테 왕」 with an inner T10 map)');
 assert.deepEqual(graph.content, [['검은 뿌리의 잔영', 1, 'atlas-roots-0'], ['검은 뿌리의 잔영', 1, 'atlas-roots-0'], ['정원사의 흐린 메아리', 2, 'atlas-garden-0'], ['틈새 사냥꾼', 7, 'atlas-trunk-0'], ['틈새 사냥꾼', 7, 'atlas-trunk-0']],
     'a map borrows the rows of its region in branch order and starts over past the ninth');
 assert.deepEqual(graph.hosts, [['sun1', 'sunWarmQuarry'], ['sun4'], ['inner1', 'innerGardenSeal', 'inner2', 'innerWillThreshold'], []], 'old node ids resolve to the maps that took their rows');
@@ -193,7 +198,7 @@ assert.equal(copy(`[1, 30].map(season => { game.season = season; const hp = crea
     assert.match(manage("atlas.begin(game, 4, 29, () => .5, 'sunMossBend')"), /아직 열리지 않은/, 'matching stones do not bypass progression');
     assert.match(manage("atlas.begin(game, 5, 29, () => .5, 'roots_g')"), /아직 열리지 않은/, 'an old guardian stone is kept but its guardian is closed');
     assert.match(manage("atlas.begin(game, 5, 29)"), /입장할 수 있는 지도가 없습니다/);
-    assert.match(manage("for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;atlas.beginPinnacle(game, 29)"), /아직 열리지 않은/, 'the old pinnacle is closed even with its tickets');
+    assert.match(manage("for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;atlas.beginGate(game, 'abyss', 29)"), /어머니나무 문턱 완료 뒤에 열립니다/, 'the pinnacle waits for its gate even with its tickets');
     assert.equal(manage("ATLAS.pinnacle.tickets.every(key => game.currencies[key] === 1)"), true, 'and takes none');
     assert.equal(manage('game.atlas.stash.length'), 5, 'blocked entry spends nothing');
     assert.equal(manage("atlas.begin(game, 1, 29, () => .5, 'moon1')"), '', 'a stone opens any open map of its tier');
@@ -218,11 +223,11 @@ const stashSafety = copy(`(() => {
     atlas.begin(state, 1, 29, () => .5);
     const activeBefore = JSON.stringify(state.atlas), activeReason = atlas.discard(state, 2);
     const activeSafe = activeBefore === JSON.stringify(state.atlas);
-    // The held-drop limit holds, and no old guardian stone drops while the old guardians are closed.
+    // The held-drop limit holds; the T10 boss of the furnace branch drops its guardian's stone (that guardian is open) and it is kept first.
     state.atlas.run.drops = Array.from({ length: ATLAS.stashCap }, () => ({ ...atlasMaps.create('sun1', 1), uid: state.atlas.nextUid++ }));
     const rolled = atlas.dropFromKill(state, atlas.zone(state), { isBoss: true }, () => 0);
     const bossStones = rolled.filter(map => atlas.node(map.node).kind !== 'map').length, heldCount = state.atlas.run.drops.length;
-    const dropTiers = rolled.map(map => map.tier);
+    const dropTiers = rolled.filter(map => atlas.node(map.node).kind === 'map').map(map => map.tier);
     atlas.complete(state);
     const existingSafe = JSON.stringify(state.atlas.stash.slice(0, ATLAS.stashCap - 1)) === original;
     const missingBefore = JSON.stringify(state.atlas), missingReason = atlas.discard(state, -1);
@@ -235,7 +240,7 @@ const stashSafety = copy(`(() => {
 })()`);
 assert.equal(stashSafety.sextantFull, '', '시작 육분의 does not wait for room: its four stones arrive over the cap');
 assert.ok(stashSafety.activeReason && stashSafety.activeSafe, 'an active run blocks stash deletion without partial changes');
-assert.deepEqual([stashSafety.bossStones, stashSafety.heldCount], [0, run('ATLAS.stashCap')], 'held rewards stay under the cap and no closed guardian stone drops');
+assert.deepEqual([stashSafety.bossStones, stashSafety.heldCount], [1, run('ATLAS.stashCap')], 'held rewards stay under the cap and the open guardian stone is kept first');
 assert.ok(stashSafety.dropTiers.length >= 1 && stashSafety.dropTiers.every(tier => tier >= 1 && tier <= 10), 'a tier 10 boss drops stones in chart tiers');
 assert.ok(stashSafety.existingSafe && stashSafety.capped, 'only new rewards compete for room; stored maps are never replaced');
 assert.ok(stashSafety.missingReason && stashSafety.missingSafe, 'a stale uid never deletes another map');
@@ -316,11 +321,11 @@ run('game.pendingLoopDecision=false;');
     settle(`game=mergeDefaults({...game,season:50});${OWNED_ROWS}game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
         game.settings.mapCompleteAction='stop';atlas.sync(game);game.atlas.sextant=true;
         for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;`);
-    assert.match(settle('atlasRun.openPinnacle()'),/아직 열리지 않은/,'the old pinnacle waits for stage C');
+    assert.match(settle("atlasRun.openGate('abyss')"),/완료 뒤에 열립니다/,'the pinnacle waits for its gate');
     assert.equal(settle('game.atlas.run'),null);
-    // 깨어난 아틀라스의 싸움은 그대로다: 예전 정점의 처치 기록이 있는 저장으로 본다.
+    // 깨어난 아틀라스의 싸움은 그대로다: 예전 정점의 처치 기록이 있는 저장으로 본다. 정원사의 메아리는 정원사의 규율 자리가 열려야 한다.
     settle(`game.atlas.endgame.kills.pinnacle=1;for(const item of Object.values(ATLAS_ENDGAME.guardianShears))game.atlas.endgame.items[item]=1;
-        game.atlas.endgame.witness=4;`);
+        game.atlas.endgame.witness=4;game.atlas.completed.push('innerGardenSeal');`);
     assert.equal(settle("atlasRun.openEndgame('apex_gardener')"),'');
     const before=read('game.currencies');
     settle('atlasRun.finish(getZone(game.currentZoneId));');
@@ -505,7 +510,7 @@ for(const action of ['nextZone','stop']) {
         specialRun(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
             game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
             game.settings.mapCompleteAction='${action}';atlas.sync(game);game.atlas.autoMap=true;
-            game.atlas.sextant=true;game.atlas.stash=[{...atlasMaps.create('sun1',1),uid:900}];game.atlas.nextUid=901;
+            game.atlas.sextant=true;game.atlas.stash=[{...atlasMaps.create('sun1',1),uid:900}];game.atlas.nextUid=901;game.atlas.completed=['innerGardenSeal'];
             game.atlas.endgame.kills.pinnacle=1;game.atlas.endgame.items=Object.fromEntries(Object.keys(ATLAS_ENDGAME.items).map(id=>[id,99]));
             for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;`);
         assert.equal(specialRun(open),'');
@@ -820,6 +825,160 @@ for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
     assert.deepEqual(read('mergeDefaults(JSON.parse(serializeSaveState(mergeDefaults(starless)))).atlas'), loaded);
 }
 
+// ---------------------------------------------------------------- the boss gates (stage C): the chart's open rule, the free first kill, the cost afterwards
+{
+    const { run: boss } = fixture(861);
+    const read = code => JSON.parse(boss(`JSON.stringify(${code})`));
+    boss(`game=mergeDefaults({...game,season:50});${OWNED_ROWS}game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+        game.settings.showDeathNotice=false;game.settings.mapCompleteAction='stop';atlas.sync(game);game.atlas.stash=[];game.atlas.sextant=true;
+        var chartMaps = atlas.nodes.filter(node => node.kind === 'map').map(node => node.id);
+        var give = (node, tier) => { const map = { ...atlasMaps.create(node, tier), uid: game.atlas.nextUid++ }; game.atlas.stash.push(map); return map.uid; };
+        var fight = gate => { const opened = atlasRun.openGate(gate); if (!opened) atlasRun.finish(getZone(game.currentZoneId)); return opened; };`);
+    // Each of the ten opens by its chart condition and not before; a region boss needs both guardians; an outer pinnacle its own side's region boss.
+    const opens = read(`atlas.nodes.filter(node => node.kind === 'gate').map(gate => {
+        const others = atlas.nodes.filter(node => node.id !== gate.id).map(node => node.id), needs = [...new Set([...gate.parents, ...gate.keys])];
+        game.atlas.completed = others.filter(id => !needs.includes(id));
+        const before = atlas.status(game, gate.id);
+        game.atlas.completed = others.filter(id => id !== gate.keys[0]);
+        const oneKey = atlas.status(game, gate.id);
+        game.atlas.completed = others;
+        return [gate.id, before, oneKey, atlas.status(game, gate.id)];
+    })`);
+    assert.equal(opens.length, 10);
+    for (const [id, before, oneKey, after] of opens) {
+        assert.deepEqual([before, after], ['locked', 'open'], `${id} opens by its chart condition and not before`);
+        if (['sunBoss', 'moonBoss'].includes(id)) assert.equal(oneKey, 'locked', `${id} needs both guardians`);
+    }
+    assert.deepEqual(read("(game.atlas.completed = [...chartMaps, 'moonBoss'], [atlas.status(game, 'outerSun'), atlas.status(game, 'outerMoon')])"), ['locked', 'open'],
+        'an outer pinnacle needs the region boss of its own side');
+    assert.deepEqual(read("(game.atlas.completed = ['innerWillThreshold'], ['trunk_g', 'pinnacle', 'roots_g'].map(id => atlas.status(game, id)))"), ['open', 'open', 'locked'],
+        'the pinnacle follows its gate, 「나이테 왕」 an inner T10 map, a guardian its gate');
+
+    // A free first entry: nothing spent (a held guardian stone stays), 3 portals; when they run out nothing comes back; a cancel gives nothing either.
+    boss(`game.atlas.completed = chartMaps.filter(id => id !== 'sunKey');var held = give('roots_g', 16);var walletBefore = JSON.stringify(game.currencies);`);
+    assert.equal(boss("atlasRun.openGate('rootsGuardian')"), '');
+    assert.deepEqual(read('[game.atlas.run.free, game.atlas.run.portals, atlas.portalCap(game.atlas.run), game.atlas.run.map.node, game.atlas.stash.length, JSON.stringify(game.currencies) === walletBefore]'),
+        [true, 3, 3, 'roots_g', 1, true], 'the first fight of a guardian spends nothing and has 3 portals');
+    boss('game.atlas.run.portals = 1;var lost = atlas.usePortal(game);game.currentZoneId = 29;');
+    assert.deepEqual(read("[lost.closed, lost.refund === undefined, game.atlas.stash.length, game.atlas.completed.includes('rootsGuardian'), JSON.stringify(game.currencies) === walletBefore]"),
+        [true, true, 1, false, true], 'when the portals run out nothing is refunded and the gate stays open');
+    boss("atlas.beginGate(game, 'rootsGuardian', 29);atlas.cancel(game);");
+    assert.deepEqual(read('[game.atlas.run, game.atlas.stash.length, JSON.stringify(game.currencies) === walletBefore]'), [null, 1, true], 'a cancelled free fight gives nothing back');
+
+    // The kill: the chart node and the existing ledger, the guardian's ticket; no passive point, no 지침 grant, no 장비 상자, no star gains.
+    boss("var pointsBefore = atlasPassives.points(game), ticketBefore = game.currencies.uberRootTicketChaos || 0;");
+    assert.equal(boss("fight('rootsGuardian')"), '');
+    const kill = read(`{ result: game.atlas.lastResult, completed: game.atlas.completed.filter(id => !chartMaps.includes(id)), kills: game.atlas.endgame.kills.roots_g,
+        ticket: (game.currencies.uberRootTicketChaos || 0) - ticketBefore, points: atlasPassives.points(game) - pointsBefore, run: game.atlas.run, zone: game.currentZoneId }`);
+    assert.deepEqual([kill.result.outcome, kill.result.first, kill.completed, kill.kills, kill.ticket, kill.points, kill.run, kill.zone], ['complete', true, ['rootsGuardian'], 1, 1, 0, null, 29],
+        'a guardian kill writes its chart node and the kills ledger and gives its ticket, no passive point');
+    assert.deepEqual([kill.result.granted, kill.result.boxes, kill.result.stars], [[], null, null], 'no 지침 grant, no 장비 상자, no star gains');
+
+    // After the first kill: the existing cost, required and spent (a cancel returns it). The stone opens from the stash or the chart pin.
+    boss("game.atlas.stash = game.atlas.stash.filter(map => map.node !== 'roots_g');");
+    assert.equal(boss("atlasRun.openGate('rootsGuardian')"), '수호자 지도석이 필요합니다.', 'after the first kill the guardian stone is required');
+    boss("var paid = give('roots_g', 16);");
+    assert.deepEqual(read("[atlas.mapDestination(game, game.atlas.stash.find(map => map.uid === paid)).id, atlas.matchesNode(game, game.atlas.stash.find(map => map.uid === paid), atlas.node('rootsGuardian'))]"),
+        ['roots_g', true], 'an old guardian stone goes to the mapped guardian');
+    assert.equal(boss("atlasRun.openGate('rootsGuardian')"), '');
+    assert.deepEqual(read('[game.atlas.run.free, game.atlas.run.map.uid === paid, game.atlas.stash.some(map => map.uid === paid)]'), [false, true, false], 'and it is spent');
+    boss('atlas.cancel(game);game.currentZoneId = 29;');
+    assert.equal(read('game.atlas.stash.some(map => map.uid === paid)'), true, 'a cancelled paid entry returns the stone');
+
+    // Keys: one guardian leaves the region boss closed, the second opens it.
+    assert.match(boss("atlas.gateReason(game, 'sunBoss')"), /검은 화로 수호자 완료 뒤에 열립니다/, 'one key: the region boss stays closed');
+    boss("game.atlas.completed.push('sunKey');");
+    assert.equal(boss("fight('furnaceGuardian')"), '');
+    assert.equal(boss("atlas.status(game, 'sunBoss')"), 'open', 'two keys: it opens');
+
+    // The 최종 tab: 벨라-루 follows its gate (asleep, free the first time); the woodsman waits for its gate, not for the old chain.
+    const late = read(`(() => { const row = atlasEndgame.overview(game).apexes.find(fight => fight.row.id === 'pinnacle_underking');
+        return [atlasEndgame.awakened(game), row.unlocked, row.entry, row.reason, atlasEndgame.entryReason(game, 'woodsman')]; })()`);
+    assert.deepEqual(late.slice(0, 4), [false, true, [], ''], 'asleep, 벨라-루 is open in the 최종 tab with its gate and costs nothing the first time');
+    assert.match(late[4], /태양 권역 보스 완료 뒤에 열립니다/);
+    assert.equal(boss("atlasRun.openEndgame('pinnacle_underking')"), '', 'the 최종 tab starts it through the gate');
+    assert.equal(read('game.atlas.run.free'), true);
+    boss('atlasRun.finish(getZone(game.currentZoneId));');
+    assert.deepEqual(read("[game.atlas.completed.includes('sunBoss'), game.atlas.completed.includes('pinnacle_underking'), game.atlas.endgame.kills.pinnacle_underking, atlas.status(game, 'outerSun')]"),
+        [true, true, 1, 'open'], 'the kill completes the gate and the fight; the outer pinnacle of its side opens');
+    assert.match(boss("atlas.gateReason(game, 'sunBoss')"), /재료가 부족합니다/, 'after the first kill the offering is required');
+    boss('game.currencies.altarEmber = 6;game.currencies.altarIchor = 6;');
+    assert.equal(boss("atlasRun.openGate('sunBoss')"), '');
+    assert.deepEqual(read("[game.atlas.run.free, atlasEndgame.count(game, 'ember'), atlasEndgame.count(game, 'ichor')]"), [false, 0, 0], 'and spent');
+    boss('atlas.cancel(game);game.currentZoneId = 29;');
+    assert.deepEqual(read("[atlasEndgame.count(game, 'ember'), atlasEndgame.count(game, 'ichor')]"), [6, 6], 'a cancelled paid entry returns the offering');
+
+    // 의지의 어머니나무: the first 세계수의 그림자 kill wakes the atlas and gives a seed; afterwards the four tickets.
+    boss("game.atlas.completed.push('innerWillThreshold');var seedsBefore = game.atlas.seeds;");
+    assert.equal(boss("fight('abyss')"), '');
+    assert.deepEqual(read("[atlasEndgame.awakened(game), game.atlas.seeds - seedsBefore, game.atlas.completed.includes('abyss'), game.atlas.completed.includes('pinnacle'), game.atlas.endgame.kills.pinnacle]"),
+        [true, 1, true, false, 1], 'the first 세계수의 그림자 kill wakes the atlas and gives a seed');
+    assert.match(boss("atlas.gateReason(game, 'abyss')"), /뿌리 입장권 4종/, 'then the four tickets are required');
+    boss('for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;');
+    assert.equal(boss("atlasRun.openGate('abyss')"), '');
+    assert.deepEqual(read('ATLAS.pinnacle.tickets.map(key => game.currencies[key])'), [0, 0, 0, 0], 'and spent');
+    boss('atlas.cancel(game);game.currentZoneId = 29;');
+    // A guardian kill lets the 최종 tab's ancient gate through; a guardian not killed still holds its gate.
+    assert.equal(boss("atlasEndgame.ancientGate(game, 'apex_devourer')"), '', 'the chart guardian\'s kill feeds the ancient gate');
+    assert.match(boss("atlasEndgame.entryReason(game, 'apex_devourer')"), /재료가 부족합니다/);
+    assert.ok(boss("atlasEndgame.ancientGate(game, 'pinnacle_leviathan')"));
+
+    // Guardian stones drop only from the branch's T8 to T10 map bosses once that guardian is open (「나이테 왕」: 세계수 내면 T8+ once an inner T10 is cleared).
+    const drops = read(`(() => {
+        const roll = (node, tier) => { const uid = give(node, tier); atlas.begin(game, uid, 29, () => .5, node);
+            const found = atlas.dropFromKill(game, atlas.zone(game), { isBoss: true }, () => 0).filter(map => atlas.node(map.node).kind === 'guardian').map(map => map.node);
+            atlas.cancel(game); return found; };
+        game.atlas.completed = chartMaps.filter(id => !['sunWarmQuarry', 'innerGardenSeal', 'innerWillThreshold'].includes(id));
+        const closed = [roll('sunBarkCoast', 8), roll('innerOldHeart', 8)];
+        game.atlas.completed.push('sunWarmQuarry', 'innerGardenSeal');
+        return { closed, open: [roll('sunBarkCoast', 8), roll('sunWarmQuarry', 10), roll('sunBrassStep', 7), roll('sun5', 8), roll('innerOldHeart', 8), roll('sun3', 5)] };
+    })()`);
+    assert.deepEqual(drops.closed, [[], []], 'no guardian stone while its guardian is closed');
+    assert.deepEqual(drops.open, [['roots_g'], ['roots_g'], [], ['garden_g'], ['trunk_g'], []], 'T8 to T10 of its own branch only');
+    // 「나이테 왕」: no gate, only its stone from the stash, no free fight; a kill counts in the ledger and writes nothing on the chart.
+    const ring = read(`(() => {
+        game.atlas.completed = chartMaps.filter(id => !['innerGardenSeal', 'innerWillThreshold'].includes(id));
+        const uid = give('trunk_g', 16), before = atlas.beginReason(game, uid);
+        game.atlas.completed.push('innerWillThreshold');
+        const opened = atlas.begin(game, uid, 29, () => .5), free = game.atlas.run.free, node = game.atlas.run.map.node, killsBefore = game.atlas.endgame.kills.trunk_g || 0;
+        atlas.complete(game);
+        return { before, gate: atlas.gateOf('trunk_g'), opened, free, node, kills: game.atlas.endgame.kills.trunk_g - killsBefore, completed: game.atlas.completed.includes('trunk_g') };
+    })()`);
+    assert.match(ring.before, /입장할 수 있는 지도가 없습니다/, '「나이테 왕」 waits for an inner T10 map');
+    assert.deepEqual([ring.gate, ring.opened, ring.free, ring.node, ring.kills, ring.completed], [null, '', false, 'trunk_g', 1, false],
+        'then its stone opens it; the kill is counted and nothing is written on the chart');
+
+    // Star effects do not touch a boss fight.
+    boss(`game.atlas.completed = [...chartMaps, 'rootsGuardian'];game.atlas.passives = atlasPassives.branches.find(row => row.side === 'solar').stars;
+        atlas.beginGate(game, 'furnaceGuardian', 29);`);
+    assert.deepEqual([Object.values(read('game.atlas.run.stars')).every(value => value === 0), read('game.atlas.run.portals')], [true, 3], 'star effects do not touch a boss fight');
+    // A stage C save inside a free fight resumes it; loading twice changes nothing; a fight whose gate is closed in the save is closed and gives nothing back.
+    boss('var midFree = JSON.parse(serializeSaveState(game));');
+    const mid = read('mergeDefaults(midFree).atlas');
+    assert.deepEqual([mid.run.free, mid.run.map.node, mid.run.portals], [true, 'garden_g', 3]);
+    assert.deepEqual(read('mergeDefaults(JSON.parse(serializeSaveState(mergeDefaults(midFree)))).atlas'), mid, 'loading twice changes nothing');
+    boss("midFree.atlas.completed = midFree.atlas.completed.filter(id => id !== 'sunKey');");
+    assert.deepEqual(read('[mergeDefaults(midFree).atlas.run, mergeDefaults(midFree).atlas.stash.length === midFree.atlas.stash.length]'), [null, true]);
+    boss('atlas.cancel(game);game.atlas.passives = [];');
+
+    // 시대 재생 empties the chart: the first kill is free again.
+    boss("game.atlas.completed = [...chartMaps, 'rootsGuardian'];game.atlas.seeds = ATLAS.seeds.max;");
+    assert.equal(boss('atlasEpoch.rebirth(game)'), '');
+    boss("game.atlas.sextant = true;game.atlas.completed = ['sunWarmQuarry'];");
+    assert.deepEqual(read("[atlas.gateFree(game, 'rootsGuardian'), atlas.gateReason(game, 'rootsGuardian')]"), [true, ''], '시대 재생 makes the first kill free again');
+
+    // A fresh save and a save written by stage B (completed maps, a held guardian stone, no free flag) load; loading twice changes nothing.
+    assert.deepEqual(read(`(() => { const state = mergeDefaults({}); return [state.atlas.completed, state.atlas.run,
+        atlas.nodes.filter(node => node.kind === 'gate').every(node => atlas.status(state, node.id) === 'locked'),
+        JSON.stringify(mergeDefaults(JSON.parse(serializeSaveState(state))).atlas) === JSON.stringify(state.atlas)]; })()`), [[], null, true, true], 'a fresh save');
+    const stageB = read(`(() => { const raw = JSON.parse(serializeSaveState(game)); raw.atlas.completed = chartMaps.slice();
+        raw.atlas.stash = [{ ...atlasMaps.create('canopy_g', 16), uid: 5000 }];raw.atlas.nextUid = 5001;raw.atlas.run = null;
+        const once = mergeDefaults(raw), twice = mergeDefaults(JSON.parse(serializeSaveState(once)));
+        return { stash: once.atlas.stash.map(map => map.node), same: JSON.stringify(once.atlas) === JSON.stringify(twice.atlas), weaving: atlas.gateReason(once, 'weavingGuardian'),
+            free: atlas.gateFree(once, 'weavingGuardian') }; })()`);
+    assert.deepEqual(stageB, { stash: ['canopy_g'], same: true, weaving: '', free: true }, 'a stage B save: the guardian stone stays, the guardian opens free');
+}
+
 // ---------------------------------------------------------------- save boundary and the loop
 run(`game.atlas.stash.push({uid:-4,node:'nowhere',tier:1,rarity:'rare',mods:[]},{uid:game.atlas.stash[0].uid,node:'sunMossBend',tier:2,rarity:'normal',mods:[]},
     {uid:900,node:'sunMossBend',tier:2,rarity:'magic',mods:[{id:'monsterLife',roll:2},{id:'bogus',roll:0.5},{id:'monsterCrit',roll:0.5},{id:'monsterCrit',roll:0.1}],quality:99});`);
@@ -920,6 +1079,10 @@ assert.equal(copy(`atlas.dropFromKill(game, getZone(getAbyssZoneIdForDepth(12)),
     assert.deepEqual(read('once.currencies'), read('before.currencies'), 'the move grants nothing');
     assert.deepEqual(read('mergeDefaults(JSON.parse(serializeSaveState(once))).atlas'), once, 'loading the moved save again changes nothing');
     assert.deepEqual(read('mergeDefaults(oldSave()).atlas'), once, 'and loading the old save again gives the same result');
+    assert.deepEqual(read(`(() => { const state = mergeDefaults(JSON.parse(serializeSaveState(once))); state.atlas.completed.push('sunWarmQuarry');
+        return [atlas.gateFree(state, 'rootsGuardian'), atlas.gateReason(state, 'rootsGuardian'), atlas.matchesNode(state, state.atlas.stash.find(map => map.uid === 18), atlas.node('rootsGuardian')),
+            state.atlas.endgame.kills.roots_g, ATLAS.pinnacle.tickets.map(key => state.currencies[key])]; })()`), [true, '', true, 1, [2, 2, 2, 2]],
+        'a veteran save gets one free kill per chart boss; its held guardian stone works on the mapped guardian; kill records and tickets stay');
     assert.deepEqual(read("(() => { const half = JSON.parse(serializeSaveState(once)); half.atlas.stash.push(stone(50, 'canopy_8', 16), stone(51, 'sun1', 14)); const state = mergeDefaults(half); return [state.atlas.stash.slice(0, 19), state.atlas.stash.slice(19).map(map => [map.uid, atlas.node(map.node).kind, map.tier])]; })()"),
         [once.stash, [[50, 'map', 10], [51, 'map', 10]]], 'a half-moved save: only what still carries an old id moves, a broken chart tier is capped');
     assert.deepEqual(read('atlas.activateSextant(once, () => .5).maps.length'), 4);
@@ -949,7 +1112,7 @@ assert.equal(copy(`atlas.dropFromKill(game, getZone(getAbyssZoneIdForDepth(12)),
         [[[], [], null, false], [[], [], null, false], [[[4, 1]], [], null, false]], 'garbage, wrong shapes and half-written stones load; a stale open map still gives its stone back');
 }
 
-console.log('atlas: star chart (50 maps, 10 closed gates) = its JSON, 시작 육분의, map rarity/crafting rules, chart tier = chaos depth of its game tier, real map clear, auto-map, portals, entry by tier, first-clear stones, refund, dew entry, 장비 상자, over-cap delivery, passive stars and their side-scoped effects, save/migration, loop reset: OK');
+console.log('atlas: star chart (50 maps, 10 boss gates) = its JSON, 시작 육분의, map rarity/crafting rules, chart tier = chaos depth of its game tier, real map clear, auto-map, portals, entry by tier, first-clear stones, refund, dew entry, 장비 상자, over-cap delivery, passive stars and their side-scoped effects, boss gates on the existing fights, save/migration, loop reset: OK');
 
 // Board rewards survive reload and cannot be settled twice. Independent game fixture.
 for (const action of ['stop', 'nextZone']) {

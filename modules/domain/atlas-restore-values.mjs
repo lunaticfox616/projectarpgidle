@@ -33,8 +33,11 @@ export function atlasCoreRoomTypes(env, value) { return [...new Set(Array.isArra
 function restorePortals(env, raw, map) {
     const chart = atlasCoreChartRun(env, { map, board: raw.board }), stars = env.deps.atlasPassives.normalizeTerms(chart ? raw.stars : null);
     const dew = raw.dew === true && chart, portals = Math.floor(Number(raw.portals));
-    return { portals: portals >= 1 && portals <= atlasCorePortalCap(env, dew, stars) ? portals : 1, dew, dewKept: dew && raw.dewKept === true, stars };
+    return { portals: portals >= 1 && portals <= atlasCorePortalCap(env, dew, stars) ? portals : 1, dew, dewKept: dew && raw.dewKept === true, stars, free: restoreFree(raw, map) };
 }
+
+/** 천문도 보스 자리의 비용 없는 첫 도전(개편 C): 기억 싸움과 원정 판은 아니다. 예전 저장은 없음(false). */
+function restoreFree(raw, map) { return raw.free === true && !map.memory && !raw.board; }
 
 export function atlasCoreNormalizeRun(env, raw, validMap) {
     const map = raw && validMap(raw.map);

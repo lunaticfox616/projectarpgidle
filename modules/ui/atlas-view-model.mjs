@@ -4,6 +4,13 @@ export function flowerWallet(runtime) { return runtime.state.FLOWER_COLORS.flatM
 
 export function ledger(runtime) { return runtime.deps.game.atlas; }
 
+/** 열린 싸움이 선 천문도의 노드: 보스 자리가 치르는 싸움은 그 자리(기억 싸움과 원정 판은 제 노드). 열린 것이 없으면 null. */
+export function runningNode(runtime) {
+    const run = ledger(runtime).run;
+    if (!run) return null;
+    return (!run.board && !run.map.memory && runtime.deps.atlas.gateOf(run.map.node)?.id) || run.map.node;
+}
+
 export function nodeName(runtime, id) { return runtime.deps.atlas.node(id)?.name || ''; }
 
 export function selectedMap(runtime) { return ledger(runtime).stash.find(map => map.uid === runtime.state.selectedUid) || null; }
@@ -24,7 +31,10 @@ export function sortedStash(runtime) { return [...ledger(runtime).stash].sort((a
 
 /** 고른 노드, 고른 것이 없으면 지도석이 갈 곳(js/atlas.js mapDestination), 갈 곳이 아직 없으면(그 등급의 지도가 닫혔다) 지도석이 가리키는 지도. */
 export function selectedDestination(runtime, map) {
-    return runtime.deps.atlas.node(runtime.state.selectedNode) || runtime.deps.atlas.mapDestination(runtime.deps.game, map) || runtime.deps.atlas.node(map.node);
+    const picked = runtime.deps.atlas.node(runtime.state.selectedNode);
+    // 천문도의 보스 자리를 골랐으면 그 자리가 치르는 싸움(수호자 지도석이 여는 곳).
+    if (picked?.kind === 'gate') return runtime.deps.atlas.node(picked.fight);
+    return picked || runtime.deps.atlas.mapDestination(runtime.deps.game, map) || runtime.deps.atlas.node(map.node);
 }
 
 /** 입장 도크의 형체 없는 이슬 선택: 천문도의 일반 지도석일 때만 보이고(shown), 이슬이 없으면 꺼진다(reason). on: 켜 두었고 쓸 수 있다. */

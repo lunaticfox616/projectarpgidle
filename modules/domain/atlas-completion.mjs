@@ -1,23 +1,28 @@
 import { atlasCoreAddFragments, atlasCoreStore, atlasCoreDeliver } from './atlas-inventory.mjs';
-import { atlasCoreCompleted, atlasCoreChartRun, atlasCoreReachable } from './atlas-graph.mjs';
+import { atlasCoreCompleted, atlasCoreChartRun, atlasCoreReachable, atlasCoreClearIds } from './atlas-graph.mjs';
 import { atlasCoreBossSpoils } from './atlas-boss-rewards.mjs';
 import { atlasCoreGrantStone } from './atlas-map-drops.mjs';
 import { atlasCoreNormalizeResultEndgame, atlasCoreCompletedMemoryResult, atlasCoreNormalizeLoot, atlasCoreNormalizeResultMaterials, atlasCoreNormalizeResultMemory, atlasCoreNormalizeBoxes, atlasCoreNormalizeStarGains } from './atlas-receipts.mjs';
 import { atlasStarBoxes, atlasStarClearGains } from './atlas-star-rewards.mjs';
 
 /** Travel failed right after opening: the untouched map (or the pinnacle's tickets) and its fragments go back, and so does a dew
- * entry's 형체 없는 이슬 unless a star kept it (nothing was fought yet). */
+ * entry's 형체 없는 이슬 unless a star kept it (nothing was fought yet). A free first fight of a chart boss (run.free) paid nothing. */
 export function atlasCoreCancel(env, state) {
     const run = state.atlas.run;
     if (!run) return;
     if (run.board) { state.atlas.run = null; return; }
+    if (!run.free) atlasCoreRefundEntry(env, state, run);
+    if (run.dew && !run.dewKept) state.currencies.formlessDew = (state.currencies.formlessDew || 0) + env.deps.ATLAS.dewEntry.cost;
+    atlasCoreAddFragments(env, state, run.spent);
+    state.atlas.run = null;
+}
+
+/** What opening the run took comes back: a memory, the pinnacle's four tickets, a late fight's offering, or the stone itself. */
+function atlasCoreRefundEntry(env, state, run) {
     if (run.map.memory) env.deps.memoryDungeon.refund(state, run.map);
     else if (run.map.node === env.PINNACLE.id) for (const key of env.deps.ATLAS.pinnacle.tickets) state.currencies[key] += 1;
     else if (env.deps.atlasEndgame.isFight(run.map.node)) env.deps.atlasEndgame.refund(state, run.map.node);
     else state.atlas.stash.unshift(run.map);
-    if (run.dew && !run.dewKept) state.currencies.formlessDew = (state.currencies.formlessDew || 0) + env.deps.ATLAS.dewEntry.cost;
-    atlasCoreAddFragments(env, state, run.spent);
-    state.atlas.run = null;
 }
 
 /** 첫 완료가 새로 연 지도마다 그 지도의 일반 지도석 하나(그 지도의 천문도 등급, 그 지도를 가리킨다). 열리기 전과 뒤를 견주므로 부모가 둘인
@@ -47,6 +52,19 @@ export function atlasCoreClearReceipt(env, run, parts) {
         stars: atlasCoreNormalizeStarGains(env, stars) };
 }
 
+/** 완료를 적는다: 지도는 제 id, 천문도의 보스 자리가 치르는 싸움은 그 자리(후반 싸움은 제 id도, atlas-graph atlasCoreClearIds). 기억 싸움은
+ * 노드를 끝낸 것으로 치지 않는다: 시대 재생 뒤 기억으로 길을 건너뛰어 노드를 열거나, 정점의 기억이 아틀라스를 깨우거나, 머리줄 완료가 51을
+ * 넘던 문제(2026-10-18). first: 처음 적었다(보스 자리는 첫 처치), locked: 그 전에 잠겨 있던 지도들(첫 완료가 연 지도의 지도석). */
+function atlasCoreRecordClear(env, state, run) {
+    const record = run.map.memory ? [] : atlasCoreClearIds(env, run.map.node), [place] = record;
+    const first = !!place && !atlasCoreCompleted(state, place);
+    const locked = first ? env.MAP_NODES.filter(node => !atlasCoreReachable(env, state, node.id)) : [];
+    for (const id of record) if (!atlasCoreCompleted(state, id)) state.atlas.completed.push(id);
+    const bonus = !!place && run.map.rarity === 'rare' && !state.atlas.bonus.includes(place);
+    if (bonus) state.atlas.bonus.push(place);
+    return { first, bonus, locked };
+}
+
 /** Boss down: completion (and the bonus for a rare map) count once per node; the run's drops go to the stash, the maps the first clear
  * opened give their stones, the passive stars add theirs, and an ordinary chart map has 장비 상자 to open (gearBoxes, the first of them the
  * map boss's own reward, rolled from boxSeed by the run layer; gearFine of them one rarity step higher). */
@@ -54,13 +72,7 @@ export function atlasCoreComplete(env, state) {
     const run = state.atlas.run;
     if (!run) return null;
     if (run.board) return atlasCoreCompleteBoard(env, state, run);
-    // 기억 싸움은 노드를 끝낸 것으로 치지 않는다: 시대 재생 뒤 기억으로 길을 건너뛰어 노드를 열거나, 정점의 기억이 아틀라스를 깨우거나,
-    // 머리줄 완료가 51을 넘던 문제(2026-10-18).
-    const id = run.map.node, recalled = !!run.map.memory, first = !recalled && !atlasCoreCompleted(state, id);
-    const locked = env.MAP_NODES.filter(node => first && !atlasCoreReachable(env, state, node.id));
-    if (first) state.atlas.completed.push(id);
-    const bonus = !recalled && run.map.rarity === 'rare' && !state.atlas.bonus.includes(id);
-    if (bonus) state.atlas.bonus.push(id);
+    const id = run.map.node, recalled = !!run.map.memory, { first, bonus, locked } = atlasCoreRecordClear(env, state, run);
     const stored = atlasCoreStore(env, state, run.drops), fragments = atlasCoreAddFragments(env, state, run.found);
     const granted = atlasCoreGrantOpened(env, state, locked), boxes = atlasStarBoxes(env, run, first), stars = atlasStarClearGains(env, state, run);
     state.atlas.run = null;

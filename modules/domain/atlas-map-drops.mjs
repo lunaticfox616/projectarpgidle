@@ -1,4 +1,4 @@
-import { atlasCoreReachable, atlasCoreEffectiveTier, atlasCoreMapGameTier, atlasCoreCompleted } from './atlas-graph.mjs';
+import { atlasCoreReachable, atlasCoreEffectiveTier, atlasCoreIsMapStone, atlasCoreChartTierOf, atlasCoreFightCleared } from './atlas-graph.mjs';
 
 /** The highest reachable chart tier at or below `tier`, a random map of it. Before 시작 육분의 is activated no map is open: a stone
  * earned then (the loop's starter stones, a chaos boss's drop) is one of the four entry maps, used once the sextant is on. */
@@ -33,11 +33,21 @@ export function atlasCoreGrantStone(env, state, nodeId, tier, random) {
     return Object.assign(map, { omen: env.deps.lootOmens.roll(state, random), uid: state.atlas.nextUid++ });
 }
 
-/** A boss of a map whose fight tier is 13+ (seeds and corruption count) in a region whose old guardian is open sometimes drops
- * that guardian's map. The old guardians are closed until stage C, so nothing drops now. */
-export function atlasCoreGuardianDrop(env, state, map, random, bonus) {
-    const node = env.BY_ID.get(map.node), guardian = env.BY_ID.get(`${node.region}_g`), rules = env.deps.ATLAS.guardianRules;
-    if (node.kind !== 'map' || atlasCoreMapGameTier(env, state, map) < rules.minTier || !atlasCoreReachable(env, state, guardian.id)) return [];
+/** 그 지도의 보스가 떨어뜨릴 수 있는 수호자 지도석의 수호자(개편 C): 제 갈래(같은 신전)의 중간 보스 자리가 치르는 수호자, 세계수 내면의
+ * 지도는 천문도에 자리가 없는 「나이테 왕」. 태양과 달의 공통 진입로(1~5등급)에는 없다. */
+function atlasCoreBranchGuardian(env, node) {
+    if (node.region === 'trunk') return env.BY_ID.get('trunk_g');
+    const gate = node.temple ? env.GATES.find(row => row.temple === node.temple) : null;
+    return gate ? env.BY_ID.get(gate.fight) : null;
+}
+
+/** The boss of an ordinary map of chart tier ATLAS.guardianRules.minTier or higher (a memory fight: the tier its fight tier reaches)
+ * sometimes drops the stone of its branch's guardian, once that guardian is open. The stone carries the guardian's fight tier. */
+export function atlasCoreGuardianDrop(env, state, run, random, bonus) {
+    const map = run.map, node = env.BY_ID.get(map.node), rules = env.deps.ATLAS.guardianRules;
+    const chartTier = atlasCoreIsMapStone(env, map) && !map.memory ? map.tier : atlasCoreChartTierOf(env, map.tier);
+    const guardian = node.kind === 'map' && chartTier >= rules.minTier ? atlasCoreBranchGuardian(env, node) : null;
+    if (!guardian || !atlasCoreReachable(env, state, guardian.id)) return [];
     if (random() >= rules.dropChance * (1 + bonus.bossMap / 100)) return [];
     return [atlasCoreStamp(env, state, env.deps.atlasMaps.create(guardian.id, atlasCoreEffectiveTier(env, state, guardian), 'normal', random), random, bonus)];
 }
@@ -46,6 +56,6 @@ export function atlasCoreGuardianDrop(env, state, map, random, bonus) {
 export function atlasCorePreferredDrops(env, state, maps, room) {
     if (room <= 0) return [];
     if (maps.length <= room) return maps.slice();
-    const priority = map => env.BY_ID.get(map.node)?.kind === 'guardian' ? Number(atlasCoreCompleted(state, map.node)) : 2;
+    const priority = map => env.BY_ID.get(map.node)?.kind === 'guardian' ? Number(atlasCoreFightCleared(env, state, map.node)) : 2;
     return [...maps].sort((a, b) => priority(a) - priority(b)).slice(0, room);
 }

@@ -272,8 +272,10 @@ const ATLAS = Object.freeze({
     encounterLoopBonus: Object.freeze([Object.freeze({ loop: 50, extra: 1, unlock: 'roomOne' }), Object.freeze({ loop: 75, extra: 1, unlock: 'roomTwo' })]),
     // 깨어난 뒤의 제단(late)은 콘텐츠 방 자리를 나눠 쓰지 않고 따로 이만큼까지(그래서 깨어나도 기존 방 확률이 줄지 않는다).
     altarLimit: 1,
-    // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].
-    // 수호자 지도석은 그 지역 13등급 이상 지도의 보스가 떨어뜨린다(수호자 노드가 열려 있을 때).
+    // 지역 수호자의 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형]. 넷은 천문도의 중간 보스 자리에서
+    // 싸운다(chartFights). 수호자 지도석(다시 들어갈 때)은 그 수호자 갈래(같은 신전의 지도 다섯)의 천문도 minTier 등급 이상 지도 보스가
+    // 떨어뜨린다(그 자리가 열려 있을 때). 「나이테 왕」(trunk)은 천문도에 자리가 없다: ringKingOpens 중 하나를 완료하면 열리고, 세계수 내면의
+    // minTier 등급 이상 지도 보스가 그 지도석을 떨어뜨린다.
     guardians: Object.freeze({
         roots: Object.freeze(['수호자 「검은 뿌리」', 'uberRootTicketChaos', 9, 'guardian-roots']),
         trunk: Object.freeze(['수호자 「나이테 왕」', null, 7, 'guardian-trunk']),
@@ -281,7 +283,12 @@ const ATLAS = Object.freeze({
         garden: Object.freeze(['수호자 「잿불 정원사」', 'uberRootTicketFlame', 4, 'guardian-garden']),
         sanctum: Object.freeze(['수호자 「서리 눈」', 'uberRootTicketFrost', 3, 'guardian-sanctum'])
     }),
-    guardianRules: Object.freeze({ tier: 16, minTier: 13, dropChance: 0.15, hpMul: 2.5, damageMul: 1.3, radius: 9 }),
+    guardianRules: Object.freeze({ tier: 16, minTier: 8, dropChance: 0.15, hpMul: 2.5, damageMul: 1.3, radius: 9 }),
+    ringKingOpens: Object.freeze(['innerGardenSeal', 'innerWillThreshold']),
+    // 천문도의 보스 자리 → 그 자리에서 치르는 기존 싸움(개편 C, 2026-11-24). 짝은 이 표 한 곳에만 있다. 자리는 천문도의 이름과 여는 조건을,
+    // 싸움은 제 보스 이름, 몸, 패턴, 보상, 다시 들어갈 때의 비용을 지닌다. 처치는 싸움의 id로 적는다(처치 기록, 입장권, 가위 조각, 깨어남, 씨앗).
+    chartFights: Object.freeze({ rootsGuardian: 'roots_g', furnaceGuardian: 'garden_g', memoryGuardian: 'sanctum_g', weavingGuardian: 'canopy_g',
+        sunBoss: 'pinnacle_underking', moonBoss: 'cosmos_astra', gardener: 'apex_gardener', abyss: 'pinnacle', outerSun: 'woodsman', outerMoon: 'pinnacle_observer' }),
     // 정점: 뿌리 입장권 4종을 하나씩 바쳐 여는 세계수의 그림자(3단계 보스). 처치마다 씨앗 하나(최대 4).
     pinnacle: Object.freeze({ name: '세계수의 그림자', boss: '세계수의 그림자', bossAct: 9, bossVisualId: 'atlas_pinnacle', act: 1, stages: 3, hpMul: 4, damageMul: 1.5,
         tickets: Object.freeze(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']),

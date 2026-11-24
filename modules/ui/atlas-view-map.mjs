@@ -1,4 +1,4 @@
-import { shownNodes, done, ledger, panelOpen, terrainOf, tierStyle, mapTierStyle, nodeLabel, nodeName, heldLate, encounterNames, selectedMap, TICKET, sortedStash, selectedDestination, stonesForNode, mapLabel, mapName } from './atlas-view-model.mjs';
+import { shownNodes, done, ledger, runningNode, panelOpen, terrainOf, tierStyle, mapTierStyle, nodeLabel, nodeName, heldLate, encounterNames, selectedMap, TICKET, sortedStash, selectedDestination, stonesForNode, mapLabel, mapName } from './atlas-view-model.mjs';
 
 export function chartHtml(runtime) {
     const region = runtime.deps.ATLAS.regions.find(row => row.id === runtime.state.selectedRegion), lore = runtime.deps.ATLAS.lore.regions[runtime.state.selectedRegion];
@@ -19,7 +19,7 @@ export function linkModel(runtime, [a, b]) {
 }
 
 export function chartModel(runtime) {
-    const running = ledger(runtime).run && ledger(runtime).run.map.node;
+    const running = runningNode(runtime);
     const nodes = shownNodes(runtime).map(node => ({ ...runtime.deps.atlas.position(node), kind: node.kind, region: node.regionIndex,
         status: runtime.deps.atlas.status(runtime.deps.game, node.id), selected: node.id === runtime.state.selectedNode, running: node.id === running }));
     return { regions: runtime.deps.ATLAS.regions, flat: true, nodes, links: runtime.deps.atlas.links.filter(([a,b]) => shownNodes(runtime).some(n => n.id === a) && shownNodes(runtime).some(n => n.id === b)).map(runtime.handlers.linkModel), tickets: runtime.deps.ATLAS.pinnacle.tickets.map(key => (runtime.deps.game.currencies[key] || 0) >= 1) };
@@ -67,7 +67,7 @@ export function legendHtml(runtime) {
 export function nodeHtml(runtime, node) {
     const { x, y } = runtime.deps.atlas.position(node), status = runtime.deps.atlas.status(runtime.deps.game, node.id);
     const held = status === 'locked' ? 0 : stonesForNode(runtime, node).length;
-    const active = ledger(runtime).run?.map.node === node.id;
+    const active = runningNode(runtime) === node.id;
     const classes = ['atlas-node', `is-${status}`, `kind-${node.kind}`, node.id === runtime.state.selectedNode ? 'is-selected' : '', active ? 'is-running' : ''].join(' ');
     const tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node);
     // data-info-tooltip-anchor: js/ui.js의 mousemove 감시가 이 표시가 없는 곳의 툴팁을 바로 지워, 지도 이름이 뜨자마자 사라졌다(2026-10-25 사용자).
@@ -209,6 +209,7 @@ export function nodeDetailHtml(runtime) {
     const node = runtime.deps.atlas.node(runtime.state.selectedNode);
     if (!node) return '<section class="atlas-node-detail"><p class="atlas-muted">노드를 누르면 정보가 보입니다. 완료한 노드의 이웃이 열립니다.</p></section>';
     if (node.kind === 'pinnacle') return pinnacleHtml(runtime, node);
+    if (node.kind === 'gate') return gateHtml(runtime, node);
     const region = runtime.deps.ATLAS.regions.find(row => row.id === node.region) || { tint: '#d9b066', name: node.name }, status = runtime.deps.atlas.status(runtime.deps.game, node.id), tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node);
     const maps = stonesForNode(runtime, node).sort((a, b) => b.tier - a.tier), fight = runtime.deps.atlas.gameTier(runtime.deps.game, node);
     const kind = node.kind === 'guardian' ? `<p class="atlas-guardian-note">${(0, runtime.deps._t)('지역 수호자, 처치마다 뿌리 입장권({value}), 지도석은 이 지역 {minTier}등급 이상 보스가 떨어뜨립니다', { value: node.ticket ? TICKET(runtime, node.ticket) : (0, runtime.deps._t)('가장 적은 종류'), minTier: runtime.deps.ATLAS.guardianRules.minTier })}</p>${runtime.deps.itemInfluencesUi.sourceHtml('guardian')}` : '';
@@ -218,16 +219,51 @@ export function nodeDetailHtml(runtime) {
             ${maps.length ? `<div class="atlas-node-maps">${maps.map(runtime.handlers.stashRowHtml).join('')}</div>` : `<p class="atlas-muted">${stoneNeeded(runtime, node) || (0, runtime.deps._t)('수호자 지도석이 필요합니다.')}</p>`}</section>`;
 }
 
-/** 정점: 입장권 4종 · 씨앗 · 열기. 지도석이 아니라 입장권으로 연다. */
+/** 정점(예전 화면): 입장권 4종, 씨앗, 열기. 의지의 어머니나무 자리가 치른다(첫 도전은 비용 없이, 그 뒤에는 입장권으로). */
 export function pinnacleHtml(runtime, node) {
-    const tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node), reason = runtime.deps.atlas.pinnacleReason(runtime.deps.game) || runtime.deps.atlasRun.blockReason(), busy = !!ledger(runtime).run;
+    const gate = runtime.deps.atlas.gateOf(node.id).id, busy = !!ledger(runtime).run;
+    const tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node), reason = runtime.deps.atlas.gateReason(runtime.deps.game, gate) || runtime.deps.atlasRun.blockReason();
     const tickets = runtime.deps.ATLAS.pinnacle.tickets.map(key => `<span class="${(runtime.deps.game.currencies[key] || 0) >= 1 ? 'is-on' : ''}">${TICKET(runtime, key)} ${Math.floor(runtime.deps.game.currencies[key] || 0)}</span>`).join('');
     return `<section class="atlas-node-detail atlas-pinnacle-detail"><small>${(0, runtime.deps._t)('정점, 세계수 씨앗 {seeds}/{max}', { seeds: ledger(runtime).seeds, max: runtime.deps.ATLAS.seeds.max })}</small><h3>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(node.name))}</h3>
             <p>${(0, runtime.deps._t)('{tier}등급, 투기장, 보스 {stages}단계', { tier, stages: runtime.deps.ATLAS.pinnacle.stages })}</p><div class="atlas-tickets">${tickets}</div>
             <p class="atlas-muted">${ledger(runtime).seeds >= runtime.deps.ATLAS.seeds.max ? (0, runtime.deps._t)('세계수 씨앗 {max}개를 다 모아 더는 나오지 않습니다(시대 재생 뒤 다시).', { max: runtime.deps.ATLAS.seeds.max }) : (0, runtime.deps._t)('처치하면 세계수 씨앗 하나(최대 {max}).', { max: runtime.deps.ATLAS.seeds.max })} 씨앗마다 모든 노드 등급 +${runtime.deps.ATLAS.seeds.tierStep}. 씨앗 ${runtime.deps.BEYOND_BOUNDARY_UNLOCK_SEEDS}개면 경계 너머가 루프 50 전에 열립니다(관측자 처치 필요).</p>
             ${runtime.deps.atlasEndgame.awakened(runtime.deps.game) ? '' : (0, runtime.deps._t)('<p class="atlas-muted">처음 쓰러뜨리면 아틀라스가 깨어나 최종 보스가 열립니다.</p>')}
             ${reason && !busy ? `<p class="atlas-lock">${reason}</p>` : ''}<div class="atlas-actions"><button class="atlas-primary" data-exploration-departure
-            onclick="atlasUi.openPinnacle()" ${reason ? 'disabled' : ''}>${(0, runtime.deps._t)('정점 열기')}</button></div></section>`;
+            onclick="atlasUi.openGate('${gate}')" ${reason ? 'disabled' : ''}>${(0, runtime.deps._t)('정점 열기')}</button></div></section>`;
+}
+
+/** 싸움의 단계 수: 후반 싸움은 제 규칙, 정점은 ATLAS.pinnacle, 수호자는 한 단계. */
+export function fightStages(runtime, fight) { return fight.rules?.stages ?? (fight.kind === 'pinnacle' ? runtime.deps.ATLAS.pinnacle.stages : 1); }
+
+/** 다시 들어갈 때 내는 것을 가진 수/필요한 수 칩으로: 수호자 지도석, 정점의 뿌리 입장권 4종, 후반 싸움의 재료. */
+export function gateCostChips(runtime, fight) {
+    const game = runtime.deps.game, chip = (name, have, need) => `<span class="${have >= need ? 'is-on' : ''}">${(0, runtime.deps.escapeHTML)(name)} ${have}/${need}</span>`;
+    if (fight.kind === 'guardian') return chip((0, runtime.deps._t)('수호자 지도석'), ledger(runtime).stash.filter(map => map.node === fight.id).length, 1);
+    if (fight.kind === 'pinnacle') return runtime.deps.ATLAS.pinnacle.tickets.map(key => chip(TICKET(runtime, key), Math.floor(game.currencies[key] || 0), 1)).join('');
+    return runtime.deps.atlasEndgame.def(fight.id).entry.map(([item, need]) => chip((0, runtime.deps._t)(runtime.deps.atlasEndgame.itemName(item)), runtime.deps.atlasEndgame.count(game, item), need)).join('');
+}
+
+/** 권역 보스의 입장 열쇠(중간 보스의 첫 처치)와 중간 보스가 주는 열쇠. 열쇠는 물건이 아니다: 그 중간 보스를 완료했으면 켜진 칩. */
+export function gateKeysHtml(runtime, gate) {
+    if (gate.key) return `<p>${(0, runtime.deps._t)('처치 보상 {key}', { key: (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(gate.key)) })}</p>`;
+    if (!gate.keys.length) return '';
+    const held = gate.keys.filter(id => ledger(runtime).completed.includes(id));
+    const chips = gate.keys.map(id => `<span class="${held.includes(id) ? 'is-on' : ''}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(runtime.deps.atlas.node(id).key))}</span>`).join('');
+    return `<p>${(0, runtime.deps._t)('입장 열쇠 {count}/{total}', { count: held.length, total: gate.keys.length })}</p><div class="atlas-tickets">${chips}</div>`;
+}
+
+/** 천문도의 보스 자리(개편 C, 화면은 D 단계가 다시 짠다): 자리의 이름과 상태, 그 자리가 치르는 싸움(보스 이름, 등급, 단계), 열쇠,
+ * 들어갈 때 내는 것(첫 도전은 없음)과 포털, 닫혀 있으면 기다리는 노드. */
+export function gateHtml(runtime, gate) {
+    const game = runtime.deps.game, atlas = runtime.deps.atlas, fight = atlas.node(gate.fight), status = atlas.status(game, gate.id);
+    const where = runtime.deps.ATLAS.starChart.regions[gate.chartRegion]?.name || '', tier = atlas.effectiveTier(game, fight);
+    const cost = atlas.gateFree(game, gate.id) ? `<p>${(0, runtime.deps._t)('입장 시 소모 없음')}</p>`
+        : `<p>${(0, runtime.deps._t)('입장 시 소모')}</p><div class="atlas-tickets">${gateCostChips(runtime, fight)}</div>`;
+    const lock = status === 'locked' ? `<p class="atlas-lock">${(0, runtime.deps.escapeHTML)(atlas.gateLock(game, gate.id))}</p>` : '';
+    return `<section class="atlas-node-detail atlas-gate-detail"><small>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(where))}, ${(0, runtime.deps._t)(runtime.state.STATUS[status])}</small>
+            <h3>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(gate.name))}</h3><p>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(fight.boss))}</p>
+            <p>${(0, runtime.deps._t)('{tier}등급, 투기장, 보스 {stages}단계', { tier, stages: fightStages(runtime, fight) })}</p>${gateKeysHtml(runtime, gate)}${cost}
+            <p class="atlas-muted">${(0, runtime.deps._t)('포털 {count}개', { count: runtime.deps.ATLAS.portals })}</p>${lock}</section>`;
 }
 
 export function stashRowHtml(runtime, map) {

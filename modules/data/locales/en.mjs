@@ -11314,7 +11314,20 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '완료한 세계수 지도 지침을 추가로 얻을 확률 +8%p': 'Chance to gain an extra Alidade of a cleared World Tree map +8%p',
         '완료한 세계수 지침의 추가 획득 확률 +12%p. 연결된 상위 티어 지침의 획득 확률 +10%p.': 'Extra Alidade chance for cleared World Tree maps +12%p. Connected higher-tier Alidade chance +10%p.',
         '벌집에서 모으는 벌 재화입니다. 벌집 원정의 불리한 선택지가 가져가기도 합니다.': 'A bee currency gathered from hives. Unfavorable hive expedition choices may take some too.',
-        '벌집 원정을 연 뒤 혼돈 사냥과 벌집 원정에서 얻는 벌 재화입니다. 그루터기 함의 부적에 발라 옵션 한 줄을 일부 복사해 붙입니다(부적마다 한 번).': 'A bee currency from Chaos hunts after opening the hive expedition and from hive expeditions. Apply it to a Stump Box talisman to partly copy one affix line onto it (once per talisman).'
+        '벌집 원정을 연 뒤 혼돈 사냥과 벌집 원정에서 얻는 벌 재화입니다. 그루터기 함의 부적에 발라 옵션 한 줄을 일부 복사해 붙입니다(부적마다 한 번).': 'A bee currency from Chaos hunts after opening the hive expedition and from hive expeditions. Apply it to a Stump Box talisman to partly copy one affix line onto it (once per talisman).',
+        // ── 2026-11-24 아틀라스 개편 C: 천문도의 보스 자리 ──
+        '{names} 완료 뒤에 열립니다.': 'Opens after {names} is cleared.',
+        '수호자 지도석': 'Guardian map stone',
+        '처치 보상 {key}': 'Kill reward: {key}',
+        '입장 열쇠 {count}/{total}': 'Entry keys {count}/{total}',
+        '입장 시 소모 없음': 'No entry cost',
+        '입장 시 소모': 'Entry cost',
+        '포털 {count}개': '{count} portals',
+        '보스 도전': 'Challenge boss',
+        '혈맥의 열쇠': 'Lifeblood Key',
+        '화로의 열쇠': 'Forge Key',
+        '기억의 열쇠': 'Memory Key',
+        '은하의 열쇠': 'Galaxy Key'
     })
 });
 

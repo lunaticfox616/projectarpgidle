@@ -3,12 +3,13 @@
  * 루프를 넘어 남는 것: 해금 · 완료 · 보너스 · 패시브 · 자동 지도 · 각인 홈 설정. 루프마다 비우는 것: 지도석 · 각인 · 열린 지도.
  * 지도를 열 때 각인과 시대 재생 특전의 효과(run.bonus)와 그 지도 쪽 패시브 별의 효과(run.stars)를 런에 고정한다.
  */
-import { atlasCoreLateNode, atlasCorePosition, atlasCoreStatus, atlasCoreReachable, atlasCoreBestTier, atlasCoreBestGameTier, atlasCoreEffectiveTier, atlasCoreGameTier, atlasCoreMapGameTier, atlasCoreHasTickets, atlasCoreIsMapStone } from './atlas-graph.mjs';
+import { atlasCoreLateNode, atlasCorePosition, atlasCoreStatus, atlasCoreReachable, atlasCoreBestTier, atlasCoreBestGameTier, atlasCoreEffectiveTier, atlasCoreGameTier, atlasCoreMapGameTier, atlasCoreHasTickets, atlasCoreIsMapStone, atlasCoreProgress, atlasCoreChartTierOf } from './atlas-graph.mjs';
+import { atlasCoreGateReason, atlasCoreBeginGate, atlasCoreGateLock, atlasCoreGateFree, atlasCoreGateStone } from './atlas-gates.mjs';
 import { atlasCoreRenameSavedIds } from './atlas-restore-values.mjs';
 import { atlasCoreDefaults } from './atlas-state.mjs';
 import { atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreBeginReason, atlasCoreMatchesNode, atlasCoreMapDestination, atlasCoreDewReason } from './atlas-access.mjs';
 import { atlasCoreSync, atlasCoreSextantReason, atlasCoreActivateSextant } from './atlas-unlock.mjs';
-import { atlasCoreBeginPinnacle, atlasCoreBeginSpecial, atlasCoreBeginMemory, atlasCoreBeginBoard, atlasCoreBegin } from './atlas-entry.mjs';
+import { atlasCoreBeginSpecial, atlasCoreBeginMemory, atlasCoreBeginBoard, atlasCoreBegin } from './atlas-entry.mjs';
 import { atlasCoreSlots, atlasCorePortalCap } from './atlas-bonuses.mjs';
 import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
 import { atlasCoreDiscard, atlasCoreDiscardCandidates, atlasCoreDiscardBatch, atlasCorePlainMap } from './atlas-inventory.mjs';
@@ -34,12 +35,12 @@ function createAtlasMapNodes(deps) {
     });
 }
 
-/** 천문도의 보스 10곳(중간 보스 넷, 권역 보스 둘, 세계수 보스 둘, 외부 피나클 둘). 지금은 자리만 있다: 언제나 잠겨 있고 싸움이 없다
- * (C 단계가 기존 싸움에 잇는다). gate는 천문도의 종류(guardian, region, tree, outer), keys는 권역 보스가 요구하는 중간 보스다. */
+/** 천문도의 보스 10곳(중간 보스 넷, 권역 보스 둘, 세계수 보스 둘, 외부 피나클 둘). 자리마다 기존 싸움 하나(fight, ATLAS.chartFights)를
+ * 치른다(개편 C). gate는 천문도의 종류(guardian, region, tree, outer), keys는 권역 보스가 요구하는 중간 보스, key는 중간 보스의 열쇠 이름이다. */
 function createAtlasGates(deps) {
     return deps.ATLAS.starChart.bosses.map(boss => Object.freeze({ id: boss.id, kind: 'gate', gate: boss.kind, region: deps.ATLAS.chartRegions[boss.region] || null,
         chartRegion: boss.region, side: boss.side, regionIndex: -1, slot: -1, name: boss.name, tier: 0, boss: boss.name, parents: boss.parents, keys: boss.keys,
-        point: boss.point, temple: boss.temple, treeBoss: boss.treeBoss }));
+        key: boss.key, point: boss.point, temple: boss.temple, treeBoss: boss.treeBoss, fight: deps.ATLAS.chartFights[boss.id] }));
 }
 
 function createAtlasGuardians(deps) {
@@ -61,10 +62,11 @@ function createAtlasEnvironment(deps) {
     env.GUARDIANS = createAtlasGuardians(deps);
     env.PINNACLE = createAtlasPinnacle(deps);
     env.GATES = createAtlasGates(deps);
-    // 천문도에 선 노드. 예전 지역 수호자 다섯과 정점(세계수의 그림자)은 천문도 밖의 싸움으로 남는다(LEGACY): 저장된 수호자 지도석, 기억,
-    // 원정 판, 후반 싸움의 조건이 그 id를 쓴다. C 단계가 천문도의 보스에 잇기 전까지 들어갈 수 없다(atlas-graph atlasCoreStatus).
+    // 천문도에 선 노드. 지역 수호자 다섯과 정점(세계수의 그림자)은 천문도에 그리지 않는 싸움이다(LEGACY): 넷과 정점은 천문도의 보스 자리가
+    // 치르고(GATE_OF, 그 자리가 열리면 열린다), 「나이테 왕」은 ATLAS.ringKingOpens로 열린다(atlas-graph atlasCoreStatus).
     env.NODES = Object.freeze([...env.MAP_NODES, ...env.GATES]);
     env.LEGACY = Object.freeze([...env.GUARDIANS, env.PINNACLE]);
+    env.GATE_OF = new Map(env.GATES.map(gate => [gate.fight, gate]));
     env.LATE_NODES = Object.freeze([...env.deps.ATLAS_ENDGAME.apexes.map(row => atlasCoreLateNode(row, 'apex', row.domain)),
     ...env.deps.ATLAS_ENDGAME.leagues.map(row => atlasCoreLateNode(row, 'league', `${row.name}: ${row.boss}`))]);
     env.BY_ID = new Map([...env.NODES, ...env.LEGACY, ...env.LATE_NODES].map(node => [node.id, node]));
@@ -95,6 +97,8 @@ function createAtlasGraphApi(env) {
         lockReason: (...args) => atlasCoreLockReason(env, ...args),
         runOpenReason: atlasCoreRunOpenReason,
         status: (...args) => atlasCoreStatus(env, ...args),
+        progress: (...args) => atlasCoreProgress(env, ...args),
+        gateOf: id => env.GATE_OF.get(id) || null,
         reachable: (...args) => atlasCoreReachable(env, ...args),
         bestTier: (...args) => atlasCoreBestTier(env, ...args),
         bestGameTier: (...args) => atlasCoreBestGameTier(env, ...args),
@@ -109,9 +113,14 @@ function createAtlasEntryApi(env) {
         effectiveTier: (...args) => atlasCoreEffectiveTier(env, ...args),
         gameTier: (...args) => atlasCoreGameTier(env, ...args),
         mapGameTier: (...args) => atlasCoreMapGameTier(env, ...args),
+        chartTierOf: gameTier => atlasCoreChartTierOf(env, gameTier),
         hasTickets: (...args) => atlasCoreHasTickets(env, ...args),
         pinnacleReason: (...args) => atlasCorePinnacleReason(env, ...args),
-        beginPinnacle: (...args) => atlasCoreBeginPinnacle(env, ...args),
+        gateReason: (...args) => atlasCoreGateReason(env, ...args),
+        gateLock: (...args) => atlasCoreGateLock(env, ...args),
+        gateFree: atlasCoreGateFree,
+        gateStone: atlasCoreGateStone,
+        beginGate: (...args) => atlasCoreBeginGate(env, ...args),
         beginSpecial: (...args) => atlasCoreBeginSpecial(env, ...args),
         beginMemory: (...args) => atlasCoreBeginMemory(env, ...args),
         beginBoard: (...args) => atlasCoreBeginBoard(env, ...args),

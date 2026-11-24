@@ -41,7 +41,7 @@ export function atlasCoreDropInMap(env, state, zone, enemy, random) {
     const extra = Number(!!enemy.isBoss && random() < drops.bossExtra + bonus.bossMap / 100);
     const count = Math.floor(chance) + Number(random() < chance % 1) + extra;
     const maps = Array.from({ length: count }, () => atlasCoreRollMap(env, state, atlasCoreDropTier(env, atlasCoreRunChartTier(env, run), random, bonus), random, bonus)).filter(Boolean);
-    if (enemy.isBoss) maps.push(...atlasCoreGuardianDrop(env, state, run.map, random, bonus));
+    if (enemy.isBoss) maps.push(...atlasCoreGuardianDrop(env, state, run, random, bonus));
     if (maps.length) run.drops = atlasCorePreferredDrops(env, state, [...run.drops, ...maps], env.deps.ATLAS.stashCap);
     return maps;
 }

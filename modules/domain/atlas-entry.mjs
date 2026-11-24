@@ -1,4 +1,4 @@
-import { atlasCoreBeginReason, atlasCoreLockReason, atlasCoreRunOpenReason, atlasCorePinnacleReason, atlasCoreMapDestination } from './atlas-access.mjs';
+import { atlasCoreBeginReason, atlasCoreLockReason, atlasCoreRunOpenReason, atlasCoreMapDestination } from './atlas-access.mjs';
 import { atlasCoreEncounterRooms } from './atlas-zone.mjs';
 import { atlasCoreUseFragments } from './atlas-loadout.mjs';
 import { atlasCoreBonusOf, atlasCoreZERO, atlasCorePortalCap, atlasCoreStarTerms } from './atlas-bonuses.mjs';
@@ -14,8 +14,9 @@ export function atlasCoreBegin(env, state, uid, returnZoneId, ...entry) {
     const reason = atlasCoreBeginReason(env, state, uid, nodeId, dew);
     if (reason) return reason;
     const [map] = state.atlas.stash.splice(state.atlas.stash.findIndex(stone => stone.uid === uid), 1);
+    // 천문도의 중간 보스 자리를 골랐으면 그 자리가 치르는 수호자의 싸움으로 연다(지도석은 그 수호자의 것이다).
     const destination = nodeId === undefined ? atlasCoreMapDestination(env, state, map).id : nodeId;
-    atlasCoreStartRun(env, state, { ...map, node: destination }, returnZoneId, random);
+    atlasCoreStartRun(env, state, { ...map, node: env.BY_ID.get(destination).fight ?? destination }, returnZoneId, random);
     if (dew) atlasCoreUseDew(env, state);
     return '';
 }
@@ -38,7 +39,7 @@ export function atlasCoreStartRun(env, state, map, returnZoneId, random) {
     const fieldDiscoveries = rooms > 0 && env.deps.actExplorationDoors.session();
     const encounters = env.deps.atlasEncounters.roll(bonus, forced, random, rooms, { awake: env.deps.atlasEndgame.awakened(state), loop: state.season,
         fieldDiscoveries, region: (env.BY_ID.get(map.node) || {}).region }, state);
-    state.atlas.run = { map, portals: atlasCorePortalCap(env, false, stars), dew: false, dewKept: false, drops: [], found: [], fragments: used, spent, cleared: [], bonus, stars,
+    state.atlas.run = { map, portals: atlasCorePortalCap(env, false, stars), dew: false, dewKept: false, free: false, drops: [], found: [], fragments: used, spent, cleared: [], bonus, stars,
         encounters, ...(fieldDiscoveries ? { passages: { tried: [], sites: [] } } : {}), golden: env.deps.atlasEncounters.golden(encounters, bonus, map.uid),
         returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null, endgame: env.deps.atlasEndgame.runExtra(state, env.BY_ID.get(map.node), random) };
 }
@@ -61,20 +62,9 @@ export function atlasCoreBeginBoard(env, state, returnZoneId) {
     if (!board) return '주사위를 굴려 지도 칸에 도착하세요.';
     const map = env.deps.atlasMaps.create(board.node, board.tier);
     map.uid = state.atlas.nextUid++;
-    state.atlas.run = { map, portals: 1, dew: false, dewKept: false, drops: [], found: [], fragments: [], spent: [], cleared: [], bonus: atlasCoreZERO(env), stars: atlasCoreStarTerms(env, state, map, false),
+    state.atlas.run = { map, portals: 1, dew: false, dewKept: false, free: false, drops: [], found: [], fragments: [], spent: [], cleared: [], bonus: atlasCoreZERO(env), stars: atlasCoreStarTerms(env, state, map, false),
         encounters: [], golden: [], returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null,
         endgame: env.deps.atlasEndgame.normalizeRun(null), board };
-    return '';
-}
-
-/** 정점: 뿌리 입장권 4종을 하나씩 바치고 세계수의 그림자에 들어간다(씨앗마다 2등급 높다). */
-export function atlasCoreBeginPinnacle(env, state, returnZoneId, random = Math.random) {
-    const reason = atlasCorePinnacleReason(env, state);
-    if (reason) return reason;
-    for (const key of env.deps.ATLAS.pinnacle.tickets) state.currencies[key] -= 1;
-    const map = env.deps.atlasMaps.create(env.PINNACLE.id, atlasCoreEffectiveTier(env, state, env.PINNACLE), 'normal', random);
-    map.uid = state.atlas.nextUid++;
-    atlasCoreStartRun(env, state, map, returnZoneId, random);
     return '';
 }
 

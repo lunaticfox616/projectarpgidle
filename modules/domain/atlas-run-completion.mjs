@@ -59,5 +59,6 @@ function* finishExpedition(env, owner, zone) {
 export function atlasSessionNextMapForResult(env, owner, stop, result) {
     const kind = env.deps.atlas.node(result.nodeId)?.kind;
     if (stop || result.board || result.memory?.spoils || !['map', 'guardian'].includes(kind)) return null;
-    return env.deps.atlas.nextAuto(owner, result.tier);
+    // 수호자 싸움의 등급은 싸움 등급이다: 그 등급이 닿는 천문도 등급 이하에서 다음 지도석을 고른다.
+    return env.deps.atlas.nextAuto(owner, kind === 'map' ? result.tier : env.deps.atlas.chartTierOf(result.tier));
 }

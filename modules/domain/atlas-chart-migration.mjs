@@ -5,7 +5,8 @@ import { atlasCoreChartTierOf } from './atlas-graph.mjs';
  *  - 예전 지도 45곳의 지도석(보관함, 열린 지도, 그 지도가 쥔 것): 싸움 등급을 천문도 등급으로(atlasCoreChartTierOf), 노드는 같은 권역의
  *    그 등급 지도로. uid, 희귀도, 옵션, 품질, 타락, 기운은 그대로다. 예전 수호자의 지도석은 건드리지 않는다.
  *  - 예전 지도에 쌓인 기억(기억 던전의 입장 기억과 최고 단계)은 그 지도의 내용을 맡은 새 지도(ATLAS.hosts)로 간다.
- *  - 예전 지도, 예전 수호자, 정점에 열려 있던 지도는 닫는다(atlasChartStaleRun, 닫기는 atlas-restore가 취소 경로로 한다).
+ *  - 예전 지도에 열려 있던 지도는 닫는다(atlasChartStaleRun, 닫기는 atlas-restore가 취소 경로로 한다). 수호자와 정점에 열려 있던 지도는
+ *    그 싸움을 치르는 천문도의 자리가 닫혀 있으면 atlas-restore가 같은 길로 닫는다.
  * 완료와 보너스의 예전 id, 패시브는 atlas-restore의 정규화가 버린다. */
 export function atlasChartOldMap(env, id) { return typeof id === 'string' && Object.hasOwn(env.deps.ATLAS.hosts, id); }
 
@@ -42,11 +43,10 @@ export function atlasChartMoveMemoryBook(env, book) {
     }
 }
 
-/** 열려 있던 지도가 새 천문도에서 이어질 수 없는지: 예전 지도, 닫힌 예전 수호자와 정점(그 보스의 기억 싸움과 나이테 원정의 싸움은 그대로 이어진다). */
+/** 열려 있던 지도가 새 천문도에서 이어질 수 없는지: 예전 지도(그 지도의 기억 싸움도 닫고 기억은 옮긴 지도로 돌아간다). */
 export function atlasChartStaleRun(env, run) {
     const map = run && typeof run === 'object' ? run.map : null;
-    if (!map || typeof map !== 'object') return false;
-    return atlasChartOldMap(env, map.node) || (env.LEGACY.some(node => node.id === map.node) && !map.memory && !run.board);
+    return !!map && typeof map === 'object' && atlasChartOldMap(env, map.node);
 }
 
 /** raw: 저장에서 읽은 atlas 객체(정규화 전). 제자리에서 고친다. */

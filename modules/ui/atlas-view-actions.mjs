@@ -21,10 +21,13 @@ export function setView(runtime, next) {
     refresh(runtime);
 }
 
-/** 노드를 곧바로 두 번 누름(atlas-sheet-actions.mjs tap): 고른 노드에 맞는 지도석이 있으면 그것으로 연다. */
+/** 노드를 곧바로 두 번 누름(atlas-sheet-actions.mjs tap): 고른 노드에 맞는 지도석이 있으면 그것으로 연다. 천문도의 보스 자리는 그 싸움에
+ * 도전한다(첫 도전은 비용이 없고, 그 뒤에는 그 싸움의 비용을 낸다). */
 export function openNode(runtime, id) {
     selectNode(runtime, id);
-    if (selectedMap(runtime) && !ledger(runtime).run) open(runtime);
+    if (ledger(runtime).run) return;
+    if (runtime.deps.atlas.node(id)?.kind === 'gate') openGate(runtime, id);
+    else if (selectedMap(runtime)) open(runtime);
 }
 
 export function selectRegion(runtime, id, showMaps = false) {
@@ -70,7 +73,8 @@ export function pickMap(runtime, map) {
     const atlas = runtime.deps.atlas, game = runtime.deps.game;
     runtime.state.selectedUid = map?.uid ?? null;
     if (!map || atlas.matchesNode(game, map, atlas.node(runtime.state.selectedNode))) return;
-    const node = atlas.mapDestination(game, map);
+    // 수호자 지도석의 갈 곳은 그 수호자를 치르는 천문도의 자리로 고른다(자리가 없는 「나이테 왕」은 그 수호자).
+    const destination = atlas.mapDestination(game, map), node = destination && (atlas.gateOf(destination.id) || destination);
     runtime.state.selectedNode = atlas.matchesNode(game, map, node) ? node.id : null;
     if (node) runtime.state.selectedRegion = node.region || 'trunk';
 }
@@ -250,9 +254,13 @@ export function activateSextant(runtime) {
     refresh(runtime);
 }
 
-export function openPinnacle(runtime) {
-    const reason = runtime.deps.atlasRun.openPinnacle();
+/** 천문도의 보스 자리에서 그 싸움에 도전한다(atlasRun.openGate). 후반 싸움을 치르는 자리는 최종 탭의 도전과 같은 길(입장 이야기 줄까지). */
+export function openGate(runtime, id) {
+    const fight = runtime.deps.atlas.node(id)?.fight;
+    if (runtime.deps.atlasEndgame.isFight(fight)) return runtime.deps.atlasEndgameUi.challenge(fight);
+    const reason = runtime.deps.atlasRun.openGate(id);
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
+    (0, runtime.deps.queueImportantSave)(200);
     refresh(runtime);
     (0, runtime.deps.switchTab)('tab-battle');
 }
@@ -277,8 +285,8 @@ export async function abandon(runtime) {
 
 export function abandonMessage(runtime, run) {
     const held = run.drops.length + run.found.length, kind = runtime.deps.atlas.node(run.map.node)?.kind;
-    // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료, 기억 싸움은 그 기억).
-    const offering = run.board ? (0, runtime.deps._t)('보관 재화 {lossPctFor}%', { lossPctFor: runtime.deps.atlasBoard.lossPctFor(ledger(runtime).board, run.board.boss) }) : run.map.memory ? (0, runtime.deps._t)('보스의 기억 {memory}단계', { memory: run.map.memory }) : kind === 'pinnacle' ? '바친 입장권' : (runtime.state.RUN_KIND[kind] ? '바친 재료' : '지도석');
+    // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료, 기억 싸움은 그 기억). 비용 없는 첫 도전은 없다.
+    const offering = run.free ? '' : run.board ? (0, runtime.deps._t)('보관 재화 {lossPctFor}%', { lossPctFor: runtime.deps.atlasBoard.lossPctFor(ledger(runtime).board, run.board.boss) }) : run.map.memory ? (0, runtime.deps._t)('보스의 기억 {memory}단계', { memory: run.map.memory }) : kind === 'pinnacle' ? '바친 입장권' : (runtime.state.RUN_KIND[kind] ? '바친 재료' : '지도석');
     const lost = [offering, held ? (0, runtime.deps._t)('보류 중인 지도석과 각인 {held}개', { held }) : '', heldLate(runtime, run)].filter(Boolean).join(', ');
     return `${run.board ? run.board.name : nodeName(runtime, run.map.node)} 지도를 닫을까요?\n손실: ${lost}\n일반 장비와 재화, 바닥 전리품은 남습니다.${run.board ? (0, runtime.deps._t)('\n다음 진입에는 심재 주사위 1개가 필요합니다.') : ''}`;
 }

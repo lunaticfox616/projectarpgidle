@@ -1,7 +1,7 @@
 import { showWheelHub } from './atlas-wheel-hub.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
 import { viewOpen, ledger, nodeName, selectedMap, panelOpen, flowerWallet, mapTierStyle, encounterNames, mapName, stonesForNode, stoneForNode, dewChoice } from './atlas-view-model.mjs';
-import { deviceCardHtml, stoneNeeded, stoneLock, flowersHtml, chancesHtml, runHtml, pinnacleHtml, stashToolsHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
+import { deviceCardHtml, stoneNeeded, stoneLock, flowersHtml, chancesHtml, runHtml, gateHtml, stashToolsHtml, craftButtonHtml, legendHtml, chartHtml, deviceHtml, nodeDetailHtml, stashHtml, watchPanel, omenChipHtml } from './atlas-view-map.mjs';
 import { resultHtml } from './atlas-view-results.mjs';
 
 /** The views for the map window's second tab row: { select(id), items: [{ id, label, badge, on }] }. */
@@ -20,9 +20,9 @@ export function progressLine(runtime) {
 
 export function headerHtml(runtime) {
     // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).
-    const st = ledger(runtime), total = runtime.deps.atlas.nodes.length + (runtime.deps.atlasEndgame.awakened(runtime.deps.game) ? runtime.deps.atlas.lateNodes.length : 0), free = runtime.deps.atlasPassives.available(runtime.deps.game);
+    const st = ledger(runtime), progress = runtime.deps.atlas.progress(runtime.deps.game), free = runtime.deps.atlasPassives.available(runtime.deps.game);
     const stat = (label, value, tone) => `<span class="atlas-stat" style="--stat-tone:${tone}">${label} <b>${value}</b></span>`;
-    const stats = stat('완료', `${st.completed.length}/${total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
+    const stats = stat('완료', `${progress.done}/${progress.total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
         + stat('씨앗', `${st.seeds}/${runtime.deps.ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${runtime.deps.atlasPassives.points(runtime.deps.game)}${free ? (0, runtime.deps._t)(' (남음 {free})', { free }) : ''}`, '#7fd6cf');
     return `<header class="atlas-head"><span class="atlas-stats">${stats}</span>
             <label class="atlas-auto" data-tip="${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '자동 지도 · 정점 정복 후')}</span>
@@ -59,7 +59,7 @@ export function journeyState(runtime) {
         action: "atlasUi.setView('late')", label: (0, runtime.deps._t)('최종 보스 보기'), epoch: true };
     if (!runtime.deps.atlas.pinnacleReason(runtime.deps.game)) return { title: (0, runtime.deps._t)('정점 입장권 4종 준비됨'),
         text: '',
-        action: "atlasUi.selectNode('pinnacle',true)", label: (0, runtime.deps._t)('정점 준비 보기') };
+        action: `atlasUi.selectNode('${runtime.deps.atlas.gateOf('pinnacle').id}',true)`, label: (0, runtime.deps._t)('정점 준비 보기') };
     return mapJourney(runtime);
 }
 
@@ -78,13 +78,13 @@ export function autoOptionsHtml(runtime) {
             ${stop ? (0, runtime.deps._t)('<button onclick="openMapCompleteActionPicker(event)">완료 후 행동 변경</button>') : ''}</section>`;
 }
 
-/** 한 장 시험판(js/atlas-sheet-ui.js)에 건네는 것: 고른 노드와 지도석, 열 수 없는 까닭, 이미 만든 조각(열린 지도나 정점이나 지도석 카드, 보관함 도구, 결과),
+/** 한 장 시험판(js/atlas-sheet-ui.js)에 건네는 것: 고른 노드와 지도석, 열 수 없는 까닭, 이미 만든 조각(열린 지도나 보스 자리나 지도석 카드, 보관함 도구, 결과),
  * 맞는 지도석이 없을 때의 말(needed)과 노드에 쓸 수 있는 지도석(matchingStones). */
 export function sheetParts(runtime) {
     const st = ledger(runtime), map = selectedMap(runtime), node = runtime.deps.atlas.node(runtime.state.selectedNode), busy = runtime.deps.atlas.runOpenReason(runtime.deps.game), block = runtime.deps.atlasRun.blockReason();
     const card = map ? `<section class="atlas-device" aria-label="${(0, runtime.deps._t)('지도 장치')}">${deviceCardHtml(runtime, map)}
             <div class="atlas-crafts" aria-label="${(0, runtime.deps._t)('지도석 제작')}">${runtime.state.CRAFT_ORDER.map(key => craftButtonHtml(runtime, map, key)).join('')}</div>${flowersHtml(runtime, map)}${chancesHtml(runtime)}</section>` : '';
-    const side = st.run ? runHtml(runtime, st.run) : node && node.kind === 'pinnacle' ? pinnacleHtml(runtime, node) : card;
+    const side = st.run ? runHtml(runtime, st.run) : node && node.kind === 'gate' ? gateHtml(runtime, node) : card;
     const tools = `${stashToolsHtml(runtime, map, busy)}${busy ? `<small>${busy}</small>` : ''}`;
     const lock = map ? stoneLock(runtime, map) : runtime.deps.atlas.lockReason(runtime.deps.game) || block;
     return { node: runtime.state.selectedNode, uid: runtime.state.selectedUid, lock, block, side, tools, after: `${autoOptionsHtml(runtime)}${resultHtml(runtime)}`, mapName: runtime.handlers.mapName,

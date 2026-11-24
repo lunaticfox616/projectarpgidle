@@ -5,15 +5,18 @@ import { atlasCoreNormalizeResult, atlasCoreNormalizeTally } from './atlas-recei
 import { atlasCoreSetLoadout } from './atlas-loadout.mjs';
 import { atlasCoreCancel } from './atlas-completion.mjs';
 import { atlasChartMove, atlasChartStaleRun } from './atlas-chart-migration.mjs';
+import { atlasCoreStatus } from './atlas-graph.mjs';
 
-/** 보관함에 둘 수 있는 것: 지도 노드의 지도석(천문도 등급을 넘는 손상된 등급은 가장 높은 등급으로)과 예전 수호자의 지도석(C 단계까지 그대로 둔다). */
+/** 보관함에 둘 수 있는 것: 지도 노드의 지도석(천문도 등급을 넘는 손상된 등급은 가장 높은 등급으로)과 수호자의 지도석(그대로, 넷은 천문도의
+ * 중간 보스 자리에서, 「나이테 왕」의 것은 그 수호자에게 쓴다). */
 function stashStone(env, map) {
     const kind = map && env.BY_ID.get(map.node).kind;
     if (kind === 'map') return { ...map, tier: Math.min(env.CHART_TIERS, map.tier) };
     return kind === 'guardian' ? map : null;
 }
 
-/** 완료와 보너스: 아는 노드만. 천문도 밖에 남은 예전 수호자와 정점의 첫 완료는 새 천문도에서 버린다(예전 지도 id는 모르는 id라 함께 빠진다). */
+/** 완료와 보너스: 아는 노드만. 천문도에 그리지 않는 수호자와 정점의 id는 버린다(천문도 이전의 첫 완료, 그 처치는 보스 자리와 처치 기록이
+ * 센다). 예전 지도 id는 모르는 id라 함께 빠진다. */
 function clearedNodes(env, raw) {
     const done = atlasCoreNodeList(env, raw.completed, id => !env.LEGACY.includes(env.BY_ID.get(id)));
     return { done, bonus: atlasCoreNodeList(env, raw.bonus, id => done.includes(id)) };
@@ -66,9 +69,20 @@ export function atlasCoreNormalize(env, state) {
     atlasCoreRestoreBoardRun(env, raw, state);
     atlasCoreSetLoadout(env, state, Array.isArray(raw.loadout) ? raw.loadout : []);
     // 새 천문도에서 이어질 수 없는 열린 지도는 입장 직후의 취소와 같이 닫는다: 지도석(옮겨진 것)과 쓴 각인, 입장권이 돌아온다.
-    if (stale) atlasCoreCancel(env, state);
+    closeStaleRun(env, state, stale);
     return next;
 }
+
+/** 열린 싸움의 자리가 닫혀 있는지: 천문도 이전의 저장이 열어 둔 수호자, 정점, 자리에 이어진 후반 싸움은 그 자리를 아직 열지 않았다
+ * (그 자리가 치르는 싸움은 자리가 열려야 들어간다). 기억 싸움과 원정 판은 그대로 이어진다. */
+function closedFightRun(env, state) {
+    const run = state.atlas.run;
+    if (!run || run.board || run.map.memory) return false;
+    const node = env.BY_ID.get(run.map.node), place = env.GATE_OF.get(node.id) || (env.LEGACY.includes(node) ? node : null);
+    return !!place && atlasCoreStatus(env, state, place.id) === 'locked';
+}
+
+function closeStaleRun(env, state, stale) { if (stale || closedFightRun(env, state)) atlasCoreCancel(env, state); }
 
 function restoreWheelAccess(state, raw) {
     const atlas = state.atlas;
