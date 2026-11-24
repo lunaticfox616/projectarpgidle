@@ -30,6 +30,7 @@ const effects = {
 const atlasFinds = Object.freeze({
     onAtlasKill: (...args) => consumeDomainCommands(rules.onAtlasKill(game, ...args), effects),
     dressTreasurePack: (...args) => rules.dressTreasurePack(...args),
-    receiveMemoryLeaf: (...args) => consumeDomainCommands(rules.receiveMemoryLeaf(game, ...args), effects)
+    receiveMemoryLeaf: (...args) => consumeDomainCommands(rules.receiveMemoryLeaf(game, ...args), effects),
+    openGearBoxes: (...args) => consumeDomainCommands(rules.openGearBoxes(game, ...args), effects)
 });
 safeExposeGlobals({ atlasFinds });

@@ -12,7 +12,7 @@ function pickExpedition(env, owner, zone, count) {
     if (forced.length) return forced[Math.floor(Math.random() * forced.length)];
     if (found.size + run.encounters.filter(type => !ATLAS.encounters[type].late).length >= rules.roomLimit(run.bonus, owner.season)) return null;
     const candidates = Object.keys(atlasExpeditions).filter(eligible).filter(type => {
-        const chance = Math.min(1, rules.chance(type, run.bonus, zone.atlasRegion) / 100);
+        const chance = Math.min(1, rules.chance(type, zone.atlasRegion) / 100);
         return Math.random() < 1 - (1 - chance) ** (1 / count);
     });
     return candidates[Math.floor(Math.random() * candidates.length)];

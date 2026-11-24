@@ -112,6 +112,12 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
   body[data-ui-skin] #ui-season-tree .loop-node-core::before { border-radius: 50%; }
   body[data-ui-skin] #ui-season-tree .loop-node-rank { border-radius: 999px; }
 }
+/* 예외: 천문도의 지도 원판, 보스 자리의 테, 지침 보관함의 원판, 패시브 별은 사용자 패키지의 시뮬레이터처럼 둥글다(아틀라스 개편, css/atlas-sheet.css).
+   원판 뒤의 옅은 타원 둘은 시뮬레이터의 기운 잎 모양 그대로. */
+body[data-ui-skin] #ui-atlas :is(.as-pin > b, .as-gate, .as-tile > b, .ast-star i),
+body[data-ui-skin] #ui-atlas :is(.as-pin, .as-gate).is-unsealed::before { border-radius: 50%; }
+body[data-ui-skin] #ui-atlas .as-pin > b::before,
+body[data-ui-skin] #ui-atlas .as-pin > b::after { border-radius: 36% 64% 36% 64%; }
 /* 도트로 다시 찍은 로고(scripts/build-pixel-ui.cjs): 정수배로 키우고 번지지 않게 */
 :root body[data-ui-skin] #ui-rail-logo img { width: 104px; max-width: 104px; image-rendering: pixelated; }
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
@@ -819,19 +825,8 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 :root body[data-ui-skin] #ui-goal-drawer :is(.ui-goal-title, .ui-goal-notice-action, .ui-goal-notice-text)::before { content: none; }
 :root body[data-ui-skin] #ui-goal-drawer .ui-goal-title { padding-left: 0; }
 :root body[data-ui-skin] #ui-goal-drawer .ui-goal-desc { margin-left: 0; }
-/* 세계수 아틀라스: 원판 · 패시브 바퀴는 PC 창 높이에 맞춰 줄여 반쯤 잘리지 않게(기본 창 본문 약 550px — 검토 4차). 위 지역 띠(같은
-   이름을 한 번 더 썼다)는 숨기고, 자동 지도 설명은 단추 설명(title)으로, 지역 범례는 원판 아래로. 보기 단추가 지도 창 위 둘째 줄로
-   가며(2026-10-25) 원판이 그만큼 커진다. */
+/* 세계수 아틀라스: 위 지역 띠(같은 이름을 한 번 더 썼다)는 숨긴다. */
 :root body[data-ui-skin] #tab-map:has(#map-explore-worldtree.active) #exploration-region-banner { display: none; }
-:root body[data-ui-skin] #ui-atlas .atlas-auto small { display: none; }
-:root body[data-ui-skin] #ui-atlas .atlas-chart-column { display: flex; flex-direction: column; }
-:root body[data-ui-skin] #ui-atlas .atlas-chart-column > .atlas-legend { order: 1; margin-top: 8px; }
-@media (min-width: 1081px) {
-  /* 원판 폭은 짝수 px, 가운데는 정수 px로 옮겨 맞춘다: 노드와 숫자가 반 화소에 놓였다(2026-10-21). */
-  :root body[data-ui-skin] #ui-atlas .atlas-chart { width: round(down, min(100%, 660px, max(320px, calc(100dvh - 460px))), 2px);
-    margin: 0; align-self: flex-start; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
-  :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 572px))); }
-}
 /* 고른 쪽이 보이게: 휴대폰 구역 단추(판/보관함 등)와 탐험 지도의 방식(보스 직행 · 전체 탐색 · 직접 이동) — 도트 단추 재질이
    고른 표시를 덮어 고른 것과 아닌 것이 똑같았다(검토 4차) */
 :root body[data-ui-skin] .mobile-section-navigation > button[aria-selected="true"],

@@ -3,11 +3,12 @@ import { mapName } from './atlas-view-model.mjs';
 function wheelHubHtml(runtime) {
     const { atlas, game, _t, escapeHTML } = runtime.deps;
     const stones = game.atlas.stash.map(stone => {
+        // 갈 곳이 닫힌 지도석(예전 수호자의 것)은 고를 수 없다.
         const node = atlas.mapDestination(game, stone);
-        return node ? `<option value="${stone.uid}">${escapeHTML(_t(node.name))} · ${escapeHTML(mapName(runtime, stone))}</option>` : '';
+        return node && atlas.reachable(game, node.id) ? `<option value="${stone.uid}">${escapeHTML(_t(node.name))} · ${escapeHTML(mapName(runtime, stone))}</option>` : '';
     }).join('');
     return `<section class="atlas-wheel-hub"><div><h3>${_t('차륜 거점')}</h3>
-        ${stones ? `<select id="atlas-hub-stone" aria-label="${_t('사용할 지도석')}">${stones}</select>` : `<p>${_t('보관함에 지도석이 없습니다.')}</p>`}
+        ${stones ? `<select id="atlas-hub-stone" aria-label="${_t('사용할 지침')}">${stones}</select>` : `<p>${_t('보관함에 지침이 없습니다.')}</p>`}
         <button type="button" onclick="atlasUi.leaveHub()">${_t('사냥터로 돌아가기')}</button></div>
         <button class="atlas-hub-wheel" type="button" aria-label="${_t('차륜으로 입장')}" ${stones?'':'disabled'} onclick="atlasUi.enterHub()"></button>
         <span class="atlas-wheel-label" aria-hidden="true">${_t('차륜으로 입장')}</span></section>`;

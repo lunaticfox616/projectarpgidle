@@ -7,7 +7,7 @@ export function createWorldMapView(deps) {
     for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(undefined, runtime);
     initialize(runtime);
 
-    runtime.api = { overviewHtml: runtime.handlers.overviewHtml, placeTabsHtml: runtime.handlers.placeTabsHtml, offMapRoutes: runtime.handlers.offMapRoutes, pick: runtime.handlers.pick, pickAct: runtime.handlers.pickAct, link: runtime.handlers.link, atlasIcon: runtime.handlers.atlasIcon, turnToAtlas: runtime.handlers.turnToAtlas, turnToWorld: runtime.handlers.turnToWorld, atlasEntranceSpot: runtime.handlers.atlasEntranceSpot, showAtlas: on => { runtime.state.atlasMap = on; } };
+    runtime.api = { overviewHtml: runtime.handlers.overviewHtml, placeTabsHtml: runtime.handlers.placeTabsHtml, offMapRoutes: runtime.handlers.offMapRoutes, pick: runtime.handlers.pick, pickAct: runtime.handlers.pickAct, link: runtime.handlers.link, atlasIcon: runtime.handlers.atlasIcon, turnToAtlas: runtime.handlers.turnToAtlas, turnToWorld: runtime.handlers.turnToWorld, atlasEntranceSpot: runtime.handlers.atlasEntranceSpot };
 
     runtime.api.dispose = () => disposeWorldMapView(runtime);
     return runtime.api;
@@ -17,7 +17,6 @@ function initialize(runtime) {
     runtime.state.urls = new Map();
     runtime.state.picked = null;
     runtime.state.api = null;
-    runtime.state.atlasMap = false;
     runtime.state.OUTLINE = '#1a120a';
     runtime.state.TURN_MS = 520;
     runtime.state.ATLAS_ICON_TINT = '#8a6a45';

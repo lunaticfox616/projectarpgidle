@@ -50,7 +50,7 @@ export function* atlasSessionSpendPortal(env, owner, reason) {
     if (owner.actExploration?.source?.pocket) restoreMainMap(owner);
     const portal = env.deps.atlas.usePortal(owner);
     if (!portal) return;
-    (yield* atlasSessionNotify(env, { kind: portal.closed ? 'failed' : 'portal', reason, portals: portal.portals || 0 }));
+    (yield* atlasSessionNotify(env, { kind: portal.closed ? 'failed' : 'portal', reason, portals: portal.portals || 0, refund: portal.refund || null }));
     if (!portal.closed) return;
     if (atlasSessionInMap(env, owner)) owner.currentZoneId = atlasSessionReturnZone(env, portal.returnZoneId);
     owner.killsInZone = 0;

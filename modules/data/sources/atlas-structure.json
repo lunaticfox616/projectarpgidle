@@ -1,0 +1,3900 @@
+{
+  "sourceVersion": 16,
+  "source": "아틀라스 시뮬레이터 기본 배치",
+  "coordinateUnit": "지도 이미지 기준 백분율",
+  "mapNodes": [
+    {
+      "id": "sunBoss",
+      "name": "태양 권역 보스",
+      "gateLabel": "태양 보스",
+      "region": "solar",
+      "side": "solar",
+      "point": [
+        11.42,
+        44
+      ],
+      "approachVias": {
+        "rootsGuardian": [
+          16,
+          36
+        ],
+        "furnaceGuardian": [
+          16,
+          50.75
+        ]
+      },
+      "token": "☀",
+      "regionName": "태양 권역",
+      "parents": [
+        "rootsGuardian",
+        "furnaceGuardian"
+      ],
+      "requiredKeys": [
+        "rootsGuardian",
+        "furnaceGuardian"
+      ]
+    },
+    {
+      "id": "moonBoss",
+      "name": "달 권역 보스",
+      "gateLabel": "달 보스",
+      "region": "lunar",
+      "side": "lunar",
+      "point": [
+        88.8,
+        45.16
+      ],
+      "approachVias": {
+        "memoryGuardian": [
+          80,
+          36.5
+        ],
+        "weavingGuardian": [
+          85,
+          52.25
+        ]
+      },
+      "token": "☾",
+      "regionName": "달 권역",
+      "parents": [
+        "memoryGuardian",
+        "weavingGuardian"
+      ],
+      "requiredKeys": [
+        "memoryGuardian",
+        "weavingGuardian"
+      ]
+    },
+    {
+      "id": "gardener",
+      "name": "정원사의 규율",
+      "gateLabel": "위 입구",
+      "innerEntry": "upper",
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        49.88,
+        38.58
+      ],
+      "via": [
+        55.75,
+        36.25
+      ],
+      "requires": "innerGardenSeal",
+      "token": "◇",
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerGardenSeal"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "abyss",
+      "name": "의지의 어머니나무",
+      "gateLabel": "아래 입구",
+      "innerEntry": "lower",
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        49.88,
+        53.24
+      ],
+      "via": [
+        43.75,
+        44
+      ],
+      "requires": "innerWillThreshold",
+      "token": "◇",
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerWillThreshold"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "outerSun",
+      "name": "외부 피나클 I",
+      "region": "outer",
+      "side": "solar",
+      "point": [
+        50,
+        84.8
+      ],
+      "via": [
+        8,
+        98.5
+      ],
+      "requires": "sunBoss",
+      "token": "I",
+      "regionName": "외부 피나클",
+      "parents": [
+        "sunBoss"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "outerMoon",
+      "name": "외부 피나클 II",
+      "region": "outer",
+      "side": "lunar",
+      "point": [
+        50,
+        84.8
+      ],
+      "via": [
+        92.5,
+        98.5
+      ],
+      "requires": "moonBoss",
+      "token": "II",
+      "regionName": "외부 피나클",
+      "parents": [
+        "moonBoss"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sun1",
+      "name": "붉은 이끼 여울",
+      "point": [
+        39,
+        12
+      ],
+      "region": "roots",
+      "boss": "검은 뿌리의 잔영",
+      "side": "solar",
+      "tier": 1,
+      "requires": "entry",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "entry"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunMossBend",
+      "name": "이끼 굽이",
+      "point": [
+        33.5,
+        16.5
+      ],
+      "region": "roots",
+      "side": "solar",
+      "tier": 2,
+      "requires": "sun1",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sun1"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunDawnHill",
+      "name": "첫빛 언덕",
+      "point": [
+        27.75,
+        43
+      ],
+      "region": "roots",
+      "via": [
+        32.25,
+        25
+      ],
+      "side": "solar",
+      "tier": 3,
+      "requires": "sunMossBend",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sunMossBend"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sun2",
+      "name": "뿌리바위",
+      "point": [
+        28.5,
+        52.5
+      ],
+      "region": "roots",
+      "via": [
+        29.25,
+        48
+      ],
+      "side": "solar",
+      "tier": 4,
+      "requires": "sunDawnHill",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sunDawnHill"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sun3",
+      "name": "혈맥 갈림길",
+      "point": [
+        21.5,
+        43.5
+      ],
+      "region": "roots",
+      "via": [
+        25.25,
+        50.75
+      ],
+      "side": "solar",
+      "tier": 5,
+      "requires": "sun2",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sun2"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunRootBank",
+      "name": "뿌리 둔덕",
+      "point": [
+        19.5,
+        34.75
+      ],
+      "region": "roots",
+      "via": [
+        20.2,
+        39
+      ],
+      "side": "solar",
+      "tier": 6,
+      "requires": "sun3",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "rootsTemple",
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sun3"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunBrassStep",
+      "name": "황동 계단",
+      "point": [
+        26.25,
+        29.5
+      ],
+      "region": "roots",
+      "side": "solar",
+      "tier": 7,
+      "requires": "sunRootBank",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "rootsTemple",
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sunRootBank"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunBarkCoast",
+      "name": "껍질 벼랑",
+      "point": [
+        26,
+        12.5
+      ],
+      "region": "roots",
+      "side": "solar",
+      "tier": 8,
+      "requires": "sunBrassStep",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "rootsTemple",
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sunBrassStep"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunOrbitalFragment",
+      "name": "태양 고리 파편",
+      "point": [
+        15.26,
+        12.5
+      ],
+      "region": "roots",
+      "side": "solar",
+      "tier": 9,
+      "requires": "sunBarkCoast",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "rootsTemple",
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sunBarkCoast"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunWarmQuarry",
+      "name": "미열의 채석터",
+      "point": [
+        15.01,
+        29.5
+      ],
+      "region": "roots",
+      "side": "solar",
+      "tier": 10,
+      "requires": "sunOrbitalFragment",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "rootsTemple",
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sunOrbitalFragment"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "rootsGuardian",
+      "name": "자립의 혈맥 수호자",
+      "gateLabel": "중간 보스",
+      "point": [
+        20.63,
+        22.32
+      ],
+      "side": "solar",
+      "region": "roots",
+      "requires": "sunWarmQuarry",
+      "token": "◇",
+      "templeId": "rootsTemple",
+      "reward": "혈맥의 열쇠",
+      "regionName": "자립의 혈맥",
+      "parents": [
+        "sunWarmQuarry"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sun4",
+      "name": "잿빛 진입로",
+      "point": [
+        19.25,
+        52.5
+      ],
+      "region": "garden",
+      "via": [
+        21.25,
+        47.75
+      ],
+      "side": "solar",
+      "tier": 6,
+      "requires": "sun3",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "furnaceTemple",
+      "regionName": "검은 화로",
+      "parents": [
+        "sun3"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunAshShelf",
+      "name": "재가 쌓인 턱",
+      "point": [
+        26.75,
+        61.5
+      ],
+      "region": "garden",
+      "side": "solar",
+      "tier": 7,
+      "requires": "sun4",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "furnaceTemple",
+      "regionName": "검은 화로",
+      "parents": [
+        "sun4"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sun5",
+      "name": "그을린 바위틈",
+      "point": [
+        25.52,
+        74.5
+      ],
+      "region": "garden",
+      "side": "solar",
+      "tier": 8,
+      "requires": "sunAshShelf",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "furnaceTemple",
+      "regionName": "검은 화로",
+      "parents": [
+        "sunAshShelf"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunCoalGorge",
+      "name": "석탄 골짜기",
+      "point": [
+        15.02,
+        74.5
+      ],
+      "region": "garden",
+      "side": "solar",
+      "tier": 9,
+      "requires": "sun5",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "furnaceTemple",
+      "regionName": "검은 화로",
+      "parents": [
+        "sun5"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "sunKey",
+      "name": "화로 봉인문",
+      "point": [
+        13.79,
+        61.5
+      ],
+      "region": "garden",
+      "side": "solar",
+      "tier": 10,
+      "requires": "sunCoalGorge",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "furnaceTemple",
+      "regionName": "검은 화로",
+      "parents": [
+        "sunCoalGorge"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "furnaceGuardian",
+      "name": "검은 화로 수호자",
+      "gateLabel": "중간 보스",
+      "point": [
+        20.27,
+        64.51
+      ],
+      "side": "solar",
+      "region": "garden",
+      "requires": "sunKey",
+      "token": "◇",
+      "templeId": "furnaceTemple",
+      "reward": "화로의 열쇠",
+      "regionName": "검은 화로",
+      "parents": [
+        "sunKey"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moon1",
+      "name": "드리운 장막",
+      "point": [
+        61,
+        12
+      ],
+      "region": "veil",
+      "side": "lunar",
+      "tier": 1,
+      "requires": "entry",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "기억의 회랑",
+      "parents": [
+        "entry"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonFineKnot",
+      "name": "가는 매듭",
+      "point": [
+        66.5,
+        16.5
+      ],
+      "region": "veil",
+      "side": "lunar",
+      "tier": 2,
+      "requires": "moon1",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moon1"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonQuietCreek",
+      "name": "고요한 물길",
+      "point": [
+        72.25,
+        43
+      ],
+      "region": "veil",
+      "via": [
+        67.75,
+        25
+      ],
+      "side": "lunar",
+      "tier": 3,
+      "requires": "moonFineKnot",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moonFineKnot"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moon3",
+      "name": "겹친 너울",
+      "point": [
+        71.5,
+        52.5
+      ],
+      "region": "veil",
+      "via": [
+        70.75,
+        48
+      ],
+      "side": "lunar",
+      "tier": 4,
+      "requires": "moonQuietCreek",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moonQuietCreek"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moon2",
+      "name": "실바람 절벽",
+      "point": [
+        78.5,
+        43.5
+      ],
+      "region": "veil",
+      "via": [
+        74.75,
+        50.75
+      ],
+      "side": "lunar",
+      "tier": 5,
+      "requires": "moon3",
+      "branch": true,
+      "bossPath": true,
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moon3"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonSilkMound",
+      "name": "비단 둔덕",
+      "point": [
+        74.75,
+        34.6
+      ],
+      "region": "veil",
+      "via": [
+        79.8,
+        39
+      ],
+      "side": "lunar",
+      "tier": 6,
+      "requires": "moon2",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "memoryTemple",
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moon2"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonFold",
+      "name": "장막 아래",
+      "point": [
+        70.25,
+        23.15
+      ],
+      "region": "veil",
+      "side": "lunar",
+      "tier": 7,
+      "requires": "moonSilkMound",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "memoryTemple",
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moonSilkMound"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonSilkRim",
+      "name": "너울 가장자리",
+      "point": [
+        75,
+        12.5
+      ],
+      "region": "veil",
+      "side": "lunar",
+      "tier": 8,
+      "requires": "moonFold",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "memoryTemple",
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moonFold"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonPaleDew",
+      "name": "흰 이슬 자리",
+      "point": [
+        84.25,
+        20
+      ],
+      "region": "veil",
+      "side": "lunar",
+      "tier": 9,
+      "requires": "moonSilkRim",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "memoryTemple",
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moonSilkRim"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonSilverStep",
+      "name": "은빛 계단",
+      "point": [
+        83.25,
+        29.5
+      ],
+      "region": "veil",
+      "side": "lunar",
+      "tier": 10,
+      "requires": "moonPaleDew",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "memoryTemple",
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moonPaleDew"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "memoryGuardian",
+      "name": "기억의 회랑 수호자",
+      "gateLabel": "중간 보스",
+      "point": [
+        77.63,
+        23.7
+      ],
+      "side": "lunar",
+      "region": "veil",
+      "requires": "moonSilverStep",
+      "token": "◇",
+      "templeId": "memoryTemple",
+      "reward": "기억의 열쇠",
+      "regionName": "기억의 회랑",
+      "parents": [
+        "moonSilverStep"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moon4",
+      "name": "구름 밑",
+      "point": [
+        80.75,
+        52.5
+      ],
+      "region": "cloud",
+      "via": [
+        78.75,
+        47.75
+      ],
+      "side": "lunar",
+      "tier": 6,
+      "requires": "moon2",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "weavingTemple",
+      "regionName": "은하를 직조하는 신전",
+      "parents": [
+        "moon2"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonCloudFoam",
+      "name": "구름 포말",
+      "point": [
+        70,
+        61.65
+      ],
+      "region": "cloud",
+      "via": [
+        [
+          75.25,
+          54.25
+        ],
+        [
+          70.75,
+          57.5
+        ]
+      ],
+      "side": "lunar",
+      "tier": 7,
+      "requires": "moon4",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "weavingTemple",
+      "regionName": "은하를 직조하는 신전",
+      "parents": [
+        "moon4"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonCloudBed",
+      "name": "비구름 둔치",
+      "point": [
+        71.6,
+        74.5
+      ],
+      "region": "cloud",
+      "side": "lunar",
+      "tier": 8,
+      "requires": "moonCloudFoam",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "weavingTemple",
+      "regionName": "은하를 직조하는 신전",
+      "parents": [
+        "moonCloudFoam"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moon5",
+      "name": "운무 바위턱",
+      "point": [
+        82.1,
+        74.5
+      ],
+      "region": "cloud",
+      "side": "lunar",
+      "tier": 9,
+      "requires": "moonCloudBed",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "weavingTemple",
+      "regionName": "은하를 직조하는 신전",
+      "parents": [
+        "moonCloudBed"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "moonKey",
+      "name": "은하 봉인문",
+      "point": [
+        83.7,
+        61.65
+      ],
+      "region": "cloud",
+      "side": "lunar",
+      "tier": 10,
+      "requires": "moon5",
+      "branch": true,
+      "bossPath": true,
+      "templeId": "weavingTemple",
+      "regionName": "은하를 직조하는 신전",
+      "parents": [
+        "moon5"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "weavingGuardian",
+      "name": "은하를 직조하는 신전 수호자",
+      "gateLabel": "중간 보스",
+      "point": [
+        76.85,
+        64.72
+      ],
+      "side": "lunar",
+      "region": "cloud",
+      "requires": "moonKey",
+      "token": "◇",
+      "templeId": "weavingTemple",
+      "reward": "은하의 열쇠",
+      "regionName": "은하를 직조하는 신전",
+      "parents": [
+        "moonKey"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "inner1",
+      "name": "내면의 문턱",
+      "tier": 1,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        44.5,
+        17.5
+      ],
+      "requires": "entry",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "entry"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerBarkFold",
+      "name": "껍질의 주름",
+      "tier": 2,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        37.5,
+        23
+      ],
+      "requires": "inner1",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "inner1"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerLoam",
+      "name": "이끼 밭고랑",
+      "tier": 3,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        34,
+        32.5
+      ],
+      "requires": "innerBarkFold",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerBarkFold"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerSapFlow",
+      "name": "가느다란 수액길",
+      "tier": 4,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        33,
+        43
+      ],
+      "requires": "innerLoam",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerLoam"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerShearsPass",
+      "name": "가지치기 길",
+      "tier": 5,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        35,
+        59.5
+      ],
+      "requires": "innerSapFlow",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerSapFlow"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerRootEcho",
+      "name": "뿌리의 메아리",
+      "tier": 6,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        44.5,
+        71.5
+      ],
+      "requires": "innerShearsPass",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerShearsPass"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerGraftCourt",
+      "name": "접목의 뜰",
+      "tier": 7,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        55.5,
+        71.5
+      ],
+      "requires": "innerRootEcho",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerRootEcho"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerDryRing",
+      "name": "마른 나이테",
+      "tier": 8,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        64.5,
+        61
+      ],
+      "requires": "innerGraftCourt",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerGraftCourt"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerDeepSap",
+      "name": "심부 수액샘",
+      "tier": 9,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        67,
+        47.5
+      ],
+      "requires": "innerDryRing",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerDryRing"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerGardenSeal",
+      "name": "정원의 문지방",
+      "tier": 10,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        64.5,
+        31
+      ],
+      "requires": "innerDeepSap",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "gardener",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerDeepSap"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "inner2",
+      "name": "심재의 회랑",
+      "tier": 1,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        55.5,
+        17.5
+      ],
+      "requires": "entry",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "entry"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerPaleGrain",
+      "name": "옅은 결무늬",
+      "tier": 2,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        50,
+        23
+      ],
+      "requires": "inner2",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "inner2"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerWakingRoot",
+      "name": "깨어나는 뿌리",
+      "tier": 3,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        58,
+        27.5
+      ],
+      "requires": "innerPaleGrain",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerPaleGrain"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerWoodHollow",
+      "name": "빈 심재",
+      "tier": 4,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        62.5,
+        39.5
+      ],
+      "requires": "innerWakingRoot",
+      "via": [
+        [
+          47.5,
+          30
+        ],
+        [
+          43.8,
+          37.5
+        ],
+        [
+          44.9,
+          44.2
+        ],
+        [
+          50,
+          45.5
+        ],
+        [
+          57.1,
+          43.4
+        ]
+      ],
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerWakingRoot"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerHeartRoot",
+      "name": "심근의 굽이",
+      "tier": 5,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        62.5,
+        51.5
+      ],
+      "requires": "innerWoodHollow",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerWoodHollow"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerDarkRing",
+      "name": "검은 나이테",
+      "tier": 6,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        58.5,
+        62.5
+      ],
+      "requires": "innerHeartRoot",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerHeartRoot"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerWillChamber",
+      "name": "의지의 방",
+      "tier": 7,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        50,
+        67.5
+      ],
+      "requires": "innerDarkRing",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerDarkRing"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerOldHeart",
+      "name": "오래된 심실",
+      "tier": 8,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        41.5,
+        62.5
+      ],
+      "requires": "innerWillChamber",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerWillChamber"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerStillCore",
+      "name": "숨 멎은 심부",
+      "tier": 9,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        38,
+        48.5
+      ],
+      "requires": "innerOldHeart",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerOldHeart"
+      ],
+      "requiredKeys": []
+    },
+    {
+      "id": "innerWillThreshold",
+      "name": "어머니나무 문턱",
+      "tier": 10,
+      "region": "interior",
+      "side": "interior",
+      "point": [
+        39,
+        35
+      ],
+      "requires": "innerStillCore",
+      "branch": true,
+      "bossPath": true,
+      "treeBoss": "abyss",
+      "regionName": "세계수 내면",
+      "parents": [
+        "innerStillCore"
+      ],
+      "requiredKeys": []
+    }
+  ],
+  "routes": [
+    {
+      "from": "rootsGuardian",
+      "fromName": "자립의 혈맥 수호자",
+      "to": "sunBoss",
+      "toName": "태양 권역 보스",
+      "side": "solar",
+      "start": [
+        20.63,
+        22.32
+      ],
+      "end": [
+        11.42,
+        44
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M20.63,22.32 L17.28,32.21 Q16,36 14.53,38.56 L11.42,44"
+    },
+    {
+      "from": "furnaceGuardian",
+      "fromName": "검은 화로 수호자",
+      "to": "sunBoss",
+      "toName": "태양 권역 보스",
+      "side": "solar",
+      "start": [
+        20.27,
+        64.51
+      ],
+      "end": [
+        11.42,
+        44
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M20.27,64.51 L17.19,54.57 Q16,50.75 14.53,48.59 L11.42,44"
+    },
+    {
+      "from": "memoryGuardian",
+      "fromName": "기억의 회랑 수호자",
+      "to": "moonBoss",
+      "toName": "달 권역 보스",
+      "side": "lunar",
+      "start": [
+        77.63,
+        23.7
+      ],
+      "end": [
+        88.8,
+        45.16
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M77.63,23.7 L79.27,32.57 Q80,36.5 82.82,39.27 L88.8,45.16"
+    },
+    {
+      "from": "weavingGuardian",
+      "fromName": "은하를 직조하는 신전 수호자",
+      "to": "moonBoss",
+      "toName": "달 권역 보스",
+      "side": "lunar",
+      "start": [
+        76.85,
+        64.72
+      ],
+      "end": [
+        88.8,
+        45.16
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M76.85,64.72 L82.81,55.6 Q85,52.25 86.22,49.98 L88.8,45.16"
+    },
+    {
+      "from": "innerGardenSeal",
+      "fromName": "정원의 문지방",
+      "to": "gardener",
+      "toName": "정원사의 규율",
+      "side": "interior",
+      "start": [
+        64.5,
+        31
+      ],
+      "end": [
+        49.88,
+        38.58
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M64.5,31 L58.55,34.57 Q55.75,36.25 53.87,37 L49.88,38.58"
+    },
+    {
+      "from": "innerWillThreshold",
+      "fromName": "어머니나무 문턱",
+      "to": "abyss",
+      "toName": "의지의 어머니나무",
+      "side": "interior",
+      "start": [
+        39,
+        35
+      ],
+      "end": [
+        49.88,
+        53.24
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M39,35 L42.23,41.12 Q43.75,44 45.71,46.96 L49.88,53.24"
+    },
+    {
+      "from": "sunBoss",
+      "fromName": "태양 권역 보스",
+      "to": "outerSun",
+      "toName": "외부 피나클 I",
+      "side": "solar",
+      "start": [
+        11.42,
+        44
+      ],
+      "end": [
+        50,
+        84.8
+      ],
+      "hidden": true,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M11.42,44 L8.25,94.51 Q8,98.5 11.8,97.26 L50,84.8"
+    },
+    {
+      "from": "moonBoss",
+      "fromName": "달 권역 보스",
+      "to": "outerMoon",
+      "toName": "외부 피나클 II",
+      "side": "lunar",
+      "start": [
+        88.8,
+        45.16
+      ],
+      "end": [
+        50,
+        84.8
+      ],
+      "hidden": true,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M88.8,45.16 L92.22,94.51 Q92.5,98.5 88.69,97.27 L50,84.8"
+    },
+    {
+      "from": "entry",
+      "fromName": "시작 육분의",
+      "to": "sun1",
+      "toName": "붉은 이끼 여울",
+      "side": "solar",
+      "start": [
+        45,
+        11.9
+      ],
+      "end": [
+        39,
+        12
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M45,11.9 L42.62,12.24 Q41.5,12.4 40.7,12.27 L39,12"
+    },
+    {
+      "from": "sun1",
+      "fromName": "붉은 이끼 여울",
+      "to": "sunMossBend",
+      "toName": "이끼 굽이",
+      "side": "solar",
+      "start": [
+        39,
+        12
+      ],
+      "end": [
+        33.5,
+        16.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M39,12 Q35.53,13.37 33.5,16.5"
+    },
+    {
+      "from": "sunMossBend",
+      "fromName": "이끼 굽이",
+      "to": "sunDawnHill",
+      "toName": "첫빛 언덕",
+      "side": "solar",
+      "start": [
+        33.5,
+        16.5
+      ],
+      "end": [
+        27.75,
+        43
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M33.5,16.5 L32.65,22.28 Q32.25,25 31.28,28.88 L27.75,43"
+    },
+    {
+      "from": "sunDawnHill",
+      "fromName": "첫빛 언덕",
+      "to": "sun2",
+      "toName": "뿌리바위",
+      "side": "solar",
+      "start": [
+        27.75,
+        43
+      ],
+      "end": [
+        28.5,
+        52.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M27.75,43 L28.77,46.4 Q29.25,48 29.01,49.44 L28.5,52.5"
+    },
+    {
+      "from": "sun2",
+      "fromName": "뿌리바위",
+      "to": "sun3",
+      "toName": "혈맥 갈림길",
+      "side": "solar",
+      "start": [
+        28.5,
+        52.5
+      ],
+      "end": [
+        21.5,
+        43.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M28.5,52.5 L26.29,51.31 Q25.25,50.75 24.05,48.43 L21.5,43.5"
+    },
+    {
+      "from": "sun3",
+      "fromName": "혈맥 갈림길",
+      "to": "sunRootBank",
+      "toName": "뿌리 둔덕",
+      "side": "solar",
+      "start": [
+        21.5,
+        43.5
+      ],
+      "end": [
+        19.5,
+        34.75
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M21.5,43.5 L20.62,40.44 Q20.2,39 19.98,37.64 L19.5,34.75"
+    },
+    {
+      "from": "sunRootBank",
+      "fromName": "뿌리 둔덕",
+      "to": "sunBrassStep",
+      "toName": "황동 계단",
+      "side": "solar",
+      "start": [
+        19.5,
+        34.75
+      ],
+      "end": [
+        26.25,
+        29.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M19.5,34.75 Q23.72,33.21 26.25,29.5"
+    },
+    {
+      "from": "sunBrassStep",
+      "fromName": "황동 계단",
+      "to": "sunBarkCoast",
+      "toName": "껍질 벼랑",
+      "side": "solar",
+      "start": [
+        26.25,
+        29.5
+      ],
+      "end": [
+        26,
+        12.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M26.25,29.5 Q27.92,20.97 26,12.5"
+    },
+    {
+      "from": "sunBarkCoast",
+      "fromName": "껍질 벼랑",
+      "to": "sunOrbitalFragment",
+      "toName": "태양 고리 파편",
+      "side": "solar",
+      "start": [
+        26,
+        12.5
+      ],
+      "end": [
+        15.26,
+        12.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M26,12.5 Q20.63,10.78 15.26,12.5"
+    },
+    {
+      "from": "sunOrbitalFragment",
+      "fromName": "태양 고리 파편",
+      "to": "sunWarmQuarry",
+      "toName": "미열의 채석터",
+      "side": "solar",
+      "start": [
+        15.26,
+        12.5
+      ],
+      "end": [
+        15.01,
+        29.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M15.26,12.5 Q13.34,20.97 15.01,29.5"
+    },
+    {
+      "from": "sunWarmQuarry",
+      "fromName": "미열의 채석터",
+      "to": "rootsGuardian",
+      "toName": "자립의 혈맥 수호자",
+      "side": "solar",
+      "start": [
+        15.01,
+        29.5
+      ],
+      "end": [
+        20.63,
+        22.32
+      ],
+      "hidden": false,
+      "guardianEntry": true,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M15.01,29.5 Q17.82,25.91 20.63,22.32"
+    },
+    {
+      "from": "sun3",
+      "fromName": "혈맥 갈림길",
+      "to": "sun4",
+      "toName": "잿빛 진입로",
+      "side": "solar",
+      "start": [
+        21.5,
+        43.5
+      ],
+      "end": [
+        19.25,
+        52.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M21.5,43.5 L21.33,46.39 Q21.25,47.75 20.61,49.27 L19.25,52.5"
+    },
+    {
+      "from": "sun4",
+      "fromName": "잿빛 진입로",
+      "to": "sunAshShelf",
+      "toName": "재가 쌓인 턱",
+      "side": "solar",
+      "start": [
+        19.25,
+        52.5
+      ],
+      "end": [
+        26.75,
+        61.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M19.25,52.5 Q21.62,58.15 26.75,61.5"
+    },
+    {
+      "from": "sunAshShelf",
+      "fromName": "재가 쌓인 턱",
+      "to": "sun5",
+      "toName": "그을린 바위틈",
+      "side": "solar",
+      "start": [
+        26.75,
+        61.5
+      ],
+      "end": [
+        25.52,
+        74.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M26.75,61.5 Q24.34,67.83 25.52,74.5"
+    },
+    {
+      "from": "sun5",
+      "fromName": "그을린 바위틈",
+      "to": "sunCoalGorge",
+      "toName": "석탄 골짜기",
+      "side": "solar",
+      "start": [
+        25.52,
+        74.5
+      ],
+      "end": [
+        15.02,
+        74.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M25.52,74.5 Q20.27,72.82 15.02,74.5"
+    },
+    {
+      "from": "sunCoalGorge",
+      "fromName": "석탄 골짜기",
+      "to": "sunKey",
+      "toName": "화로 봉인문",
+      "side": "solar",
+      "start": [
+        15.02,
+        74.5
+      ],
+      "end": [
+        13.79,
+        61.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M15.02,74.5 Q16.2,67.83 13.79,61.5"
+    },
+    {
+      "from": "sunKey",
+      "fromName": "화로 봉인문",
+      "to": "furnaceGuardian",
+      "toName": "검은 화로 수호자",
+      "side": "solar",
+      "start": [
+        13.79,
+        61.5
+      ],
+      "end": [
+        20.27,
+        64.51
+      ],
+      "hidden": false,
+      "guardianEntry": true,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M13.79,61.5 Q17.03,63.01 20.27,64.51"
+    },
+    {
+      "from": "entry",
+      "fromName": "시작 육분의",
+      "to": "moon1",
+      "toName": "드리운 장막",
+      "side": "lunar",
+      "start": [
+        55,
+        11.8
+      ],
+      "end": [
+        61,
+        12
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M55,11.8 L57.38,12.14 Q58.5,12.3 59.3,12.2 L61,12"
+    },
+    {
+      "from": "moon1",
+      "fromName": "드리운 장막",
+      "to": "moonFineKnot",
+      "toName": "가는 매듭",
+      "side": "lunar",
+      "start": [
+        61,
+        12
+      ],
+      "end": [
+        66.5,
+        16.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M61,12 Q64.47,13.37 66.5,16.5"
+    },
+    {
+      "from": "moonFineKnot",
+      "fromName": "가는 매듭",
+      "to": "moonQuietCreek",
+      "toName": "고요한 물길",
+      "side": "lunar",
+      "start": [
+        66.5,
+        16.5
+      ],
+      "end": [
+        72.25,
+        43
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M66.5,16.5 L67.35,22.28 Q67.75,25 68.72,28.88 L72.25,43"
+    },
+    {
+      "from": "moonQuietCreek",
+      "fromName": "고요한 물길",
+      "to": "moon3",
+      "toName": "겹친 너울",
+      "side": "lunar",
+      "start": [
+        72.25,
+        43
+      ],
+      "end": [
+        71.5,
+        52.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M72.25,43 L71.23,46.4 Q70.75,48 70.99,49.44 L71.5,52.5"
+    },
+    {
+      "from": "moon3",
+      "fromName": "겹친 너울",
+      "to": "moon2",
+      "toName": "실바람 절벽",
+      "side": "lunar",
+      "start": [
+        71.5,
+        52.5
+      ],
+      "end": [
+        78.5,
+        43.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M71.5,52.5 L73.71,51.31 Q74.75,50.75 75.95,48.43 L78.5,43.5"
+    },
+    {
+      "from": "moon2",
+      "fromName": "실바람 절벽",
+      "to": "moonSilkMound",
+      "toName": "비단 둔덕",
+      "side": "lunar",
+      "start": [
+        78.5,
+        43.5
+      ],
+      "end": [
+        74.75,
+        34.6
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M78.5,43.5 L79.38,40.44 Q79.8,39 78.18,37.59 L74.75,34.6"
+    },
+    {
+      "from": "moonSilkMound",
+      "fromName": "비단 둔덕",
+      "to": "moonFold",
+      "toName": "장막 아래",
+      "side": "lunar",
+      "start": [
+        74.75,
+        34.6
+      ],
+      "end": [
+        70.25,
+        23.15
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M74.75,34.6 Q70.82,29.53 70.25,23.15"
+    },
+    {
+      "from": "moonFold",
+      "fromName": "장막 아래",
+      "to": "moonSilkRim",
+      "toName": "너울 가장자리",
+      "side": "lunar",
+      "start": [
+        70.25,
+        23.15
+      ],
+      "end": [
+        75,
+        12.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M70.25,23.15 Q70.98,17.09 75,12.5"
+    },
+    {
+      "from": "moonSilkRim",
+      "fromName": "너울 가장자리",
+      "to": "moonPaleDew",
+      "toName": "흰 이슬 자리",
+      "side": "lunar",
+      "start": [
+        75,
+        12.5
+      ],
+      "end": [
+        84.25,
+        20
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M75,12.5 Q80.76,14.85 84.25,20"
+    },
+    {
+      "from": "moonPaleDew",
+      "fromName": "흰 이슬 자리",
+      "to": "moonSilverStep",
+      "toName": "은빛 계단",
+      "side": "lunar",
+      "start": [
+        84.25,
+        20
+      ],
+      "end": [
+        83.25,
+        29.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M84.25,20 Q85.27,24.91 83.25,29.5"
+    },
+    {
+      "from": "moonSilverStep",
+      "fromName": "은빛 계단",
+      "to": "memoryGuardian",
+      "toName": "기억의 회랑 수호자",
+      "side": "lunar",
+      "start": [
+        83.25,
+        29.5
+      ],
+      "end": [
+        77.63,
+        23.7
+      ],
+      "hidden": false,
+      "guardianEntry": true,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M83.25,29.5 Q80.44,26.6 77.63,23.7"
+    },
+    {
+      "from": "moon2",
+      "fromName": "실바람 절벽",
+      "to": "moon4",
+      "toName": "구름 밑",
+      "side": "lunar",
+      "start": [
+        78.5,
+        43.5
+      ],
+      "end": [
+        80.75,
+        52.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M78.5,43.5 L78.67,46.39 Q78.75,47.75 79.39,49.27 L80.75,52.5"
+    },
+    {
+      "from": "moon4",
+      "fromName": "구름 밑",
+      "to": "moonCloudFoam",
+      "toName": "구름 포말",
+      "side": "lunar",
+      "start": [
+        80.75,
+        52.5
+      ],
+      "end": [
+        70,
+        61.65
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M80.75,52.5 L77.01,53.69 Q75.25,54.25 73.81,55.29 L72.19,56.46 Q70.75,57.5 70.51,58.83 L70,61.65"
+    },
+    {
+      "from": "moonCloudFoam",
+      "fromName": "구름 포말",
+      "to": "moonCloudBed",
+      "toName": "비구름 둔치",
+      "side": "lunar",
+      "start": [
+        70,
+        61.65
+      ],
+      "end": [
+        71.6,
+        74.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M70,61.65 Q72.59,67.85 71.6,74.5"
+    },
+    {
+      "from": "moonCloudBed",
+      "fromName": "비구름 둔치",
+      "to": "moon5",
+      "toName": "운무 바위턱",
+      "side": "lunar",
+      "start": [
+        71.6,
+        74.5
+      ],
+      "end": [
+        82.1,
+        74.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M71.6,74.5 Q76.85,72.82 82.1,74.5"
+    },
+    {
+      "from": "moon5",
+      "fromName": "운무 바위턱",
+      "to": "moonKey",
+      "toName": "은하 봉인문",
+      "side": "lunar",
+      "start": [
+        82.1,
+        74.5
+      ],
+      "end": [
+        83.7,
+        61.65
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M82.1,74.5 Q81.11,67.85 83.7,61.65"
+    },
+    {
+      "from": "moonKey",
+      "fromName": "은하 봉인문",
+      "to": "weavingGuardian",
+      "toName": "은하를 직조하는 신전 수호자",
+      "side": "lunar",
+      "start": [
+        83.7,
+        61.65
+      ],
+      "end": [
+        76.85,
+        64.72
+      ],
+      "hidden": false,
+      "guardianEntry": true,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M83.7,61.65 Q80.28,63.19 76.85,64.72"
+    },
+    {
+      "from": "entry",
+      "fromName": "시작 육분의",
+      "to": "inner1",
+      "toName": "내면의 문턱",
+      "side": "interior",
+      "start": [
+        50,
+        17.85
+      ],
+      "end": [
+        44.5,
+        17.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M50,17.85 Q47.31,16.8 44.5,17.5"
+    },
+    {
+      "from": "inner1",
+      "fromName": "내면의 문턱",
+      "to": "innerBarkFold",
+      "toName": "껍질의 주름",
+      "side": "interior",
+      "start": [
+        44.5,
+        17.5
+      ],
+      "end": [
+        37.5,
+        23
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M44.5,17.5 Q40.12,19.13 37.5,23"
+    },
+    {
+      "from": "innerBarkFold",
+      "fromName": "껍질의 주름",
+      "to": "innerLoam",
+      "toName": "이끼 밭고랑",
+      "side": "interior",
+      "start": [
+        37.5,
+        23
+      ],
+      "end": [
+        34,
+        32.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M37.5,23 Q34.23,27.19 34,32.5"
+    },
+    {
+      "from": "innerLoam",
+      "fromName": "이끼 밭고랑",
+      "to": "innerSapFlow",
+      "toName": "가느다란 수액길",
+      "side": "interior",
+      "start": [
+        34,
+        32.5
+      ],
+      "end": [
+        33,
+        43
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M34,32.5 Q31.82,37.59 33,43"
+    },
+    {
+      "from": "innerSapFlow",
+      "fromName": "가느다란 수액길",
+      "to": "innerShearsPass",
+      "toName": "가지치기 길",
+      "side": "interior",
+      "start": [
+        33,
+        43
+      ],
+      "end": [
+        35,
+        59.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M33,43 Q32.21,51.47 35,59.5"
+    },
+    {
+      "from": "innerShearsPass",
+      "fromName": "가지치기 길",
+      "to": "innerRootEcho",
+      "toName": "뿌리의 메아리",
+      "side": "interior",
+      "start": [
+        35,
+        59.5
+      ],
+      "end": [
+        44.5,
+        71.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M35,59.5 Q38.34,66.62 44.5,71.5"
+    },
+    {
+      "from": "innerRootEcho",
+      "fromName": "뿌리의 메아리",
+      "to": "innerGraftCourt",
+      "toName": "접목의 뜰",
+      "side": "interior",
+      "start": [
+        44.5,
+        71.5
+      ],
+      "end": [
+        55.5,
+        71.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M44.5,71.5 Q50,73.26 55.5,71.5"
+    },
+    {
+      "from": "innerGraftCourt",
+      "fromName": "접목의 뜰",
+      "to": "innerDryRing",
+      "toName": "마른 나이테",
+      "side": "interior",
+      "start": [
+        55.5,
+        71.5
+      ],
+      "end": [
+        64.5,
+        61
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M55.5,71.5 Q61.37,67.42 64.5,61"
+    },
+    {
+      "from": "innerDryRing",
+      "fromName": "마른 나이테",
+      "to": "innerDeepSap",
+      "toName": "심부 수액샘",
+      "side": "interior",
+      "start": [
+        64.5,
+        61
+      ],
+      "end": [
+        67,
+        47.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M64.5,61 Q67.52,54.58 67,47.5"
+    },
+    {
+      "from": "innerDeepSap",
+      "fromName": "심부 수액샘",
+      "to": "innerGardenSeal",
+      "toName": "정원의 문지방",
+      "side": "interior",
+      "start": [
+        67,
+        47.5
+      ],
+      "end": [
+        64.5,
+        31
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M67,47.5 Q67.53,38.98 64.5,31"
+    },
+    {
+      "from": "entry",
+      "fromName": "시작 육분의",
+      "to": "inner2",
+      "toName": "심재의 회랑",
+      "side": "interior",
+      "start": [
+        50,
+        17.85
+      ],
+      "end": [
+        55.5,
+        17.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M50,17.85 Q52.69,16.8 55.5,17.5"
+    },
+    {
+      "from": "inner2",
+      "fromName": "심재의 회랑",
+      "to": "innerPaleGrain",
+      "toName": "옅은 결무늬",
+      "side": "interior",
+      "start": [
+        55.5,
+        17.5
+      ],
+      "end": [
+        50,
+        23
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M55.5,17.5 Q53.63,21.13 50,23"
+    },
+    {
+      "from": "innerPaleGrain",
+      "fromName": "옅은 결무늬",
+      "to": "innerWakingRoot",
+      "toName": "깨어나는 뿌리",
+      "side": "interior",
+      "start": [
+        50,
+        23
+      ],
+      "end": [
+        58,
+        27.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M50,23 Q54.72,23.97 58,27.5"
+    },
+    {
+      "from": "innerWakingRoot",
+      "fromName": "깨어나는 뿌리",
+      "to": "innerWoodHollow",
+      "toName": "빈 심재",
+      "side": "interior",
+      "start": [
+        58,
+        27.5
+      ],
+      "end": [
+        62.5,
+        39.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M58,27.5 L50.86,29.2 Q47.5,30 46.32,32.4 L44.98,35.1 Q43.8,37.5 44.15,39.64 L44.55,42.06 Q44.9,44.2 46.53,44.62 L48.37,45.08 Q50,45.5 52.27,44.83 L54.83,44.07 Q57.1,43.4 58.83,42.15 L62.5,39.5"
+    },
+    {
+      "from": "innerWoodHollow",
+      "fromName": "빈 심재",
+      "to": "innerHeartRoot",
+      "toName": "심근의 굽이",
+      "side": "interior",
+      "start": [
+        62.5,
+        39.5
+      ],
+      "end": [
+        62.5,
+        51.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M62.5,39.5 Q64.3,45.5 62.5,51.5"
+    },
+    {
+      "from": "innerHeartRoot",
+      "fromName": "심근의 굽이",
+      "to": "innerDarkRing",
+      "toName": "검은 나이테",
+      "side": "interior",
+      "start": [
+        62.5,
+        51.5
+      ],
+      "end": [
+        58.5,
+        62.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M62.5,51.5 Q62.19,57.62 58.5,62.5"
+    },
+    {
+      "from": "innerDarkRing",
+      "fromName": "검은 나이테",
+      "to": "innerWillChamber",
+      "toName": "의지의 방",
+      "side": "interior",
+      "start": [
+        58.5,
+        62.5
+      ],
+      "end": [
+        50,
+        67.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M58.5,62.5 Q55.05,66.36 50,67.5"
+    },
+    {
+      "from": "innerWillChamber",
+      "fromName": "의지의 방",
+      "to": "innerOldHeart",
+      "toName": "오래된 심실",
+      "side": "interior",
+      "start": [
+        50,
+        67.5
+      ],
+      "end": [
+        41.5,
+        62.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M50,67.5 Q44.95,66.36 41.5,62.5"
+    },
+    {
+      "from": "innerOldHeart",
+      "fromName": "오래된 심실",
+      "to": "innerStillCore",
+      "toName": "숨 멎은 심부",
+      "side": "interior",
+      "start": [
+        41.5,
+        62.5
+      ],
+      "end": [
+        38,
+        48.5
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M41.5,62.5 Q38,55.94 38,48.5"
+    },
+    {
+      "from": "innerStillCore",
+      "fromName": "숨 멎은 심부",
+      "to": "innerWillThreshold",
+      "toName": "어머니나무 문턱",
+      "side": "interior",
+      "start": [
+        38,
+        48.5
+      ],
+      "end": [
+        39,
+        35
+      ],
+      "hidden": false,
+      "guardianEntry": false,
+      "shape": {
+        "type": "auto"
+      },
+      "svgPath": "M38,48.5 Q36.7,41.62 39,35"
+    }
+  ],
+  "landmarks": {
+    "entry": {
+      "name": "시작 육분의",
+      "point": [
+        50,
+        9
+      ],
+      "routeOrigin": [
+        50,
+        17.85
+      ],
+      "sideOrigins": {
+        "solar": [
+          45,
+          11.9
+        ],
+        "lunar": [
+          55,
+          11.8
+        ]
+      },
+      "color": "#edd1a5"
+    },
+    "solar": {
+      "name": "태양 권역",
+      "point": [
+        11.42,
+        44
+      ],
+      "color": "#e1b17c"
+    },
+    "lunar": {
+      "name": "달 권역",
+      "point": [
+        88.8,
+        45.16
+      ],
+      "color": "#bfa5e4"
+    },
+    "rootsTemple": {
+      "name": "자립의 혈맥",
+      "point": [
+        20.63,
+        22.32
+      ],
+      "side": "solar",
+      "region": "roots"
+    },
+    "furnaceTemple": {
+      "name": "검은 화로",
+      "point": [
+        20.27,
+        64.51
+      ],
+      "side": "solar",
+      "region": "garden"
+    },
+    "memoryTemple": {
+      "name": "기억의 회랑",
+      "point": [
+        77.63,
+        23.7
+      ],
+      "side": "lunar",
+      "region": "veil"
+    },
+    "weavingTemple": {
+      "name": "은하를 직조하는 신전",
+      "point": [
+        76.85,
+        64.72
+      ],
+      "side": "lunar",
+      "region": "cloud"
+    },
+    "device": {
+      "name": "피나클 장치",
+      "point": [
+        50,
+        84.8
+      ],
+      "color": "#ebcfb0"
+    }
+  },
+  "regions": {
+    "roots": {
+      "name": "자립의 혈맥",
+      "color": "#e1b17c"
+    },
+    "garden": {
+      "name": "검은 화로",
+      "color": "#e6a472"
+    },
+    "canopy": {
+      "name": "창공의 경계",
+      "color": "#bda6cc"
+    },
+    "sanctum": {
+      "name": "태고의 바다",
+      "color": "#8bc7e2"
+    },
+    "trunk": {
+      "name": "최초의 경계",
+      "color": "#dabb7b"
+    },
+    "veil": {
+      "name": "기억의 회랑",
+      "color": "#bfa5e4"
+    },
+    "cloud": {
+      "name": "은하를 직조하는 신전",
+      "color": "#9cc5d8"
+    },
+    "interior": {
+      "name": "세계수 내면",
+      "color": "#b4d7ba"
+    },
+    "solar": {
+      "name": "태양 권역",
+      "color": "#e1b17c"
+    },
+    "lunar": {
+      "name": "달 권역",
+      "color": "#bfa5e4"
+    },
+    "outer": {
+      "name": "외부 피나클",
+      "color": "#ebcfb0"
+    }
+  },
+  "seasonProgress": {
+    "solar": {
+      "boss": "sunBoss",
+      "approach": [
+        "sun1",
+        "sunMossBend",
+        "sunDawnHill",
+        "sun2",
+        "sun3"
+      ],
+      "branches": [
+        {
+          "temple": "rootsTemple",
+          "guardian": "rootsGuardian",
+          "key": "혈맥의 열쇠",
+          "maps": [
+            "sunRootBank",
+            "sunBrassStep",
+            "sunBarkCoast",
+            "sunOrbitalFragment",
+            "sunWarmQuarry"
+          ]
+        },
+        {
+          "temple": "furnaceTemple",
+          "guardian": "furnaceGuardian",
+          "key": "화로의 열쇠",
+          "maps": [
+            "sun4",
+            "sunAshShelf",
+            "sun5",
+            "sunCoalGorge",
+            "sunKey"
+          ]
+        }
+      ]
+    },
+    "lunar": {
+      "boss": "moonBoss",
+      "approach": [
+        "moon1",
+        "moonFineKnot",
+        "moonQuietCreek",
+        "moon3",
+        "moon2"
+      ],
+      "branches": [
+        {
+          "temple": "memoryTemple",
+          "guardian": "memoryGuardian",
+          "key": "기억의 열쇠",
+          "maps": [
+            "moonSilkMound",
+            "moonFold",
+            "moonSilkRim",
+            "moonPaleDew",
+            "moonSilverStep"
+          ]
+        },
+        {
+          "temple": "weavingTemple",
+          "guardian": "weavingGuardian",
+          "key": "은하의 열쇠",
+          "maps": [
+            "moon4",
+            "moonCloudFoam",
+            "moonCloudBed",
+            "moon5",
+            "moonKey"
+          ]
+        }
+      ]
+    }
+  },
+  "keySources": {
+    "sunBoss": [
+      "rootsGuardian",
+      "furnaceGuardian"
+    ],
+    "moonBoss": [
+      "memoryGuardian",
+      "weavingGuardian"
+    ]
+  },
+  "resource": {
+    "standardEntry": {
+      "portals": 3,
+      "chests": 1
+    },
+    "dewEntry": {
+      "portals": 1,
+      "chests": 2
+    },
+    "startingDew": 2,
+    "startingMapStones": [],
+    "dewCost": 1,
+    "alidadeCost": 1,
+    "initialT1StoneOnEntryActivation": 4,
+    "exhaustedPortalsAlidadeRefund": 1,
+    "exhaustedPortalsDewRefund": 0
+  },
+  "layout": {
+    "gridStep": 2.5,
+    "shapes": [
+      "auto",
+      "straight",
+      "curve",
+      "waypoint"
+    ],
+    "nodePositionBounds": {
+      "x": [
+        9,
+        91
+      ],
+      "y": [
+        12,
+        92
+      ]
+    },
+    "coordinateInputStep": 0.1
+  },
+  "passive": {
+    "milestones": [
+      1,
+      2,
+      3,
+      5,
+      6,
+      8,
+      10,
+      12,
+      15,
+      18,
+      22,
+      26,
+      30,
+      34,
+      38,
+      42,
+      46,
+      50
+    ],
+    "branches": [
+      {
+        "side": "solar",
+        "name": "태양",
+        "icon": "☉",
+        "focus": "추가 보상 · 안정 탐사",
+        "stars": [
+          {
+            "id": "sunHarvest",
+            "name": "풍성한 수확",
+            "point": [
+              21,
+              15.5
+            ],
+            "bonuses": {
+              "chestChance": 4
+            },
+            "effect": "태양 지도 완료 시 4% 확률로 장비 상자 1개 추가"
+          },
+          {
+            "id": "sunGold",
+            "parent": "sunHarvest",
+            "name": "황금 수확",
+            "point": [
+              21,
+              26
+            ],
+            "bonuses": {
+              "gradeChance": 20
+            },
+            "effect": "태양 지도 완료 시 20% 확률로 장비 상자 1개를 상급으로 승급"
+          },
+          {
+            "id": "sunGreed",
+            "parent": "sunGold",
+            "name": "탐욕",
+            "point": [
+              11,
+              36.5
+            ],
+            "bonuses": {
+              "chestChance": 15,
+              "portals": -1
+            },
+            "effect": "태양 지도 장비 상자 추가 확률 +15%p · 시작 포털 −1 (최소 1개)"
+          },
+          {
+            "id": "sunWard",
+            "parent": "sunGold",
+            "name": "일광 가호",
+            "point": [
+              31,
+              36.5
+            ],
+            "bonuses": {
+              "ordinaryPortals": 1
+            },
+            "effect": "이슬 없이 입장한 태양 지도의 시작 포털 +1"
+          },
+          {
+            "id": "sunEmber",
+            "parent": "sunGreed",
+            "name": "잿불 공물",
+            "point": [
+              11,
+              57.5
+            ],
+            "bonuses": {
+              "highTierChestChance": 12
+            },
+            "effect": "T8 이상 태양 지도의 장비 상자 추가 확률 +12%p"
+          },
+          {
+            "id": "sunRefine",
+            "parent": "sunWard",
+            "name": "태양 제련",
+            "point": [
+              31,
+              57.5
+            ],
+            "bonuses": {
+              "gradeChance": 15
+            },
+            "effect": "태양 지도 장비 상자의 상급 승급 확률 +15%p"
+          },
+          {
+            "id": "sunGild",
+            "parent": "sunEmber",
+            "name": "금빛 공명",
+            "point": [
+              21,
+              78.5
+            ],
+            "bonuses": {
+              "chestChance": 7
+            },
+            "effect": "태양 지도 장비 상자 추가 획득 확률 +7%p"
+          },
+          {
+            "id": "sunCrown",
+            "parent": "sunGild",
+            "name": "태양의 관",
+            "keystone": true,
+            "point": [
+              21,
+              89
+            ],
+            "bonuses": {
+              "highTierChestChance": 12,
+              "gradeChance": 10
+            },
+            "effect": "태양 지도 상급 상자 승급 확률 +10%p. T8 이상에서 장비 상자 추가 획득 확률 +12%p."
+          }
+        ]
+      },
+      {
+        "side": "lunar",
+        "name": "달",
+        "icon": "☾",
+        "focus": "이슬 강화 · 이슬 순환",
+        "stars": [
+          {
+            "id": "moonDew",
+            "name": "이슬 탐색",
+            "point": [
+              79,
+              15.5
+            ],
+            "bonuses": {
+              "dewChance": 15
+            },
+            "effect": "달 지도 완료 시 15% 확률로 형체없는 이슬 1개 획득"
+          },
+          {
+            "id": "moonKeep",
+            "parent": "moonDew",
+            "name": "되돌아오는 이슬",
+            "label": "이슬 보존",
+            "point": [
+              79,
+              26
+            ],
+            "bonuses": {
+              "dewKeep": 20
+            },
+            "effect": "달 지도 입장 시 20% 확률로 형체없는 이슬을 보존하고 강화 효과는 적용"
+          },
+          {
+            "id": "moonPortal",
+            "parent": "moonKeep",
+            "name": "달빛의 통로",
+            "point": [
+              69,
+              36.5
+            ],
+            "bonuses": {
+              "dewPortals": 1
+            },
+            "effect": "형체없는 이슬을 사용한 달 지도 탐사의 시작 포털 +1"
+          },
+          {
+            "id": "moonReservoir",
+            "parent": "moonKeep",
+            "name": "달빛 저수",
+            "point": [
+              89,
+              36.5
+            ],
+            "bonuses": {
+              "dewChance": 10
+            },
+            "effect": "달 지도 완료 시 형체없는 이슬 획득 확률 +10%p"
+          },
+          {
+            "id": "moonWeave",
+            "parent": "moonPortal",
+            "name": "은빛 직조",
+            "point": [
+              69,
+              57.5
+            ],
+            "bonuses": {
+              "dewChestChance": 12
+            },
+            "effect": "형체없는 이슬로 강화한 달 지도의 장비 상자 추가 획득 확률 +12%p"
+          },
+          {
+            "id": "moonCycle",
+            "parent": "moonReservoir",
+            "name": "되감긴 달",
+            "point": [
+              89,
+              57.5
+            ],
+            "bonuses": {
+              "dewKeep": 15
+            },
+            "effect": "달 지도 입장 시 형체없는 이슬을 보존할 확률 +15%p"
+          },
+          {
+            "id": "moonTide",
+            "parent": "moonWeave",
+            "name": "월광 회류",
+            "point": [
+              79,
+              78.5
+            ],
+            "bonuses": {
+              "dewKeep": 10
+            },
+            "effect": "달 지도 입장 시 형체없는 이슬을 보존할 확률 +10%p"
+          },
+          {
+            "id": "moonCrown",
+            "parent": "moonTide",
+            "name": "은월의 관",
+            "keystone": true,
+            "point": [
+              79,
+              89
+            ],
+            "bonuses": {
+              "dewChance": 10,
+              "dewChestChance": 12
+            },
+            "effect": "달 지도 이슬 획득 확률 +10%p. 이슬로 강화하면 장비 상자 추가 획득 확률 +12%p."
+          }
+        ]
+      },
+      {
+        "side": "interior",
+        "name": "세계수",
+        "icon": "✿",
+        "focus": "안정 탐사 · 지침 수급",
+        "stars": [
+          {
+            "id": "treeAlidade",
+            "name": "지침 감지",
+            "point": [
+              50,
+              5
+            ],
+            "bonuses": {
+              "alidadeChance": 10
+            },
+            "effect": "세계수 지도 완료 시 10% 확률로 완료한 지도 지침 1개 획득"
+          },
+          {
+            "id": "treeTier",
+            "parent": "treeAlidade",
+            "name": "등급의 사다리",
+            "label": "등급 사다리",
+            "point": [
+              50,
+              26
+            ],
+            "bonuses": {
+              "tierChance": 8
+            },
+            "effect": "세계수 지도 완료 시 연결된 상위 티어 지침 1개를 8% 확률로 획득"
+          },
+          {
+            "id": "treePortal",
+            "parent": "treeTier",
+            "name": "여분의 포털",
+            "point": [
+              40,
+              47
+            ],
+            "bonuses": {
+              "portals": 1
+            },
+            "effect": "세계수 지도 탐사의 시작 포털 +1 · 이슬 사용 시에도 적용"
+          },
+          {
+            "id": "treeDeepRoot",
+            "parent": "treeTier",
+            "name": "깊은 뿌리",
+            "point": [
+              60,
+              47
+            ],
+            "bonuses": {
+              "alidadeChance": 15
+            },
+            "effect": "완료한 세계수 지도 지침을 추가로 얻을 확률 +15%p"
+          },
+          {
+            "id": "treeShelter",
+            "parent": "treePortal",
+            "name": "뿌리 보호",
+            "point": [
+              40,
+              68
+            ],
+            "bonuses": {
+              "firstChest": 1
+            },
+            "effect": "세계수의 각 지도 첫 완료 시 장비 상자 1개 추가"
+          },
+          {
+            "id": "treeCanopy",
+            "parent": "treeDeepRoot",
+            "name": "높은 가지",
+            "point": [
+              60,
+              68
+            ],
+            "bonuses": {
+              "tierChance": 12
+            },
+            "effect": "세계수 지도와 연결된 상위 티어 지침을 추가로 얻을 확률 +12%p"
+          },
+          {
+            "id": "treeSap",
+            "parent": "treeShelter",
+            "name": "수액 순환",
+            "point": [
+              50,
+              78.5
+            ],
+            "bonuses": {
+              "alidadeChance": 8
+            },
+            "effect": "완료한 세계수 지도 지침을 추가로 얻을 확률 +8%p"
+          },
+          {
+            "id": "treeCrown",
+            "parent": "treeSap",
+            "name": "세계수의 관",
+            "keystone": true,
+            "point": [
+              50,
+              89
+            ],
+            "bonuses": {
+              "alidadeChance": 12,
+              "tierChance": 10
+            },
+            "effect": "완료한 세계수 지침의 추가 획득 확률 +12%p. 연결된 상위 티어 지침의 획득 확률 +10%p."
+          }
+        ]
+      }
+    ],
+    "links": [
+      [
+        "sunHarvest",
+        "sunGold"
+      ],
+      [
+        "sunGold",
+        "sunGreed"
+      ],
+      [
+        "sunGold",
+        "sunWard"
+      ],
+      [
+        "sunGreed",
+        "sunEmber"
+      ],
+      [
+        "sunWard",
+        "sunRefine"
+      ],
+      [
+        "sunEmber",
+        "sunGild"
+      ],
+      [
+        "sunGild",
+        "sunCrown"
+      ],
+      [
+        "moonDew",
+        "moonKeep"
+      ],
+      [
+        "moonKeep",
+        "moonPortal"
+      ],
+      [
+        "moonKeep",
+        "moonReservoir"
+      ],
+      [
+        "moonPortal",
+        "moonWeave"
+      ],
+      [
+        "moonReservoir",
+        "moonCycle"
+      ],
+      [
+        "moonWeave",
+        "moonTide"
+      ],
+      [
+        "moonTide",
+        "moonCrown"
+      ],
+      [
+        "treeAlidade",
+        "treeTier"
+      ],
+      [
+        "treeTier",
+        "treePortal"
+      ],
+      [
+        "treeTier",
+        "treeDeepRoot"
+      ],
+      [
+        "treePortal",
+        "treeShelter"
+      ],
+      [
+        "treeDeepRoot",
+        "treeCanopy"
+      ],
+      [
+        "treeShelter",
+        "treeSap"
+      ],
+      [
+        "treeSap",
+        "treeCrown"
+      ],
+      [
+        "sunHarvest",
+        "treeAlidade"
+      ],
+      [
+        "treeAlidade",
+        "moonDew"
+      ],
+      [
+        "sunGold",
+        "treeTier"
+      ],
+      [
+        "treeTier",
+        "moonKeep"
+      ],
+      [
+        "sunGreed",
+        "sunWard"
+      ],
+      [
+        "moonPortal",
+        "moonReservoir"
+      ],
+      [
+        "sunWard",
+        "treePortal"
+      ],
+      [
+        "treeDeepRoot",
+        "moonPortal"
+      ],
+      [
+        "treePortal",
+        "treeDeepRoot"
+      ],
+      [
+        "sunRefine",
+        "sunGild"
+      ],
+      [
+        "treeCanopy",
+        "treeSap"
+      ],
+      [
+        "moonCycle",
+        "moonTide"
+      ],
+      [
+        "sunGild",
+        "treeSap"
+      ],
+      [
+        "treeSap",
+        "moonTide"
+      ],
+      [
+        "sunCrown",
+        "treeCrown"
+      ],
+      [
+        "treeCrown",
+        "moonCrown"
+      ]
+    ],
+    "stars": {
+      "sunHarvest": {
+        "id": "sunHarvest",
+        "name": "풍성한 수확",
+        "point": [
+          21,
+          15.5
+        ],
+        "bonuses": {
+          "chestChance": 4
+        },
+        "effect": "태양 지도 완료 시 4% 확률로 장비 상자 1개 추가",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunGold",
+          "treeAlidade"
+        ]
+      },
+      "sunGold": {
+        "id": "sunGold",
+        "parent": "sunHarvest",
+        "name": "황금 수확",
+        "point": [
+          21,
+          26
+        ],
+        "bonuses": {
+          "gradeChance": 20
+        },
+        "effect": "태양 지도 완료 시 20% 확률로 장비 상자 1개를 상급으로 승급",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunHarvest",
+          "sunGreed",
+          "sunWard",
+          "treeTier"
+        ]
+      },
+      "sunGreed": {
+        "id": "sunGreed",
+        "parent": "sunGold",
+        "name": "탐욕",
+        "point": [
+          11,
+          36.5
+        ],
+        "bonuses": {
+          "chestChance": 15,
+          "portals": -1
+        },
+        "effect": "태양 지도 장비 상자 추가 확률 +15%p · 시작 포털 −1 (최소 1개)",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunGold",
+          "sunEmber",
+          "sunWard"
+        ]
+      },
+      "sunWard": {
+        "id": "sunWard",
+        "parent": "sunGold",
+        "name": "일광 가호",
+        "point": [
+          31,
+          36.5
+        ],
+        "bonuses": {
+          "ordinaryPortals": 1
+        },
+        "effect": "이슬 없이 입장한 태양 지도의 시작 포털 +1",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunGold",
+          "sunRefine",
+          "sunGreed",
+          "treePortal"
+        ]
+      },
+      "sunEmber": {
+        "id": "sunEmber",
+        "parent": "sunGreed",
+        "name": "잿불 공물",
+        "point": [
+          11,
+          57.5
+        ],
+        "bonuses": {
+          "highTierChestChance": 12
+        },
+        "effect": "T8 이상 태양 지도의 장비 상자 추가 확률 +12%p",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunGreed",
+          "sunGild"
+        ]
+      },
+      "sunRefine": {
+        "id": "sunRefine",
+        "parent": "sunWard",
+        "name": "태양 제련",
+        "point": [
+          31,
+          57.5
+        ],
+        "bonuses": {
+          "gradeChance": 15
+        },
+        "effect": "태양 지도 장비 상자의 상급 승급 확률 +15%p",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunWard",
+          "sunGild"
+        ]
+      },
+      "sunGild": {
+        "id": "sunGild",
+        "parent": "sunEmber",
+        "name": "금빛 공명",
+        "point": [
+          21,
+          78.5
+        ],
+        "bonuses": {
+          "chestChance": 7
+        },
+        "effect": "태양 지도 장비 상자 추가 획득 확률 +7%p",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunEmber",
+          "sunCrown",
+          "sunRefine",
+          "treeSap"
+        ]
+      },
+      "sunCrown": {
+        "id": "sunCrown",
+        "parent": "sunGild",
+        "name": "태양의 관",
+        "keystone": true,
+        "point": [
+          21,
+          89
+        ],
+        "bonuses": {
+          "highTierChestChance": 12,
+          "gradeChance": 10
+        },
+        "effect": "태양 지도 상급 상자 승급 확률 +10%p. T8 이상에서 장비 상자 추가 획득 확률 +12%p.",
+        "side": "solar",
+        "branchName": "태양",
+        "neighbors": [
+          "sunGild",
+          "treeCrown"
+        ]
+      },
+      "moonDew": {
+        "id": "moonDew",
+        "name": "이슬 탐색",
+        "point": [
+          79,
+          15.5
+        ],
+        "bonuses": {
+          "dewChance": 15
+        },
+        "effect": "달 지도 완료 시 15% 확률로 형체없는 이슬 1개 획득",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonKeep",
+          "treeAlidade"
+        ]
+      },
+      "moonKeep": {
+        "id": "moonKeep",
+        "parent": "moonDew",
+        "name": "되돌아오는 이슬",
+        "label": "이슬 보존",
+        "point": [
+          79,
+          26
+        ],
+        "bonuses": {
+          "dewKeep": 20
+        },
+        "effect": "달 지도 입장 시 20% 확률로 형체없는 이슬을 보존하고 강화 효과는 적용",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonDew",
+          "moonPortal",
+          "moonReservoir",
+          "treeTier"
+        ]
+      },
+      "moonPortal": {
+        "id": "moonPortal",
+        "parent": "moonKeep",
+        "name": "달빛의 통로",
+        "point": [
+          69,
+          36.5
+        ],
+        "bonuses": {
+          "dewPortals": 1
+        },
+        "effect": "형체없는 이슬을 사용한 달 지도 탐사의 시작 포털 +1",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonKeep",
+          "moonWeave",
+          "moonReservoir",
+          "treeDeepRoot"
+        ]
+      },
+      "moonReservoir": {
+        "id": "moonReservoir",
+        "parent": "moonKeep",
+        "name": "달빛 저수",
+        "point": [
+          89,
+          36.5
+        ],
+        "bonuses": {
+          "dewChance": 10
+        },
+        "effect": "달 지도 완료 시 형체없는 이슬 획득 확률 +10%p",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonKeep",
+          "moonCycle",
+          "moonPortal"
+        ]
+      },
+      "moonWeave": {
+        "id": "moonWeave",
+        "parent": "moonPortal",
+        "name": "은빛 직조",
+        "point": [
+          69,
+          57.5
+        ],
+        "bonuses": {
+          "dewChestChance": 12
+        },
+        "effect": "형체없는 이슬로 강화한 달 지도의 장비 상자 추가 획득 확률 +12%p",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonPortal",
+          "moonTide"
+        ]
+      },
+      "moonCycle": {
+        "id": "moonCycle",
+        "parent": "moonReservoir",
+        "name": "되감긴 달",
+        "point": [
+          89,
+          57.5
+        ],
+        "bonuses": {
+          "dewKeep": 15
+        },
+        "effect": "달 지도 입장 시 형체없는 이슬을 보존할 확률 +15%p",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonReservoir",
+          "moonTide"
+        ]
+      },
+      "moonTide": {
+        "id": "moonTide",
+        "parent": "moonWeave",
+        "name": "월광 회류",
+        "point": [
+          79,
+          78.5
+        ],
+        "bonuses": {
+          "dewKeep": 10
+        },
+        "effect": "달 지도 입장 시 형체없는 이슬을 보존할 확률 +10%p",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonWeave",
+          "moonCrown",
+          "moonCycle",
+          "treeSap"
+        ]
+      },
+      "moonCrown": {
+        "id": "moonCrown",
+        "parent": "moonTide",
+        "name": "은월의 관",
+        "keystone": true,
+        "point": [
+          79,
+          89
+        ],
+        "bonuses": {
+          "dewChance": 10,
+          "dewChestChance": 12
+        },
+        "effect": "달 지도 이슬 획득 확률 +10%p. 이슬로 강화하면 장비 상자 추가 획득 확률 +12%p.",
+        "side": "lunar",
+        "branchName": "달",
+        "neighbors": [
+          "moonTide",
+          "treeCrown"
+        ]
+      },
+      "treeAlidade": {
+        "id": "treeAlidade",
+        "name": "지침 감지",
+        "point": [
+          50,
+          5
+        ],
+        "bonuses": {
+          "alidadeChance": 10
+        },
+        "effect": "세계수 지도 완료 시 10% 확률로 완료한 지도 지침 1개 획득",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treeTier",
+          "sunHarvest",
+          "moonDew"
+        ]
+      },
+      "treeTier": {
+        "id": "treeTier",
+        "parent": "treeAlidade",
+        "name": "등급의 사다리",
+        "label": "등급 사다리",
+        "point": [
+          50,
+          26
+        ],
+        "bonuses": {
+          "tierChance": 8
+        },
+        "effect": "세계수 지도 완료 시 연결된 상위 티어 지침 1개를 8% 확률로 획득",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treeAlidade",
+          "treePortal",
+          "treeDeepRoot",
+          "sunGold",
+          "moonKeep"
+        ]
+      },
+      "treePortal": {
+        "id": "treePortal",
+        "parent": "treeTier",
+        "name": "여분의 포털",
+        "point": [
+          40,
+          47
+        ],
+        "bonuses": {
+          "portals": 1
+        },
+        "effect": "세계수 지도 탐사의 시작 포털 +1 · 이슬 사용 시에도 적용",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treeTier",
+          "treeShelter",
+          "sunWard",
+          "treeDeepRoot"
+        ]
+      },
+      "treeDeepRoot": {
+        "id": "treeDeepRoot",
+        "parent": "treeTier",
+        "name": "깊은 뿌리",
+        "point": [
+          60,
+          47
+        ],
+        "bonuses": {
+          "alidadeChance": 15
+        },
+        "effect": "완료한 세계수 지도 지침을 추가로 얻을 확률 +15%p",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treeTier",
+          "treeCanopy",
+          "moonPortal",
+          "treePortal"
+        ]
+      },
+      "treeShelter": {
+        "id": "treeShelter",
+        "parent": "treePortal",
+        "name": "뿌리 보호",
+        "point": [
+          40,
+          68
+        ],
+        "bonuses": {
+          "firstChest": 1
+        },
+        "effect": "세계수의 각 지도 첫 완료 시 장비 상자 1개 추가",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treePortal",
+          "treeSap"
+        ]
+      },
+      "treeCanopy": {
+        "id": "treeCanopy",
+        "parent": "treeDeepRoot",
+        "name": "높은 가지",
+        "point": [
+          60,
+          68
+        ],
+        "bonuses": {
+          "tierChance": 12
+        },
+        "effect": "세계수 지도와 연결된 상위 티어 지침을 추가로 얻을 확률 +12%p",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treeDeepRoot",
+          "treeSap"
+        ]
+      },
+      "treeSap": {
+        "id": "treeSap",
+        "parent": "treeShelter",
+        "name": "수액 순환",
+        "point": [
+          50,
+          78.5
+        ],
+        "bonuses": {
+          "alidadeChance": 8
+        },
+        "effect": "완료한 세계수 지도 지침을 추가로 얻을 확률 +8%p",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treeShelter",
+          "treeCrown",
+          "treeCanopy",
+          "sunGild",
+          "moonTide"
+        ]
+      },
+      "treeCrown": {
+        "id": "treeCrown",
+        "parent": "treeSap",
+        "name": "세계수의 관",
+        "keystone": true,
+        "point": [
+          50,
+          89
+        ],
+        "bonuses": {
+          "alidadeChance": 12,
+          "tierChance": 10
+        },
+        "effect": "완료한 세계수 지침의 추가 획득 확률 +12%p. 연결된 상위 티어 지침의 획득 확률 +10%p.",
+        "side": "interior",
+        "branchName": "세계수",
+        "neighbors": [
+          "treeSap",
+          "sunCrown",
+          "moonCrown"
+        ]
+      }
+    },
+    "starts": [
+      "sunHarvest",
+      "moonDew",
+      "treeAlidade"
+    ],
+    "maximumPoints": 18
+  },
+  "asOf": "2026-11-24",
+  "sourceSha256": "72ea671031233f7104c3a66a59b743d50d9ec7242cab835545ac9234bce6d63f",
+  "routeViewBox": [
+    0,
+    0,
+    100,
+    100
+  ],
+  "underReview": [
+    {
+      "feature": "일반 지도 수",
+      "originalTargetApprox": 60,
+      "prototype": 50
+    },
+    {
+      "feature": "피나클 완료 후 모든 일반 지도를 T10으로 전환",
+      "implemented": false
+    },
+    {
+      "feature": "피나클 완료 후 중간 보스 입장권 저확률 지급",
+      "implemented": false,
+      "chance": null
+    }
+  ],
+  "backgroundImage": {
+    "file": "06_천문도 배경.webp",
+    "sizePx": [
+      1672,
+      941
+    ]
+  }
+}

@@ -2,10 +2,15 @@ import { atlasCoreLockReason } from './atlas-access.mjs';
 import { atlasCoreRollMap, atlasCoreGuardianDrop, atlasCorePreferredDrops, atlasCoreNodeForTier, atlasCoreStamp } from './atlas-map-drops.mjs';
 import { atlasCoreBonusOf } from './atlas-bonuses.mjs';
 import { atlasCoreStore } from './atlas-inventory.mjs';
-import { atlasCoreBestTier, atlasCoreEffectiveTier } from './atlas-graph.mjs';
+import { atlasCoreBestTier, atlasCoreChartTierOf, atlasCoreIsMapStone } from './atlas-graph.mjs';
 
 // ---------------------------------------------------------------- drops
 export function atlasCoreIsBoardRun(state) { return !!state.atlas.run?.board; }
+
+/** The chart tier a run's stone drops go around: an ordinary map's own, otherwise the one its fight tier reaches. */
+export function atlasCoreRunChartTier(env, run) {
+    return atlasCoreIsMapStone(env, run.map) && !run.map.memory ? run.map.tier : atlasCoreChartTierOf(env, run.map.tier);
+}
 
 export function atlasCoreDropTier(env, tier, random, bonus) {
     const drops = env.deps.ATLAS.drops, roll = random(), up = drops.tierUp + bonus.mapTierUp / 100;
@@ -13,7 +18,7 @@ export function atlasCoreDropTier(env, tier, random, bonus) {
     return roll < up + drops.tierSame ? tier : tier - 1 - Math.floor(random() * 3);
 }
 
-/** A kill in a map: elites and bosses drop more, item quantity and the sustain passives count; drops wait in the run until the
+/** A kill in a map: elites and bosses drop more, item quantity and the map drop bonus count; drops wait in the run until the
  * boss falls. Outside the atlas, bosses of chaos 20 and deeper sometimes drop a low map straight to the stash (the way back in). */
 export function atlasCoreDropFromKill(env, state, zone, enemy, random = Math.random) {
     if (atlasCoreIsBoardRun(state)) return [];
@@ -35,8 +40,8 @@ export function atlasCoreDropInMap(env, state, zone, enemy, random) {
     const chance = base * (1 + zone.atlasLootQuantity / 100) * (1 + bonus.mapDrop / 100);
     const extra = Number(!!enemy.isBoss && random() < drops.bossExtra + bonus.bossMap / 100);
     const count = Math.floor(chance) + Number(random() < chance % 1) + extra;
-    const maps = Array.from({ length: count }, () => atlasCoreRollMap(env, state, atlasCoreDropTier(env, run.map.tier, random, bonus), random, bonus)).filter(Boolean);
-    if (enemy.isBoss) maps.push(...atlasCoreGuardianDrop(env, state, run.map, random, bonus));
+    const maps = Array.from({ length: count }, () => atlasCoreRollMap(env, state, atlasCoreDropTier(env, atlasCoreRunChartTier(env, run), random, bonus), random, bonus)).filter(Boolean);
+    if (enemy.isBoss) maps.push(...atlasCoreGuardianDrop(env, state, run, random, bonus));
     if (maps.length) run.drops = atlasCorePreferredDrops(env, state, [...run.drops, ...maps], env.deps.ATLAS.stashCap);
     return maps;
 }
@@ -44,17 +49,17 @@ export function atlasCoreDropInMap(env, state, zone, enemy, random) {
 /** Knitting map stones: `count` of `rarity` on the best node at or under the best tier + tierUp,
  * stamped like drops (omen, quality). @returns {object[]} the ones the stash took */
 export function atlasCoreRewardMaps(env, state, rule, random = Math.random) {
-    const bonus = atlasCoreBonusOf(env, state), tier = Math.min(env.deps.ATLAS.tierCap, Math.max(1, atlasCoreBestTier(env, state)) + (rule.tierUp || 0));
+    const bonus = atlasCoreBonusOf(env, state), tier = Math.min(env.CHART_TIERS, Math.max(1, atlasCoreBestTier(env, state)) + (rule.tierUp || 0));
     const maps = Array.from({ length: rule.count }, () => {
         const node = atlasCoreNodeForTier(env, state, tier, random);
-        return node && atlasCoreStamp(env, state, env.deps.atlasMaps.create(node.id, atlasCoreEffectiveTier(env, state, node), rule.rarity, random), random, bonus);
+        return node && atlasCoreStamp(env, state, env.deps.atlasMaps.create(node.id, node.tier, rule.rarity, random), random, bonus);
     }).filter(Boolean);
     return maps.slice(0, atlasCoreStore(env, state, maps));
 }
 
 /** One more map for the run (an emptied content room's find). */
 export function atlasCoreExtraMap(env, state, random = Math.random) {
-    const run = state.atlas.run, map = run && atlasCoreRollMap(env, state, run.map.tier, random, run.bonus);
+    const run = state.atlas.run, map = run && atlasCoreRollMap(env, state, atlasCoreRunChartTier(env, run), random, run.bonus);
     if (map && run.drops.length < env.deps.ATLAS.stashCap) run.drops.push(map);
     return map ? [map] : [];
 }

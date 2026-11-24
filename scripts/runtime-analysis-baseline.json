@@ -12964,7 +12964,6 @@
     "dependency:js/build-feedback-ui.js#top->safeExposeGlobals",
     "dependency:js/canvas-act-exploration.js#top->safeExposeGlobals",
     "dependency:js/canvas-act-title-card.js#top->safeExposeGlobals",
-    "dependency:js/canvas-atlas-chart.js#top->safeExposeGlobals",
     "dependency:js/canvas-attack-fx.js#top->Number",
     "dependency:js/canvas-attack-fx.js#top->safeExposeGlobals",
     "dependency:js/canvas-battle-draw-list.js#top->safeExposeGlobals",

@@ -13,7 +13,6 @@ const atlasEpochUi = createAtlasEpochView({
     get escapeHTML() { return escapeHTML; },
     get ATLAS() { return ATLAS; },
     get hasCurrentLoopChaos20Clear() { return hasCurrentLoopChaos20Clear; },
-    get atlasEndgame() { return atlasEndgame; },
-    get ATLAS_PASSIVES() { return ATLAS_PASSIVES; }
+    get atlasEndgame() { return atlasEndgame; }
 });
 safeExposeGlobals({ atlasEpochUi });

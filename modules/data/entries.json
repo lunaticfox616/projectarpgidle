@@ -84,7 +84,6 @@
       "METEOR_SITE_UNLOCK_LOOP",
       "METEOR_SITE_UNLOCK_ACT",
       "METEOR_KINDS",
-      "METEOR_CONSTELLATION_POOL",
       "OCEAN_UNLOCK_LOOP",
       "OCEAN_AUTO_REDIVE",
       "OCEAN_COMBAT_DIVE",
@@ -207,17 +206,17 @@
     ]
   },
   {
+    "source": "modules/data/atlas-chart.mjs",
+    "output": "data/atlas-chart.js",
+    "names": [
+      "ATLAS_CHART"
+    ]
+  },
+  {
     "source": "modules/data/atlas.mjs",
     "output": "data/atlas.js",
     "names": [
       "ATLAS"
-    ]
-  },
-  {
-    "source": "modules/data/atlas-passives.mjs",
-    "output": "data/atlas-passives.js",
-    "names": [
-      "ATLAS_PASSIVES"
     ]
   },
   {

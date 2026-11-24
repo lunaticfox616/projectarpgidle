@@ -7,7 +7,7 @@
 import { atlasLateDefaults, atlasLateMoveAltarMaterials, atlasLateAwakened, atlasLateKills, atlasLateCount, atlasLateDef } from './atlas-endgame-ledger.mjs';
 import { atlasLateNormalize, atlasLateReset } from './atlas-endgame-restore.mjs';
 import { atlasLateNormalizeRun, atlasLateRunExtra } from './atlas-endgame-run.mjs';
-import { atlasLateAncientDone, atlasLateAncientGate, atlasLateEntryReason, atlasLateSpend, atlasLateRefund } from './atlas-endgame-access.mjs';
+import { atlasLateAncientDone, atlasLateAncientGate, atlasLateEntryReason, atlasLateOfferingReason, atlasLateSpend, atlasLateRefund } from './atlas-endgame-access.mjs';
 import { atlasLateLoopKeptCurrencies, atlasLateOverview } from './atlas-endgame-overview.mjs';
 import { atlasLateBossBoost, atlasLateZoneExtras, atlasLateTuneStage, atlasLatePatternState } from './atlas-endgame-boss-stage.mjs';
 import { atlasLateRoomItems } from './atlas-endgame-spoils.mjs';
@@ -44,6 +44,7 @@ function createAtlasEndgameLedgerApi(env) {
         count: (...args) => atlasLateCount(env, ...args),
         def: (...args) => atlasLateDef(env, ...args),
         entryReason: (...args) => atlasLateEntryReason(env, ...args),
+        offeringReason: (...args) => atlasLateOfferingReason(env, ...args),
         spend: (...args) => atlasLateSpend(env, ...args),
         refund: (...args) => atlasLateRefund(env, ...args),
         runExtra: (...args) => atlasLateRunExtra(env, ...args)
