@@ -1,6 +1,7 @@
 import { packRollExplorationRoomWaves, packShouldSealEncounterRun, roomPackKind, packStarterRescueRoom, packOwnsNoPack, packEmptiedExplorationPack, packMarkExplorationAmbushRooms, RESCUE_STRIKE } from './exploration-pack-rules.mjs';
 import { packCreateActExplorationPack } from './exploration-pack-create.mjs';
-import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
+import { atlasExpeditions, hiveBroods } from '../data/atlas-expeditions.mjs';
+import { rollHuntPack } from './hunt-traits.mjs';
 import { packPlaceExplorationBoss } from './exploration-pack-placement.mjs';
 import { repositionPassages } from './atlas-passage-cells.mjs';
 import { packCreateExplorationBossStage, packCreateBeehiveRoomPacks, packCreateColonyDefenseRoomPacks, packCreateGrandBreachRoomPacks, packCreateMarkerRoomPacks } from './exploration-pack-content.mjs';
@@ -62,7 +63,9 @@ function expeditionPacks(c, zone, map) {
             const enemy = pack.waiting[0];
             Object.assign(enemy, {name:zone.bossName, bossAssetKey:null, spriteVariantId:null, monsterVisualId:zone.bossVisualId});
             c.deps.assignEnemyGridCombatProfile(enemy);
-            return packPlaceExplorationBoss(c, map, room, pack);
+            packPlaceExplorationBoss(c, map, room, pack);
+            if (zone.pocket === 'hive') prepareHiveBroods(c, zone, room, pack);
+            return pack;
         }
         const [label, count, stops, duration, trigger] = course[Number(room.id.slice(1)) - 1];
         const pack = count ? packCreateActExplorationPack(c, zone, room, null, {encounter:zone.pocket, formation:{count}})
@@ -72,12 +75,28 @@ function expeditionPacks(c, zone, map) {
             gx:room.gx + Math.sign(x)*Math.min(Math.abs(x),room.radiusX), gy:room.gy + Math.sign(y)*Math.min(Math.abs(y),room.radiusY)
         }));
         pack.task = {label, spots, index:0, elapsed:0, duration};
+        if (trigger === 'brood') pack.task.cocoons = true;
         if (trigger === 'ambush') {
             pack.task.reinforcements = pack.waiting;
             Object.assign(pack,{waiting:[],aliveIds:[],eliteIds:[]});
         }
         return pack;
     });
+}
+
+function prepareHiveBroods(c, zone, room, pack) {
+    const places = c.deps.formation.around(room,hiveBroods.reduce((total,brood) => total+brood.count,0));
+    for (const brood of hiveBroods) {
+        for (let i=0; i<brood.count; i++) {
+            const guard = brood.id === 'hive-guard';
+            const enemy = c.deps.createEnemy(zone,{at:0,count:1,boss:false,elite:guard,ownLook:true,packVisualId:brood.id},i);
+            Object.assign(enemy,places.shift(),{monsterVisualId:brood.id,explorationPack:pack.key,gridMoveTimer:0,brood:brood.id});
+            c.deps.assignEnemyGridCombatProfile(enemy);
+            pack.waiting.push(enemy);
+            pack.aliveIds.push(enemy.id);
+            if (enemy.isElite) pack.eliteIds.push(enemy.id);
+        }
+    }
 }
 
 export function packCreateStarterRescuePack(c, zone, map, room) {
@@ -96,8 +115,11 @@ export function packCreateStarterRescuePack(c, zone, map, room) {
 
 /** 방의 원래 무리가 설 자리: 방 단위 무대에서는 그 방의 자리 묶음을 따른다(stageRoomArranger). 이어진 지도에서는 전의 자리 그대로다. */
 export function packArrangedRoomFormation(c, arranger, zone, room, {encounter, formation}) {
-    const cells=arranger.cells(room,0,room.host ? 4 : c.deps.formation.count(zone,encounter,formation));
-    return cells ? {...formation,cells,front:arranger.front(room)} : formation;
+    const count=room.host ? 4 : c.deps.formation.count(zone,encounter,formation);
+    const pack=encounter || room.host ? null : rollHuntPack(c.owner,zone,count,c.deps.random);
+    const shape=pack ? {...formation,count:pack.count,huntRule:pack.rule,originalCount:count} : formation;
+    const cells=arranger.cells(room,0,pack?.count ?? count);
+    return cells ? {...shape,cells,front:arranger.front(room)} : shape;
 }
 
 /** Packs beside the one each room has: the quiet-road group, and on a room-by-room stage the packs added to every room. */

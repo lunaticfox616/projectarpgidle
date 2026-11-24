@@ -67,9 +67,13 @@ function nextChangeText(runtime, bucket) {
 
 function bandHtml(runtime) {
     const pulse = runtime.deps.auctionHouse.pulse(runtime.deps.game), event = pulse.event;
-    return `<div class="ah-event"><h3>${trHtml(runtime, event.title)}</h3><p>${trHtml(runtime, event.description)}</p></div>
-        <ul class="ah-movers" aria-label="${runtime.deps._t('시세 변화')}">${moverRows(runtime, pulse).map(row => chipHtml(runtime, row)).join('')}</ul>
-        <div class="ah-band-side"><p class="ah-next">${nextChangeText(runtime, pulse.bucket)}</p>${runtime.deps.shopView.walletHtml(WALLET)}</div>`;
+    const rows=moverRows(runtime,pulse), lead=rows[0];
+    const name=lead?.kind==='family' ? familyLabel(runtime,lead.key) : lead && runtime.deps.shopView.currencyName(lead.key);
+    const trend=lead ? `<span class="ah-factor ${trendClass(lead.factor)}">${esc(runtime,name)} ${pct(runtime,lead.factor)}</span>` : '';
+    return `<button type="button" class="ah-pulse-toggle" data-ah-pulse aria-controls="ah-pulse-info" aria-expanded="${!!runtime.state.pulseOpen}"><strong>${trHtml(runtime,event.title)}</strong>${trend}</button>
+        <div id="ah-pulse-info" class="ah-pulse-info"><div class="ah-event"><h3>${trHtml(runtime, event.title)}</h3><p>${trHtml(runtime, event.description)}</p></div>
+        <ul class="ah-movers" aria-label="${runtime.deps._t('시세 변화')}">${rows.map(row => chipHtml(runtime, row)).join('')}</ul>
+        <div class="ah-band-side"><p class="ah-next">${nextChangeText(runtime, pulse.bucket)}</p>${runtime.deps.shopView.walletHtml(WALLET)}</div></div>`;
 }
 
 function skeletonHtml(runtime) {

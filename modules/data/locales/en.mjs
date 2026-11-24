@@ -13,6 +13,24 @@ const LANGUAGE_PACK_EN = Object.freeze({
     name: 'English',
     locale: 'en-US',
     strings: Object.freeze({
+        '플레이어 생명력': 'Player life',
+        '보스 생명력': 'Boss life',
+        '일벌 고치': 'Worker cocoon',
+        '일벌 {count}마리': '{count} worker bees',
+        '정예 호위벌 {count}마리': '{count} elite guard bee',
+        '호위벌 고치': 'Guard cocoon',
+        '깨뜨릴 고치 선택': 'Choose a cocoon to break',
+        '서리 손길': 'Frost Touch',
+        '사멸 파동': 'Death Nova',
+        '분열 사격': 'Split Shot',
+        '대군': 'Horde',
+        '용암 발자국': 'Lava Trail',
+        '가시 갑주': 'Thorn Armour',
+        '쇠약의 저주': 'Curse of Frailty',
+        '거체': 'Colossus',
+        '생명 결속': 'Lifebond',
+        '침식 고리': 'Ring of Decay',
+        '서리 감속': 'Frost Slow',
         '바닥이 갈라져 {name} 입구가 열렸습니다. 바닥의 틈을 눌러 들어가세요.': 'The ground has opened into {name}. Select the fissure to enter.',
         '{name}에 들어왔습니다. 안쪽의 목표를 마치면 원래 지도로 돌아갑니다.': 'Entered {name}. Clear the expedition to return to your map.',
         '발견한 입구 · {name}': 'Entrance found · {name}',
@@ -11221,6 +11239,8 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '더 보기': 'Show more',
         '{minutes}분 전': '{minutes}m ago',
         '이미 내려간 매물입니다.': 'This lot is no longer listed.',
+        '재료 {count}종': '{count} materials',
+        '이 칸 줍기': 'Collect this pile',
     })
 });
 

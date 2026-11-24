@@ -95,11 +95,14 @@ export class EnemyTelegraphs {
     }
 
     draw(ctx, layout, scale, projection, pending) {
+        // The overlay paints these in impact order. The generic warning would light all future cells at once.
+        const ordinary=(layout || []).filter(row=>!row.enemy.nextPatternState?.signature);
+        const ordinaryPending=pending.filter(attack=>!attack.bossPattern?.signature);
         this.deps.woodsman.field(ctx, projection);
-        this.deps.sideEncounters.pendingWarnings(ctx, projection, pending.filter(attack => !attack.bossPattern?.area?.woodsman));
+        this.deps.sideEncounters.pendingWarnings(ctx, projection, ordinaryPending.filter(attack => !attack.bossPattern?.area?.woodsman));
         this.deps.bossMoves.drawGround(ctx, projection);
         if (this.deps.observerZone()) this.deps.bossMoves.drawObserverWarnings(ctx, layout, projection);
-        (layout || []).forEach(entry => this.enemy(ctx, entry, scale, projection));
-        this.deps.bossAttacks.drawMarks(ctx, { layout, projection, pending });
+        ordinary.forEach(entry => this.enemy(ctx, entry, scale, projection));
+        this.deps.bossAttacks.drawMarks(ctx, { layout:ordinary, projection, pending:ordinaryPending });
     }
 }

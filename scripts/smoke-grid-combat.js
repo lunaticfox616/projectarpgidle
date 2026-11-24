@@ -2110,8 +2110,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   // 이동 주기(0.5초) 미만 누적으로는 움직이지 않는다
   assert.strictEqual(context.advanceGridUnitMovement(walker, context.game.gridPlayer, 0.1, 0.5), false);
   assert.strictEqual(walker.gx, 5);
-  // 주기를 채우면 한 칸 접근한다
-  for (let i = 0; i < 4; i++) context.advanceGridUnitMovement(walker, context.game.gridPlayer, 0.1, 0.5);
+  // 대각선 접근에는 0.5초 × √2가 필요하다.
+  assert.equal(context.advanceGridUnitMovement(walker,context.game.gridPlayer,0.60,0.5),false);
+  assert.equal(context.advanceGridUnitMovement(walker,context.game.gridPlayer,0.008,0.5),true);
+  assert.equal(Math.abs(walker.gx-5)+Math.abs(walker.gy-6),2);
   const after = context.gridChebyshevDist(walker.gx, walker.gy, cfg.playerSpawn.gx, cfg.playerSpawn.gy);
   assert.strictEqual(after, before - 1, '이동 주기를 채우면 1칸 접근해야 한다');
   // 점유 칸으로는 들어가지 않는다
@@ -2177,7 +2179,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const distBefore = context.gridChebyshevDist(meleeFar.gx, meleeFar.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy);
   meleeFar.attackTimer = 5; // 사거리 밖에서는 누적 공격 게이지가 1회분으로 줄어야 한다
   rangedNear.noAttack = true; // 이 검사는 근접 적의 이동만 본다
-  for (let i = 0; i < 6; i++) context.performMonsterAttacks(pStats);
+  const approachTicks = Math.ceil(context.getGridUnitStepSec(meleeFar) * Math.SQRT2 / 0.1);
+  for (let i = 0; i < approachTicks; i++) context.performMonsterAttacks(pStats);
   const distAfter = context.gridChebyshevDist(meleeFar.gx, meleeFar.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy);
   assert.ok(distAfter < distBefore, '사거리 밖 근접 적은 플레이어에게 접근해야 한다');
   assert.ok(meleeFar.attackTimer <= 1, '사거리 밖에서는 공격 게이지가 1회분을 넘지 않아야 한다');
@@ -2824,9 +2827,15 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id)
       && !game.inventory.some(row=>row.id===item.id)
       && !game.actExploration.groundLoot.some(row=>row.item?.id===item.id);
+    const leader=game.enemies.find(row=>row.isBoss);
+    leader.hp=0;handleEnemyDeath(leader,getPlayerStats());
+    const behindEscort=game.colony.pendingLoot.some(row=>row.item?.id===item.id)
+      && !game.actExploration.groundLoot.some(row=>row.item?.id===item.id);
     for(const row of [...game.enemies]){row.hp=0;handleEnemyDeath(row,getPlayerStats());}
     const released=game.actExploration.groundLoot.some(row=>row.item?.id===item.id)
       && !game.colony.pendingLoot.some(row=>row.item?.id===item.id);
+    const gearCell=game.actExploration.groundLoot.find(row=>row.item?.id===item.id);
+    const inFlight=!!gearCell && !actExplorationProgress.collectPile(gearCell) && !game.inventory.some(row=>row.id===item.id);
     game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
     ensureEncounterRun();
     const saved=game.colony.lootPending&&game.actExploration.groundLoot.some(row=>row.item?.id===item.id)
@@ -2839,11 +2848,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
     ensureEncounterRun();
     tickColonyRun(getPlayerStats());
-    return {held,released,saved,heldFloor,received:game.inventory.some(row=>row.id===item.id),
+    return {held,behindEscort,released,inFlight,saved,heldFloor,received:game.inventory.filter(row=>row.id===item.id).length===1,
       resumed:game.enemies.length>0&&!game.colony.lootPending,
       returned:!game.colony.inRun&&game.currentZoneId===0&&game.colony.lastResult?.completed===5};
   })()`, runtime)));
-    assert.deepStrictEqual(settled,{held:true,released:true,saved:true,heldFloor:true,received:true,resumed:!scheduled,returned:scheduled},
+    assert.deepStrictEqual(settled,{held:true,behindEscort:true,released:true,inFlight:true,saved:true,heldFloor:true,received:true,resumed:!scheduled,returned:scheduled},
       'colony boss releases reserved gear once; saved pickup resumes or returns at the chosen checkpoint');
   }
 

@@ -4,7 +4,8 @@ export function motionDuration(interval) {return Math.max(120,Math.min(10000,Mat
 
 export function motionStart(run,player,next,interval,now) {
     if(run.motion)return false;
-    const duration=motionDuration(interval);
+    const diagonal=next.gx!==player.gx && next.gy!==player.gy;
+    const duration=motionDuration(interval)*(diagonal ? Math.SQRT2 : 1);
     run.motion={from:{gx:player.gx,gy:player.gy},to:{gx:next.gx,gy:next.gy},startedAt:now,elapsed:0,duration};
     if(next.gx!==player.gx)run.motionDirection=next.gx<player.gx?'west':'east';
     else run.motionDirection=next.gy<player.gy?'north':'south';
@@ -52,7 +53,7 @@ export function motionValidate(walkable,run,player,map) {
 function motionValidateTiming(motion,now) {
     if(!motion || ![motion.startedAt,motion.duration,motion.elapsed].every(Number.isFinite))throw Error('탐험 이동 수치가 잘못되었습니다.');
     if(motion.startedAt<0)throw Error('탐험 이동 시작 시각이 잘못되었습니다.');
-    if(motion.duration<120 || motion.duration>10000)throw Error('탐험 이동 시간이 잘못되었습니다.');
+    if(motion.duration<120 || motion.duration>10000*Math.SQRT2)throw Error('탐험 이동 시간이 잘못되었습니다.');
     if(motion.elapsed<0 || motion.elapsed>=motion.duration)throw Error('탐험 이동 진행이 잘못되었습니다.');
     if(Math.abs(now-motion.startedAt-motion.elapsed)>0.001)throw Error('탐험 이동 시각과 진행이 일치하지 않습니다.');
 }
@@ -60,7 +61,7 @@ function motionValidateCells(walkable,motion,player,map) {
     for(const cell of [motion.from,motion.to]) {
         if(!cell || !walkable(map,cell))throw Error('탐험 이동 경로가 지형 밖입니다.');
     }
-    // Fast out-of-combat travel may take a diagonal step, but never skip a cell.
+    // All walkers may cross one edge or one diagonal.
     if(Math.max(Math.abs(motion.from.gx-motion.to.gx),Math.abs(motion.from.gy-motion.to.gy))!==1)throw Error('탐험 보행은 인접 칸으로만 가능합니다.');
     const expected=motion.elapsed<motion.duration/2?motion.from:motion.to;
     if(!motionSameCell(player,expected))throw Error('탐험 보행 위치와 판정 칸이 일치하지 않습니다.');

@@ -1,4 +1,5 @@
 import { buildGetLoopDifficultyInputs } from '../domain/enemy-loop-difficulty.mjs';
+import { rollHuntTraits } from '../domain/hunt-traits.mjs';
 import { clampNumber } from '../common/numbers.mjs';
 import { buildGetEnemyBaseHp, buildApplyEnemyTraitHp } from '../combat/enemy-spawn-life.mjs';
 import { buildGetEnemyLook, buildGetEnemyLookName } from '../combat/enemy-spawn-look.mjs';
@@ -100,6 +101,7 @@ export function buildFinishEnemySpawn(env, enemy, zone, spawn) {
     env.deps.applyGrandBreachMobTuning(zone, enemy);
     env.deps.assignEnemyGridCombatProfile(enemy);
     buildTuneMeteorEnemy(env, enemy, zone);
+    rollHuntTraits(env.owner, zone, enemy, Math.random);
     if (typeof env.deps.maybeApplySeveredWanderer === 'function') env.deps.maybeApplySeveredWanderer(enemy, zone, spawn.isElite, spawn.isBoss);
     if (!spawn.plainBoss) buildFinishBossSpawn(env, enemy, zone);
     env.deps.atlasEndgame.markOmenBearer(env.owner, enemy, zone);

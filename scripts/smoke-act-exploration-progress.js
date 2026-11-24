@@ -108,4 +108,20 @@ assert.equal(run('game.gridPlayer.gx'),target.gx);assert.equal(run('game.gridPla
 assert.equal(run('game.actExploration.destination'),null,'manual travel stops at the selected cell');
 run('game.actExploration.mode="full";');advance(30);
 assert.notDeepEqual(copy('game.gridPlayer'),entry,'switching to full exploration resumes travel');
+
+// Two deliveries of the same currency to one tile can straddle a pickup, including after a reload.
+start(1,'manual');
+const budsBefore=run('game.currencies.magicBud');
+run(`{
+    const ground=actExplorationState.groundLoot,run=game.actExploration,cell=game.gridPlayer;
+    ground.placeCurrency(run,cell,'magicBud',5);
+    game.combatTimeMs+=1200;
+    ground.placeCurrency(run,cell,'magicBud',7);
+    game=mergeDefaults(JSON.parse(serializeSaveState(game)));
+}`);
+assert.equal(run('actExplorationProgress.collectPile(game.gridPlayer)'),1,'only the landed lot is picked up after reconnect');
+assert.equal(run('game.currencies.magicBud'),budsBefore+5);
+assert.equal(run('actExplorationProgress.collectPile(game.gridPlayer)'),0,'the second lot is still falling');
+run('game.combatTimeMs+=1200;actExplorationProgress.collectPile(game.gridPlayer);actExplorationProgress.collectPile(game.gridPlayer);');
+assert.equal(run('game.currencies.magicBud'),budsBefore+12,'the second landing pays exactly once');
 console.log('Real coreLoop: 10 acts, direct travel, reconnect, manual destination and once-only completion: OK');

@@ -1,5 +1,6 @@
 import { packMarkExplorationPackShape, packMarkExplorationAlertPack } from './exploration-pack-rules.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
+import { dressHuntPack } from './hunt-traits.mjs';
 
 // c.owner is the current game state, supplied for each call; deps are legacy domain services.
 /** 무리의 한 자리에 설 적. 그 자리에 따로 정한 배역(role: 케르베로스의 머리와 몸통)이 있으면 그 표식으로 만들고, 만든 뒤 꾸민다. */
@@ -36,6 +37,7 @@ export function packCreateActExplorationPack(c, zone, room, stage, {encounter = 
         waiting.push(enemy);
     });
     c.deps.formation.placeRanks(waiting,formation);
+    dressHuntPack(waiting,formation?.huntRule,formation?.originalCount);
     const pack={key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
     packMarkExplorationPackShape(pack,encounter,shape,formation);
     packMarkExplorationAlertPack(c, pack);

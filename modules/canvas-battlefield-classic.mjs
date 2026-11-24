@@ -40,6 +40,8 @@ const body = new BattlefieldBody({
     get heroSizeScale() { return HERO_SIZE_SCALE; }
 });
 const labels = new BattlefieldLabels({
+    get translate() {return _t;},
+    get locale() {return document.documentElement.lang;},
     get mechanics() { return COSMOS_MECHANIC_DB; },
     get habitats() { return COSMOS_ROUTE_G1.habitats; },
     get tones() { return statToneText; }

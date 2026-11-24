@@ -44,13 +44,14 @@ function place(marker, point, view, entries) {
     const half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, view.width);
     const height = Number(marker.dataset.labelHeight);
     // A visible pile whose names cannot fit above it uses the less-clipped side, keeping its first name nearest the picture.
-    const above = EDGE_PAD - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
+    const caption = marker.classList.contains('in-cleared-room') ? Math.min(view.height * .43, view.width < 600 ? 188 : 145) : EDGE_PAD;
+    const above = caption - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
     const under = y >= 0 && above > 0 && below < above;
     marker.classList.toggle('is-under', under);
     hideCutSides(marker, x, view.width);
     setStyle(marker, '--label-shift', shift + 'px');
     setStyle(marker, '--down-shift', edgeShift(x, Number(marker.dataset.downHalf), view.width) + 'px');
-    stackLabel(marker, { x, y, half, shift, height, under, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) }, entries);
+    stackLabel(marker, { x, y, half, shift, height, under, ceiling: caption, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) }, entries);
 }
 
 function needsPlacement(marker, point) {
@@ -74,6 +75,69 @@ function projectEntries(entries, projection, box) {
     if (!changed) return;
     entries.forEach(entry => { delete entry.marker.dataset.labelTop; });
     projected.forEach(({ marker, point }) => place(marker, point, box, entries));
+    return true;
+}
+
+function collides(a, b) {
+    return a.x < b.x + b.w + 3 && b.x < a.x + a.w + 3 && a.y < b.y + b.h + 3 && b.y < a.y + a.h + 3;
+}
+
+function closestSlot(anchor, bounds, taken) {
+    const { w, h } = anchor;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const neighbours = taken.slice(-8);
+    const xs = [anchor.x, ...neighbours.flatMap(r => [r.x - w - 4, r.x + r.w + 4])];
+    const ys = [anchor.y, ...neighbours.flatMap(r => [r.y - h - 4, r.y + r.h + 4])];
+    let best, distance = Infinity;
+    for (const rawX of xs) for (const rawY of ys) {
+        const x = clamp(rawX, EDGE_PAD, bounds.width - w - EDGE_PAD);
+        const y = clamp(rawY, bounds.top, bounds.height - h - EDGE_PAD);
+        const score = Math.abs(anchor.x - x) + Math.abs(anchor.y - y);
+        if (score >= distance || taken.some(box => collides({ x, y, w, h }, box))) continue;
+        if (score === 0) return { x, y, w, h };
+        best = { x, y, w, h }; distance = score;
+    }
+    return best || { ...anchor, x: clamp(anchor.x, EDGE_PAD, bounds.width - w - EDGE_PAD), y: clamp(anchor.y, bounds.top, bounds.height - h - EDGE_PAD) };
+}
+
+function clearedStacks(piles) {
+    const stacks = [];
+    for (const { marker } of piles.values()) {
+        if (marker.hidden || !marker.classList.contains('in-cleared-room')) continue;
+        const arm = marker.querySelector('.battle-loot-labels');
+        if (arm) stacks.push({ marker, arm, rank: arm.querySelector('details[open]') ? 2 : Number(!!arm.querySelector('.is-priority')) });
+    }
+    return stacks.sort((a, b) => b.rank - a.rank);
+}
+
+/** Reserve the caption and place each pile's main labels near its picture. Run only after positions or contents change. */
+export function packClearedPiles(piles, view) {
+    const stacks = clearedStacks(piles);
+    const mobile = view.width < 350 ? 207 : 186;
+    const bounds = { ...view, top: Math.min(view.height * .5, view.width < 600 ? mobile : 145) };
+    const taken = [];
+    for (const { marker, arm } of stacks) {
+        const x = parseFloat(marker.style.left), y = parseFloat(marker.style.top);
+        const w = Number(marker.dataset.labelHalf) * 2, h = Number(marker.dataset.labelHeight);
+        const box = closestSlot({ x: Math.round(x - w / 2), y: Math.round(y - 25 - h), w, h }, bounds, taken);
+        taken.push(box);
+        setStyle(marker, '--floor-stack-x', (box.x - x) + 'px');
+        setStyle(marker, '--floor-stack-y', (box.y - y) + 'px');
+        arm.classList.add('is-packed');
+    }
+    placeSecondaryArms(stacks, taken);
+}
+
+function placeSecondaryArms(stacks, taken) {
+    for (const { marker } of stacks) {
+        if (!marker.querySelector('.is-left,.is-right,.is-down')) continue;
+        for (const side of marker.querySelectorAll('.is-left,.is-right,.is-down')) side.hidden = false;
+        for (const box of armBoxes(marker).filter(b => ['is-left','is-right','is-down'].includes(b.side))) {
+            const rect = { x: box.left, y: box.top, w: box.right - box.left, h: box.bottom - box.top };
+            if (taken.some(slot => collides(slot, rect))) box.arm.hidden = true;
+            else taken.push(rect);
+        }
+    }
 }
 
 function stackLabel(marker, box, entries) {
@@ -85,7 +149,7 @@ function stackLabel(marker, box, entries) {
             && Math.abs(Number(other.dataset.labelCentre) - centre) < box.half + Number(other.dataset.labelHalf) + 4;
     });
     const base = box.under ? box.y + 24 : box.y - 30 - box.height, step = box.under ? 1 : -1;
-    const fits = top => box.under ? top + box.height <= box.floor : top >= EDGE_PAD;
+    const fits = top => box.under ? top + box.height <= box.floor : top >= box.ceiling;
     let lift = 0;
     while (lift < box.row * 5 && fits(base + step * (lift + box.row + 2)) && overlaps(base + step * lift)) lift += box.row + 2;
     marker.dataset.labelTop = String(base + step * lift);

@@ -19,6 +19,8 @@
 
 ## 경매장 (2026-11-22)
 
+좁은 화면에서는 시황의 현재 사건과 대표 가격 변동을 한 줄로 본다. 그 줄을 누르면 나머지 시세와 설명을 펼치거나 접을 수 있다.
+
 거래 창의 넷째 칸(루프 20 해금 `auction`). 수치는 모두 `modules/data/auction-house.mjs`, 규칙은 `modules/domain/auction-*.mjs`(전역 `auctionHouse`),
 화면은 `modules/ui/auction-house-*.mjs`(전역 `auctionHouseUi`), 저장은 `game.auction`이다. Gemini 시안
 (브랜치 `auction-house-spec-20261121`의 `docs/auction-house-plan-20261121.md`)에서 바꾼 것:

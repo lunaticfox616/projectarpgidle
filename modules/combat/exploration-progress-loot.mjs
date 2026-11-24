@@ -1,13 +1,10 @@
-import { progressRunMode, COMMAND_GIVE_UP_STEPS } from './exploration-progress-rules.mjs';
+import { COMMAND_GIVE_UP_STEPS } from './exploration-progress-rules.mjs';
 const GREED_PICKUP_RANGE=999;
-const MANUAL_LOOT_WAIT_MS=20000;
 
-/** One exploration step at the movement stat's pace. Out of combat (no living enemy) a fast enough hero also steps diagonally
- * (2026-11-04 사용자: 대각선 걸음은 전투 밖에서만; 전에는 적이 없으면 누구나 걸음 시간 0.75배). */
+/** Movement speed gives the time for one axial tile. The motion clock accounts for the step length. */
 export function progressWalkStep(env, target,stats) {
     const interval=env.deps.COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed;
-    const diagonal=stats.moveSpeed>=env.deps.COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed && !env.owner.enemies.some(enemy=>enemy.hp>0);
-    return !!target && env.deps.beginExplorationGridStep(target,interval,undefined,diagonal);
+    return !!target && env.deps.beginExplorationGridStep(target,interval);
 }
 
 function progressPickupRange(env, stats) {
@@ -37,14 +34,10 @@ export function* progressWalkToLoot(env, run,stats) {
     return true;
 }
 
-/** A cleared map stays put until every floor item is collected; in manual mode for MANUAL_LOOT_WAIT_MS at most. */
+/** Keep the cleared map available for manual pickup as long as earned loot remains. */
 export function progressCollectingLoot(env, run) {
-    if(run.status!=='cleared' || run.completionApplied || env.owner.isBackgroundCalculation || !env.deps.ground.nearest(run,env.owner.gridPlayer))return false;
-    if(progressRunMode(env, run)!=='manual')return true;
-    const memo=env.memo.lootWalks.get(run)||{stalls:0};env.memo.lootWalks.set(run,memo);
-    const now=env.deps.getCombatTime();
-    if(memo.clearedAt===undefined)memo.clearedAt=now;
-    return now-memo.clearedAt<MANUAL_LOOT_WAIT_MS;
+    return run.status==='cleared' && !run.completionApplied && !env.owner.isBackgroundCalculation
+        && !!env.deps.ground.nearest(run,env.owner.gridPlayer);
 }
 
 /** Movement controls stay available while a cleared map waits for floor pickups. Completion/failed maps accept no new walk. */

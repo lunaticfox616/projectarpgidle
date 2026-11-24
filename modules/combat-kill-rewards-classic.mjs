@@ -46,7 +46,7 @@ export const delivery = createLootDelivery({
     get gems() { return gemDropRewards; }, get knitting() { return knitting; },
     get receipts() { return combatLootReceipts; }, get statCache() { return playerStatCache; },
     get hasGridCell() { return hasGridCell; }, get getPlayerStats() { return getPlayerStats; },
-    get previewEquipmentPickup() { return previewEquipmentPickup; },
+    get normalizeItem() { return normalizeItem; },
     get isGuaranteedEquipmentPickup() { return isGuaranteedEquipmentPickup; },
     get addItemToInventory() { return addItemToInventory; }, get receiveJewelDrop() { return receiveJewelDrop; },
     get resolveCurrencyAward() { return resolveCurrencyAward; }, get commitCurrencyGain() { return commitCurrencyGain; }

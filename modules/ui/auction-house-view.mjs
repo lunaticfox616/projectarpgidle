@@ -42,7 +42,7 @@ export function createAuctionHouseView(deps) {
 
 function initialState() {
     return {
-        tab: 'gear', print: '', card: { key: '', html: '' },
+        tab: 'gear', print: '', pulseOpen: false, card: { key: '', html: '' },
         // query: the search conditions being chosen (made from the rules' empty query on first use, modules/ui/auction-house-conditions.mjs);
         // panel: whether the 조건 panel is open.
         gear: { mode: 'open', query: null, panel: false, sort: 'newest', dir: -1, selected: '' },
@@ -55,6 +55,10 @@ function initialState() {
 /** The click handlers by data attribute: (runtime, value, element).
  * @type {ReadonlyArray<[string, (runtime: any, value: string, el: Element) => void]>} */
 const CLICKS = Object.freeze([
+    ['data-ah-pulse', (runtime, value, el) => {
+        runtime.state.pulseOpen=el.getAttribute('aria-expanded')!=='true';
+        el.setAttribute('aria-expanded',String(runtime.state.pulseOpen));
+    }],
     ['data-ah-tab', (runtime, value) => { if (TABS.includes(value)) { runtime.state.tab = value; runtime.api.render(true); } }],
     // A seller's name sits inside its row's button: it is looked up first.
     ['data-ah-seller', (runtime, value) => addSeller(runtime, value)],

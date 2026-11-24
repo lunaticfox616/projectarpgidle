@@ -227,7 +227,8 @@ export function steer(runtime) {
     if(!runtime.deps.actExplorationProgress.canMove(run)||!direction){runtime.state.held.length=0;return stopWalking(runtime, run);}
     if(runtime.deps.bossMoves.observer.sceneActive())return;
     if(runtime.deps.bossMoves.observer.playerBoundary(run)){steerFree(runtime, run);return;}
-    const [dx,dy]=runtime.state.STEPS[direction],from=footing(runtime, run);
+    const [dx,dy]=heldVector(runtime.state.held),from=footing(runtime, run);
+    if (!dx && !dy) {runtime.deps.actExplorationState.selectDestination(run,from,runtime.state.KEYED);return;}
     let reached=0;
     // 키보드로 거는 명령은 화면에 표시하지 않는다(KEYED: 클릭한 자리가 아니라 누른 방향의 몇 칸 앞이다)
     while(reached<runtime.state.WALK_REACH&&runtime.deps.actExplorationState.selectDestination(run,{gx:from.gx+dx*(reached+1),gy:from.gy+dy*(reached+1)},runtime.state.KEYED))reached++;
@@ -237,12 +238,15 @@ export function steer(runtime) {
 
 export function steerFree(runtime, run) {
     if((0, runtime.deps.isForegroundGameplayPausedForBackground)()){runtime.deps.actExplorationMotion.setFreeInput(run,runtime.deps.game.gridPlayer,0,0);return;}
-    const dx=Number(runtime.state.held.includes('right'))-Number(runtime.state.held.includes('left'));
-    const dy=Number(runtime.state.held.includes('down'))-Number(runtime.state.held.includes('up'));
+    const [dx,dy]=heldVector(runtime.state.held);
     run.destination=null;
     runtime.deps.actExplorationProgress.objects.cancel(run);
     runtime.deps.actExplorationProgress.holdAutoManual(run);
     runtime.deps.actExplorationMotion.setFreeInput(run,runtime.deps.game.gridPlayer,dx,dy);
+}
+
+function heldVector(held) {
+    return [Number(held.includes('right'))-Number(held.includes('left')),Number(held.includes('down'))-Number(held.includes('up'))];
 }
 
 export function stopWalking(runtime, run) {

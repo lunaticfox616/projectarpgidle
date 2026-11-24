@@ -21,7 +21,7 @@ actExplorationState.groundLoot = {
     placeYarn: (run, cell, yarn) => floor.placeYarn(game, run, cell, yarn),
     placeRune: (run, cell, gem) => floor.placeRune(game, run, cell, gem),
     placeCurrency: (run, cell, currency, count) => floor.placeCurrency(game, run, cell, currency, count),
-    ...Object.fromEntries(['takeNear', 'takeAt', 'takeAll', 'nearest', 'falling', 'inAir', 'piles', 'reservedItems', 'settleOnLoad', 'validate']
+    ...Object.fromEntries(['beginBoss','finishBoss','takeOnExit','takeNear', 'takeAt', 'takeAll', 'nearest', 'falling', 'inAir', 'piles', 'reservedItems', 'settleOnLoad', 'validate']
         .map(name => [name, floor[name].bind(floor)])),
     encounterOwner: (state = game, zoneId = state.currentZoneId) => floor.encounterOwner(state, zoneId),
     reserve: (row, state = game) => floor.reserve(state, row),

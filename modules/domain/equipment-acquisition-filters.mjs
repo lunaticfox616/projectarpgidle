@@ -53,8 +53,7 @@ export function acquireIsGuaranteedEquipmentPickup(env, owner, item, options) {
         || env.deps.bagItems.ownShape(item);
 }
 
-/** What picking `item` up would do before space is considered: 'kept', 'filtered' (pickup filter) or 'salvaged' (auto-salvage).
- * An exploration drop that would be kept waits on the floor (js/exploration-ground-loot.js); the others resolve at once. */
+/** Preview of pickup admission before capacity. Physical drops use the live rules only at collection. */
 export function acquirePreviewEquipmentPickup(env, owner, item, options) {
     env.deps.normalizeItem(item);
     if (acquireIsGuaranteedEquipmentPickup(env, owner, item, options) || env.deps.bagItems.keptOnPickup(item, owner)) return 'kept';

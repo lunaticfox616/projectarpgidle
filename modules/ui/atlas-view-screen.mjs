@@ -174,6 +174,7 @@ function fieldObjective(runtime,ledger) {
 function expeditionObjective(run,tr) {
     const pack = run.packs.find(row => row.task && (row.aliveIds.length || row.task.index < row.task.spots.length));
     if (!pack) return tr('{name} 처치',{name:tr(atlasChallenges[run.source.pocket][1])});
+    if (pack.task.cocoons) return tr(pack.task.label);
     if (pack.aliveIds.length) return tr('남은 적 {count}',{count:pack.aliveIds.length}) + ' · ' + tr(pack.task.label);
     return tr(pack.task.label) + ' ' + pack.task.index + '/' + pack.task.spots.length;
 }

@@ -1,3 +1,5 @@
+import { drawHuntFields } from './hunt-fields.mjs';
+import { drawNextStrike } from './atlas-signature.mjs';
 const CELL_TONES = {
     enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
     summon: { fill: 'rgba(110, 200, 140, 0.18)', line: 'rgba(150, 230, 176, 0.5)' },
@@ -135,9 +137,11 @@ export class BattlefieldGround {
     /** Ground-only remake scope closes before actors; the front scope is independently closed by the lighting pass. */
     draw(ctx, effects, view) {
         this.screen.grade(ctx, view.width, view.height);
+        this.strikeFloor(ctx, view, effects);
         this.playerRing(ctx, view.gridProj, view.playerPos);
         this.deps.sideEncounters.portals(ctx, view.gridProj, this.deps.combatTime());
         this.deps.traps.drawGround(ctx, effects, view.now, view.gridProj);
+        drawHuntFields(ctx,view.gridProj,this.deps.game(),this.deps.combatTime(),cell=>this.deps.explorationView.inSight(cell));
         this.deps.remake.begin(ctx, view.gridProj);
         if (typeof this.deps.stageEffects === 'object') this.deps.stageEffects.tick(view.now);
         if (typeof this.deps.blessing === 'object') this.deps.blessing.frame(view.now);
@@ -155,5 +159,26 @@ export class BattlefieldGround {
         if (typeof this.deps.ocean === 'object') this.deps.ocean.ground(ctx, view);
         if (typeof this.deps.incidents === 'object') this.deps.incidents.ground(ctx, view);
         this.deps.drawSummons(ctx, view.playerPos, view.now, view.gridProj);
+    }
+
+    strikeFloor(ctx, view, effects) {
+        const run = this.deps.game().actExploration;
+        if (view.nextStrikes.length) {
+            this.lastStrike = { run, stages: view.nextStrikes, coolAt: null };
+            drawNextStrike(ctx, view.gridProj, view.nextStrikes);
+            return;
+        }
+        const last = this.lastStrike;
+        if (!last) return;
+        if (last.run !== run || !effects.some(fx => fx.type === 'enemyDeath' && fx.boss)) {
+            this.lastStrike = null; return;
+        }
+        const now = this.deps.visual().lastWallNow;
+        last.coolAt ??= now;
+        const alpha = .55 * (1 - (now - last.coolAt) / 180);
+        if (alpha <= 0) { this.lastStrike = null; return; }
+        ctx.save(); ctx.globalAlpha *= alpha;
+        drawNextStrike(ctx, view.gridProj, last.stages);
+        ctx.restore();
     }
 }

@@ -87,6 +87,3 @@ export const WOODSMAN_LOCKED_FIELDS = /* @__PURE__ */ Object.freeze([
 ]);
 
 export const WOODSMAN_LOCKED_POINTS = /* @__PURE__ */ Object.freeze(['passivePoints', 'seasonPoints', 'ascendPoints', 'ascendKeystonePoints', 'scour']);
-
-// Combat milliseconds before a manual colony run collects the overlord's waiting floor loot.
-export const COLONY_MANUAL_LOOT_WAIT_MS = 20000;

@@ -21,19 +21,40 @@ function enqueueReleasedAttack(c, enemy, target, bossPattern, delivery) {
         targetId: targetType === 'summon' ? target.id : null,
         targetCell, bossPattern: bossPattern || null, delivery, woodsmanElement: c.deps.woodsmanAttackFxElement(enemy)
     };
-    const flight = c.deps.enemyAttackRules.trajectory(attack,enemy,travelMs);
-    travelMs = flight.duration;
-    c.deps.pendingEnemyCombatAttacks.push(attack);
+    const sideShots = spreadShots(attack);
+    const flight = queueFlight(c,attack,travelMs);
     c.deps.bossMoves.begin(attack, now);
     const releaseMs = emitAttackRelease(c, enemy, bossPattern, delivery, target);
     if (delivery === 'patternArea') return true;
-    c.deps.addBattleFx('combatTravel', {
-        owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
-        targetType, targetId: attack.targetId,
-        delivery, element: c.deps.enemyAttackRules.element(enemy, bossPattern), cerberusHead: bossPattern?.cerberusHead, releaseDelayMs: 0,
-        flightMs: travelMs, duration: Math.max(travelMs + 260, releaseMs)
-    });
+    showFlight(c,attack,flight,releaseMs);
+    for (const shot of sideShots) showFlight(c,shot,queueFlight(c,shot,travelMs),releaseMs);
     return true;
+}
+
+function spreadShots(attack) {
+    if (!attack.source.huntTraits?.includes('volley')) return [];
+    if (!['projectileTarget','projectileCell','magicCell'].includes(attack.delivery)) return [];
+    const {sourceCell,targetCell}=attack;
+    const dx=targetCell.gx-sourceCell.gx,dy=targetCell.gy-sourceCell.gy;
+    const distance=Math.hypot(dx,dy);
+    if (!distance) return [];
+    const width=Math.max(1,distance*0.4);
+    return [-1,1].map(side=>({...attack,delivery:'projectileCell',targetCell:{
+        gx:Math.round(targetCell.gx-side*width*dy/distance),gy:Math.round(targetCell.gy+side*width*dx/distance)
+    }}));
+}
+
+function queueFlight(c,attack,travelMs) {
+    const flight=c.deps.enemyAttackRules.trajectory(attack,attack.source,travelMs);
+    c.deps.pendingEnemyCombatAttacks.push(attack);
+    return flight;
+}
+
+function showFlight(c,attack,flight,releaseMs) {
+    const {enemyId,sourceCell,targetCell,targetType,targetId,delivery,bossPattern}=attack;
+    c.deps.addBattleFx('combatTravel',{owner:'enemy',sourceId:enemyId,sourceCell,targetCells:[targetCell],
+        travelPath:flight.path,enemyFlight:attack,targetType,targetId,delivery,element:c.deps.enemyAttackRules.element(attack.source,bossPattern),
+        cerberusHead:bossPattern?.cerberusHead,releaseDelayMs:0,flightMs:flight.duration,duration:Math.max(flight.duration+260,releaseMs)});
 }
 
 /** Release pictures start even when the warned area later misses every target. */
@@ -76,7 +97,7 @@ function removeReleasedAttack(c, index, now) {
 }
 
 function takeReleasedAttack(c, enemyId, now) {
-    let index = c.deps.pendingEnemyCombatAttacks.findIndex(row => row && row.enemyId === enemyId);
+    let index = c.deps.pendingEnemyCombatAttacks.findIndex(row => row && row.enemyId === enemyId && flightReady(c,row,now));
     if (index < 0) return null;
     let attack = c.deps.pendingEnemyCombatAttacks[index];
     if (attack.source.isBoss && attack.source.hp <= 0) { removeReleasedAttack(c, index,now); return null; }
@@ -85,12 +106,17 @@ function takeReleasedAttack(c, enemyId, now) {
         removeReleasedAttack(c, index,now);
         return null;
     }
-    if (attack.at > now) return null;
-    if (attack.path && !c.deps.enemyAttackRules.advanceFlight(attack,c.owner,now)) return null;
+    if (attack.source.isBoss && (attack.at>now || (attack.path && !c.deps.enemyAttackRules.advanceFlight(attack,c.owner,now)))) return null;
     c.deps.pendingEnemyCombatAttacks.splice(index, 1);
     if (attack.delivery === 'patternArea') landBossPatternArea(c, attack, now);
     announceWoodsmanImpact(c, attack);
     return attack;
+}
+
+function flightReady(c,attack,now) {
+    if (attack.source?.isBoss) return true;
+    if (attack.at>now) return false;
+    return !attack.path || c.deps.enemyAttackRules.advanceFlight(attack,c.owner,now);
 }
 
 /** The released element owns the visual even when the boss changes phase before impact. */

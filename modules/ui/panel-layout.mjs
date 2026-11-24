@@ -51,6 +51,7 @@ export class PanelLayout {
         header.hidden = !isMobile;
         const name = column.querySelector('.player-hud-identity-row');
         const health = column.querySelector('.player-health-frame');
+        if (!isMobile) column.querySelectorAll('.hp-detail-panel:popover-open').forEach(panel => panel.hidePopover());
         if (isMobile) header.append(name, health);
         else {
             column.querySelector('.player-hud-left-wing').prepend(name);

@@ -11,6 +11,17 @@
 
 /* 시세 띠 */
 .ah-band { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px; border: 1px solid var(--ah-line); background: var(--ah-panel); }
+.ah-pulse-info { display: contents; }
+#market-panel-auction .ah-pulse-toggle { display: none; }
+@container (max-width: 759px) {
+    .ah-band { padding: 0 8px; }
+    #market-panel-auction .ah-pulse-toggle { display: flex; align-items: center; gap: 8px; min-height: 44px; text-align: start; color: var(--color-text); border: 0; background: transparent; }
+    .ah-pulse-toggle::after { content: ''; width: 6px; height: 6px; margin-inline-start: auto; border: solid var(--ah-gold); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+    .ah-pulse-toggle[aria-expanded="true"]::after { transform: rotate(225deg); }
+    .ah-pulse-toggle[aria-expanded="false"] + .ah-pulse-info { display: none; }
+    .ah-pulse-info .ah-event h3 { display: none; }
+    .ah-pulse-info .ah-band-side { padding-bottom: 8px; }
+}
 .ah-event { display: grid; gap: 4px; min-width: 0; }
 .ah-event h3 { margin: 0; padding: 0; border: 0; background: none; font-size: 12px; font-weight: var(--font-weight-emphasis); color: var(--color-text); }
 .ah-event h3::after { display: none; }

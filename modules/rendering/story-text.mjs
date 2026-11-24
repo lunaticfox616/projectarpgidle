@@ -1,6 +1,7 @@
 import { FADE_IN_MS, FADE_OUT_MS, LINE } from './story-presentation-values.mjs';
 import { ease } from './entrance-timing.mjs';
 import { letterbox, vignette } from './cinema-frame.mjs';
+import { drawBossVictoryCaption } from './boss-victory-caption.mjs';
 
 /** 2026-11-19 연출 보강: 액트 제목 뒤의 그늘, 주인공이 이야기에 멈춰 선 동안의 얇은 띠와 그늘. */
 const FRAME = Object.freeze({ cardShade: 0.2, storyBar: 0.04, storyShade: 0.18, fill: '#050403' });
@@ -76,9 +77,19 @@ class StoryText {
         for (const word of text.split(' ')) {
             const last = rows.length ? `${rows[rows.length - 1]} ${word}` : null;
             if (last !== null && ctx.measureText(last).width <= width) rows[rows.length - 1] = last;
-            else rows.push(word);
+            else if (ctx.measureText(word).width <= width) rows.push(word);
+            else this.wrapLongWord(ctx, word, width, rows);
         }
         return rows;
+    }
+
+    wrapLongWord(ctx, word, width, rows) {
+        let part = '';
+        for (const glyph of word) {
+            if (part && ctx.measureText(part + glyph).width > width) { rows.push(part); part = ''; }
+            part += glyph;
+        }
+        rows.push(part);
     }
 
     storyLineLayout(speech, ctx, width) {
@@ -172,7 +183,13 @@ class StoryText {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `${this.deps.pixelFontSize(size, 15)}px ${this.storyFont()}`;
-        if (anchor) this.drawStoryBubble(speech, ctx, view, anchor);
+        if (speech.line.key === 'defeat') {
+            const font = this.storyFont();
+            ctx.font = `15px ${font}`;
+            const caption = this.deps._t('{name} 처치', { name: speech.line.speaker });
+            const layout = this.storyLineLayout(speech, ctx, Math.min(520, scene.width - 20) - 24);
+            drawBossVictoryCaption(ctx, scene, caption, layout.rows, font);
+        } else if (anchor) this.drawStoryBubble(speech, ctx, view, anchor);
         else this.drawStoryBand(speech, ctx, view);
         ctx.restore();
     }

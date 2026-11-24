@@ -4,6 +4,7 @@ import { BOSS_ENTRANCE_MS } from './exploration-state-values.mjs';
 
 /** False until the player has stood at the boss room for BOSS_ENTRANCE_MS; the first such step opens the entrance. */
 function stateEntranceHoldMs(env, state,run,pack) {
+    if(pack.waiting.some(enemy=>enemy.atlasPhase>0))return 1050;
     if(run.zoneId===env.deps.OUTSIDE_CHAOS_ZONE_ID && pack.waiting.some(enemy=>enemy.isWoodsman && !enemy.noAttack))
         return env.deps.WOODSMAN_BATTLE.intro.revealMs+env.deps.WOODSMAN_BATTLE.intro.speechMs;
     const seen=!run.source && Object.hasOwn(state.records?.actBest||{},run.zoneId);
@@ -15,6 +16,7 @@ function stateBossAwake(env, state,run,o) {
     if(!stateAtBossRoom(o.map,room,state.gridPlayer))return false;
     if(!open || open.key!==o.pack.key || o.now<open.at) {
         const holdMs=stateEntranceHoldMs(env, state,run,o.pack);
+        env.deps.groundLoot.beginBoss(run,o.pack,o.pack.waiting);
         env.memo.entrances.set(run,{key:o.pack.key,at:o.now,holdMs});stateRevealRoom(env, run,o.map,room);return false;
     }
     if(o.now-open.at<open.holdMs)return false;
@@ -29,7 +31,10 @@ function stateHeldByEntrance(env, run,pack) {
 }
 
 /** 입장을 지금 연다: 처음 들어선 방의 난입과 싸우는 도중의 불청객처럼 주인공이 관문을 밟지 않는 입장. { at, holdMs, roomId } */
-export function stateOpenEntrance(env, run,pack,o) {env.memo.entrances.set(run,{key:pack.key,...o});}
+export function stateOpenEntrance(env, run,pack,o) {
+    env.deps.groundLoot.beginBoss(run,pack,pack.waiting);
+    env.memo.entrances.set(run,{key:pack.key,...o});
+}
 
 /** A visible boss keeps waiting through its entrance, and in background hunts set to stop before bosses. */
 function stateHoldBoss(env, state,run,o) {
@@ -52,6 +57,7 @@ export function stateEngage(env, state,now=env.deps.getCombatTime()) {
         if(!pack.waiting.length || !stateBossReady(run,pack))continue;
         const ready=pack.waiting.filter(noticed);
         if(!ready.length || stateHoldBoss(env, state,run,{map,pack,now}))continue;
+        env.deps.groundLoot.beginBoss(run,pack,ready);
         const ids=new Set(ready.map(enemy=>enemy.id));
         pack.waiting=pack.waiting.filter(enemy=>!ids.has(enemy.id));
         added.push(...ready);
@@ -74,12 +80,13 @@ export function stateDormantNear(state,cell,reach) {
 }
 
 /** An attack reached these monsters: the ones still waiting join the fight, like noticed ones. Others are left alone. */
-export function stateWake(state,enemies) {
+export function stateWake(env,state,enemies) {
     const run=stateCurrent(state);if(!run || !enemies.length)return [];
     const ids=new Set(enemies.map(enemy=>enemy.id)),added=[];
     for(const pack of run.packs.filter(row=>row.stage===null && !row.invader)) {
         const struck=pack.waiting.filter(enemy=>ids.has(enemy.id));
         if(!struck.length)continue;
+        env.deps.groundLoot.beginBoss(run,pack,struck);
         pack.waiting=pack.waiting.filter(enemy=>!ids.has(enemy.id));
         added.push(...struck);
     }
@@ -107,10 +114,25 @@ export function stateRecordDeath(env, state,enemy) {
     if(!pack || pack.waiting.some(row=>row.id===enemy.id))return false;
     const index=pack.aliveIds.indexOf(enemy.id);if(index<0)return false;
     pack.aliveIds.splice(index,1);
+    env.deps.groundLoot.finishBoss(state,run,enemy);
+    stageSuccessor(env,state,run,enemy);
     stateNoteDeathNoise(env, run,enemy);
     const bosses=run.packs.filter(row=>row.stage!==null);
     if(bosses.every(row=>row.aliveIds.length===0) && !env.deps.objects.active(run))run.status='cleared';
     return true;
+}
+
+function stageSuccessor(env,state,run,enemy) {
+    if (!(enemy.atlasPhase+1<enemy.atlasPhaseCount)) return;
+    const next=run.packs.find(pack=>pack.stage===enemy.atlasPhase+1)?.waiting[0];
+    if (!next) return;
+    const map=env.deps.actExplorationMap.forRun(run);
+    const probe={...next,gx:enemy.gx,gy:enemy.gy}, cells=env.deps.getGridUnitCells(probe);
+    const occupied=[state.gridPlayer,...state.enemies,...(state.summons || [])].filter(row=>row && row!==enemy);
+    const blocked=new Set(occupied.flatMap(row=>env.deps.getGridUnitCells(row)).map(cell=>env.deps.gridCellKey(cell.gx,cell.gy)));
+    if (cells.length!==env.deps.getGridUnitCells(next).length) return;
+    if (cells.every(cell=>env.deps.actExplorationMap.walkable(map,cell) && !blocked.has(env.deps.gridCellKey(cell.gx,cell.gy))))
+        Object.assign(next,{gx:enemy.gx,gy:enemy.gy});
 }
 
 /** Remembers where a monster died while a listening pack still waits (read once by alerted). */

@@ -43,7 +43,7 @@ export class GroundLootPresentation {
 
     leadName(lead) { return lead.stump ? this.deps.stumpBox.dropName(lead.stump) : lead.yarn ? this.deps._t('실타래 {name}', { name: this.deps.knitting.row(lead.yarn).name }) : lead.leaf ? this.deps.memoryLeaves.leaf(lead.leaf).name : lead.gem ? this.deps._t('[{gem}] 룬', { gem: lead.gem }) : this.shownName(lead); }
 
-    shownName(receipt) { return receipt.unidentified ? `미확인 ${receipt.item.baseName || this.deps.getItemSlotDisplayLabel(receipt.item, '고유')}` : receipt.item.name; }
+    shownName(receipt) { return this.deps._t(receipt.item.name); }
 
     currencyRow(label, receipt) {
         label.innerHTML = this.deps.styledCurrency(receipt.currency) + (receipt.count > 1 ? ' ×' + receipt.count : '');
@@ -67,10 +67,37 @@ export class GroundLootPresentation {
         return label;
     }
 
-    labelArms(receipts, narrow) {
+    priorityName(receipt) { return !!receipt.highlight || receipt.item?.rarity === 'unique'; }
+
+    materialList(materials) {
+        const doc = this.deps.document;
+        const details = doc.createElement('details');
+        details.className = 'battle-loot-materials';
+        const toggle = doc.createElement('summary');
+        toggle.textContent = this.deps._t('재료 {count}종', { count: materials.length });
+        const list = doc.createElement('div');
+        list.className = 'battle-loot-material-list';
+        for (const row of materials) list.append(this.nameRow(row, 0));
+        const pick = doc.createElement('button');
+        pick.type = 'button'; pick.className = 'battle-loot-pick';
+        pick.textContent = this.deps._t('이 칸 줍기');
+        details.append(toggle, list, pick);
+        return details;
+    }
+
+    labelArms(receipts, narrow, floor = false) {
         const limits = narrow ? ARM_ROWS.narrow : ARM_ROWS.wide;
         const arms = { up: [], right: [], left: [], down: [] };
+        const materials = floor ? receipts.filter(r => r.currency && !this.isMajor(r)) : [];
+        const grouped = new Set(materials.length >= 2 ? materials : []);
+        for (const receipt of receipts.filter(r => floor && this.priorityName(r))) {
+            const row = this.nameRow(receipt, 0);
+            row.classList.add('is-priority');
+            arms.up.push(row);
+        }
+        if (grouped.size) arms.up.push(this.materialList(materials));
         receipts.forEach((receipt, index) => {
+            if (grouped.has(receipt) || (floor && this.priorityName(receipt))) return;
             const sides = arms.right.length <= arms.left.length ? ['right', 'left'] : ['left', 'right'];
             const side = ['up', ...sides, 'down'].find(name => arms[name].length < limits[name]);
             if (side) arms[side].push(this.nameRow(receipt, index));
@@ -91,8 +118,9 @@ export class GroundLootPresentation {
         marker.dataset.lead = currency ? currency.name : this.leadName(lead);
         marker.classList.toggle('is-unidentified', !!lead.unidentified);
         if (currency) marker.dataset.currency = lead.currency;
-        const arms = this.labelArms(receipts, narrow);
-        marker.style.setProperty('--loot-color', arms[0].firstElementChild.style.getPropertyValue('--loot-color'));
+        const arms = this.labelArms(receipts, narrow, marker.classList.contains('is-floor'));
+        const tone = arms[0].firstElementChild.style.getPropertyValue('--loot-color') || '#c8b384';
+        marker.style.setProperty('--loot-color', tone);
         const flight = this.deps.document.createElement('div'); flight.className = 'battle-loot-flight';
         flight.append(this.lootArt(currency ? currency.icon : this.leadArt(lead), item));
         marker.append(flight, ...arms);
@@ -135,8 +163,17 @@ export class GroundLootPresentation {
         marker.style.setProperty('--beam-core', '#fff7d1');
     }
 
-    floorReceipts(pile, fresh) { return pile.rows.map(row => ({ ...this.floorReceipt[this.deps.floorLoot.kindOf(row)](row), row, settled: !fresh.includes(row) }))
-        .sort((a, b) => this.importance(b) - this.importance(a)); }
+    floorReceipts(pile, fresh) {
+        const receipts=[],coins=new Map();
+        for (const row of pile.rows) {
+            const receipt={...this.floorReceipt[this.deps.floorLoot.kindOf(row)](row),row,settled:!fresh.includes(row)};
+            const same=coins.get(row.currency);
+            if (same) {same.count+=receipt.count;same.settled&&=receipt.settled;continue;}
+            if (row.currency) coins.set(row.currency,receipt);
+            receipts.push(receipt);
+        }
+        return receipts.sort((a,b)=>this.importance(b)-this.importance(a));
+    }
 
     restAngle(receipt) { return (receipt.item?.slot === '무기' ? 54 : -16) + 'deg'; }
 

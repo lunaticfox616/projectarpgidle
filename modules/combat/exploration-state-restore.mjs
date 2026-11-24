@@ -106,13 +106,23 @@ export function stateRestore(env, state) {
         run.packs.filter(pack=>pack.stage!==null).forEach(pack=>stateJoinCerberus(env, pack,state.enemies,map));
         stateValidate(env, run,state.enemies);
     }
-    env.deps.groundLoot.validate(run);
+    env.deps.groundLoot.validate(run,state.combatTimeMs);
+    resumeBossLoot(env,state,run);
     env.deps.actExplorationMotion.validate(run,state.gridPlayer,env.deps.actExplorationMap.forRun(run));
     if(run.departure===undefined)run.departure=null;
     stateValidateDeparture(env, run);
     const ids=run.packs.flatMap(pack=>pack.aliveIds);
     state.nextEnemyId=Math.max(state.nextEnemyId,...ids.map(id=>id+1));
     return run;
+}
+
+/** Pre-buffer saves may be mid-fight or in the entrance delay between forms. */
+function resumeBossLoot(env,state,run) {
+    if (run.bossLoot || run.status!=='active') return;
+    const active=state.enemies.find(e=>e.isBoss && e.explorationPack);
+    const group=run.packs.find(p=>p.key===active?.explorationPack)
+        || run.packs.find(p=>p.stage>0 && p.aliveIds.length && run.packs.some(first=>first.roomId===p.roomId && first.stage===0 && !first.aliveIds.length));
+    if (group) env.deps.groundLoot.beginBoss(run,group);
 }
 
 function validateExpeditionHome(env, state, run) {
@@ -124,10 +134,19 @@ function validateExpeditionHome(env, state, run) {
     const ids = new Set(parent.packs.concat(run.packs).flatMap(pack => pack.aliveIds));
     for (const pack of run.packs.filter(row => row.stage === null)) {
         const recipe = atlasExpeditions[run.source.pocket][Number(pack.roomId.slice(1))-1];
-        validateTask(env,map,pack.task,recipe);
+        validateTask(env,map,pack.task,savedRecipe(recipe,pack.task));
         validateReinforcements(env,map,pack,ids);
     }
     for (const id of ids) state.nextEnemyId = Math.max(state.nextEnemyId,id+1);
+}
+
+function savedRecipe(recipe,task) {
+    // An old hatchery keeps its six living enemies and original objective.
+    if (recipe?.[4] !== 'brood') return recipe;
+    if (!task) return recipe;
+    if (!task.cocoons && task.spots?.length === 0) return ['부화실 돌파',6,0,0];
+    if (task.cocoons !== true || ![0,2].includes(task.index)) throw Error('부화실의 고치 기록이 잘못되었습니다.');
+    return recipe;
 }
 
 function matchingParent(parent,run,uid) {
