@@ -1,4 +1,4 @@
-import { prepareEnemyTurn } from './enemy-attack-prepare.mjs';
+import { aimEnemyCast, prepareEnemyTurn } from './enemy-attack-prepare.mjs';
 import { prepareEnemyHit } from './enemy-attack-strike.mjs';
 import { calculateEnemyHit } from './enemy-attack-damage.mjs';
 import { avoidEnemyHit } from './enemy-attack-avoidance.mjs';
@@ -19,12 +19,25 @@ function resolveMonsterAttacks(owner, pStats, deps) {
         const e = {enemy}, prepared = prepareEnemyTurn(c, e);
         if (prepared === 'stop') return;
         if (prepared) continue;
-        while (e.pendingAttack || (e.enemy.hp > 0 && e.enemy.attackTimer >= 1)) {
-            const result = resolveEnemyContact(c, e, {});
-            if (result === 'stop') return;
-            if (result === 'break') break;
-        }
+        if (resolveEnemyStrikes(c,e)==='stop') return;
     }
+}
+
+function resolveEnemyStrikes(c,e) {
+    if (e.pendingAttack?.volley) return resolveVolley(c,e);
+    while (e.pendingAttack || (e.enemy.hp > 0 && e.enemy.attackTimer >= 1)) {
+        const result = resolveEnemyContact(c, e, {});
+        if (result === 'stop') return result;
+        if (result === 'break') break;
+    }
+}
+
+function resolveVolley(c,e) {
+    do {
+        if (e.attackTarget && resolveEnemyContact(c,e,{}) === 'stop') return 'stop';
+        e.pendingAttack=c.deps.flights.take(c.owner,e.enemy.id,c.deps.getCombatTime());
+        if (e.pendingAttack) aimEnemyCast(c,e);
+    } while (e.pendingAttack);
 }
 
 function resolveEnemyContact(c, e, h) {

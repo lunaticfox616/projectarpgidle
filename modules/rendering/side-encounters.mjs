@@ -28,14 +28,13 @@ class SideEncounterRenderer {
     }
 
     pendingWarnings(ctx, projection, attacks) {
-        const meteor = this.deps.isMeteorZone();
+        if (!this.deps.isMeteorZone()) return;
         const now = this.deps.getCombatTime();
         for (const attack of attacks) {
             if (attack.delivery !== 'patternArea' || attack.bossPattern.area.observerMove) continue;
             const footprint = this.deps.projectSkillFootprint(attack.bossPattern.area,projection);
             if (!footprint) continue;
-            this.deps.drawSkillFootprintGround(ctx,footprint,meteor ? '#ff9b52' : '#ff684f',this.deps.bossAttackView.pendingAlpha());
-            if (!meteor) continue;
+            this.deps.drawSkillFootprintGround(ctx,footprint,'#ff9b52',this.deps.bossAttackView.pendingAlpha());
             const cast = this.deps.enemyAttackRules.castBar(attack.source,now,attack);
             if (!cast || cast.cancelled) continue;
             // The rock reaches the snapshotted impact center only when the attack becomes due.

@@ -115,7 +115,7 @@ export function atlasCoreUsePortal(env, state) {
     if (!run) return null;
     run.portals = run.board ? 0 : Math.max(0, run.portals - 1);
     if (run.portals > 0) return { closed: false, portals: run.portals };
-    const closed = atlasCoreClose(env, state, 'failed');
+    const closed = atlasCoreClose(env, state, 'failed', run.board ? undefined : 'portals');
     if (!atlasCoreChartRun(env, run)) return { closed: true, ...closed };
     const stone = atlasCoreGrantStone(env, state, run.map.node, run.map.tier, Math.random);
     atlasCoreDeliver(state, [stone]);
@@ -123,12 +123,13 @@ export function atlasCoreUsePortal(env, state) {
     return { closed: true, ...closed, refund: state.atlas.lastResult.refund };
 }
 
-export function atlasCoreClose(env, state, outcome) {
+/** closeReason: 'abandoned' (지도 닫기) or 'portals' (the last portal); a board run's single life records none. */
+export function atlasCoreClose(env, state, outcome, closeReason = undefined) {
     const run = state.atlas.run;
     if (!run) return null;
     if (run.board && outcome === 'failed') env.deps.atlasBoard.fail(state, run.board);
     state.atlas.run = null;
-    state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome, first: false, bonus: false, drops: 0,
+    state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome, closeReason, first: false, bonus: false, drops: 0,
         lost: run.drops.length, fragments: 0, lostFragments: run.found.length,
         lostMaterials: atlasCoreNormalizeResultMaterials(env, Object.entries(run.endgame.items), env.deps.ATLAS_ENDGAME.itemCap * 10),
         seed: false, seeds: state.atlas.seeds, endgame: null,

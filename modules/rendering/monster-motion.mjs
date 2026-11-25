@@ -12,6 +12,12 @@ export function snapPixel(value, scale) {
     return Math.round(value * scale) / scale;
 }
 
+export function isMonsterStrikeRelease(fx, enemy) {
+    if (fx.type === 'combatTravel') return fx.owner === 'enemy' && fx.sourceId === enemy.id
+        && !fx.groundImpact && !fx.enemyFlight?.secondaryShot;
+    return (fx.type === 'enemyAttack' || fx.type === 'enemyCastRelease') && fx.enemyId === enemy.id;
+}
+
 class MonsterMotion {
     constructor(deps) {
         this.deps = deps;
@@ -22,11 +28,10 @@ class MonsterMotion {
     }
 
     /** A boss strikes once, when it lets the attack go (bossRelease, 2026-10-06): a shot used to strike again when it landed
-     * and a dodged area special never struck at all. Other monsters strike on the hit or the shot leaving. */
+     * and a dodged area special never struck at all. Other monsters strike at melee contact or ranged release. */
     isRelease(fx, enemy) {
         if (enemy.isBoss) return fx.type === 'bossRelease' && fx.enemyId === enemy.id;
-        if (fx.type === 'combatTravel') return fx.owner === 'enemy' && fx.sourceId === enemy.id;
-        return fx.type === 'enemyAttack' && fx.enemyId === enemy.id;
+        return isMonsterStrikeRelease(fx,enemy);
     }
 
     /** The latest release effect inside the clip's length, or null. */
@@ -73,15 +78,20 @@ class MonsterMotion {
         const longest = Math.max(this.sum(kind.attackMs), kind.special ? this.sum(kind.special.attackMs) : 0);
         // A boss holding a beam keeps its strike frame until the beam ends (js/canvas-boss-moves.js strikeHoldMs), then finishes the clip.
         const hold = enemy.isBoss ? this.deps.strikeHoldMs(enemy) : 0, release = this.lastRelease(enemy, now, longest + hold);
-        if (release) {
-            const clip = this.clipOf(kind, release.special, release.element), impactMs = this.sum(clip.attackMs.slice(0, clip.impactFrame)), since = Math.max(0, now - release.start - hold);
-            if (since + impactMs < this.sum(clip.attackMs)) return this.strikePose(kind, clip, since + impactMs, 0);
-        }
+        const releasedPose = release && this.releasePose(kind,release,now,hold);
+        if (releasedPose) return releasedPose;
         const wind = this.windUp(enemy, moving, now);
         if (!wind) return null;
         const element = kind.elementAttacks ? this.deps.woodsmanAttackFxElement(enemy) : null;
         const clip = this.clipOf(kind, enemy.isBoss && enemy.nextPatternState?.isSpecial, element);
         return this.strikePose(kind, clip, wind.share * this.sum(clip.attackMs.slice(0, clip.impactFrame)), wind.bob);
+    }
+
+    releasePose(kind,release,now,hold) {
+        const clip = this.clipOf(kind,release.special,release.element), impactMs = this.sum(clip.attackMs.slice(0,clip.impactFrame));
+        const since = Math.max(0,now-release.start-hold);
+        if (!(since+impactMs < this.sum(clip.attackMs))) return null;
+        return this.strikePose(kind,clip,since+impactMs,0);
     }
 
     strikePose(kind, clip, ms, bob) {

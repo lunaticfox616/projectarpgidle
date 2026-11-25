@@ -18,6 +18,6 @@ export function createCatalogSummaries() {
         fossilGale:'속도/치명 1줄 확정, 희귀 재련',fossilPrismatic:'저항/원소 1줄 확정, 희귀 재련',
         fossilAbyssal:'카오스/흡혈/재생 1줄 확정, 희귀 재련',fossilPrimordial:'관통/카오스 1줄 확정, 희귀 재련',
         fossilBulwark:'최대 원소 저항 확정, 방어구 재련',fossilWedge:'투사체/치명 1줄 확정, 희귀 재련',
-        fossilOld:'화석 전용 1줄 확정, 희귀 재련',fossilRift:'균열 표식, 추가 옵션 50% 증폭'
+        fossilOld:'일반 옵션 한 줄 보존 가능',fossilRift:'균열 표식, 추가 옵션 50% 증폭'
     };
 }

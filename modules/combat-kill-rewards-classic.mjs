@@ -40,7 +40,7 @@ export const progression = createKillProgression({
 
 export const delivery = createLootDelivery({
     get exploration() { return actExplorationState; }, get floor() { return actExplorationState.groundLoot; },
-    get policy() { return equipmentLootPolicy; }, get moments() { return lootMoments; },
+    get policy() { return equipmentLootPolicy; }, get getUniqueCodexKeyByItem() { return window.getUniqueCodexKeyByItem; },
     get bagItems() { return bagItems; }, get coreItems() { return coreItems; },
     get talismans() { return talismans; }, get stumpBox() { return stumpBox; },
     get gems() { return gemDropRewards; }, get knitting() { return knitting; },

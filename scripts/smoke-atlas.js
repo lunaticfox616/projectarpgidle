@@ -979,6 +979,37 @@ for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
     assert.deepEqual(stageB, { stash: ['canopy_g'], same: true, weaving: '', free: true }, 'a stage B save: the guardian stone stays, the guardian opens free');
 }
 
+// Closing a map during the boss fight pays the floor and the fight's held drops once; loot that lay in the boss room stays on the floor.
+{
+    const {run: closeMap}=fixture(846);
+    closeMap(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+        game.settings.showDeathNotice=false;game.settings.mapCompleteAction='stop';game.settings.autoSalvageEnabled=false;atlas.sync(game);game.atlas.sextant=true;`);
+    assert.equal(closeMap('atlasRun.open(game.atlas.stash[0].uid)'),'');
+    closeMap(`var mapRun=game.actExploration, ground=actExplorationState.groundLoot, bossPack=mapRun.packs.find(pack=>pack.stage===0);
+        var bossRoom=actExplorationMap.forRun(mapRun).rooms.find(room=>room.id===bossPack.roomId);
+        combatLootReceipts.capture(game,()=>{
+            ground.placeCurrency(mapRun,game.gridPlayer,'sapBud',7);
+            ground.placeCurrency(mapRun,bossRoom,'magicBud',5);
+        });
+        ground.beginBoss(mapRun,bossPack);
+        var bossDrop=generateUniqueItem(2,null,null,getZone(game.currentZoneId)), fighter={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy,explorationPack:bossPack.key};
+        combatLootReceipts.capture(game,()=>{
+            ground.placeCurrency(mapRun,fighter,'magicBud',11);
+            ground.place(mapRun,fighter,bossDrop);
+        });
+        game=mergeDefaults(JSON.parse(serializeSaveState(game)));`);
+    assert.equal(closeMap('game.actExploration.bossLoot.pendingLoot.length'),2,'the save keeps the boss fight drops held, not the floor that was there');
+    const before=JSON.parse(closeMap('JSON.stringify([game.currencies.sapBud||0,game.currencies.magicBud||0])'));
+    assert.equal(closeMap('atlasRun.abandon()'),true);
+    assert.equal(closeMap('atlasRun.abandon()'),false,'repeating the exit cannot settle again');
+    closeMap('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.equal(closeMap('game.currencies.sapBud')-before[0],7,'floor currency is paid');
+    assert.equal(closeMap('game.currencies.magicBud')-before[1],16,'the boss room floor and the held boss currency are paid once');
+    assert.equal(closeMap('game.inventory.some(item=>item.id===bossDrop.id)'),true,'the held boss equipment is delivered');
+    assert.equal(closeMap('game.atlas.lastResult.loot.currencies.magicBud'),16,'the receipt matches what was paid');
+    assert.equal(closeMap('game.atlas.lastResult.closeReason'),'abandoned','the result records a closed map');
+}
+
 // ---------------------------------------------------------------- save boundary and the loop
 run(`game.atlas.stash.push({uid:-4,node:'nowhere',tier:1,rarity:'rare',mods:[]},{uid:game.atlas.stash[0].uid,node:'sunMossBend',tier:2,rarity:'normal',mods:[]},
     {uid:900,node:'sunMossBend',tier:2,rarity:'magic',mods:[{id:'monsterLife',roll:2},{id:'bogus',roll:0.5},{id:'monsterCrit',roll:0.5},{id:'monsterCrit',roll:0.1}],quality:99});`);

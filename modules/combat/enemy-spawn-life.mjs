@@ -32,7 +32,8 @@ export function buildApplyContentEnemyHp(env, zone, hp, isBoss, isElite) {
 export function buildApplyDeepChaosNormalHp(env, zone, hp) {
     const abyssDepth = Math.max(1, Math.floor(zone.depth || env.deps.getAbyssDepthFromZoneId(zone.id) || 1));
     const hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
-    const deepNormalHpMul = abyssDepth >= 21 && abyssDepth <= 30 ? 1.2 : 1;
+    // Ease in from floor 20 and back out by floor 31, where depth growth also slows.
+    const deepNormalHpMul = 1 + Math.max(0, Math.min(5, abyssDepth - 20, 31 - abyssDepth)) * 0.04;
     return Math.floor(hp * (1 + hpRamp) * deepNormalHpMul);
 }
 

@@ -85,6 +85,7 @@ export function atlasCoreNormalizeResult(env, raw) {
     const count = value => Math.max(0, Math.min(env.deps.ATLAS.stashCap, Math.floor(Number(value) || 0)));
     const failed = raw.outcome === 'failed';
     return { nodeId: raw.nodeId, tier: Math.max(1, Math.min(env.deps.ATLAS.tierCap, Math.floor(Number(raw.tier) || 1))), outcome: raw.outcome,
+        closeReason: failureCloseReason(raw, failed),
         first: raw.first === true, bonus: raw.bonus === true, drops: count(raw.drops), lost: count(raw.lost), fragments: count(raw.fragments),
         lostFragments: Math.min(env.deps.ATLAS.fragmentRules.held, count(raw.lostFragments)),
         lostMaterials: failed ? atlasCoreNormalizeResultMaterials(env, raw.lostMaterials, env.deps.ATLAS_ENDGAME.itemCap * 10) : [],
@@ -92,3 +93,6 @@ export function atlasCoreNormalizeResult(env, raw) {
         loot: atlasCoreNormalizeLoot(env, raw.loot), memory: atlasCoreNormalizeResultMemory(env, raw.memory, failed), ...normalizeGiven(env, raw, failed),
         board: raw.board === true };
 }
+
+/** How a failed map closed: 'abandoned' (지도 닫기), 'portals' (the last portal), or undefined (older results, board runs). */
+const failureCloseReason = (raw, failed) => (failed && ['abandoned', 'portals'].includes(raw.closeReason) ? raw.closeReason : undefined);

@@ -7,7 +7,7 @@ export function itemFind(runtime, row) {
 
 export function leafFind(runtime, [id, count]) {
     const leaf = runtime.deps.memoryLeaves.leaf(id);
-    return { rank: runtime.state.LEAF_RANK, html: `<span class="atlas-find is-leaf">${(0, runtime.deps.renderPixelIcon)('leaf', 'atlas-find-leaf')}${(0, runtime.deps.escapeHTML)(leaf ? leaf.name : id)}${count > 1 ? ` <b>×${count}</b>` : ''}</span>` };
+    return { rank: runtime.state.LEAF_RANK, html: `<span class="atlas-find is-leaf">${(0, runtime.deps.renderPixelIcon)('leaf', 'atlas-find-leaf')}${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(leaf ? leaf.name : id))}${count > 1 ? ` <b>×${count}</b>` : ''}</span>` };
 }
 
 export function yarnFind(runtime, [id, count]) {
@@ -39,11 +39,11 @@ export function resultMaterialsHtml(runtime, result) {
     const items = [...spoils.items, ...(spoils.invite ? [['ringInvite', spoils.invite]] : [])];
     if (!items.length) return '';
     return `<div class="atlas-result-currencies"><small>${(0, runtime.deps._t)('후반부 재료')}</small>${items.map(([id, n]) =>
-        `<span>${(0, runtime.deps.escapeHTML)(runtime.deps.atlasEndgame.itemName(id))} <b>+${n}</b></span>`).join('')}</div>`;
+        `<span>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(runtime.deps.atlasEndgame.itemName(id)))} <b>+${n}</b></span>`).join('')}</div>`;
 }
 
 export function receiptHtml(runtime, receipt) {
-    const none = '<span class="atlas-muted">기록된 재화 없음</span>';
+    const none = `<span class="atlas-muted">${(0, runtime.deps._t)('기록된 재화 없음')}</span>`;
     if (!receipt) return `<div class="atlas-result-currencies">${none}</div>`;
     const finds = findsHtml(runtime, receipt);
     const currencies = Object.entries(receipt.currencies).map(([key, n]) => `<span>${runtime.deps.window.getStyledOrbName(key)} <b>+${n}</b></span>`).join('');
@@ -74,7 +74,7 @@ export function boxesHtml(runtime, boxes) {
 
 export function lostRewards(runtime, result) {
     return [result.lost && (0, runtime.deps._t)('지침 {count}개', { count: result.lost }), result.lostFragments && (0, runtime.deps._t)('각인 {lostFragments}개', { lostFragments: result.lostFragments }),
-        ...(result.lostMaterials || []).map(([id, count]) => (0, runtime.deps._t)('{itemName} {count}개', { itemName: runtime.deps.atlasEndgame.itemName(id), count }))].filter(Boolean);
+        ...(result.lostMaterials || []).map(([id, count]) => (0, runtime.deps._t)('{itemName} {count}개', { itemName: (0, runtime.deps._t)(runtime.deps.atlasEndgame.itemName(id)), count }))].filter(Boolean);
 }
 
 export function overflowHtml(runtime, result) {
@@ -89,7 +89,7 @@ export function resultMemoryHtml(runtime, result) {
     const record = memory.newBest ? `<p>${(0, runtime.deps._t)('기억 최고 기록 갱신 ({foughtTier}단계)', { foughtTier: memory.foughtTier })}</p>` : '';
     const ticket = memory.ticket;
     if (!ticket) return record ? `<div class="atlas-result-memory">${record}</div>` : '';
-    const name = runtime.deps.atlas.node(ticket.node).boss;
+    const name = (0, runtime.deps._t)(runtime.deps.atlas.node(ticket.node).boss);
     return `<div class="atlas-result-memory">${record}<p>${(0, runtime.deps._t)('기억 획득: {name} {tier}단계 +1', { name: (0, runtime.deps.escapeHTML)(name), tier: ticket.tier })}</p>
             <button onclick="atlasUi.setView('memory');memoryDungeonUi.select('${ticket.node}',${ticket.tier})">${(0, runtime.deps._t)('기억 준비 보기')}</button></div>`;
 }

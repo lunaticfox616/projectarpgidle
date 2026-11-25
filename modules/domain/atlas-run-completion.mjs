@@ -2,8 +2,7 @@ import { atlasSessionGrantSpoils } from './atlas-run-spoils.mjs';
 import { atlasSessionNotify } from './atlas-run-events.mjs';
 import { atlasSessionReturnZone } from './atlas-run-access.mjs';
 import { atlasSessionHalt } from './atlas-run-travel.mjs';
-import { restoreMainMap } from './atlas-passages.mjs';
-import { atlasSessionClearRoom } from './atlas-run-drops.mjs';
+import { atlasSessionFinishExpedition } from './atlas-expedition-completion.mjs';
 
 /** 보스 처치 → 완료 정산. 일반·수호자 지도 완료만 자동 지도석으로 잇는다(방치 · 오프라인 재생도 같다). */
 export function* atlasSessionSettle(env, owner, zone) {
@@ -18,7 +17,7 @@ function settlementHub(env, opened, result) {
 }
 
 export function* atlasSessionFinish(env, owner, zone) {
-    if (zone.pocket) return yield* finishExpedition(env, owner, zone);
+    if (zone.pocket) return yield* atlasSessionFinishExpedition(env, owner, zone);
     return yield* finishMainMap(env,owner,zone);
 }
 
@@ -42,17 +41,6 @@ function* finishMainMap(env,owner,zone) {
     if (opened && env.deps.actExplorationProgress.deferDeparture(owner)) return;
     env.deps.actExplorationProgress.reconcileDeparture(owner);
     (yield { kind: 'atlasSessionEffectStartMoving', args: [false] });
-}
-
-function* finishExpedition(env, owner, zone) {
-    if (!owner.actExploration?.home || owner.actExploration.status !== 'cleared') return;
-    const maps = [], room = zone.pocket;
-    // Rewards normally run inside the kill receipt; use the same receipt for the expedition award.
-    const rewards = yield {kind:'atlasSessionEffectCaptureAtlasCompletion', args:[owner, atlasSessionClearRoom(env, owner, zone, room, maps)]};
-    restoreMainMap(env, owner);
-    yield {kind:'atlasSessionEffectResumeExpedition', args:[]};
-    yield* atlasSessionNotify(env, {kind:'drops', room, maps, rewards, fragments:[], golden:env.deps.atlasEncounters.isGolden(zone,room)});
-    yield {kind:'atlasSessionEffectQueueImportantSave', args:[100]};
 }
 
 /** Special challenges return after settlement without spending an unrelated map stone or changing the auto-map setting. */

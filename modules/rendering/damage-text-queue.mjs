@@ -9,12 +9,17 @@ export class DamageTextQueue {
         if (!config.aggregateKey) return false;
         // DoT labels share only the first 350 visual ms; continuous ticks must still create fresh, readable sums.
         let text = activeTexts.find(row => row && row.aggregateKey === config.aggregateKey
-            && !!row.dot === !!config.dot && (!config.dot || (start >= row.start && start - row.start <= 350)));
+            && !!row.dot === !!config.dot && this.inMergeWindow(row, config, start));
         let nextValue = Number(config.value);
         if (!text || !Number.isFinite(nextValue)) return false;
         this.updateMergedLabel(text, config, start, x, y);
         if (!config.dot) this.updateImpactTier(text, config);
         return true;
+    }
+
+    inMergeWindow(row, config, start) {
+        const limit = config.mergeWindow || (config.dot ? 350 : 0);
+        return !limit || (start >= row.start && start - row.start <= limit);
     }
 
     updateMergedLabel(text, config, start, x, y) {
@@ -84,6 +89,8 @@ export class DamageTextQueue {
             aggregateKey: config.aggregateKey || '',
             crit: !!config.crit,
             enemyHit: !!config.enemyHit,
+            heroTarget: !!config.heroTarget,
+            elementColor: config.elementColor || '',
             dot: !!config.dot,
             dotType: config.dotType || '',
             miss: !!config.miss,
@@ -111,16 +118,24 @@ export class DamageTextQueue {
         return ended?.scene === this.runtime.scene && ended.id === fx.enemyId && fx.start <= ended.until ? ended.finishAt : undefined;
     }
 
-    fromHit(fx, x, y, start) {
+    fromHit(fx, x, y, start, compact) {
+        const low = compact && !fx.dot && !fx.crit && (!fx.impactTier || fx.impactTier === 'normal');
         this.spawnDamageText({
             start, x, y, enemyId: fx.enemyId, finishAt: this.endingFor(fx),
             value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
             crit: !!fx.crit, dot: !!fx.dot, dotType: fx.element || '',
             impactTier: fx.impactTier || 'normal', damageRatio: fx.damageRatio || 0,
-            // Direct hits retain their skill bucket; DoT sums use the first label's visual time.
-            aggregateKey: fx.dot ? `dot:${fx.enemyId}:${fx.element || ''}`
-                : `${fx.skillName}:${fx.enemyId}:${Math.floor(fx.start / 250)}`
+            // Compact normal hits share a short target-and-element window. Other direct hits keep their skill bucket.
+            mergeWindow: low ? 320 : 0,
+            aggregateKey: this.hitGroup(fx, low)
         });
+    }
+
+    hitGroup(fx, low) {
+        const element = fx.element || '';
+        if (fx.dot) return `dot:${fx.enemyId}:${element}`;
+        if (low) return `compact:${fx.enemyId}:${element}`;
+        return `${fx.skillName}:${fx.enemyId}:${Math.floor(fx.start / 250)}`;
     }
 
     finishBoss(id, fx) {

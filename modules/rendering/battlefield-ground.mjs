@@ -9,6 +9,10 @@ const CELL_TONES = {
 const RING_LOOKS = new Map([[CELL_TONES.summon, 'summon'], [CELL_TONES.target, 'target']]);
 const AREA_ALPHA = 0.6;
 
+function groundAttackScene(view) {
+    return {now:view.now,projection:view.gridProj,playerPos:view.playerPos,enemyPosMap:view.enemyPosMap};
+}
+
 /** Ground marks consume the domain's cells. Walking rings follow drawn positions, not half-step cell changes. */
 export class BattlefieldGround {
     constructor(deps, screen, travel) { this.deps = deps; this.screen = screen; this.travel = travel; }
@@ -147,10 +151,7 @@ export class BattlefieldGround {
         if (typeof this.deps.blessing === 'object') this.deps.blessing.frame(view.now);
         this.deps.tree.castFrame(ctx, view.gridProj, 'ground');
         this.deps.tree.drawQueued(ctx, this.deps.visual().skillEffects || [], view.now, 'ground');
-        for (const fx of effects) {
-            if (!this.travel.isGround(fx)) continue;
-            this.travel.draw(ctx, fx, { now: view.now, projection: view.gridProj, playerPos: view.playerPos, enemyPosMap: view.enemyPosMap });
-        }
+        this.drawGroundAttacks(ctx,effects,view);
         this.deps.redrawn.drawLayer('ground', view.now);
         this.deps.summons.drawLayer('ground', view.now);
         this.deps.remake.end();
@@ -159,6 +160,83 @@ export class BattlefieldGround {
         if (typeof this.deps.ocean === 'object') this.deps.ocean.ground(ctx, view);
         if (typeof this.deps.incidents === 'object') this.deps.incidents.ground(ctx, view);
         this.deps.drawSummons(ctx, view.playerPos, view.now, view.gridProj);
+    }
+
+    drawGroundAttacks(ctx,effects,view) {
+        const pending = this.deps.pendingAttacks();
+        let scene = this.drawChorusWindups(ctx,view,pending);
+        if (pending.length) scene = this.drawPendingGroundWarnings(ctx,pending,view) || scene;
+        let drawnContacts;
+        for (const fx of effects) {
+            if (!this.travel.isGround(fx)) continue;
+            if (fx.groundImpact && !this.markGroundContact(fx, drawnContacts ??= new Set())) continue;
+            this.travel.draw(ctx,fx,scene ??= groundAttackScene(view));
+            this.placeChorusContact(ctx,view,fx);
+        }
+    }
+
+    drawChorusWindups(ctx, view, pending) {
+        const now = this.deps.combatTime();
+        let scene;
+        for (const source of this.deps.game().enemies) {
+            const cast = source.attackCast;
+            if (!cast?.targetCell || cast.finishAt <= now || source.hp <= 0 || source.attackDelivery !== 'magicCell') continue;
+            if (!this.travel.chorusWindup(source,pending) || !this.deps.explorationView.inSight(cast.targetCell)) continue;
+            this.travel.groundWarning(ctx,{source,targetCell:cast.targetCell,groundCell:true,groundElement:source.ele,
+                castStartAt:cast.finishAt,at:cast.finishAt},scene ??= groundAttackScene(view));
+        }
+        return scene;
+    }
+
+    placeChorusContact(ctx, view, fx) {
+        if (!this.travel.isChorusContact(fx) || this.deps.tree.feedback.reduced()) return;
+        if (this.travel.chorusContactBehindHero(fx,view.playerPos)) this.travel.chorusContact(ctx,fx,view);
+        else (view.chorusContacts ??= []).push(fx);
+    }
+
+    drawPendingGroundWarnings(ctx,pending,view) {
+        let scene;
+        for (const attack of pending) {
+            if (attack.groundCell && this.deps.explorationView.inSight(attack.targetCell))
+                this.travel.groundWarning(ctx,attack,scene ??= groundAttackScene(view));
+        }
+        return scene;
+    }
+
+    drawGroundWarningAir(ctx, view) {
+        if (this.deps.tree.feedback.reduced()) return;
+        this.drawChorusContacts(ctx,view);
+        const pending = this.deps.pendingAttacks();
+        if (!pending.length) return;
+        const map = this.deps.gridSize(), run = this.deps.exploration.current(this.deps.game());
+        const sealed = !!run && this.deps.exploration.gateSealed(run);
+        let airWarnings;
+        for (const attack of pending) {
+            if (!attack.groundCell || !this.airEndpointVisible(map, attack.sourceCell, sealed) ||
+                !this.airEndpointVisible(map, attack.targetCell, sealed)) continue;
+            const capsule = this.travel.groundWarningAir(ctx, attack, view.gridProj);
+            if (capsule) (airWarnings ??= []).push(capsule);
+        }
+        return airWarnings;
+    }
+
+    drawChorusContacts(ctx, view) {
+        if (!view.chorusContacts) return;
+        for (const fx of view.chorusContacts) this.travel.chorusContact(ctx,fx,view);
+    }
+
+    airEndpointVisible(map, cell, sealed) {
+        if (!cell || cell.gx < 0 || cell.gx >= map.columns || cell.gy < 0 || cell.gy >= map.rows) return false;
+        return (!map.tiles || this.deps.walkable(map, cell, sealed)) && this.deps.explorationView.inSight(cell);
+    }
+
+    // The combat queue still resolves every strike. Paint identical contacts once per frame.
+    markGroundContact(fx, drawn) {
+        const cell = fx.enemyFlight.targetCell;
+        const key = `${cell.gx}:${cell.gy}:${fx.element}:${fx.start}`;
+        if (drawn.has(key) || !this.deps.explorationView.inSight(cell)) return false;
+        drawn.add(key);
+        return true;
     }
 
     strikeFloor(ctx, view, effects) {

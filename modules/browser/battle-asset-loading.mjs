@@ -52,6 +52,11 @@ export function prepareBattleAssetGroups(manifest, criticalKeys, images, activeS
     const activeSignature = profiles[activeSkill]?.signature;
     const deferredKeys = new Set(Object.entries(signatures)
         .filter(([signature]) => signature !== activeSignature).map(([, spec]) => spec.asset));
+    deferredKeys.add('skillFxEnemyEarthContact');
+    deferredKeys.add('skillFxEnemyRingFault');
+    deferredKeys.add('skillFxEnemyChaosContact');
+    deferredKeys.add('skillFxEnemyChaosSeed');
+    deferredKeys.add('skillFxEnemyRealmLiquids');
     const groups = new Map();
     for (const [key, path] of Object.entries(manifest)) {
         const src = key.startsWith('skillFx') ? path.replace(/\.png$/, '.webp') : path;

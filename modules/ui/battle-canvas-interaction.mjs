@@ -4,6 +4,9 @@ export class BattleCanvasInteraction {
         this.deps = deps; this.canvas = null; this.active = true; this.frames = new Set();
         this.lastMobile = undefined; this.waitingForLoad = false;
         this.onClick = event => { event.preventDefault(); this.command(event); };
+        this.touchOrigin = null;
+        this.onDown = event => { this.touchOrigin = event.isTrusted && event.pointerType === 'touch' ? event : null; };
+        this.onCancel = () => { this.touchOrigin = null; };
         this.onMove = event => this.deps.explorationUi.hover(this.canvas, event);
         this.onLeave = () => this.deps.explorationUi.hover(this.canvas, null);
         this.onLoad = () => { this.waitingForLoad = false; this.scheduleResize(); };
@@ -16,6 +19,8 @@ export class BattleCanvasInteraction {
         this.canvas = canvas;
         canvas.dataset.movementInteractionBound = 'true';
         canvas.addEventListener('click', this.onClick);
+        canvas.addEventListener('pointerdown', this.onDown);
+        canvas.addEventListener('pointercancel', this.onCancel);
         canvas.addEventListener('pointermove', this.onMove);
         canvas.addEventListener('pointerleave', this.onLeave);
     }
@@ -25,6 +30,7 @@ export class BattleCanvasInteraction {
     }
 
     command(event) {
+        const touch = this.takeTouchClick(event);
         if (!this.active || this.deps.bossMoves.observer.sceneActive()) return;
         // While the stage camera is zoomed (2026-11-19) the click is mapped back to the stage point under it.
         const point = this.deps.director.unproject(this.deps.canvasBox.clientPoint(this.canvas, event.clientX, event.clientY));
@@ -32,9 +38,19 @@ export class BattleCanvasInteraction {
         if (npc && this.deps.unlockUi.openNpc(npc)) { this.face(point); return; }
         const door = this.deps.explorationView.passageAt(point) || this.deps.doors.targetAt(point);
         if (door) { this.deps.explorationUi.commandMove(door); return; }
-        if (this.deps.explorationUi.lockOnAt(point)) return;
         const cell = this.deps.explorationView.cellAt(point);
+        if (this.deps.explorationUi.lockOnAt(point,touch ? cell : null)) return;
         if (cell) this.deps.explorationUi.commandMove(cell, this.deps.explorationView.cellAt(point, true));
+    }
+
+    takeTouchClick(event) {
+        const origin = this.touchOrigin;
+        this.touchOrigin = null;
+        if (!event.isTrusted) return false;
+        if (event.pointerType === 'touch') return true;
+        // WebKit can deliver a tap's trusted click as a compatibility mouse event.
+        return !!origin && event.timeStamp - origin.timeStamp <= 600 &&
+            Math.hypot(event.clientX - origin.clientX, event.clientY - origin.clientY) <= 8;
     }
 
     face(point) {
@@ -97,6 +113,9 @@ export class BattleCanvasInteraction {
     unbind() {
         if (!this.canvas) return;
         this.canvas.removeEventListener('click', this.onClick);
+        this.canvas.removeEventListener('pointerdown', this.onDown);
+        this.canvas.removeEventListener('pointercancel', this.onCancel);
+        this.touchOrigin = null;
         this.canvas.removeEventListener('pointermove', this.onMove);
         this.canvas.removeEventListener('pointerleave', this.onLeave);
         delete this.canvas.dataset.movementInteractionBound;

@@ -24,6 +24,7 @@ export function normalizeEnemyRegenFatigue(enemy, hp) {
 
 export function normalizeEnemyRecord(deps, merged, enemy) {
     if (!enemy || typeof enemy !== 'object') return null;
+    enemy = normalizeSavedHuntData(enemy);
     let hp = clampFiniteNumber(enemy.hp, NaN, 0);
     let maxHp = clampFiniteNumber(enemy.maxHp, clampFiniteNumber(hp, 1, 1), 1);
     if (!Number.isFinite(hp)) hp = maxHp;
@@ -51,6 +52,25 @@ export function normalizeEnemyRecord(deps, merged, enemy) {
         isElite: !!enemy.isElite,
         isBoss: !!enemy.isBoss
     });
+}
+
+function normalizeHuntTraits(enemy) {
+    const traits = enemy?.huntTraits;
+    if (traits === undefined) return enemy;
+    const validId = id => typeof id === 'string' && id.length > 0;
+    if (Array.isArray(traits) && traits.every(validId)) return enemy;
+    const normalized = { ...enemy };
+    delete normalized.huntTraits;
+    const kept = Array.isArray(traits) ? traits.filter(validId) : [];
+    if (kept.length) normalized.huntTraits = kept;
+    return normalized;
+}
+
+/** Nested Cerberus bodies can still grant kill rewards after a save restores the merged boss. */
+export function normalizeSavedHuntData(enemy) {
+    const normalized = normalizeHuntTraits(enemy);
+    if (!Array.isArray(normalized?.cerberusRewards)) return normalized;
+    return { ...normalized, cerberusRewards: normalized.cerberusRewards.map(normalizeHuntTraits) };
 }
 
 // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.

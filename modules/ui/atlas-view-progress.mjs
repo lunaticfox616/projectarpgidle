@@ -38,12 +38,15 @@ function resultTierHtml(runtime, result, node) {
     return ` ${(0, runtime.deps.escapeHTML)(tierLabel(runtime, result.tier, !result.board && !result.memory?.foughtTier))}`;
 }
 
+/** 결과 판의 말: 완료, 직접 닫은 지도는 지도 포기, 마지막 포털을 쓴 지도는 포털 소진, 구분 없이 기록된 이전 결과와 나이테 원정은 실패. */
+const RESULT_PLATES = { abandoned: '지도 포기', portals: '포털 소진' };
+
 /** 지난 결과 쪽: 머리 줄(지도와 등급, 완료나 실패, 첫 완료 같은 표시), 받은 지침, 장비 상자, 기억, 후반 재료, 이번 판의 발견과 재화. */
 export function resultBodyHtml(runtime) {
     const result = ledger(runtime).lastResult, done = result.outcome === 'complete', node = runtime.deps.atlas.node(result.nodeId);
-    const tier = resultTierHtml(runtime, result, node), notes = resultNotes(runtime, result);
+    const tier = resultTierHtml(runtime, result, node), notes = resultNotes(runtime, result), plate = done ? '완료' : RESULT_PLATES[result.closeReason] || '실패';
     return `<div class="as-result${done ? '' : ' is-failed'}"><p class="as-result-head"><strong>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(nodeName(runtime, result.nodeId)))}${tier}</strong>
-            <span class="as-plate is-${done ? 'complete' : 'failed'}">${esc(runtime, runtime.deps._t(done ? '완료' : '실패'))}</span>${notes ? `<small>${(0, runtime.deps.escapeHTML)(notes)}</small>` : ''}</p>
+            <span class="as-plate is-${done ? 'complete' : 'failed'}">${esc(runtime, runtime.deps._t(plate))}</span>${notes ? `<small>${(0, runtime.deps.escapeHTML)(notes)}</small>` : ''}</p>
             ${done ? overflowHtml(runtime, result) : failureHtml(runtime, result)}${givenHtml(runtime, result)}${boxesHtml(runtime, result.boxes)}${resultMemoryHtml(runtime, result)}${resultMaterialsHtml(runtime, result)}${receiptHtml(runtime, result.loot)}</div>`;
 }
 

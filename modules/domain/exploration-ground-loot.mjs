@@ -128,8 +128,13 @@ class ExplorationGroundLoot {
     }
     /** @returns {boolean} whether the boss fight holds the row instead of the floor. source: the dropping enemy, if any. */
     lay(state, run, row, source) {
-        this.deps.receipts.floorRow(state, row);
+        this.recordDrop(state, row);
         return this.storeRow(run,row,source);
+    }
+    /** A drop enters the map's receipt when it is produced, held or not: every held row is paid at the release or the departure. */
+    recordDrop(state, row) {
+        if (row.currency) this.deps.receipts.currency(state, row.currency, row.count);
+        else this.deps.receipts.floorRow(state, row);
     }
     storeRow(run,row,source) {
         if (heldByBossFight(run,source)) { run.bossLoot.pendingLoot.push(row); return true; }
@@ -160,8 +165,7 @@ class ExplorationGroundLoot {
     placeYarn(state, run, cell, yarn) { return this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'yarn', yarn }, cell); }
     placeRune(state, run, cell, gem) { return this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'rune', gem }, cell); }
     placeCurrency(state, run, at, currency, count) {
-        this.deps.receipts.currency(state, currency, count);
-        return this.storeRow(run,{gx:at.gx,gy:at.gy,currency,count},at);
+        return this.lay(state, run, {gx:at.gx,gy:at.gy,currency,count}, at);
     }
     take(run, test) {
         const taken = rows(run).filter(test);
@@ -214,10 +218,7 @@ class ExplorationGroundLoot {
         if (!owner) return false;
         const held = row && groundLootKind(row) === 'equipment' ? { highlight: false, guaranteed: false, ...row } : row;
         if (!this.validPendingRow(held)) throw Error('잘못된 원정 보류 전리품');
-        if (owner===state.actExploration?.bossLoot) {
-            if (held.currency) this.deps.receipts.currency(state,held.currency,held.count);
-            else this.deps.receipts.floorRow(state,held);
-        }
+        if (owner===state.actExploration?.bossLoot) this.recordDrop(state, held);
         if (!Array.isArray(owner.pendingLoot)) owner.pendingLoot = [];
         owner.pendingLoot.push({ ...held });
         return true;

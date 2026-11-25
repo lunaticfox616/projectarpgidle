@@ -89,5 +89,9 @@ export function* progressReconcileDeparture(env, state) {
 
 export function progressDefeat(env, state) {
     const run=env.deps.actExplorationState.current(state);
-    if(run && !run.completionApplied){env.deps.actExplorationMotion.cancel(run);run.status='failed';}
+    if(!run || run.completionApplied)return;
+    env.deps.actExplorationMotion.cancel(run);
+    // A lethal ailment can outlast the last enemy. The ensuing portal exit still owes a cleared atlas expedition its completion award.
+    if(run.status==='cleared' && run.home && run.source?.pocket)return;
+    run.status='failed';
 }

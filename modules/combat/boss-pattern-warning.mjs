@@ -1,5 +1,6 @@
 import { bossKeepsOldClock, bossWarningDuration } from './boss-pattern-rules.mjs';
 import { bossGetBossPatternPreview } from './boss-pattern-lifecycle.mjs';
+import { bossWarningFirstWaveCells } from './boss-move-stages.mjs';
 
 export function bossClearBossTelegraph(env, enemy) {
         env.deps.bossMoves.cancelShift(enemy);
@@ -75,7 +76,10 @@ export function bossBossWarningArea(env, enemy, state, target, now) {
         const shift = env.deps.bossMoves.prepareShift(enemy, state, target, now);
         if (shift) return shift;
         const profile = env.deps.COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind], from = env.deps.getClosestGridUnitCell(target, enemy);
-        return { ...env.deps.getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, from), source: from };
+        const area = env.deps.getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, from);
+        if (!area) return null;
+        const firstWaveCells = bossWarningFirstWaveCells(area, state.telegraphKind);
+        return { ...area, source: from, firstWaveCells };
     }
 
 export function bossFinishBossWarning(env, enemy, state, now, charge) {

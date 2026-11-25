@@ -108,13 +108,26 @@ class LootDelivery {
         // Match forEach's captured length: notices may append rows, but cannot add a second acquisition in this pass.
         const length = rows.length;
         for (let index = 0; index < length; index++) if (index in rows) yield* this.receiveRow(state, rows[index]);
-        const fresh = rows.filter(row => groundLootKind(row) === 'equipment' && this.deps.moments.isNewUnique(row.item, state)).map(row => row.item.id);
-        const kept = rows.filter(row => groundLootKind(row) === 'equipment'
-            && this.deps.addItemToInventory(row.item, equipmentPickupOptions(row))).map(row => row.item);
+        const { kept, fresh } = this.collectEquipment(state, rows);
         if (kept.length || currencies.length) yield { event: 'floor-loot-collected', detail: {
-            items: kept, fresh: fresh.filter(id => kept.some(item => item.id === id)),
+            items: kept, fresh,
             currencies: currencies.map(row => ({ key: row.currency, count: row.count })) } };
         return kept.length + currencies.length;
+    }
+
+    collectEquipment(state, rows) {
+        const kept = [], fresh = [];
+        rows.forEach(row => {
+            if (groundLootKind(row) !== 'equipment') return;
+            const { item } = row;
+            const key = this.deps.getUniqueCodexKeyByItem(item);
+            // Pickup registers the codex synchronously. The next copy sees the result of this attempt.
+            const undiscovered = key && !state.uniqueCodex?.[key];
+            if (!this.deps.addItemToInventory(item, equipmentPickupOptions(row))) return;
+            kept.push(item);
+            if (undiscovered && state.uniqueCodex?.[key]) fresh.push(item.id);
+        });
+        return { kept, fresh };
     }
     *receiveRow(state, row) {
         const kind = groundLootKind(row);
