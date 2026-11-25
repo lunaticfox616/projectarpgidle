@@ -835,6 +835,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '전리품 획득': 'Loot pickups',
         '사망 알림 표시': 'Show death notice',
         '사망 시 알림 표시': 'Show a notice on death',
+        '조언 보기': 'See advice',
         '열기': 'Open',
         '진행': 'Progression',
         '클리어 후 행동': 'After clearing',

@@ -308,7 +308,6 @@
         <div class="tutorial-title" id="deathlog-title" data-i18n>사망 보고서</div>
         <div class="deathlog-scroll">
             <div class="tutorial-body" id="deathlog-body"></div>
-            <div class="deathlog-hints" id="deathlog-hints" hidden></div>
             <div class="deathlog-panel">
                 <div class="deathlog-subtitle" id="deathlog-damage-title" data-i18n>최근 3초 피해 요약</div>
                 <div class="deathlog-tabs" role="tablist" aria-label="사망 원인 분류" data-i18n-attr="aria-label">
@@ -317,14 +316,17 @@
                 </div>
                 <div class="deathlog-list" id="deathlog-damage-list"></div>
             </div>
+        </div>
+        <!-- 할 수 있는 일은 조언 보기로 띄우고(modules/ui/death-report-view.mjs renderDeathHints), 알림 설정은 확인과 한 줄에 둔다(2026-11-26 사용자: 스크롤 줄이기). -->
+        <div class="tutorial-actions deathlog-actions">
             <label class="deathlog-setting" data-i18n>
                 <input type="checkbox" id="chk-death-notice-inline">
                 사망 시 알림 표시
             </label>
-        </div>
-        <div class="tutorial-actions">
+            <button type="button" class="deathlog-advice-open" data-death-advice popovertarget="deathlog-advice" aria-haspopup="dialog" hidden data-i18n>조언 보기</button>
             <button autofocus data-death-close data-i18n>확인</button>
         </div>
+        <div class="deathlog-advice" id="deathlog-advice" popover="auto" role="dialog" aria-labelledby="deathlog-advice-title"></div>
     </div>
 </dialog>
 <dialog id="ring-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="ring-slot-overlay-heading">
@@ -1398,6 +1400,11 @@
                     </div>
                     <div class="cfg-block">
                         <h3 class="cfg-block-title" data-i18n>전투 기록</h3>
+                        <!-- 최근 사망 기록은 묶음 맨 위(2026-11-26 사용자) -->
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><span data-i18n>최근 사망 기록</span><small data-i18n>마지막으로 쓰러졌을 때 받은 피해</small></div>
+                            <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn" data-i18n>열기</button>
+                        </div>
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="chk-log-combat" data-i18n>전투 로그 표시</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-combat">
@@ -1425,10 +1432,6 @@
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="chk-log-loot" data-i18n>전리품 획득</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-loot">
-                        </div>
-                        <div class="cfg-row">
-                            <div class="cfg-row-text"><span data-i18n>최근 사망 기록</span><small data-i18n>마지막으로 쓰러졌을 때 받은 피해</small></div>
-                            <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn" data-i18n>열기</button>
                         </div>
                     </div>
                 </section>
