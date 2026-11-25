@@ -22,13 +22,25 @@ function enqueueReleasedAttack(c, enemy, target, bossPattern, delivery) {
         targetCell, bossPattern: bossPattern || null, delivery, woodsmanElement: c.deps.woodsmanAttackFxElement(enemy)
     };
     const sideShots = spreadShots(attack);
+    if (sideShots.length) attack.volley = true;
     const flight = queueFlight(c,attack,travelMs);
     c.deps.bossMoves.begin(attack, now);
     const releaseMs = emitAttackRelease(c, enemy, bossPattern, delivery, target);
-    if (delivery === 'patternArea') return true;
-    showFlight(c,attack,flight,releaseMs);
-    for (const shot of sideShots) showFlight(c,shot,queueFlight(c,shot,travelMs),releaseMs);
+    presentReleasedFlights(c,attack,flight,sideShots,releaseMs);
     return true;
+}
+
+function presentReleasedFlights(c,attack,flight,sideShots,releaseMs) {
+    if (attack.delivery === 'patternArea') return;
+    if (attack.groundCell) releaseGroundCaster(c,attack,releaseMs);
+    else showFlight(c,attack,flight,releaseMs);
+    for (const shot of sideShots) showFlight(c,shot,queueFlight(c,shot,flight.duration),releaseMs);
+}
+
+function releaseGroundCaster(c,attack,duration) {
+    attack.groundElement = c.deps.enemyAttackRules.element(attack.source,attack.bossPattern);
+    if (attack.source.isBoss) return; // The boss release already owns its body motion.
+    c.deps.addBattleFx('enemyCastRelease',{enemyId:attack.enemyId,enemyFlight:attack,element:attack.groundElement,duration});
 }
 
 function spreadShots(attack) {
@@ -39,7 +51,7 @@ function spreadShots(attack) {
     const distance=Math.hypot(dx,dy);
     if (!distance) return [];
     const width=Math.max(1,distance*0.4);
-    return [-1,1].map(side=>({...attack,delivery:'projectileCell',targetCell:{
+    return [-1,1].map(side=>({...attack,volley:true,secondaryShot:true,delivery:'projectileCell',targetCell:{
         gx:Math.round(targetCell.gx-side*width*dy/distance),gy:Math.round(targetCell.gy+side*width*dx/distance)
     }}));
 }
@@ -50,11 +62,13 @@ function queueFlight(c,attack,travelMs) {
     return flight;
 }
 
-function showFlight(c,attack,flight,releaseMs) {
+function showFlight(c,attack,flight,releaseMs,contact=null) {
     const {enemyId,sourceCell,targetCell,targetType,targetId,delivery,bossPattern}=attack;
+    const groundImpact = contact !== null;
     c.deps.addBattleFx('combatTravel',{owner:'enemy',sourceId:enemyId,sourceCell,targetCells:[targetCell],
-        travelPath:flight.path,enemyFlight:attack,targetType,targetId,delivery,element:c.deps.enemyAttackRules.element(attack.source,bossPattern),
-        cerberusHead:bossPattern?.cerberusHead,releaseDelayMs:0,flightMs:flight.duration,duration:Math.max(flight.duration+260,releaseMs)});
+        travelPath:flight.path,enemyFlight:attack,targetType,targetId,delivery,element:attack.groundElement || c.deps.enemyAttackRules.element(attack.source,bossPattern),
+        cerberusHead:bossPattern?.cerberusHead,releaseDelayMs:0,flightMs:flight.duration,groundImpact,groundOccupied:contact?.occupied,
+        duration:groundImpact ? 220 : Math.max(flight.duration+260,releaseMs)});
 }
 
 /** Release pictures start even when the warned area later misses every target. */
@@ -108,9 +122,21 @@ function takeReleasedAttack(c, enemyId, now) {
     }
     if (attack.source.isBoss && (attack.at>now || (attack.path && !c.deps.enemyAttackRules.advanceFlight(attack,c.owner,now)))) return null;
     c.deps.pendingEnemyCombatAttacks.splice(index, 1);
+    announceReleasedContact(c,attack,now);
+    return attack;
+}
+
+function announceReleasedContact(c,attack,now) {
+    if (attack.groundCell) landGroundFlight(c,attack);
     if (attack.delivery === 'patternArea') landBossPatternArea(c, attack, now);
     announceWoodsmanImpact(c, attack);
-    return attack;
+}
+
+function landGroundFlight(c,attack) {
+    const visual = attack.source.spriteVariantId || attack.source.monsterVisualId;
+    const occupied = visual === 'act9-chorus-bulbs'
+        ? c.deps.enemyAttackRules.impactTargets(attack,c.owner).length > 0 : undefined;
+    showFlight(c,attack,{duration:0},0,{occupied});
 }
 
 function flightReady(c,attack,now) {
@@ -138,7 +164,8 @@ function landBossPatternArea(c, attack, now) {
     const stage = c.deps.bossMoves.takeStage(attack, c.deps.pendingEnemyCombatAttacks, now);
     if (c.deps.woodsmanStumps.resolve(attack, now)) return;
     if (stage && !stage.burst) return;
-    c.deps.addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
+    c.deps.addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, wave: attack.bossPattern.move?.next,
+        element: c.deps.enemyAttackRules.element(attack.source,attack.bossPattern), duration: 560 });
 }
 
 function releasedAttackTargets(c, pendingAttack) {

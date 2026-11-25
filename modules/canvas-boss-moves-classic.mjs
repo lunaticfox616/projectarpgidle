@@ -4,6 +4,7 @@ import { createObserverHud } from './ui/observer-hud.mjs';
 const hud = createObserverHud({ get document() { return document; } });
 
 const native = createBossMoveView({
+    rootletZone: () => game.currentZoneId === 0,
     get BOSS_FX() { return typeof BOSS_FX === 'undefined' ? undefined : BOSS_FX; },
     get stagePictures() { return stagePictures; },
     get stageDots() { return stageDots; },

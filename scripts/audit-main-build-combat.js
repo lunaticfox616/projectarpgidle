@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
+const prepareCombatFixture = require('./lib/current-combat-fixture');
 
 function inspectBuild() {
     const allocated = new Set(game.passives), root = getPassiveTreeRootNodeId(game);
@@ -37,21 +38,28 @@ function encounter(input) {
     game.runProgress = 20; game.moveTimer = 0; game.gridPlayer = {gx:3,gy:4,gridMoveTimer:0};
     const zone = getZone(input.zone);
     game.enemies = [Object.assign(createEnemy(zone, {boss:true,at:50}, 0), {gx:4,gy:3})];
-    const enemy = game.enemies[0], stats = getPlayerStats(false), start = getCombatTime();
+    const owner = game, enemy = owner.enemies[0], stats = getPlayerStats(false), start = getCombatTime();
     game.playerHp = stats.maxHp; game.playerEnergyShield = stats.energyShield;
-    let elapsedMs = 0, lowestLife = game.playerHp;
-    while (elapsedMs < 120000 && enemy.hp > 0 && !game.loopDeaths && !game.combatHalted) {
+    let elapsedMs = 0, lowestLife = owner.playerHp, remainingHp = enemy.maxHp, cleared = false, halted = false;
+    while (elapsedMs < 120000 && !cleared && !owner.loopDeaths && !halted) {
         elapsedMs += 100; coreLoop(start + elapsedMs);
-        lowestLife = Math.min(lowestLife, game.playerHp);
+        lowestLife = Math.min(lowestLife, owner.playerHp);
+        const active = owner.enemies.find(row => row.id === enemy.id && row.hp > 0);
+        if (active) remainingHp = active.hp;
+        const departed = game !== owner || owner.currentZoneId !== zone.id || owner.encounterIndex !== 0 || !!owner.actExploration;
+        cleared = !active && owner.loopKills > 0 && !owner.loopDeaths && !departed;
+        halted = departed || owner.combatHalted;
     }
     return {...input, zoneName:zone.name, enemyHp:enemy.maxHp, dps:stats.totalDps, life:stats.maxHp,
-        elapsedMs, remainingHp:Math.max(0,enemy.hp), lowestLifePct:100*lowestLife/stats.maxHp,
-        outcome:game.loopDeaths?'death':enemy.hp<=0?'clear':game.combatHalted?'halt':'timeout'};
+        elapsedMs, remainingHp:cleared?0:remainingHp, lowestLifePct:100*lowestLife/stats.maxHp,
+        outcome:owner.loopDeaths?'death':cleared?'clear':halted?'halt':'timeout'};
 }
 
 const builds = {}, rows = [], started = performance.now();
 for (const name of ['legal-build', 'crafted-t15-build']) {
-    const snapshot = JSON.parse(fs.readFileSync(path.join(__dirname, '../tests/fixtures/world-tree-atlas', name + '.json'), 'utf8'));
+    const preparation = buildGameRuntime();
+    preparation.legacy = JSON.parse(fs.readFileSync(path.join(__dirname, '../tests/fixtures/world-tree-atlas', name + '.json'), 'utf8'));
+    const snapshot = vm.runInContext(`(${prepareCombatFixture.toString()})(legacy)`, preparation);
     for (const loop of [10, 30, 50]) for (const zone of [9, 29]) for (const seed of [17, 29]) {
         const runtime = buildGameRuntime();
         let random = seed;
@@ -74,7 +82,7 @@ for (const name of ['legal-build', 'crafted-t15-build']) {
 }
 const output = process.argv[2] || 'artifacts/main-playtest/build-combat.json';
 fs.mkdirSync(path.dirname(output), {recursive:true});
-const report = {method:'24 seeded boss encounters using actual equipment/passives/gems from versioned selected T14 and crafted T15 builds. Current equipment requirements, passive connectivity, level point budget and save round trip checked. Same gear across loops, no new permanent investment. Direct encounter setup bypasses destination access gates. This isolates scaling; not normal clear-time targets, class balance or a human fun score.',
+const report = {method:'24 seeded boss encounters using equipment and gems from versioned selected T14 and crafted T15 builds. The current graph spends refunded level points through normal allocation. Sequential equipment admission, connectivity, level point budget and save round trip checked. Same gear and allocation across loops. Direct encounter setup bypasses destination access gates. This measures scaling for these selected fixtures.',
     wallMs:performance.now()-started, builds, rows};
 fs.writeFileSync(output, JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({output,wallMs:report.wallMs,builds,rows:rows.map(({build,loop,zone,seed,outcome,elapsedMs})=>({build,loop,zone,seed,outcome,elapsedMs}))},null,2));

@@ -80,7 +80,11 @@ export function revealDevice(runtime) {
 }
 
 export function revealStash(runtime) {
-    runtime.deps.document.querySelector('#ui-atlas .atlas-stash')?.scrollIntoView({ block: 'start' });
+    const stash = runtime.deps.document.querySelector('#ui-atlas :is(.as-stash, .atlas-stash)');
+    if (!stash) return;
+    stash.tabIndex = -1;
+    stash.focus({ preventScroll: true });
+    stash.scrollIntoView({ block: 'start' });
 }
 
 /** 고른 지도석 하나. 손대지 않은 지도석은 묻지 않고(2026-11-06 사용자: 버리기가 너무 귀찮다), 제작한 것만 확인한다. 버린 뒤 다음 줄을 골라

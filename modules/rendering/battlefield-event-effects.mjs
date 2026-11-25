@@ -23,6 +23,25 @@ export class BattlefieldEventEffects {
         this.deps.tree.feedback.contact(ctx, fx, t * fx.duration, { enemies: enemyPosMap, player: playerPos });
     }
 
+    meleeContact(ctx, fx, progress, scene) {
+        if (!fx.meleeContact || !(fx.damage > 0) || !scene.source || progress > 0.61) return;
+        const { hero, source, tileW, tileH } = scene;
+        const angle = Math.atan2(source.y - hero.y, source.x - hero.x);
+        const x = Math.round(hero.x + Math.cos(angle) * tileW * 0.27);
+        const y = Math.round(hero.y - tileH * 0.67 + Math.sin(angle) * tileH * 0.25);
+        const reduced = this.deps.tree.feedback.reduced(), width = tileW * (reduced ? 0.38 : 0.68);
+        const alpha = (1 - progress / 0.61) * (fx.deflected ? 0.52 : 0.95);
+        const image = this.deps.image('skillFxImpactFlare');
+        if (!image) return;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.globalAlpha = alpha;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, -width * 0.38, -tileH * 0.39, width, tileH * 0.78);
+        ctx.restore();
+    }
+
     levelUp(ctx, fx, t, playerPos, now) {
         const fade = t < 0.4 ? 1 : Math.max(0, (1 - t) / 0.6);
         const cx = playerPos.x, footY = playerPos.y + 2;

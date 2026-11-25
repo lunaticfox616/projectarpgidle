@@ -25,7 +25,7 @@ export function headerHtml(runtime) {
     const stats = stat('완료', `${st.completed.length}/${total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
         + stat('씨앗', `${st.seeds}/${runtime.deps.ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${runtime.deps.atlas.points(runtime.deps.game)}${free ? (0, runtime.deps._t)(' (남음 {free})', { free }) : ''}`, '#7fd6cf');
     return `<header class="atlas-head"><span class="atlas-stats">${stats}</span>
-            <label class="atlas-auto" data-tip="${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '자동 지도 · 정점 정복 후')}</span>
+            <label class="atlas-auto" data-tip="${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '정점 정복 후 자동 지도')}</span>
             <small>${(0, runtime.deps._t)('완료하면 같은 등급 이하에서 다음 지도석을 연다')}</small></label></header>`;
 }
 
@@ -105,7 +105,7 @@ export function render(runtime) {
     runtime.deps.atlasBoard.sync(runtime.deps.game);
     const wallet = [...[...runtime.state.CRAFT_ORDER, ...runtime.deps.ATLAS.pinnacle.tickets].map(key => runtime.deps.game.currencies[key] || 0), ...flowerWallet(runtime)];
     if (!viewOpen(runtime, runtime.state.view)) runtime.state.view = 'maps'; // 다른 저장을 불러와 원정이 닫힌 뒤
-    const key = JSON.stringify([runtime.deps.atlasSheetUi.on(), runtime.state.view, runtime.state.selectedRegion, ledger(runtime), runtime.state.selectedNode, runtime.state.selectedUid, wallet, runtime.deps.atlasRun.blockReason(), runtime.deps.game.currentZoneId, runtime.deps.game.maxZoneId, runtime.deps.game.settings.mapCompleteAction, (0, runtime.deps.getPersistentBuildSignature)(runtime.deps.game)]);
+    const key = JSON.stringify([runtime.deps.document.documentElement.lang, runtime.deps.atlasSheetUi.on(), runtime.state.view, runtime.state.selectedRegion, ledger(runtime), runtime.state.selectedNode, runtime.state.selectedUid, wallet, runtime.deps.atlasRun.blockReason(), runtime.deps.game.currentZoneId, runtime.deps.game.maxZoneId, runtime.deps.game.settings.mapCompleteAction, (0, runtime.deps.getPersistentBuildSignature)(runtime.deps.game)]);
     if (key === runtime.state.signature && panel.innerHTML) return;
     runtime.state.signature = key;
     const lock = runtime.deps.atlas.lockReason(runtime.deps.game);
@@ -139,7 +139,7 @@ export function updateHud(runtime, zone) {
     host.toggleAttribute('hidden', !show);
     if (!show) { runtime.state.hudSignature = ''; return; }
     const field = fieldObjective(runtime,run);
-    const key = JSON.stringify([run.map.uid, run.portals, run.encounters, field]);
+    const key = JSON.stringify([runtime.deps.document.documentElement.lang, run.map.uid, run.portals, run.encounters, field]);
     if (key === runtime.state.hudSignature) return;
     runtime.state.hudSignature = key;
     // 지도 이름은 위의 지역 이름과 같고, 주운 지도석과 각인 수는 싸우는 동안 볼 일이 없다(2026-11-06 사용자): 등급, 종류, 방, 징조, 포털만.

@@ -1,4 +1,5 @@
 import { finishHeld, finishKeys } from '../data/equipment-finishes.mjs';
+import { stripDecorativeEmoji } from '../common/text.mjs';
 /** 수확 계열의 식물(그 색의 꽃, 열매, 덩굴, 뿌리)이 없을 때의 말. */
 export function sporeShortage(ctx, mode) {
     return (0, ctx.deps._t)('{name} 없음', { name: ctx.deps.stumpBox.harvestPriceName((0, ctx.deps.getSporeCraftPriceKey)(mode)) });
@@ -16,8 +17,9 @@ export function catalogDescription(ctx, key, compact=false) {
 
 export function catalogActionLabel(ctx, key, state) {
     const blocked=state&&!state.enabled;
-    const reason=blocked?(state.reason==='방어구 전용'?state.reason:'사용 불가'):'';
-    return [key===(ctx.state.inspected||ctx.state.active)?'선택 중':'',reason,finishHeld(ctx.deps.game.currencies,key)?'':'보유 없음'].filter(Boolean).join(', ');
+    const { _t } = ctx.deps;
+    const reason=blocked?(state.reason==='방어구 전용'?_t('방어구 전용'):_t('사용 불가')):'';
+    return [key===(ctx.state.inspected||ctx.state.active)?_t('선택됨'):'',reason,finishHeld(ctx.deps.game.currencies,key)?'':_t('보유 없음')].filter(Boolean).join(', ');
 }
 
 export function catalogCard(ctx, key) {
@@ -31,10 +33,10 @@ export function catalogCard(ctx, key) {
 
 export function catalogList(ctx) {
     catalogCapture(ctx);
-    const query=ctx.state.query.toLocaleLowerCase(ctx.deps.i18n.locale);
+    const query=ctx.state.query.normalize('NFC').toLocaleLowerCase(ctx.deps.i18n.locale);
     const keys=Object.keys(ctx.deps.ORB_DB).filter(ctx.handlers.listed)
         .filter(key=>(ctx.state.category==='all'||catalogGroup(ctx, key)===ctx.state.category)&&(!ctx.state.ownedOnly||finishHeld(ctx.deps.game.currencies,key)>0))
-        .filter(key=>!query||[name(ctx,key),ctx.deps._t(catalogSummary(ctx,key)),ctx.deps._t(ctx.deps.ORB_DB[key].desc)].join(' ').toLocaleLowerCase(ctx.deps.i18n.locale).includes(query));
+        .filter(key=>!query||[name(ctx,key),ctx.deps._t(catalogSummary(ctx,key)),ctx.deps._t(ctx.deps.ORB_DB[key].desc)].join(' ').normalize('NFC').toLocaleLowerCase(ctx.deps.i18n.locale).includes(query));
     ctx.state.dialog.querySelector('.cl-resource-list').innerHTML=keys.map(ctx.handlers.catalogCard).join('')||`<p class="cl-resource-empty">${ctx.deps._t('해당하는 재화가 없습니다.')}</p>`;
     ctx.state.dialog.querySelector('.cl-resource-count').textContent=(0, ctx.deps._t)('{length}종', { length: keys.length });
 }
@@ -95,10 +97,11 @@ export function catalogClick(ctx, event) {
 
 export function catalogCreate(ctx) {
     ctx.state.dialog=ctx.deps.document.createElement('dialog');ctx.state.dialog.className='cl-catalog';ctx.state.dialog.setAttribute('aria-labelledby','cl-catalog-title');
-    ctx.state.dialog.innerHTML=`<header><div><small>${(0, ctx.deps._t)('보관함')}</small><h2 id="cl-catalog-title">${(0, ctx.deps._t)('재화 인벤토리')}</h2></div><div><button type="button" data-close aria-label="${(0, ctx.deps._t)('재화 목록 닫기')}">${(0, ctx.deps._t)('닫기')}</button></div></header>
-            <nav aria-label="${(0, ctx.deps._t)('재화 분류')}">${ctx.state.groups.map(([key,label])=>`<button type="button" data-category="${key}" data-theme="${key}" aria-pressed="${key===ctx.state.category}">${label}</button>`).join('')}</nav>
-            <div class="cl-resource-tools"><input type="search" aria-label="${(0, ctx.deps._t)('재화 검색')}" placeholder="${(0, ctx.deps._t)('이름/효과 검색')}"><label><input type="checkbox"> ${(0, ctx.deps._t)('소진한 재화도 보기')}</label><small class="cl-resource-count"></small></div>
+    ctx.state.dialog.innerHTML=`<header><div><small data-i18n>보관함</small><h2 id="cl-catalog-title"></h2></div><div><button type="button" data-close data-i18n data-i18n-attr="aria-label" aria-label="재화 목록 닫기">닫기</button></div></header>
+            <nav data-i18n-attr="aria-label" aria-label="재화 분류">${ctx.state.groups.map(([key,label])=>`<button type="button" data-category="${key}" data-theme="${key}" aria-pressed="${key===ctx.state.category}" data-i18n>${label}</button>`).join('')}</nav>
+            <div class="cl-resource-tools"><input type="search" data-i18n-attr="aria-label placeholder" aria-label="재화 검색" placeholder="이름/효과 검색"><label><input type="checkbox"> <span data-i18n>소진한 재화도 보기</span></label><small class="cl-resource-count"></small></div>
             <div class="cl-resource-list"></div><aside class="cl-resource-detail" tabindex="-1" hidden></aside>`;
+    ctx.deps.i18n.applyStatic(ctx.state.dialog);
     ctx.deps.document.body.append(ctx.state.dialog);
     ctx.state.dialog.addEventListener('click',ctx.handlers.catalogClick);
     ctx.state.dialog.addEventListener('input',event=>{
@@ -112,11 +115,14 @@ export function catalogCreate(ctx) {
 
 export function esc(ctx, value) { return (0, ctx.deps.escapeHTML)(String(value)); }
 
-export function name(ctx, key) { return (0, ctx.deps._t)(ctx.deps.ORB_DB[key].name).replace(/^[^가-힣A-Za-z0-9]+/u,''); }
+export function name(ctx, key) { return stripDecorativeEmoji((0, ctx.deps._t)(ctx.deps.ORB_DB[key].name)); }
 
 export function listed(ctx, key) { return catalogVisible(ctx, key)&&(!ctx.state.craftingOnly||!ctx.state.separateMaterials.has(key)); }
 
-export function styledName(ctx, key) { return `<span class="cl-currency-name" data-theme="${ctx.state.theme(key)}">${ctx.deps.window.getStyledOrbName(key)}</span>`; }
+export function styledName(ctx, key) {
+    const localizedName = esc(ctx, (0, ctx.deps._t)(ctx.deps.ORB_DB[key].name));
+    return `<span class="cl-currency-name" data-theme="${ctx.state.theme(key)}">${ctx.deps.window.getStyledOrbName(key, localizedName)}</span>`;
+}
 
 /** The short effect line (the stash's hover text, the cards here), plain text. */
 export function catalogSummary(ctx, key) { return ctx.state.summaries[key]||ctx.deps.ORB_DB[key].desc; }

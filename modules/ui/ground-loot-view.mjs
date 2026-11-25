@@ -265,14 +265,15 @@ class GroundLootView {
 
     revealUnique(item, fresh) {
         const jackpot = this.deps.lootMoments.ofItem(item) === 'jackpot';
+        const name = this.deps._t(item.name);
         if (typeof this.deps.playLootDropSound === 'function') this.deps.playLootDropSound(true);
-        if (jackpot) this.presentation.notice('chase', this.deps._t('체이싱 고유 장비를 획득했습니다. 「{name}」', { name: item.name }), 'chase', 6000);
-        if (fresh) this.presentation.notice('codex', this.deps._t('도감에 고유 장비를 등록했습니다. 「{name}」', { name: item.name }), 'unique', 4500);
+        if (jackpot) this.presentation.notice('chase', this.deps._t('체이싱 고유 장비를 획득했습니다. 「{name}」', { name }), 'chase', 6000);
+        if (fresh) this.presentation.notice('codex', this.deps._t('도감에 고유 장비를 등록했습니다. 「{name}」', { name }), 'unique', 4500);
         if (!this.air || !this.deps.battleVisualState.playerPos) return;
         const label = this.deps.document.createElement('span');
         label.className = `battle-loot-reveal${jackpot ? ' is-jackpot' : ''}${fresh ? ' is-new' : ''}`;
-        label.textContent = `「${item.name}」`;
-        if (fresh) label.prepend(Object.assign(this.deps.document.createElement('b'), { textContent: '새 고유' }));
+        label.textContent = `「${name}」`;
+        if (fresh) label.prepend(Object.assign(this.deps.document.createElement('b'), { textContent: this.deps._t('새 고유') }));
         label.style.left = this.deps.battleVisualState.playerPos.x + 'px';
         label.style.top = (this.deps.battleVisualState.playerPos.y - 40) + 'px';
         this.air.append(label);
@@ -487,13 +488,23 @@ class GroundLootView {
     }
 
     onFloorCollected({ detail }) {
-        const fresh = new Set(detail.fresh || []);
-        detail.items.filter(item => item.rarity === 'unique').forEach(item => this.revealUnique(item, fresh.has(item.id)));
+        this.revealCollectedUniques(detail);
         if (!this.deps.viewSettings().showLootLog) return;
         // The same lines a drop picked up at once writes (js/combat-kill-rewards.js rollLootForEnemy).
         detail.currencies.forEach(({ key, count }) => this.deps.addLog(`🪙 ${this.deps.styledCurrency(key)} +${count}`,
             this.deps.lootMoments.rank(this.deps.lootMoments.ofCurrency(key)) >= 1 ? 'loot-unique' : 'loot-magic'));
         detail.items.forEach(item => this.deps.addLog(this.deps._t("🛡️ <span class='loot-{rarity}'>[{name}]</span> 획득!{item}", { rarity: item.rarity, name: this.deps._t(item.name), item: this.presentation.fineNote(item) }), '', { item }));
+    }
+
+    revealCollectedUniques({ items, fresh }) {
+        const discovered = new Set(fresh || []), shown = new Set();
+        for (const item of items) {
+            if (item.rarity !== 'unique') continue;
+            const key = this.deps.getUniqueCodexKeyByItem(item) || item.id;
+            if (shown.has(key)) continue;
+            shown.add(key);
+            this.revealUnique(item, discovered.has(item.id));
+        }
     }
 }
 

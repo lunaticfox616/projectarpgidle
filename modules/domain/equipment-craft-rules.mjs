@@ -79,7 +79,7 @@ export function craftGetRiftHarvestBlockReason(env, item) {
 export function craftGetFossilUseReason(env, item, fossil, owner) {
     if (!env.deps.contentProgression.isUnlocked('fossil', owner)) return '화석 제작을 먼저 해금하세요.';
     if (!fossil) return '존재하지 않는 화석입니다.';
-    if ((owner.currencies[fossil.key] || 0) <= 0) return env.deps._t('{name}이 부족합니다.', { name: fossil.name });
+    if ((owner.currencies[fossil.key] || 0) <= 0) return env.deps._t('{name}이 부족합니다.', { name: env.deps._t(fossil.name) });
     if (!item) return '먼저 아이템을 선택하세요.';
     return craftGetFossilBlockReason(env, item, fossil.key);
 }

@@ -12,6 +12,8 @@ export class BattlefieldFrameEffects {
             playerMobility: (ctx, fx, t, v) => events.mobility(ctx, fx, t, v.gridProj),
             combatTravel: (ctx, fx, t, v) => travel.draw(ctx, fx, { now: v.now, projection: v.gridProj, playerPos: v.playerPos, enemyPosMap: v.enemyPosMap }),
             hit: (ctx, fx, t, v) => events.legacyHit(ctx, fx, t, v.playerPos, v.enemyPosMap),
+            playerHit: (ctx, fx, t, v) => events.meleeContact(ctx, fx, t, { hero: v.playerPos,
+                source: v.enemyPosMap[fx.enemyId], tileW: v.gridProj.tileW, tileH: v.gridProj.tileH }),
             levelUp: (ctx, fx, t, v) => events.levelUp(ctx, fx, t, v.playerPos, v.now),
             objectReward: (ctx, fx, t, v) => deps.tree.feedback.object(ctx, fx, t, v.gridProj),
             ambushBlink: (ctx, fx, t, v) => deps.ambush.draw(ctx, fx, v.now, v.gridProj),
@@ -48,7 +50,7 @@ export class BattlefieldFrameEffects {
         const { timing, body, queue, layer } = this.parts;
         timing.hitStop(fx);
         const enemy = this.enemyPosition(fx, view) || { x: view.width * .72, y: view.height * .58 };
-        if (typeof fx.damage === 'number') this.deps.damageText.fromHit(fx, enemy.x, damageBodyY(enemy.y, body.enemyHeight(enemy)), view.now);
+        if (typeof fx.damage === 'number') this.deps.damageText.fromHit(fx, enemy.x, damageBodyY(enemy.y, body.enemyHeight(enemy)), view.now, view.compactDamageLabels);
         if (!fx.dot && fx.skillName) {
             queue.hit({ ...fx, combatFx: fx, footprint: this.deps.projectFootprint(fx.attackFootprint, view.gridProj, fx.sourceCell) }, {
                 enemyPos: enemy, playerPos: combatScreenPoint(view.gridProj, fx.sourceCell, view.playerPos),
@@ -77,7 +79,7 @@ export class BattlefieldFrameEffects {
         if (fx.type === 'hit') this.hit(fx, view);
         else if (fx.type === 'playerHit') {
             timing.hitStop(fx);
-            if (typeof fx.damage === 'number') hits.heroText(fx, view.playerPos, view.now);
+            if (typeof fx.damage === 'number') hits.heroText(fx, view.playerPos, view.now, view.compactDamageLabels);
         } else if (fx.type === 'summonHit') {
             if (typeof fx.damage === 'number') hits.summonText(fx, view.gridProj, view.playerPos, view.now);
         } else if (fx.type === 'enemyEvade') {

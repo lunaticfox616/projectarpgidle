@@ -204,7 +204,10 @@ export class DeathReportView {
     }
 
     lowResistanceDeathHint(log) {
-        const row = log ? DEATH_RESIST_STATS[this.deps.normalizeDamageElementKey(log.fatalElement || log.primaryElement)] : null;
+        if (!log) return null;
+        const fatal = this.deps.normalizeDamageElementKey(log.fatalElement);
+        const element = !log.fatalElement || fatal === 'other' ? this.deps.normalizeDamageElementKey(log.primaryElement) : fatal;
+        const row = DEATH_RESIST_STATS[element];
         if (!row) return null;
         const value = Math.floor(Number(this.deps.getPlayerStats(false)[row[0]]) || 0);
         return value < 0 ? { text: this.deps._t('{row} 저항 {value}%(장비의 {row2} 저항 옵션으로 올리면 받는 피해가 줄어듭니다)', { row: row[1], value, row2: row[1] }),

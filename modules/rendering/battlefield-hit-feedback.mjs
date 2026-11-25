@@ -50,11 +50,12 @@ function overlaps(a, b) {
 export class BattlefieldHitFeedback {
     constructor(deps, body) { this.deps = deps; this.body = body; this.softened = new WeakSet(); }
 
-    heroText(fx, player, now) {
+    heroText(fx, player, now, compact) {
+        const group = compact ? (fx.color || '') : '';
         this.deps.damageText({
             start: now, x: player.x, y: damageBodyY(player.y, this.body.heroHeight(player, now)),
-            value: fx.damage, enemyHit: true, deflected: !!fx.deflected,
-            aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+            value: fx.damage, enemyHit: true, heroTarget: true, elementColor: fx.color, deflected: !!fx.deflected,
+            aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}${group}`
         });
     }
 

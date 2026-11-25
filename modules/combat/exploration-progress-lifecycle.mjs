@@ -72,7 +72,7 @@ export function progressDeferDeparture(env, state) {
 export function* progressDepart(env, state) {
     const run=state.actExploration;
     if(run && ['colony_run','grand_breach_run'].includes(run.zoneId))env.deps.ground.discardEncounter(state,run.zoneId);
-    else if(run && state===env.owner){const rows=env.deps.ground.takeOnExit(run);if(rows.length)(yield {kind:'collectExplorationFloorLoot',args:[rows]});}
+    else if(run && state===env.owner){const rows=env.deps.ground.takeOnExit(run,state);if(rows.length)(yield {kind:'collectExplorationFloorLoot',args:[rows]});}
     else if(run)env.deps.ground.settleOnLoad(state,run);
     state.actExploration=null;
 }
@@ -89,5 +89,9 @@ export function* progressReconcileDeparture(env, state) {
 
 export function progressDefeat(env, state) {
     const run=env.deps.actExplorationState.current(state);
-    if(run && !run.completionApplied){env.deps.actExplorationMotion.cancel(run);run.status='failed';}
+    if(!run || run.completionApplied)return;
+    env.deps.actExplorationMotion.cancel(run);
+    // A lethal ailment can outlast the last enemy. The ensuing portal exit still owes a cleared expedition its payout.
+    if(run.status==='cleared' && (run.bossLoot || run.home && run.source?.pocket))return;
+    run.status='failed';
 }

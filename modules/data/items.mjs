@@ -1495,7 +1495,7 @@ const ORB_DB = {
     fossilAbyssal: { name: '심연 화석', desc: '카오스/흡혈/재생 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilBulwark: { name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/완갑.' },
     fossilWedge: { name: '쐐기 화석', desc: '투사체/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
-    fossilOld: { name: '오래된 화석', desc: '화석 전용 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    fossilOld: { name: '오래된 화석', desc: '장비를 희귀 등급으로 재련하며 화석 전용 옵션 한 줄을 확정합니다. 기존 일반 옵션 한 줄을 보존하면 결과 옵션 수가 한 줄 줄어듭니다(최대 4~5줄에서 3~4줄).' },
     fossilRift: { name: '균열 화석', desc: '희귀 아이템의 옵션을 다시 굴리고, 제거할 수 없는 균열 표식과 나머지 추가 옵션 50% 증폭 효과를 부여합니다.' },
     deepWhetstone: { name: '심층 숫돌', desc: '무기와 지도석의 퀄리티 재화. 무기는 퀄리티 1%당 베이스 옵션 효과가 1%, 지도석은 5%씩 올라 아이템 수량이 늘어납니다.' },
     rootIron: { name: '뿌리철', desc: '방어구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
@@ -1629,8 +1629,7 @@ function getCurrencyTone(key) {
  * currency data so that it exists from load: the floor loot labels (js/battle-ground-loot-ui.js) call it on the first battlefield
  * draw of the boot, before any UI refresh. 2026-10-11: while it was nested in performUpdateStaticUI (js/ui.js) that draw threw,
  * the rest of init (cloud save and login setup) never ran, and a save with currency on the exploration floor could not sign in. */
-function getStyledOrbName(orbKey) {
-    let name = getCurrencyInfo(orbKey).name;
+function getStyledOrbName(orbKey, name = getCurrencyInfo(orbKey).name) {
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
     if (!Object.hasOwn(CURRENCY_NAME_TONES, orbKey)) return name;
     const [tone, extra = ''] = CURRENCY_NAME_TONES[orbKey];

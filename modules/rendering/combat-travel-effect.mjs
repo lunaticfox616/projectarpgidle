@@ -106,7 +106,34 @@ export class CombatTravelEffect {
         fx.screenAim = combatScreenPoint(scene.projection, fx.aimCell, flight.targets[0]);
         fx.screenFootprint = this.deps.footprint(this.deps.enemyProjectiles.groundArea(fx), scene.projection);
         if (fx.patternKind === 'radialBurst') fx.screenRadius = radialEffectRadius(fx, scene.projection, this.deps.grids);
-        this.cells.footprint(ctx, fx, { ...flight, playerPoint: scene.playerPos });
+        this.cells.footprint(ctx, fx, { ...flight, playerPoint: scene.playerPos,
+            reduced: this.deps.tree.feedback.reduced() });
+    }
+
+    groundWarning(ctx, attack, scene) {
+        const fx = { enemyFlight:attack, element:attack.groundElement, start:scene.now };
+        const footprint = this.deps.footprint(this.deps.enemyProjectiles.groundArea(fx),scene.projection);
+        if (footprint) this.deps.enemyProjectiles.drawGround(ctx,fx,footprint,{now:scene.now,
+            reduced:this.deps.tree.feedback.reduced()});
+    }
+
+    groundWarningAir(ctx, attack, projection) { return this.deps.enemyProjectiles.warningComet(ctx, attack, projection); }
+
+    chorusWindup(source, pending) {
+        return this.deps.enemyProjectiles.isChorusShot({source})
+            && !pending.some(attack => attack.source === source && attack.groundCell);
+    }
+
+    isChorusContact(fx) { return fx.groundImpact && this.deps.enemyProjectiles.isChorusShot(fx.enemyFlight); }
+
+    chorusContactBehindHero(fx, hero) {
+        const floor = fx.screenFootprint;
+        return hero && floor && hero.y > floor.y + floor.height * .42 &&
+            Math.abs(hero.x - floor.x) < floor.width * .6;
+    }
+
+    chorusContact(ctx, fx, view) {
+        if (fx.screenFootprint) this.deps.enemyProjectiles.chorusContact(ctx,fx,fx.screenFootprint,view.now);
     }
 
     isGround(fx) {

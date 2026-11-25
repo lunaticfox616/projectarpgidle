@@ -69,20 +69,23 @@ export function atlasCoreUsePortal(env, state) {
     if (!run) return null;
     run.portals = run.board ? 0 : Math.max(0, run.portals - 1);
     if (run.portals > 0) return { closed: false, portals: run.portals };
-    return { closed: true, ...atlasCoreClose(env, state, 'failed') };
+    const closeReason = run.board ? undefined : 'portals';
+    return { closed: true, ...atlasCoreClose(env, state, 'failed', closeReason) };
 }
 
-export function atlasCoreClose(env, state, outcome) {
+export function atlasCoreClose(env, state, outcome, closeReason = undefined) {
     const run = state.atlas.run;
     if (!run) return null;
+    env.deps.combatLootReceipts.markUnclaimedLegacyDrops(state);
     if (run.board && outcome === 'failed') env.deps.atlasBoard.fail(state, run.board);
     state.atlas.run = null;
-    state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome, first: false, bonus: false, drops: 0,
+    state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome, closeReason, first: false, bonus: false, drops: 0,
         lost: run.drops.length, fragments: 0, lostFragments: run.found.length,
         lostMaterials: atlasCoreNormalizeResultMaterials(env, Object.entries(run.endgame.items), env.deps.ATLAS_ENDGAME.itemCap * 10),
         seed: false, seeds: state.atlas.seeds, endgame: null,
         memory: atlasCoreNormalizeResultMemory(env, { foughtTier: run.map.memory }, true) };
     // Floor drops already entered this receipt when produced; the existing departure still collects them exactly once.
     atlasCoreKeepLoot(env, state, state.explorationLoot);
+    if (outcome === 'failed' && state.explorationLoot?.unclaimedLegacyDrops === true) state.atlas.lastResult.unclaimedLegacyDrops = true;
     return { returnZoneId: run.returnZoneId };
 }

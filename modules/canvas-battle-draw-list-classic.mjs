@@ -17,6 +17,7 @@ const battleDrawList = Object.freeze({
     keepFacing: native.keepFacing,
     noteDrawn: native.noteDrawn,
     enemyAt: native.enemyAt,
-    drawnEntry: native.drawnEntry
+    drawnEntry: native.drawnEntry,
+    lowerBodyAt: native.lowerBodyAt
 });
 safeExposeGlobals({ battleDrawList });

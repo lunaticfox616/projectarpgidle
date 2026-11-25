@@ -59,7 +59,11 @@ export function workspaceSelectedState(ctx, key) {
 }
 
 export function workspaceFossilState(ctx, key) {
-    const reason=ctx.deps.equipmentCrafting.getFossilUseReason(selected(ctx),ctx.deps.FOSSIL_DB.find(entry=>entry.key===key),ctx.deps.game)||workspaceFossilSlotReason(ctx, key);
+    const item = selected(ctx);
+    const retained = key === 'fossilOld' && ctx.state.recipe.key === key && ctx.state.fossilRetained;
+    const stale = retained && !ctx.deps.equipmentCrafting.inspectFossilRetention(item).rows.some(row => row.stat === retained);
+    const reason=ctx.deps.equipmentCrafting.getFossilUseReason(item,ctx.deps.FOSSIL_DB.find(entry=>entry.key===key),ctx.deps.game)
+        ||workspaceFossilSlotReason(ctx, key)||(stale ? ctx.deps._t('보존할 일반 옵션을 다시 선택하세요.') : '');
     return {enabled:!reason,reason};
 }
 
@@ -102,6 +106,7 @@ export function workspaceSideEffect(ctx, omen) {
 
 export function workspaceAutoReason(ctx) {
     if(!['reroll','add','fossil'].includes(ctx.state.recipe.kind))return '이 재화는 한 번씩 사용합니다.';
+    if(ctx.state.recipe.key==='fossilOld'&&ctx.state.fossilRetained)return ctx.deps._t('옵션을 보존할 때는 한 번씩 사용하세요.');
     if(!ctx.state.goal.rules.length)return '목표 미설정';
     if(matches(ctx, selected(ctx)))return '이미 목표를 달성했어요.';
     const reachable=ctx.state.goal.rules.map(ctx.handlers.workspaceGoalReachable);

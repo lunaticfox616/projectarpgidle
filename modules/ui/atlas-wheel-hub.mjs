@@ -20,7 +20,7 @@ export function showWheelHub(runtime, host) {
     stage.hidden = !active;
     if (!active) return false;
     host.hidden = true;
-    const key = `hub-${game.atlas.nextUid}-${game.atlas.stash.length}`;
+    const key = `hub-${runtime.deps.document.documentElement.lang}-${game.atlas.nextUid}-${game.atlas.stash.length}`;
     if (key !== runtime.state.hudSignature) {
         stage.innerHTML = wheelHubHtml(runtime);
         runtime.state.hudSignature = key;

@@ -1,6 +1,6 @@
 import { normalizePlayerAilmentRow, normalizeConditionDebuffMap } from './saved-combat-values.mjs';
 import { clampFiniteNumber } from './saved-number.mjs';
-import { normalizeRecentDamageEvent, normalizeEnemyRecord, pruneEnemyRuntimeMap, normalizeEncounterMarker } from './saved-enemy-records.mjs';
+import { normalizeRecentDamageEvent, normalizeEnemyRecord, normalizeSavedHuntData, pruneEnemyRuntimeMap, normalizeEncounterMarker } from './saved-enemy-records.mjs';
 import { normalizeDeathLog, normalizeActRetreat } from './saved-damage-history.mjs';
 import { restoreEnemyCasts } from './saved-enemy-casts.mjs';
 
@@ -21,8 +21,21 @@ export function restoreEnemyRecords(deps, context) {
         // Validate the original ownership/HP first so normalization cannot revive a corrupt record.
         deps.actExplorationState.validate(context.merged.actExploration, context.save.enemies || []);
         context.merged.actExploration.packs.forEach(pack=>{pack.waiting=pack.waiting.map(((...args) => normalizeEnemyRecord(deps, context.merged, ...args)));});
+        restoreWaitingHuntData(context.merged.actExploration);
     }
     restoreEnemyCasts(deps, context.merged);
+}
+
+/** Passage reinforcements and the suspended main map retain their own already-validated enemy shape. */
+function restoreWaitingHuntData(run) {
+    for (const pack of run.packs) {
+        if (Array.isArray(pack.task?.reinforcements)) pack.task.reinforcements = pack.task.reinforcements.map(normalizeSavedHuntData);
+    }
+    const pending = run.home?.main?.packs;
+    if (!Array.isArray(pending)) return;
+    for (const pack of pending) {
+        if (Array.isArray(pack?.waiting)) pack.waiting = pack.waiting.map(normalizeSavedHuntData);
+    }
 }
 
 export function restoreEnemyRuntimeMaps(context) {

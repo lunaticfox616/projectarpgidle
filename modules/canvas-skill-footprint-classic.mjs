@@ -5,6 +5,7 @@ const native = createSkillFootprintRenderer({
     get actExplorationMap() { return actExplorationMap; },
     get actExplorationState() { return actExplorationState; },
     currentRun: () => actExplorationState.current(window.GameModules.state.game),
+    earthCrack: () => window.battleAssets.images.skillFxEarthCrack,
     get getCombatGridSize() { return getCombatGridSize; },
     get gridCellKey() { return gridCellKey; }
 });

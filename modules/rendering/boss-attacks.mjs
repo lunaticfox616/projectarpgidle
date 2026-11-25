@@ -1,4 +1,29 @@
 import { createBossAttackTiming } from './boss-attack-timing.mjs';
+import { drawEnemyWarningMark } from './enemy-warning-mark.mjs';
+import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
+import { paintRootletContact } from './rootlet-fault.mjs';
+
+const SLAM_STEPS = [[-8,-1,6,1],[-3,-1,1,3],[-3,1,7,1],[3,-2,1,4],[3,-2,6,1]];
+const RAY_STEPS = [[-8,-3,5,1],[-4,-2,5,1],[0,-1,6,1],[4,0,5,1]];
+const SHOCK_DOTS = Array.from({ length: 20 }, (_, index) => {
+    const arc = index * Math.PI / 10;
+    return [Math.cos(arc), Math.sin(arc), index % 3 === 0 ? 2 : 1];
+});
+
+function impactScar(ctx, point, mark) {
+    const { pixel, ray, flip, core } = mark;
+    const steps = ray ? RAY_STEPS : SLAM_STEPS;
+    for (const [x, y, w, h] of steps) {
+        ctx.fillRect(Math.round(point.x + x * pixel), Math.round(point.y + y * pixel * flip),
+            Math.ceil(w * pixel), Math.ceil(h * pixel));
+    }
+    if (core <= 0) return;
+    ctx.save();
+    ctx.globalAlpha *= core;
+    ctx.fillStyle = '#fff1d4';
+    ctx.fillRect(Math.round(point.x - 2 * pixel), Math.round(point.y), Math.ceil(4 * pixel), Math.ceil(pixel));
+    ctx.restore();
+}
 
 // 보스 공격 연출(2026-10-06 사용자 요청: "보스 몬스터들의 공격 및 패턴이 너무 허접하고 이펙트도 안보여서"). 그림과 소리만 맡고
 // 판정 칸은 건드리지 않는다(예고할 때 정해진 enemy.patternArea, 놓은 뒤에는 대기 중인 공격의 bossPattern.area 그대로).
@@ -106,8 +131,8 @@ class BossAttacks {
         const front = frame.reach * look.share, wide = frame.reach * 2 + 2;
         if (front <= 0.05) return;
         const corners = [this.onFloor(frame, 0, -wide), this.onFloor(frame, front, -wide), this.onFloor(frame, front, wide), this.onFloor(frame, 0, wide)];
-        ctx.globalAlpha = (0.18 + 0.2 * look.share) * look.blink;
-        ctx.fillStyle = '#ff8a5c';
+        ctx.globalAlpha = (0.05 + 0.075 * look.share) * look.blink;
+        ctx.fillStyle = '#e7a06f';
         ctx.beginPath();
         corners.forEach((point, i) => (i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
         ctx.closePath();
@@ -183,6 +208,22 @@ class BossAttacks {
             this.drawAreaCharge(owner, ctx, footprint, look);
         } else this.drawReticle(ctx, footprint, look);
         ctx.restore();
+        this.elementMark(ctx, footprint, look.pattern?.attackElement || look.source.ele, area);
+    }
+
+    elementMark(ctx, footprint, element, area) {
+        const { points, centerPoint, tileW, tileH } = footprint;
+        this.warmPhysicalGround(points.length, element, area);
+        const aimX = centerPoint.x + tileW, aimY = centerPoint.y + tileH;
+        const position = points.reduce((best, point) =>
+            Math.abs(point.x - aimX) + Math.abs(point.y - aimY) < Math.abs(best.x - aimX) + Math.abs(best.y - aimY)
+                ? point : best, points[0]);
+        const size = Math.max(1, Math.floor(Math.min(tileW, tileH) / 11));
+        ctx.save();
+        this.deps.clipSkillFootprintTerrain(ctx, footprint);
+        this.deps.clipSkillFootprint(ctx, footprint);
+        drawEnemyWarningMark(ctx, element, position.x - size * 2, position.y - size * 2, size);
+        ctx.restore();
     }
 
     /** Areas around a point (blasts, crosses) on the stage charge the same way as lines and fans: a fill and a bright front spread from
@@ -196,8 +237,8 @@ class BossAttacks {
         this.deps.clipSkillFootprint(ctx, footprint);
         ctx.beginPath();
         ctx.ellipse(centre.x, centre.y, radius, radius * squash, 0, 0, Math.PI * 2);
-        ctx.globalAlpha = (0.18 + 0.2 * look.share) * look.blink;
-        ctx.fillStyle = '#ff8a5c';
+        ctx.globalAlpha = (0.04 + 0.055 * look.share) * look.blink;
+        ctx.fillStyle = '#e7a06f';
         ctx.fill();
         for (const [width, colour, alpha] of [[0.14, '#ff6a40', 0.35], [0.05, '#fff1e2', 0.6 + 0.4 * look.share]]) {
             ctx.globalAlpha = Math.min(1, alpha) * look.blink;
@@ -210,19 +251,211 @@ class BossAttacks {
     /** The bright edge of every live and released boss warning (a released snapshot owns its warning even when the boss no longer
      * previews one). Under the actors since 2026-10-19 (before, it was the last part of a warning still drawn over them). */
     drawEdges(ctx, scene) {
-        const areas = (scene.layout || []).filter(({ enemy }) => this.timing.isLiveWarning(enemy)).map(({ enemy }) => enemy.patternArea);
-        (scene.pending || []).forEach(attack => { if (attack.delivery === 'patternArea') areas.push(attack.bossPattern.area); });
+        const areas = (scene.pending || []).filter(attack => this.closesIn(attack)).map(attack => attack.bossPattern.area);
         new Set(areas.filter(area => !area.woodsman)).forEach(area => this.deps.drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
     }
 
-    /** Every landing's flash of the struck cells (battleFx bossAreaImpact), on the floor like its warning. Effects are stamped on the
-     * battlefield's clock (battleVisualState.visualNow, held back by hit stops), so the flash is timed on it too. */
+    /** Struck-cell damage art replaces the warning on the battlefield clock (held back by hit stops). */
     drawImpactFlashes(ctx, projection) {
         const now = Number.isFinite(this.deps.battleVisualState.visualNow) ? this.deps.battleVisualState.visualNow : this.deps.performance.now();
         for (const fx of this.deps.battleFx) {
             if (!fx || fx.type !== 'bossAreaImpact' || now < fx.start) continue;
             const ms = now - fx.start;
-            if (ms < this.IMPACT_FLASH_MS) this.deps.drawBossPatternArea(ctx, fx.footprint, projection, (1 - ms / this.IMPACT_FLASH_MS) * 5);
+            if (ms >= this.IMPACT_FLASH_MS) continue;
+            const t = ms / this.IMPACT_FLASH_MS, reduced = this.deps.reduced();
+            this.drawScars(ctx, fx, projection, t, reduced);
+        }
+    }
+
+    drawScars(ctx, fx, projection, progress, reduced) {
+        const footprint = this.deps.projectSkillFootprint(fx.footprint, projection);
+        if (!footprint) return;
+        if (this.rootletRing(fx.element, fx.footprint) && this.drawRootletScars(ctx, footprint, {progress,reduced,outer:fx.wave > 1})) return;
+        const look = this.groundContactLook(fx, footprint, reduced);
+        this.paintContactGround(ctx, footprint, { ...look, reduced, progress, element: fx.element });
+    }
+
+    rootletRing(element, area) { return (!element || element === 'phys') && this.isRing(area) && this.deps.rootletZone(); }
+
+    rootletGroundImages() {
+        const look = this.deps.getSkillGemVfxImage;
+        return {crack:look('skillFxEarthCrack'), slam:look('skillFxSlamPrimary')};
+    }
+
+    warmPhysicalGround(count, element, area) {
+        if (count < 2 || (element && element !== 'phys')) return;
+        if (this.rootletRing(element, area)) {
+            this.rootletGroundImages();
+            return;
+        }
+        if (this.deps.reduced()) return;
+        this.deps.getSkillGemVfxImage('skillFxEnemyEarthContact');
+        if (this.isRing(area)) this.deps.getSkillGemVfxImage('skillFxEnemyRingFault');
+    }
+
+    drawRootletScars(ctx, footprint, look) {
+        const images = this.rootletGroundImages();
+        if (!images.crack || !images.slam) return false;
+        ctx.save();
+        this.deps.clipSkillFootprintTerrain(ctx, footprint);
+        this.deps.clipSkillFootprint(ctx, footprint);
+        paintRootletContact(ctx, footprint, look, images);
+        ctx.restore();
+        return true;
+    }
+
+    groundContactLook(fx, footprint, reduced) {
+        const ring = this.isRing(fx.footprint), ray = this.RAY_KINDS.has(fx.footprint.kind);
+        const physical = fx.element === 'phys';
+        const image = this.deps.getSkillGemVfxImage;
+        if (!image || reduced || ray || (ring && !physical)) return { ring, ray };
+        const crack = image('skillFxEarthCrack');
+        if (!physical || footprint.points.length < 2) return { ring, ray, crack };
+        const fault = ring && image('skillFxEnemyRingFault');
+        const earth = !fault && image('skillFxEnemyEarthContact');
+        return { ring, ray, crack, earth, fault };
+    }
+
+    isRing(area) { return area.shape === 'diamond' && area.radius >= 2; }
+
+    paintContactGround(ctx, footprint, look) {
+        const { crack, earth, reduced, progress, ring, fault } = look;
+        const rise = earth && !ring ? footprint.tileH * 1.25 : 0;
+        ctx.save();
+        this.deps.clipSkillFootprintTerrain(ctx, footprint, rise);
+        ctx.save();
+        this.deps.clipSkillFootprint(ctx, footprint);
+        ctx.globalAlpha = (1 - progress) * (reduced ? 0.65 : 0.92);
+        if (crack) this.paintCrack(ctx, crack, footprint, progress, earth || fault);
+        else this.paintScars(ctx, footprint, look);
+        ctx.restore();
+        if (fault) this.paintRingFault(ctx, fault, footprint, progress);
+        else if (earth && ring) this.paintRingChunks(ctx, earth, footprint, progress);
+        else if (earth) this.paintEarthContact(ctx, earth, footprint, progress, rise);
+        ctx.restore();
+    }
+
+    paintRingFault(ctx, image, footprint, progress) {
+        const { points, tileW, tileH } = footprint;
+        const frame = 1 + Math.min(4, Math.floor(progress * 5));
+        const width = Math.round(tileW * (0.96 + 0.04 * progress));
+        const height = Math.round(tileH * (0.61 - progress * 0.13));
+        const sx = (frame % 3) * 128, sy = Math.floor(frame / 3) * 40;
+        this.deps.clipSkillFootprint(ctx, footprint);
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha = 1 - progress ** 1.6;
+        for (const {x, y, gx, gy} of points) {
+            const seed = (Math.imul(gx, 73) ^ Math.imul(gy, 29)) & 7;
+            const span = width - (seed % 3) * 3;
+            ctx.save();
+            ctx.translate(Math.round(x) + (seed % 3) - 1, Math.round(y - height * 0.73) + ((seed >> 1) % 3));
+            ctx.scale(seed & 1 ? -1 : 1, 1);
+            ctx.drawImage(image, sx, sy, 128, 40, -Math.round(span / 2), 0, span, height);
+            ctx.restore();
+        }
+    }
+
+    paintRingChunks(ctx, image, footprint, progress) {
+        const { points, tileW, tileH, centerPoint } = footprint;
+        const frame = 2 + Math.min(3, Math.floor(progress * 4));
+        const width = Math.round(tileW * (0.86 + progress * 0.12));
+        const height = Math.round(tileH * (0.51 - progress * 0.21));
+        const sx = (frame % 3) * 128, sy = Math.floor(frame / 3) * 128 + 42;
+        this.deps.clipSkillFootprint(ctx, footprint);
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha = 1 - progress ** 1.35;
+        for (const {x, y} of points) {
+            const core = x === centerPoint.x && y === centerPoint.y;
+            const spread = core ? Math.round(tileW) : width;
+            ctx.drawImage(image, sx, sy, 128, 46, Math.round(x - spread / 2), Math.round(y - height * 0.78), spread, height);
+        }
+    }
+
+    paintCrack(ctx, image, footprint, progress, earth) {
+        const spread = 0.52 + 0.44 * this.easeOut(Math.min(1, progress * 2.6));
+        const w = Math.round(footprint.width * spread), h = Math.round(footprint.height * spread);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, Math.round(footprint.x - w / 2), Math.round(footprint.y - h / 2), w, h);
+        if (!earth) this.paintDebris(ctx, footprint, progress);
+        this.shockFront(ctx, footprint, progress);
+        if (earth) return;
+        const contact = this.deps.getSkillGemVfxImage('skillFxSlamPrimary');
+        if (contact && progress < 0.5) {
+            const { x, y } = footprint.centerPoint;
+            const width = Math.round(footprint.tileW * (1 + progress));
+            const height = Math.round(footprint.tileH * (0.85 + progress));
+            ctx.globalAlpha = (1 - progress * 2) * 0.85;
+            ctx.drawImage(contact, Math.round(x - width / 2), Math.round(y - height / 2), width, height);
+        }
+    }
+
+    paintEarthContact(ctx, image, footprint, progress, rise) {
+        const { points, tileW, tileH, centerPoint } = footprint;
+        const width = Math.round(Math.min(footprint.width * 1.16, tileW * 4.5));
+        const height = Math.round(Math.min(width * 0.78, tileH * 5));
+        const frame = 1 + Math.min(4, Math.floor(progress * 5));
+        ctx.beginPath();
+        for (const at of points) ctx.rect(at.x - tileW / 2, at.y - tileH / 2 - rise, tileW, tileH + rise);
+        ctx.clip();
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha = 1 - progress ** 1.75;
+        if (this.paintEarthRing(ctx, image, footprint, progress)) return;
+        drawSkillSpriteFrame(ctx, image, frame, { columns: 3, rows: 2, angle: 0,
+            x: Math.round(centerPoint.x), y: Math.round(centerPoint.y - height * 0.08), width, height });
+    }
+
+    paintEarthRing(ctx, image, {points,tileW,tileH,centerPoint}, progress) {
+        if (points.some(at => at.x === centerPoint.x && at.y === centerPoint.y)) return false;
+        const frame = 2 + Math.min(3, Math.floor(progress * 4));
+        const width = Math.round(tileW * (0.91 + 0.16 * progress));
+        const height = Math.round(tileH * 1.57);
+        const quadrants = new Set();
+        for (const at of points) {
+            const dx = Math.sign(at.x - centerPoint.x), dy = Math.sign(at.y - centerPoint.y);
+            if (!dx || !dy) continue;
+            const quadrant = `${dx}:${dy}`;
+            if (quadrants.has(quadrant)) continue;
+            quadrants.add(quadrant);
+            drawSkillSpriteFrame(ctx, image, frame, {columns:3, rows:2, angle:0, width, height,
+                x:Math.round(at.x + dx * tileW * progress * 0.12), y:Math.round(at.y - height * 0.18)});
+        }
+        return quadrants.size > 0;
+    }
+
+    paintDebris(ctx, footprint, progress) {
+        const debris = this.deps.getSkillGemVfxImage('skillFxSlamAftershock');
+        if (!debris) return;
+        const spread = 0.57 + this.easeOut(progress) * 0.66;
+        const { x, y } = footprint.centerPoint;
+        const w = Math.round(footprint.width * spread), h = Math.round(footprint.height * spread);
+        ctx.globalAlpha = 0.92 * (1 - progress);
+        ctx.drawImage(debris, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+    }
+
+    shockFront(ctx, footprint, progress) {
+        const { x, y } = footprint.centerPoint;
+        const reach = 0.4 + this.easeOut(progress) * 0.72;
+        const unit = Math.max(1, Math.round(footprint.tileH / 16));
+        ctx.globalAlpha = (1 - progress) * 0.82;
+        for (const [dx, dy, w] of SHOCK_DOTS) {
+            const px = Math.round(x + dx * footprint.width * reach / 2);
+            const py = Math.round(y + dy * footprint.height * reach / 2);
+            ctx.fillStyle = '#3c292c';
+            ctx.fillRect(px - unit, py, unit * (w + 2), unit * 2);
+            ctx.fillStyle = '#ffc38b';
+            ctx.fillRect(px, py, unit * w, unit);
+        }
+    }
+
+    paintScars(ctx, footprint, look) {
+        const { points, tileW, tileH } = footprint;
+        const pixel = Math.min(tileW / 24, tileH / 15) * (look.reduced ? 0.8 : 0.72 + look.progress * 0.4);
+        const stride = Math.ceil(points.length / 10);
+        const mark = { pixel, ray: look.ray, flip: 1, core: look.reduced ? 0 : 1 - look.progress };
+        ctx.fillStyle = this.deps.getEnemyTelegraphColor({ ele: look.element }).edge;
+        for (let i = 0; i < points.length; i += stride) {
+            mark.flip = (points[i].gx + points[i].gy) % 2 ? -1 : 1;
+            impactScar(ctx, points[i], mark);
         }
     }
 
@@ -234,11 +467,13 @@ class BossAttacks {
         this.drawEdges(ctx, scene);
         for (const { enemy } of (scene.layout || []).filter(row => !row.enemy.patternArea?.woodsman)) {
             const share = this.timing.isLiveWarning(enemy) ? this.timing.warningShare(enemy) : null;
-            if (share !== null) this.drawMark(owner, ctx, enemy.patternArea, scene.projection, { share, source: enemy, blink: this.blink(share, this.warnMsOf(enemy)) });
+            if (share !== null) this.drawMark(owner, ctx, enemy.patternArea, scene.projection, { share, source: enemy,
+                pattern: enemy.nextPatternState, blink: this.blink(share, this.warnMsOf(enemy)) });
         }
         for (const attack of scene.pending || []) {
             if (!this.closesIn(attack)) continue;
-            this.drawMark(owner, ctx, attack.bossPattern.area, scene.projection, { share: 1, source: attack.source, blink: this.pendingAlpha() / 7 });
+            this.drawMark(owner, ctx, attack.bossPattern.area, scene.projection, { share: 1, source: attack.source,
+                pattern: attack.bossPattern, blink: this.pendingAlpha() / 7 });
         }
     }
 

@@ -29,10 +29,10 @@ function equipmentReason(env, owner, item, key) {
     return craftGetBlockReason(env, item, key);
 }
 
-function ordinaryRows(env, item) {
+export function finishOrdinaryRows(env, item) {
     const allowed = new Set(finishLegalMods(env,item).map(mod=>mod.id));
-    return item.stats.flatMap((stat, index) => {
-        if (protectedFinishLine(stat) || craftKeptOnReroll(item,stat) || env.deps.isFixedEquipmentAffix(stat)) return [];
+    return (item.stats || []).flatMap((stat, index) => {
+        if (!stat || protectedFinishLine(stat) || craftKeptOnReroll(item,stat) || env.deps.isFixedEquipmentAffix(stat)) return [];
         const mod = env.deps.findStoredEquipmentAffix(item, stat);
         return mod && allowed.has(mod.id) ? [{stat, mod, index}] : [];
     });
@@ -74,7 +74,7 @@ function balanceTargets(env, item, rows, variant) {
 }
 
 function finishTargets(env, item, key, variant) {
-    const rows = ordinaryRows(env, item);
+    const rows = finishOrdinaryRows(env, item);
     if (key === 'balanceWeight') return balanceTargets(env, item, rows, variant);
     if (key === 'transferStone' && !craftAffixRoom(env, item).prefix) return {reason:'빈 접두어 자리가 필요합니다.'};
     const side = {transferStone:'suffix',artManual:'prefix'}[key];

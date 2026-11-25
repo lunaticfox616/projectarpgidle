@@ -9,7 +9,7 @@ class BossAttackTiming {
 
     isLiveWarning(enemy) {
         if (!enemy || !enemy.isBoss || enemy.noAttack || !(enemy.hp > 0) || !enemy.patternArea) return false;
-        return !this.isHeld(enemy);
+        return !!enemy.patternTelegraphKey && Number(enemy.patternTelegraphStartedAt) > 0 && !this.isHeld(enemy);
     }
 
     smoothCombatTime() {

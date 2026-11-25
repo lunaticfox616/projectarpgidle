@@ -8,6 +8,14 @@ const validItem = row => row && typeof row.name === 'string' && typeof row.slot 
 class CombatLootReceipts {
     constructor(deps) { this.deps = deps; this.capturedState = null; }
     reset(state) { state.explorationLoot = { currencies: {}, items: [], equipmentCount: 0, leaves: {}, yarns: {} }; }
+    markUnclaimedLegacyDrops(state) {
+        const exploration = state.actExploration;
+        if (state.currentZoneId !== this.deps.atlasZoneId || exploration?.zoneId !== this.deps.atlasZoneId || exploration.status === 'cleared') return;
+        const cache = exploration.bossLoot;
+        if (state.explorationLoot && cache?.receiptAtRelease !== true && cache?.pendingLoot.some(row => !Number.isFinite(row.dropAt))) {
+            state.explorationLoot.unclaimedLegacyDrops = true;
+        }
+    }
     /** Synchronous captures may nest; restore the outer owner even if production throws. */
     capture(state, produce) {
         if (!state.atlas.run || state.currentZoneId !== this.deps.atlasZoneId) return produce();
@@ -53,6 +61,7 @@ class CombatLootReceipts {
         if (!raw || typeof raw !== 'object') { state.explorationLoot = null; return; }
         this.reset(state);
         const receipt = state.explorationLoot;
+        if (raw.unclaimedLegacyDrops === true) receipt.unclaimedLegacyDrops = true;
         for (const key of Object.keys(this.deps.currencies)) {
             const value = raw.currencies?.[key];
             if (Number.isFinite(value) && value > 0) receipt.currencies[key] = value;
@@ -85,6 +94,6 @@ class CombatLootReceipts {
 
 export function createCombatLootReceipts(deps) {
     const receipts = new CombatLootReceipts(deps);
-    return Object.fromEntries(['reset', 'capture', 'currency', 'item', 'leaf', 'yarn', 'floorRow', 'normalize', 'cleanItems', 'cleanLeaves', 'cleanYarns']
+    return Object.fromEntries(['reset', 'capture', 'currency', 'item', 'leaf', 'yarn', 'floorRow', 'normalize', 'cleanItems', 'cleanLeaves', 'cleanYarns', 'markUnclaimedLegacyDrops']
         .map(name => [name, receipts[name].bind(receipts)]));
 }

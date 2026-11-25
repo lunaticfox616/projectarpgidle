@@ -23,6 +23,7 @@ const battleGroundLoot = createGroundLootView({
     get getCurrencyInfo() { return typeof getCurrencyInfo === 'undefined' ? undefined : getCurrencyInfo; },
     get getInventoryItemVisualAsset() { return typeof getInventoryItemVisualAsset === 'undefined' ? undefined : getInventoryItemVisualAsset; },
     get getItemSlotDisplayLabel() { return typeof getItemSlotDisplayLabel === 'undefined' ? undefined : getItemSlotDisplayLabel; },
+    get getUniqueCodexKeyByItem() { return window.getUniqueCodexKeyByItem; },
     get getJewelLootColor() { return typeof getJewelLootColor === 'undefined' ? undefined : getJewelLootColor; },
     get getRarityColor() { return typeof getRarityColor === 'undefined' ? undefined : getRarityColor; },
     get getRarityRank() { return typeof getRarityRank === 'undefined' ? undefined : getRarityRank; },

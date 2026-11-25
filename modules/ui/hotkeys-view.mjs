@@ -73,7 +73,7 @@ class HotkeysView {
     keepsOwnTab(event) {
         const body = this.deps.document.body.classList;
         if (body.contains('startup-active') || body.contains('mobile-tab-drawer-open')) return true;
-        return !!(this.deps.document.querySelector('dialog:modal, .selection-overlay') || event.target.closest?.('form, dialog'));
+        return !!(this.deps.document.querySelector('dialog:modal, .selection-overlay') || event.target.closest?.('form, dialog, #ui-atlas, #crafting-workspace'));
     }
 
     leaveField(target) {

@@ -547,6 +547,41 @@ for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
     assert.deepEqual(read('[game.atlas.lastResult.lostFragments,game.atlas.lastResult.lostMaterials]'),[0,[]],'older failures have no invented loss quantities');
 }
 
+// Closing a map during the boss fight preserves old floor drops and forfeits the undelivered boss rewards.
+for (const legacy of [false, true]) {
+    const {run: closeMap}=fixture(846);
+    closeMap(`game=mergeDefaults({...game,season:50});game.currentZoneId=game.maxZoneId=29;
+        game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);
+        atlasRun.open(game.atlas.stash[0].uid);startEncounterRun(true);
+        const mapRun=game.actExploration, ground=actExplorationState.groundLoot;
+        const bossPack=mapRun.packs.find(pack=>pack.stage===0);
+        const bossRoom=actExplorationMap.forRun(mapRun).rooms.find(room=>room.id===bossPack.roomId);
+        combatLootReceipts.capture(game,()=>{
+            ground.placeCurrency(mapRun,game.gridPlayer,'sapBud',7);
+            ground.placeCurrency(mapRun,bossRoom,'magicBud',5);
+        });
+        mapRun.groundLoot.find(row=>row.currency==='magicBud').dropAt=0;
+        ground.beginBoss(mapRun,bossPack);
+        ${legacy ? 'delete mapRun.bossLoot.receiptAtRelease;' : ''}
+        const bossDrop=generateUniqueItem(2,null,null,getZone(game.currentZoneId));
+        combatLootReceipts.capture(game,()=>{
+            ground.placeCurrency(mapRun,game.gridPlayer,'magicBud',11);
+            ground.place(mapRun,game.gridPlayer,bossDrop);
+        });
+        game=mergeDefaults(JSON.parse(serializeSaveState(game)));`);
+    assert.deepEqual(JSON.parse(closeMap('JSON.stringify(game.actExploration.bossLoot.pendingLoot.map(row=>row.dropAt))')),[0,null,null],
+        'the save retains an old floor launch and leaves new boss rewards unlaunched');
+    assert.equal(closeMap('atlasRun.abandon()'),true);
+    assert.equal(closeMap('atlasRun.abandon()'),false,'repeating the exit cannot settle the old floor again');
+    closeMap('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.equal(closeMap('game.currencies.sapBud'),7,'already released currency is preserved');
+    assert.equal(closeMap('game.currencies.magicBud'),5,'previously released loot cached when the boss engaged is preserved');
+    assert.equal(closeMap('game.inventory.some(item=>item.id===bossDrop.id)'),false,'unreleased boss equipment is forfeited');
+    assert.equal(closeMap('game.atlas.lastResult.loot.currencies.magicBud'),legacy ? 16 : 5,'closing does not estimate what part of a legacy receipt was collected');
+    assert.equal(closeMap('game.atlas.lastResult.loot.equipmentCount'),legacy ? 1 : 0,'only the old receipt counts unreleased gear');
+    assert.equal(closeMap('game.atlas.lastResult.unclaimedLegacyDrops'),legacy ? true : undefined,'mark only a new failure result with uncertain legacy finds');
+}
+
 // ---------------------------------------------------------------- save boundary and the loop
 run(`game.atlas.stash.push({uid:-4,node:'nowhere',tier:1,rarity:'rare',mods:[]},{uid:game.atlas.stash[0].uid,node:'roots_1',tier:2,rarity:'normal',mods:[]},
     {uid:900,node:'roots_1',tier:2,rarity:'magic',mods:[{id:'monsterLife',roll:2},{id:'bogus',roll:0.5},{id:'monsterCrit',roll:0.5},{id:'monsterCrit',roll:0.1}],quality:99});`);

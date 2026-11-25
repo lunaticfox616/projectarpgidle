@@ -114,8 +114,12 @@ class ExplorationGroundLoot {
         return cell;
     }
     lay(state, run, row) {
-        this.deps.receipts.floorRow(state, row);
+        if (run.bossLoot?.receiptAtRelease !== true) this.recordDrop(state, row);
         this.storeRow(run,row);
+    }
+    recordDrop(state, row) {
+        if (row.currency) this.deps.receipts.currency(state, row.currency, row.count);
+        else this.deps.receipts.floorRow(state, row);
     }
     storeRow(run,row) {
         if (run.bossLoot) { run.bossLoot.pendingLoot.push(row); return; }
@@ -144,8 +148,7 @@ class ExplorationGroundLoot {
     placeYarn(state, run, cell, yarn) { this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'yarn', yarn }); }
     placeRune(state, run, cell, gem) { this.lay(state, run, { gx: cell.gx, gy: cell.gy, kind: 'rune', gem }); }
     placeCurrency(state, run, at, currency, count) {
-        this.deps.receipts.currency(state, currency, count);
-        this.storeRow(run,{gx:at.gx,gy:at.gy,currency,count});
+        this.lay(state, run, {gx:at.gx,gy:at.gy,currency,count});
     }
     take(run, test) {
         const taken = rows(run).filter(test);
@@ -192,10 +195,7 @@ class ExplorationGroundLoot {
         if (!owner) return false;
         const held = row && groundLootKind(row) === 'equipment' ? { highlight: false, guaranteed: false, ...row } : row;
         if (!this.validPendingRow(held)) throw Error('잘못된 원정 보류 전리품');
-        if (owner===state.actExploration?.bossLoot) {
-            if (held.currency) this.deps.receipts.currency(state,held.currency,held.count);
-            else this.deps.receipts.floorRow(state,held);
-        }
+        if (owner===state.actExploration?.bossLoot && owner.receiptAtRelease !== true) this.recordDrop(state, held);
         if (!Array.isArray(owner.pendingLoot)) owner.pendingLoot = [];
         owner.pendingLoot.push({ ...held });
         return true;
@@ -221,16 +221,26 @@ class ExplorationGroundLoot {
         if (joining && !joining.some(enemy=>enemy.isBoss)) return;
         const map=this.deps.maps.forRun(run);
         const nearby=this.take(run,row=>roomForDrop(map,row,this.deps.rooms)?.id===pack.roomId);
-        run.bossLoot={roomId:pack.roomId,packKey:pack.key,pendingLoot:nearby};
+        // A pre-clock save can still put already released loot away when the boss room closes.
+        for (const row of nearby) row.dropAt ??= this.deps.now();
+        run.bossLoot={roomId:pack.roomId,packKey:pack.key,pendingLoot:nearby,receiptAtRelease:true};
     }
     finishBoss(state,run,cell) {
         const cache=run.bossLoot;
         if (!cache || run.packs.some(pack=>pack.aliveIds.length && partOfBossFight(pack,cache))) return;
         delete run.bossLoot;
         if (!cache.pendingLoot.length) return;
+        this.recordBossRelease(state, cache);
         const cells=state.isBackgroundCalculation ? [] : this.encounterDropCells(state,run,cell,Math.min(cache.pendingLoot.length,8));
         if (!cells.length) cells.push(this.clearOfDoors(run,state.gridPlayer));
         cache.pendingLoot.forEach((row,i)=>this.storeRow(run,{...row,...cells[i%cells.length]}));
+    }
+    recordBossRelease(state, cache) {
+        // Existing caches were recorded as they filled. Previously launched drops are already on the receipt as well.
+        if (cache?.receiptAtRelease !== true) return;
+        this.deps.receipts.capture(state, () => {
+            for (const row of cache.pendingLoot) if (!Number.isFinite(row.dropAt)) this.recordDrop(state, row);
+        });
     }
     /** Empty the buffer first. The returned rows need immediate live pickup, or burst requests only a visual.
      * The caller must finish that work before the next settlement; the domain never calls UI or replays rewards. */
@@ -268,7 +278,7 @@ class ExplorationGroundLoot {
         this.dropEncounterBuffer(state, zoneId);
         const run = state.actExploration;
         if (run?.zoneId !== zoneId) return [];
-        const won = this.takeOnExit(run);
+        const won = this.takeOnExit(run, state);
         if (live) return won;
         won.forEach(row => this.settleRow[groundLootKind(row)](state, row));
         return [];
@@ -305,10 +315,14 @@ class ExplorationGroundLoot {
     }
     settleOnLoad(state, run) {
         if (ENCOUNTER_ZONES.includes(run.zoneId)) this.dropEncounterBuffer(state, run.zoneId);
-        for (const row of this.takeOnExit(run)) this.settleRow[groundLootKind(row)](state, row);
+        // Retired layouts may lack the information needed to distinguish an old won reward from a new cache row.
+        for (const row of this.takeOnExit(run, state, true)) this.settleRow[groundLootKind(row)](state, row);
     }
-    takeOnExit(run) {
-        const all=rows(run).concat(run.bossLoot?.pendingLoot || []);
+    takeOnExit(run, state, preservingRetiredSave = false) {
+        const held=run.bossLoot?.pendingLoot || [];
+        if (run.status==='cleared') this.recordBossRelease(state, run.bossLoot);
+        const earned=preservingRetiredSave || run.status==='cleared' ? held : held.filter(row=>Number.isFinite(row.dropAt));
+        const all=rows(run).concat(earned);
         delete run.bossLoot;
         run.groundLoot = [];
         return all;

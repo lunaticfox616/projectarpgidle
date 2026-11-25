@@ -79,8 +79,8 @@ export function* atlasSessionEnterPassage(env, owner, type) {
     return true;
 }
 
-export function restoreMainMap(owner) {
-    const home = owner.actExploration?.home;
+export function restoreMainMap(owner, expedition = owner.actExploration) {
+    const home = expedition?.home;
     if (!home) return false;
     owner.actExploration = home.main;
     owner.actExploration.motionTimeMs = 0;

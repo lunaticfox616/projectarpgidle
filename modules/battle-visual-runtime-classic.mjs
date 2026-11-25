@@ -20,6 +20,7 @@ const damageRenderer = new DamageTextRenderer({
     get document() { return typeof document === 'undefined' ? undefined : document; },
     get damageNumberFormat() { return window.GameModules.state.game?.settings?.damageNumberFormat; },
     translate: (...args) => _t(...args),
+    damageElementColor: element => getElementColor(element),
     get drawCrispCanvasText() { return drawCrispCanvasText; }
 }, runtime);
 const spawnDamageText = Object.assign(damageQueue.spawnDamageText.bind(damageQueue), {

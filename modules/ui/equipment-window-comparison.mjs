@@ -33,10 +33,10 @@ export function multiDeltaRow(runtime, key, now, sides, rest) {
     const meta = runtime.deps.COMPARE_STAT_META[key], a = Number(now[key]) || 0;
     const cells = sides.map(side => {
         const d = (Number(side.after[key]) || 0) - a;
-        if (Math.abs(d) < 0.001) return '<span class="eqw-dl-side is-same">-</span>';
-        return `<span class="eqw-dl-side ${d > 0 ? 'up' : 'down'}"><b>${pretty(runtime, meta.format(a + d))}</b><em>${deltaText(runtime, key, a, d)}</em></span>`;
+        if (Math.abs(d) < 0.001) return '<td role="cell" class="eqw-dl-side">-</td>';
+        return `<td role="cell" class="eqw-dl-side ${d > 0 ? 'up' : 'down'}"><b>${pretty(runtime, meta.format(a + d))}</b><em>${deltaText(runtime, key, a, d)}</em></td>`;
     }).join('');
-    return `<div class="eqw-dl eqw-dl-multi${rest ? ' is-rest' : ''}">${deltaLabel(runtime, key)}<b>${pretty(runtime, meta.format(a))}</b>${cells}</div>`;
+    return `<tr role="row"${rest ? ' class="is-rest"' : ''}><th scope="row" role="rowheader">${deltaLabel(runtime, key)}</th><td role="cell"><b>${pretty(runtime, meta.format(a))}</b></td>${cells}</tr>`;
 }
 
 /** A side's ward and unique effect changes, under the side's name. */
@@ -50,9 +50,10 @@ export function multiDeltaHtml(runtime, item, slots, now) {
     const sides = slots.map(slot => ({ slot, after: swapStats(runtime, item, slot, now)[1] }));
     const keys = Object.keys(runtime.deps.COMPARE_STAT_META).filter(key => sides.some(side => Math.abs((Number(side.after[key]) || 0) - (Number(now[key]) || 0)) >= 0.001));
     const rest = keys.filter(key => !runtime.state.DELTA_TINT[key]), fold = rest.length < keys.length ? rest : [];
-    const head = `<div class="eqw-dl eqw-dl-multi eqw-dl-cols"><span></span><b>${(0, runtime.deps._t)('지금')}</b>${sides.map(side => `<b>${(0, runtime.deps.escapeHTML)(slotName(runtime, side.slot))}</b>`).join('')}</div>`;
+    const head = `<thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader" aria-label="${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)('능력치'))}"></th><th scope="col" role="columnheader">${(0, runtime.deps._t)('지금')}</th>${sides.map(side => `<th scope="col" role="columnheader">${(0, runtime.deps.escapeHTML)(slotName(runtime, side.slot))}</th>`).join('')}</tr></thead>`;
     const rows = keys.map(key => multiDeltaRow(runtime, key, now, sides, fold.includes(key))).join('');
-    return ((rows ? head + rows + restButton(runtime, fold.length) : '') + sides.map(side => sideNotes(runtime, item, side.slot)).join('')) || '<p class="eqw-none">능력치 변화 없음</p>';
+    const table = rows ? `<table class="eqw-dl-multi" role="table">${head}<tbody role="rowgroup">${rows}</tbody></table>` + restButton(runtime, fold.length) : '';
+    return (table + sides.map(side => sideNotes(runtime, item, side.slot)).join('')) || '<p class="eqw-none">능력치 변화 없음</p>';
 }
 
 /** The card's body for its slots (data-eqw-slot, commas between the sides of a two-slot item). */
@@ -119,7 +120,7 @@ export function fillDeltas(runtime, root, item, signature) {
     let now = null; // the stats before the swap, once for every slot of the item (a ring tries three)
     const fill = table => {
         if (!table.isConnected) return;
-        const key = `${sig}|${table.dataset.eqwSlot}`;
+        const key = `${sig}|${runtime.deps.i18n.locale}|${table.dataset.eqwSlot}`;
         if (!runtime.state.deltaCache.has(key)) runtime.state.deltaCache.set(key, slotsDeltaHtml(runtime, item, table.dataset.eqwSlot, now || (now = (0, runtime.deps.getUiPlayerStats)({}, false))));
         const body = table.querySelector('.eqw-dl-body');
         const focused = body.contains(runtime.deps.document.activeElement);

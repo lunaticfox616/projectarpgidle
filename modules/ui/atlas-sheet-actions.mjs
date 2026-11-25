@@ -112,7 +112,7 @@ export function top(runtime, chart) {
     return `<header class="as-top"><span class="as-progress" style="--fill:${Math.round(st.completed.length / total * 100)}%"><b>${(0, runtime.deps._t)('완료')} ${st.completed.length}/${total}</b></span>
             <span class="as-seeds" aria-label="${(0, runtime.deps._t)('씨앗')} ${st.seeds}/${runtime.deps.ATLAS.seeds.max}">${(0, runtime.deps._t)('씨앗')}${seeds}</span>
             <span class="as-points">${(0, runtime.deps._t)('보너스')} <b>${st.bonus.length}</b></span><span class="as-points">${(0, runtime.deps._t)('포인트')} <b>${points}</b>${free > 0 ? ` <em>+${free}</em>` : ''}</span>
-            <label class="as-auto"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '자동 지도 · 정점 정복 후')}</span></label></header>`;
+            <label class="as-auto"><input type="checkbox" ${!runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'disabled' : ''} ${st.autoMap && runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>${(0, runtime.deps._t)(runtime.deps.atlas.autoUnlocked(runtime.deps.game) ? '자동 지도' : '정점 정복 후 자동 지도')}</span></label></header>`;
 }
 
 export function nodeInfoHtml(runtime, picked) {
@@ -152,14 +152,15 @@ export function goHtml(runtime, parts) {
 
 export function stoneHtml(runtime, map, parts) {
     const mine = !parts.node || runtime.deps.atlas.matchesNode(runtime.deps.game, map, runtime.deps.atlas.node(parts.node)), omen = map.omen && runtime.deps.lootOmens.describe(map.omen);
+    const name = (0, runtime.deps.escapeHTML)(parts.mapName(map));
     return `<button class="as-tile rarity-${map.rarity}${mine ? '' : ' is-other'}${map.corrupted ? ' is-corrupted' : ''}" style="--tone:${runtime.deps.atlas.tierBand(map.tier).tone}" aria-pressed="${map.uid === parts.uid}"
-            data-tip="${(0, runtime.deps.escapeHTML)(parts.mapName(map))}" onclick="atlasUi.selectMap(${map.uid})"><b>${map.tier}</b>${omen ? `<i style="--omen:${omen.tone}"></i>` : ''}</button>`;
+            aria-label="${name}" data-tip="${name}" onclick="atlasUi.selectMap(${map.uid})"><b>${map.tier}</b>${omen ? `<i style="--omen:${omen.tone}"></i>` : ''}</button>`;
 }
 
 export function drawerHtml(runtime, parts) {
     const maps = [...runtime.deps.game.atlas.stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid);
     const tiles = maps.length ? `<div class="as-tiles">${maps.map(map => stoneHtml(runtime, map, parts)).join('')}</div>` : `<p class="atlas-muted">${(0, runtime.deps._t)('비어 있습니다. 보관함은 루프마다 비워집니다.')}</p>`;
-    return `<aside class="as-drawer"><section class="as-stash"><h3>${(0, runtime.deps._t)('지도석 보관함')} <span>${maps.length}/${runtime.deps.ATLAS.stashCap}</span></h3>${tiles}${parts.tools}</section>${parts.side}${parts.after}</aside>`;
+    return `<aside class="as-drawer"><section class="as-stash" aria-labelledby="atlas-sheet-stash-title"><h3 id="atlas-sheet-stash-title">${(0, runtime.deps._t)('지도석 보관함')} <span>${maps.length}/${runtime.deps.ATLAS.stashCap}</span></h3>${tiles}${parts.tools}</section>${parts.side}${parts.after}</aside>`;
 }
 
 /** parts: js/atlas-ui.js가 건네는 고른 것과 이미 만든 조각들(node, uid, lock, block, side, tools, after, mapName, needed, matchingStones). */

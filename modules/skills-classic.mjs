@@ -67,6 +67,7 @@ const rules = createSkillRules({
 const effects = {
     get runeLog() { return addLog.bind(undefined); },
     get runeRefresh() { return updateStaticUI.bind(undefined); },
+    get runeInvalidateStats() { return () => playerStatCache.invalidate(); },
     get runeSave() { return queueImportantSave.bind(undefined); }
 };
 const visualTables = {
