@@ -27,6 +27,11 @@ debug.log
 !/artifacts/player-stall-review/index.html
 !/artifacts/player-stall-review/fixture.js
 !/artifacts/player-stall-review/balance-report.json
+!/artifacts/loop-cinematic/
+/artifacts/loop-cinematic/*
+!/artifacts/loop-cinematic/first-loop-preview.html
+!/artifacts/loop-cinematic/loop-pixel-abyss.webp
+!/artifacts/loop-cinematic/loop-pixel-rewind.webp
 
 # Source art is retained locally; the game loads the compact WebP derivatives.
 /assets/items/illustrated/*.png
