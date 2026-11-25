@@ -395,7 +395,8 @@ class StageRoster {
         ctx.globalAlpha *= rim.alpha;
         for (const [colour, rings] of [[rim.ink, this.HALO_INK], [rim.color, this.RIM_OUTER]]) {
             const tint = this.tintedFrame(pair, art, pose, colour);
-            for (const [dx, dy] of rings) this.deps.stageDots.blit(ctx, tint, from, { x: at.x + dx * px, y: at.y + dy * px, scale: at.dot }, false);
+            const fixed = tint !== this.tintWork; // a kept tint never changes, so its enlarged copy is reused
+            for (const [dx, dy] of rings) this.deps.stageDots.blit(ctx, tint, from, { x: at.x + dx * px, y: at.y + dy * px, scale: at.dot }, fixed);
         }
         ctx.restore();
     }

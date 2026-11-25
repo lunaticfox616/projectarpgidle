@@ -7,6 +7,7 @@ const LILAC = '#f3d6ff';
 const VIOLET = '#b45cf2';
 const DEEP = '#5a2479';
 const WHITE = '#fff6ff';
+const craters = new Map();
 // [x across the cell, reach in tiles, delay ms]
 // Chaos contact frames [sheet frame, from ms] (assets/effects/enemy-chaos-contact-v1.webp: 3 x 2 frames of 128 x 64, ground at y 57).
 const CRYSTALS = /* @__PURE__ */ Object.freeze([[1, 0], [2, 30], [3, 95], [4, 145], [5, 185]]);
@@ -60,19 +61,29 @@ export function paintChorusCorners(ctx, footprint, progress, reduced) {
     ctx.restore();
 }
 
-/** A dark violet splash pressed into the cell: ink rim, deep fill dithered with violet. */
-function paintCrater(ctx, { cx, cy, rx, ry }, p) {
-    const rows = Math.max(1, Math.round(ry / p));
+function craterSprite(ctx, cols, rows, p) {
+    const key = cols + 'x' + rows + 'x' + p;
+    if (craters.has(key)) return craters.get(key);
+    const canvas = ctx.canvas.ownerDocument.createElement('canvas');
+    canvas.width = (2 * cols + 3) * p; canvas.height = (2 * rows + 1) * p;
+    const paint = canvas.getContext('2d');
     for (let r = -rows; r <= rows; r++) {
-        const half = Math.round(rx * Math.sqrt(Math.max(0, 1 - (r / (rows + 0.5)) ** 2)) / p);
-        const y = Math.round(cy / p) * p + r * p, left = Math.round(cx / p) * p - half * p;
-        ctx.fillStyle = INK;
-        ctx.fillRect(left - p, y, (2 * half + 2) * p, p);
+        const half = Math.round(cols * Math.sqrt(Math.max(0, 1 - (r / (rows + 0.5)) ** 2))), y = (r + rows) * p, mid = (cols + 1) * p;
+        paint.fillStyle = INK;
+        paint.fillRect(mid - (half + 1) * p, y, (2 * half + 2) * p, p);
         for (let c = -half + 1; c < half; c++) {
-            ctx.fillStyle = (c + r) % 2 ? DEEP : VIOLET;
-            ctx.fillRect(Math.round(cx / p) * p + c * p, y, p, p);
+            paint.fillStyle = (c + r) % 2 ? DEEP : VIOLET;
+            paint.fillRect(mid + c * p, y, p, p);
         }
     }
+    craters.set(key, canvas);
+    return canvas;
+}
+
+/** A dark violet splash pressed into the cell: ink rim, deep fill dithered with violet (a sprite made once per size). */
+function paintCrater(ctx, { cx, cy, rx, ry }, p) {
+    const cols = Math.round(rx / p), rows = Math.max(1, Math.round(ry / p)), image = craterSprite(ctx, cols, rows, p);
+    ctx.drawImage(image, Math.round(cx / p) * p - (cols + 1) * p, Math.round(cy / p) * p - rows * p);
 }
 
 function ringDots(ctx, { cx, cy, rx, ry }, p) {
