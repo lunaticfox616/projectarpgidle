@@ -3236,7 +3236,6 @@ const LANGUAGE_PACK_ZH_CN = Object.freeze({
         '🌠 체이싱 유니크 발견! [{name}]': '🌠 发现追逐传奇！[{name}]',
         // ── 2026-11-04 표에서 넣음(bf11-zh-CN.json) ──
         "🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>": "🛡️ 自动装备到空的{autoEquipSlot}槽：<span class='loot-{rarity}'>[{name}]</span>",
-        "🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🚫 因物品筛选未拾取：<span class='loot-{rarity}'>[{name}]</span>",
         "🎯 파밍 목표 획득: <span class='loot-unique'>[{name}]</span>": "🎯 获得刷取目标：<span class='loot-unique'>[{name}]</span>",
         '가판대 판매: {goods}, {gains}개. 거래 → 가판대에서 수령하세요.': '摊位售出：{goods}，{gains} 个。请在交易 → 摊位领取。',
         '가판대 가격 제안: {detail}. 가판대에서 수락하거나 거절할 수 있습니다.': '摊位报价：{detail}。可在摊位接受或拒绝。',

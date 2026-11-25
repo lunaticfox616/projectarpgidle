@@ -46,10 +46,8 @@ export function* acquireAddItemToInventory(env, owner, item, options) {
         (yield { kind: 'acquisitionUnlocks', args: [] });
         return true;
     }
-    if (!ignoreFilter && !acquirePassesItemPickupFilter(env, owner, item)) {
-        if (logLoot) (yield { kind: 'acquisitionLog', args: [env.deps._t("🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>", { rarity: item.rarity, name: env.deps._t(item.name) }), 'attack-monster'] });
-        return false;
-    }
+    // Gear the filter turns away shows nothing, like gear lost to a full bag (2026-11-25 사용자: 필터 미습득 로그도 지워줘).
+    if (!ignoreFilter && !acquirePassesItemPickupFilter(env, owner, item)) return false;
     const result = (yield* acquireStoreEquipmentPickup(env, owner, item, { guaranteedKeep, ignoreAutoSalvage }));
     if (result.accepted) { (yield* acquireRecordEquipmentAcquisition(env, owner, item)); (yield { kind: 'acquisitionUnlocks', args: [] }); }
     yield* publishPickupResult(env, item, result, logLoot);
