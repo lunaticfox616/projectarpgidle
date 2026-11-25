@@ -3,6 +3,8 @@ import { formatDamageNumberForDisplay } from '../common/damage-number-format.mjs
 import { getDamageTextFillColor, isStrongDamageText, getDamageTextPeakAlpha } from './damage-text-style.mjs';
 
 const MAX_LIFT = 207, GAP = 3;
+// Phones keep the newest incoming sum beside the hero; an older one fades out over RETIRE_MS instead of stacking up.
+const HERO_KEEP = 1, RETIRE_MS = 150;
 
 export class DamageTextRenderer {
     constructor(deps, runtime) {
@@ -222,12 +224,25 @@ export class DamageTextRenderer {
         ctx.fillRect(x, y, 3, 5);
     }
 
+    /** Compact screens: incoming sums past the newest HERO_KEEP fade out; a faded one takes no room beside the hero. */
+    retireOlderHeroRows(rows, now) {
+        const hero = rows.filter(row => row.text.heroTarget && !row.text.bodyCue && !row.text.miss)
+            .sort((a, b) => (b.text.readabilityUpdatedAt ?? b.text.start) - (a.text.readabilityUpdatedAt ?? a.text.start));
+        hero.forEach((row, index) => {
+            if (index < HERO_KEEP) return;
+            row.text.retireAt ??= now;
+            row.ending *= clampNumber(1 - (now - row.text.retireAt) / RETIRE_MS, 0, 1);
+        });
+        for (let i = rows.length - 1; i >= 0; i--) if (rows[i].ending === 0) rows.splice(i, 1);
+    }
+
     overlaps(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h + GAP && b.y < a.y + a.h + GAP; }
 
     render(ctx, now, protectedBoxes = [], bounds = null) {
         ctx.save();
         try {
             const rows = (this.runtime.scene.damageTexts || []).map(text => this.frame(ctx, text, now, bounds)).filter(Boolean);
+            if (bounds) this.retireOlderHeroRows(rows, now);
             const taken = [];
             const bars = [...protectedBoxes];
             if (bounds) {

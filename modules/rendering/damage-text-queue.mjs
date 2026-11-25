@@ -1,4 +1,5 @@
 const MAX_BATTLE_DAMAGE_TEXTS = 48;
+const COMPACT_PLAIN_HIT = Object.freeze({ mergeWindow: 320, duration: 760 });
 
 /** Damage labels use visual milliseconds, sharing the current scene across combat resets. */
 export class DamageTextQueue {
@@ -126,7 +127,8 @@ export class DamageTextQueue {
             crit: !!fx.crit, dot: !!fx.dot, dotType: fx.element || '',
             impactTier: fx.impactTier || 'normal', damageRatio: fx.damageRatio || 0,
             // Compact normal hits share a short target-and-element window. Other direct hits keep their skill bucket.
-            mergeWindow: low ? 320 : 0,
+            // Phones: plain hits share a 320 ms window and leave sooner, so numbers over a crowd do not pile up.
+            ...(low ? COMPACT_PLAIN_HIT : {}),
             aggregateKey: this.hitGroup(fx, low)
         });
     }

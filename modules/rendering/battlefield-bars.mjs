@@ -27,13 +27,15 @@ export class BattlefieldBars {
         this.text = text;
         this.tops = new Map();
         this.bossRects = [];
+        this.barRects = [];
         this.placement = new BattlefieldBossBarPlacement();
         this.positions = new Map();
     }
 
-    dispose() { this.tops.clear(); this.bossRects.length = 0; this.positions.clear(); }
-    exclusions(extra) { return this.bossRects.concat(extra); }
-    reserve(enemy, rect) { if (enemy.isBoss) this.bossRects.push(rect); }
+    dispose() { this.tops.clear(); this.bossRects.length = 0; this.barRects.length = 0; this.positions.clear(); }
+    /** Boxes damage numbers keep off: boss bars, DOM overlays and, on compact screens, every shown enemy bar. */
+    exclusions(extra, compact = false) { return this.bossRects.concat(compact ? this.barRects : [], extra); }
+    reserve(enemy, rect) { (enemy.isBoss ? this.bossRects : this.barRects).push(rect); }
 
     player(ctx, scene) {
         const look = playerBarLook(scene.hpPct, scene.now);

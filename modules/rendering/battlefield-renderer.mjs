@@ -153,7 +153,7 @@ export class BattlefieldRenderer {
         this.parts.screen.finish(ctx, scene);
         if (typeof this.deps.stageScene === 'object') this.deps.stageScene.drawMarks(ctx, gridProj);
         const exclusions = view.box.enemyOverlays.map(rect => ({ ...rect, x: rect.x - cameraShake.x, y: rect.y - cameraShake.y }));
-        this.deps.drawDamage(ctx, now, this.parts.bars.exclusions(exclusions), this.compactDamageBounds(view));
+        this.deps.drawDamage(ctx, now, this.parts.bars.exclusions(exclusions, view.compactDamageLabels), this.compactDamageBounds(view));
         if (gridProj.cocoonChoices) drawCocoonChoices(ctx,gridProj.cocoonChoices,this.deps._t);
         const impact = this.deps.director.finishImpact(ctx);
         // Story bubbles, the narration band and the act card stay at their size: drawn without the camera, anchors through it.
