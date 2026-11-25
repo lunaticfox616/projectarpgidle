@@ -1,8 +1,12 @@
-// Rootlet (Act 1 boss) ground hit: every struck cell's own crack (the one its warning scored, js/rendering/danger-tiles.mjs) opens
-// white-hot with light washing over the soil and cools to a dark scar, under one authored earth burst over the wave (rocks thrown up,
-// a dust ring; assets/effects/enemy-earth-contact-v1.webp) at a whole-number scale: the first wave at one size, the heavier second
-// wave twice as big with a wider crack and longer light. Paint only.
-import { cellRandom, dangerTileDot, paintTileScar, paintTileStrike } from './danger-tiles.mjs';
+// Rootlet (Act 1 boss) ground hit: every struck cell's own cracks (the ones its warning showed, js/rendering/danger-tiles.mjs) split
+// open with ember light on the soil and cool to dark scars, inside a shockwave ring, under one authored earth burst over the wave
+// (rocks thrown up, a dust ring; assets/effects/enemy-earth-contact-v1.webp) at a whole-number scale, with the flash, debris, sparks,
+// dust and embers of js/rendering/rootlet-burst.mjs. The heavier second wave: the sheet twice as big, a wider split, more of
+// everything. Paint only.
+import { cellRandom, dangerTileDot, paintFootGlow, paintTileScar, paintTileStrike } from './danger-tiles.mjs';
+import { paintRootletFlash, paintRootletRing } from './rootlet-burst.mjs';
+
+export { paintRootletParticles } from './rootlet-burst.mjs';
 
 /** Visual ms the contact art plays (the impact effect itself lives 560 ms) and the scars stay. */
 export const ROOTLET_CONTACT_MS = 540;
@@ -17,12 +21,28 @@ const BURST_MS = 440;
 const STOMP = /* @__PURE__ */ Object.freeze([[4, 0], [5, 160]]);
 const STOMP_MS = 320;
 const ROOTLET_PAW = 118;
+// Its front and hind paws in art dots ahead of the feet anchor while it braces, and the lunge that carries them forward at contact.
+const ROOTLET_PAWS = /* @__PURE__ */ Object.freeze([85, -40]);
+const ROOTLET_LUNGE = 33;
+
+/** Where the Rootlet's front and hind paws stand on screen (lunged forward when its wave lands). */
+export function rootletPaws(placed, lunged) {
+    const side = placed.west ? -1 : 1, lunge = lunged ? ROOTLET_LUNGE : 0;
+    return ROOTLET_PAWS.map(dx => ({ x: placed.x + side * (dx + lunge) * placed.dot, y: placed.y }));
+}
+
+/** Under the actors: the struck cells' light on the ground around the hero's feet and the boss's paws standing on them. */
+export function paintRootletFootGlow(ctx, footprint, { hero, placed }, look) {
+    const feet = [hero, ...(placed ? rootletPaws(placed, true) : [])];
+    paintFootGlow(ctx, footprint, feet, { strength: 1 - look.age / (look.outer ? 230 : 180) });
+}
 
 /**
  * Inside the struck cells (the caller clips to them, so the safe cells between stay clear): each cell's crack opens and cools.
  * @param {{age:number, outer:boolean, reduced:boolean}} look age in visual ms since contact; outer: the second, heavier wave
  */
 export function paintRootletContact(ctx, footprint, look) {
+    paintRootletRing(ctx, footprint, look);
     if (look.age >= 380) return;
     paintTileStrike(ctx, footprint, { age: look.age, heavy: look.outer, reduced: look.reduced });
 }
@@ -34,13 +54,15 @@ function burstFrame(age, outer) {
 }
 
 /**
- * Outside the cell clip: one earth burst centred on the wave, its dust ring reaching the struck cells.
+ * Outside the cell clip: the flash on the soil, then one earth burst centred on the wave, its dust ring reaching the struck cells.
  * @param {HTMLImageElement|null} image the earth contact sheet (3 x 2 frames of 128 px; ring centre at 64, 76)
  */
 export function paintRootletDebris(ctx, footprint, look, image) {
+    paintRootletFlash(ctx, footprint, look);
     const frame = image && burstFrame(look.age, look.outer);
     if (frame === null || !image) return;
-    const scale = Math.max(1, Math.round(footprint.width * (look.outer ? 0.85 : 0.7) / 120)), size = 128 * scale;
+    // One whole-number size per tile size, twice that on the heavier second wave.
+    const scale = Math.max(1, Math.round(footprint.tileW / 48)) * (look.outer ? 2 : 1), size = 128 * scale;
     const { x, y } = footprint.centerPoint;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
@@ -89,7 +111,7 @@ export function paintRootletScar(ctx, footprint, age) {
     if (age < 380 || age >= ROOTLET_SCAR_MS) return;
     const p = dangerTileDot(footprint);
     ctx.save();
-    ctx.globalAlpha = age < 1000 ? 0.42 : 0.42 * (1 - (age - 1000) / (ROOTLET_SCAR_MS - 1000));
+    ctx.globalAlpha = age < 1000 ? 0.32 : 0.32 * (1 - (age - 1000) / (ROOTLET_SCAR_MS - 1000));
     scarSpecks(ctx, footprint, p);
     paintTileScar(ctx, footprint);
     ctx.restore();

@@ -114,7 +114,7 @@ export class CombatTravelEffect {
         const fx = { enemyFlight:attack, element:attack.groundElement, start:scene.now };
         const footprint = this.deps.footprint(this.deps.enemyProjectiles.groundArea(fx),scene.projection);
         if (footprint) this.deps.enemyProjectiles.drawGround(ctx,fx,footprint,{now:scene.now,
-            reduced:this.deps.tree.feedback.reduced()});
+            reduced:this.deps.tree.feedback.reduced(),playerPoint:scene.playerPos});
     }
 
     groundWarningAir(ctx, attack, projection) { return this.deps.enemyProjectiles.warningComet(ctx, attack, projection); }

@@ -122,7 +122,8 @@ export class EnemyTelegraphs {
         }
         this.deps.drawFootprint(ctx, focus || footprint, rootlet ? '#ffc29a' : '#ffae72',
             { fill: 0.34 + charge * 0.15, edge: 0.78 + charge * 0.21, rootlet,
-                marks: 0.87 + charge * 0.13, cracks: fault, dye: 0.19 + charge * 0.18 }, outlineOnly);
+                marks: 0.87 + charge * 0.13, cracks: fault, dye: 0.19 + charge * 0.18, time: this.deps.bossAttacks.now?.(), reduced: this.deps.reduced?.() },
+            outlineOnly);
     }
 
     enemy(ctx, entry, scale, projection) {
