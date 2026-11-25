@@ -17,12 +17,17 @@ const SOCIAL_STYLES = `@layer components {
         .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
         .social-online-empty{color:var(--copy-muted);font-size:12px;}
         .social-chat-wrap{position:relative;display:flex;flex-direction:column;gap:8px;}
-        .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:8px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:none;}
+        .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:8px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:none;opacity:0;transition:opacity .16s steps(4);}
+        /* 접속 인원은 채팅 위에 마우스를 올렸을 때만(2026-11-26 사용자). 휴대폰은 채팅을 누르면(눌린 자리에 남는 :hover) 또는 입력 칸을 쓰는 동안 보인다.
+           목록 위에 겹쳐 뜨므로 자리를 비워 두지 않는다. */
+        #tab-social:is(:hover,:focus-within) .social-chat-online{opacity:1;}
         .social-chat-online>span{display:inline-flex;align-items:center;gap:4px;}
         .social-chat-online[hidden]{display:none;}
-        .social-chat-online:not([hidden]) + .social-chat-list{margin-top:28px;} /* 접속 인원 칸 자리는 목록 밖에: 목록의 padding은 PC 창과 휴대폰 규칙에 덮였고, 스크롤과 함께 올라가 맨 위 줄의 시각을 가렸다. */
         .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
-        .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:12px;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:12px;}
+        /* 대화가 없거나 불러오는 동안: 전투 기록(css/base.css #log:empty)과 같은 한 줄 */
+        .social-chat-list:empty{justify-content:center;align-items:center;}
+        .social-chat-list:empty::before{content:var(--copy-chat-empty);display:block;color:var(--copy-muted);text-align:center;}
+        body.mobile-battle-tab #tab-battle #tab-social.is-feed-chat .social-chat-list:empty::before{font-size:11px;} /* 휴대폰 기록 판의 #log 글 크기(css/mobile.css) */
         .social-chat-list>.social-chat-msg:first-child{margin-top:auto;} /* 메시지가 적을 때는 아래에 모인다(2026-10-30 사용자 요청). 넘치면 auto 여백이 0이 되어 그대로 스크롤된다. */
         .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
         .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
