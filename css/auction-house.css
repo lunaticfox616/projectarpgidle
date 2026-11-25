@@ -196,7 +196,6 @@
 .ah-art { --item-rarity: #7d8996; display: grid; place-items: center; width: 44px; height: 44px; box-sizing: border-box; border: 1px solid color-mix(in srgb, var(--item-rarity) 60%, #182637);
     background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--item-rarity) 14%, transparent), rgba(12, 20, 30, .94) 72%); }
 .ah-art img { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
-.ah-art.is-coin .shop-coin { width: 28px; height: 28px; }
 .ah-badge { padding: 0 4px; border: 1px solid var(--ah-line); color: var(--color-text-secondary); font-size: 12px; font-style: normal; line-height: 16px; white-space: nowrap; }
 /* 넓은 칸: 머리줄과 표 모양의 행(이름 칸 안에 이름 줄, 부위와 판매자 줄, 맞힌 줄), 같은 열 너비. 열 너비는 가장 긴 값(아이템 레벨 세 자리,
    옵션 수와 계열, 70분, 다섯 자리 값)과 머리 글이 잘리지 않는 너비다. 정렬은 머리줄이 하므로 정렬 고르기는 숨긴다. 조건 칸은 검색대 아래에 뜬다.

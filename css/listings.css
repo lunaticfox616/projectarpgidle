@@ -173,9 +173,9 @@
         .shop-view.is-listings .shop-info-card { overflow: visible; }
     }
     @container shop-view (max-width: 663px) {
-        .shop-view.is-listings .shop-info { max-height: 64vh; }
+        .shop-view.is-listings .shop-info { max-height: 74vh; }
         .shop-view.is-listings .shop-info-deal { flex: 1 1 auto; min-height: 0; overflow: auto; }
-        .shop-view.is-listings .shop-info-card { flex: 0 1 auto; max-height: 16vh; }
+        .shop-view.is-listings .shop-info-card { flex: 0 1 auto; max-height: 12vh; }
     }
     #market-panel-listings .lst-login { min-height: 32px; }
     @container (max-width: 440px) {
