@@ -35,7 +35,7 @@ export class AwayHuntTimeline {
         const swing = impact === null ? at + AWAY_HUNT.leadMs : impact + AWAY_HUNT.counterMs;
         const hits = this.hitsOf(hero.strike).map(index => swing + this.leadOf(hero.strike, index));
         const last = hits[hits.length - 1], heroEnd = swing + this.lengthOf(hero.strike);
-        return { at, impact, swing, hits, deathAt: last, heroEnd, resumeAt: Math.max(heroEnd, last + AWAY_HUNT.fadeMs) + AWAY_HUNT.restMs };
+        return { at, impact, swing, hits, floats: this.floatPlan(hits), deathAt: last, heroEnd, resumeAt: Math.max(heroEnd, last + AWAY_HUNT.fadeMs) + AWAY_HUNT.restMs };
     }
 
     /** 주인공의 동작과 장: 외침(결과가 뜬 때), 걷기, 휘두르기, 그 사이는 서 있기. */
@@ -85,15 +85,31 @@ export class AwayHuntTimeline {
         return out;
     }
 
-    /** 타격마다 머리 위로 떠오르는 피해 숫자: 몇째 타격인지, 오른 도트, 가로로 비킨 도트(이어지는 타격은 왼쪽, 오른쪽, 가운데를
-     * 번갈아 조금 높게 떠 앞 숫자와 겹치지 않는다: AWAY_HUNT.floatSpots), 투명도(끝의 40% 동안 사라진다). */
+    /** 숫자가 뜬 뒤 age(ms) 동안 오른 도트. */
+    driftOf(age) { return Math.round(age / AWAY_HUNT.floatMs * AWAY_HUNT.floatLift); }
+
+    /** 타격마다 숫자가 뜨는 자리 { at, base(처음 높이), shift(가로) }. 앞 숫자가 아직 떠 있으면 그 지금 높이보다 floatStep 위에서
+     * floatShift 비켜 뜨고(같은 빠르기로 오르니 둘 사이가 끝까지 floatStep이다), 너무 높아지면 맨 아래에서 뜬다(앞 숫자는 이미
+     * floatStackMax - floatStep보다 높이 있어 겹치지 않는다). */
+    floatPlan(hits) {
+        const out = [];
+        hits.forEach((at, index) => {
+            const prev = out[index - 1], live = !!prev && at - prev.at < AWAY_HUNT.floatMs;
+            const above = live ? prev.base + this.driftOf(at - prev.at) + AWAY_HUNT.floatStep : 0, stacked = live && above <= AWAY_HUNT.floatStackMax;
+            out.push({ at, base: stacked ? above : 0, shift: stacked ? (prev.shift > 0 ? -AWAY_HUNT.floatShift : AWAY_HUNT.floatShift) : 0 });
+        });
+        return out;
+    }
+
+    /** 지금 보이는 피해 숫자: 몇째 타격인지, 오른 도트, 가로로 비킨 도트, 투명도(끝의 40% 동안 사라진다). 한 번에 둘까지:
+     * 두 타격 뒤의 숫자가 뜨면 그 숫자는 사라진다. */
     floatsOf(plan, now) {
         const out = [];
-        if (!plan) return out;
-        plan.hits.forEach((hit, order) => {
-            const age = now - hit, fadeFrom = AWAY_HUNT.floatMs * 0.6, spot = AWAY_HUNT.floatSpots[order % AWAY_HUNT.floatSpots.length];
-            if (age < 0 || age >= AWAY_HUNT.floatMs) return;
-            out.push({ order, lift: spot[1] + Math.round(age / AWAY_HUNT.floatMs * AWAY_HUNT.floatLift), shift: spot[0],
+        if (!plan || !plan.floats) return out;
+        plan.floats.forEach((row, order) => {
+            const age = now - row.at, fadeFrom = AWAY_HUNT.floatMs * 0.6, later = plan.floats[order + 2];
+            if (age < 0 || age >= AWAY_HUNT.floatMs || (later && now >= later.at)) return;
+            out.push({ order, lift: row.base + this.driftOf(age), shift: row.shift,
                 alpha: age > fadeFrom ? 1 - (age - fadeFrom) / (AWAY_HUNT.floatMs - fadeFrom) : 1 });
         });
         return out;

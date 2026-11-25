@@ -7,7 +7,9 @@
 //   reachGap      주인공 발에서 몬스터 앞끝까지: 근접 무기와, 활과 오브와 플라스크(ranged의 자세).
 //   counterMs     몬스터가 친 뒤 주인공이 휘두르기 시작할 때까지(공격 그림이 없는 몬스터면 leadMs 뒤에 휘두른다).
 //   flashMs, fadeMs 맞은 몬스터가 희게 번쩍이는 시간, 마지막 타격 뒤 사라지는 시간(일반 몬스터는 쓰러짐 그림이 없다).
-//   floatSpots    피해 숫자가 뜨는 자리 [가로, 위로](도트): 한 휘두름의 타격마다 번갈아 써서 숫자끼리 겹치지 않는다.
+//   floatStep, floatShift, floatStackMax 피해 숫자 쌓기: 앞 숫자가 아직 떠 있으면 새 숫자는 그 숫자의 지금 자리보다 floatStep 위, floatShift
+//                 옆에서 뜬다(둘이 같은 빠르기로 오르니 끝까지 겹치지 않는다). 그 자리가 floatStackMax보다 높으면 맨 아래에서 다시 쌓는다.
+//                 한 번에 둘까지만 보이고, 셋째가 뜨면 가장 오래된 숫자는 사라진다.
 //   effects       낀 룬의 속성 → 세계수 스킬 그림(data/skill-fx-atlas.js의 id)과 쓰는 장들: 맞은 몬스터 몸 위에 장마다 effectMs씩 터진다.
 //   fallbackMonsters 이 지역 무리에서 장면에 맞는 크기(maxMonsterHeight, maxMonsterReach)가 없을 때 나오는 몬스터.
 //   props         지역 재질의 낮은 소품(data/stage-regions.js families): propEvery 도트만큼 바닥이 흐를 때마다 하나가 뒤로 지나간다.
@@ -35,7 +37,9 @@ const AWAY_HUNT = Object.freeze({
     effectSize: 64,
     floatMs: 720,
     floatLift: 14,
-    floatSpots: Object.freeze([Object.freeze([-18, 0]), Object.freeze([18, 6]), Object.freeze([0, 18])]),
+    floatStep: 15,
+    floatShift: 6,
+    floatStackMax: 32,
     fontPx: 12,
     frameMs: 33,
     loadWaitMs: 6000,

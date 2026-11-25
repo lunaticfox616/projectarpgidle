@@ -164,12 +164,17 @@ export class AwayHuntPainter {
         return canvas;
     }
 
-    /** 피해 숫자: 그려 둔 숫자를 머리 위 자리에 정수로 찍는다(아래쪽 끝이 그 줄, 키 큰 몬스터면 캔버스 위 끝에 멈춘다). */
+    /** 피해 숫자: 그려 둔 숫자를 머리 위 자리에 정수로 찍는다(아래쪽 끝이 그 줄). 가장 높은 숫자가 캔버스 위로 나가면(키 큰 몬스터)
+     * 보이는 숫자를 모두 같은 만큼 내려 숫자 사이는 그대로 둔다. */
     drawFloats(ctx, floats) {
-        for (const row of floats.rows) {
-            const image = this.label(row.label, floats.font), top = Math.max(0, Math.round(floats.y - row.lift - image.height));
-            ctx.globalAlpha = row.alpha;
-            ctx.drawImage(image, Math.round(floats.x + row.shift - image.width / 2), top);
+        const marks = floats.rows.map(row => {
+            const image = this.label(row.label, floats.font);
+            return { image, alpha: row.alpha, left: Math.round(floats.x + row.shift - image.width / 2), top: Math.round(floats.y - row.lift - image.height) };
+        });
+        const down = Math.max(0, -Math.min(...marks.map(mark => mark.top)));
+        for (const mark of marks) {
+            ctx.globalAlpha = mark.alpha;
+            ctx.drawImage(mark.image, mark.left, mark.top + down);
         }
         ctx.globalAlpha = 1;
     }
