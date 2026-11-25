@@ -1,6 +1,7 @@
 import { windowCancelAnimationFrame, windowClearTimeout, windowRequestAnimationFrame, windowSetTimeout } from './browser/window-methods.mjs';
 import { AwaySettlement } from './application/away-settlement.mjs';
 import { AwaySettlementView } from './ui/away-settlement-view.mjs';
+import { AwayHuntScene } from './ui/away-hunt-scene.mjs';
 import { calculateBackgroundProgressMs, getBackgroundCombatSignature } from './domain/away-progress.mjs';
 import { backgroundAtlasGains } from './application/away-rewards.mjs';
 import { createReplayScheduler } from './browser/replay-scheduler.mjs';
@@ -71,7 +72,39 @@ const deps={
     get yieldTutorialCardToResult() { return typeof yieldTutorialCardToResult === 'undefined' ? undefined : yieldTutorialCardToResult; },
     waitFrame:()=>paint.waitFrame(),disposePaint:()=>paint.dispose()
 };
-const view=new AwaySettlementView(deps);
+// The small hunting scene in the progress and result cards reads the stage's own tables and pictures, nothing the settlement owns.
+const hunt=new AwayHuntScene({
+    get MONSTER_STAGE_ROSTER() { return typeof MONSTER_STAGE_ROSTER === 'undefined' ? undefined : MONSTER_STAGE_ROSTER; },
+    get ResizeObserver() { return typeof ResizeObserver === 'undefined' ? undefined : ResizeObserver; },
+    get SKILL_AREA_VFX_ASSETS() { return SKILL_AREA_VFX_ASSETS; },
+    get SKILL_DB() { return SKILL_DB; },
+    get SKILL_FX_ATLAS() { return SKILL_FX_ATLAS; },
+    get STAGE_CHARACTERS() { return typeof STAGE_CHARACTERS === 'undefined' ? undefined : STAGE_CHARACTERS; },
+    get STAGE_REGIONS() { return STAGE_REGIONS; },
+    get STAGE_ROOM_PLANS() { return STAGE_ROOM_PLANS; },
+    get STAGE_SCENES() { return typeof STAGE_SCENES === 'undefined' ? undefined : STAGE_SCENES; },
+    get actExplorationMap() { return actExplorationMap; },
+    get actExplorationState() { return actExplorationState; },
+    get battlePixelFont() { return battlePixelFont; },
+    get cancelAnimationFrame() { return windowCancelAnimationFrame; },
+    get console() { return console; },
+    get document() { return document; },
+    get formatNumberKR() { return formatNumberKR; },
+    get game() { return owner.game; },
+    get getActMonsterPool() { return getActMonsterPool; },
+    get getHeroAppearanceId() { return getHeroAppearanceId; },
+    get getPlayerStats() { return getPlayerStats; },
+    get getRealmMonsterVisualSet() { return getRealmMonsterVisualSet; },
+    get getStageHeroStance() { return getStageHeroStance; },
+    get getZone() { return getZone; },
+    get performance() { return performance; },
+    get requestAnimationFrame() { return typeof requestAnimationFrame === 'function' ? windowRequestAnimationFrame : undefined; },
+    get stageActors() { return stageActors; },
+    get stagePictures() { return typeof stagePictures === 'undefined' ? undefined : stagePictures; },
+    get stageRoster() { return typeof stageRoster === 'undefined' ? undefined : stageRoster; },
+    get uiDisplay() { return typeof uiDisplay === 'undefined' ? undefined : uiDisplay; }
+});
+const view=new AwaySettlementView(deps,{hunt});
 const settlement=new AwaySettlement(owner,deps,view);
 window.GameModules.awaySettlement=settlement;
 safeExposeGlobals({calculateBackgroundProgressMs,getBackgroundCombatSignature,

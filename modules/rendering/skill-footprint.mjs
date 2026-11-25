@@ -1,5 +1,5 @@
 import { drawGroundDangerSign, drawGroundDangerDye } from './enemy-ground-danger.mjs';
-import { paintDangerTiles } from './danger-tiles.mjs';
+import { paintDangerLife, paintDangerTiles } from './danger-tiles.mjs';
 
 function strokeGroundBoundary(ctx, color, alpha, outlineOnly) {
     const warning = typeof alpha === 'object' ? alpha : null;
@@ -187,7 +187,7 @@ class SkillFootprintRenderer {
             return;
         }
         if (typeof alpha === 'object' && (alpha.rootlet || alpha.later)) {
-            paintDangerTiles(ctx, footprint, { charge: alpha.cracks ?? 0, later: !!alpha.later });
+            this.paintRootletTiles(ctx, footprint, alpha);
             ctx.restore();
             return;
         }
@@ -196,6 +196,13 @@ class SkillFootprintRenderer {
         paintWarningDye(ctx, footprint, alpha);
         paintGroundWarningMarks(ctx, footprint, alpha);
         ctx.restore();
+    }
+
+    /** The Rootlet's warned cells: the cracked soil, then its life (light from below, flowing seams, motes). */
+    paintRootletTiles(ctx, footprint, alpha) {
+        const warning = { charge: alpha.cracks ?? 0, later: !!alpha.later, time: alpha.time, reduced: !!alpha.reduced };
+        paintDangerTiles(ctx, footprint, warning);
+        paintDangerLife(ctx, footprint, warning);
     }
 
     drawGroundCells(ctx, footprint, {color, look, outlineOnly}) {

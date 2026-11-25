@@ -95,7 +95,8 @@ const DEFAULT_GAME_BLUEPRINT = {
     weaponMastery: { xp: {} },
     chronicle: { rings: 0 },
     // 22(2026-11-24): 아틀라스가 천문도로 바뀌었다(js/atlas.js normalize, modules/domain/atlas-chart-migration.mjs: 예전 노드의 완료와 패시브를 버리고 지도석을 천문도 등급으로).
-    saveVersion: 22,   // 20(2026-10-30): 장비 줄의 다시 만들 수 있는 칸을 빼고 저장한다(js/item-save-slim.js). 21(2026-11-09): resonancePower에서 봉인 몫을 뺐다(js/save-migrations.js removeOldSealResonanceSave)
+    // 23(2026-11-26): 가판대와 경매장 내 출품을 출품 하나(listings)로 옮겼다(modules/persistence/saved-listings.mjs).
+    saveVersion: 23,   // 20(2026-10-30): 장비 줄의 다시 만들 수 있는 칸을 빼고 저장한다(js/item-save-slim.js). 21(2026-11-09): resonancePower에서 봉인 몫을 뺐다(js/save-migrations.js removeOldSealResonanceSave)
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
     // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game. The default stays version 9: a save
     // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
@@ -361,18 +362,19 @@ const DEFAULT_GAME_BLUEPRINT = {
     craftChoice: null, // 성화의 뿌리로 굴린 결과 { itemId, options }: 고를 때까지 남는다(js/equipment-crafting.js craftBasic)
     salvageRecovery: { entries: [], sequence: 0 },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
-    // NPC escrow: UTC millisecond clocks and independent visitors, with integer proceeds per currency.
-    // listings: {id, item, price: integer currency units, currency, slot, listedAt: UTC ms}[]; escrow owns listed gear.
-    // proceeds/budProceeds/goldProceeds: unclaimed integer dew/buds/gold; rng: saved uint32; sequence: increasing listing ID.
-    playerStall: { version: 8, sequence: 0, offerSequence: 0, eventSequence: 0, saleSequence: 0, nextOfferAt: 0, lastAt: 0, nextVisitAt: 0, rng: 1357911, proceeds: 0, budProceeds: 0, goldProceeds: 0, listings: [], history: [], sales: [] },
+    // 출품(2026-11-26, saveVersion 23; modules/domain/listing-rows.mjs): 가판대와 경매장 출품이 함께 쓰는 진열대와 정산함. rows: {id, kind: 'stall' | 'auction',
+    // slot, item, price: integer currency units, currency, listedAt: UTC ms, ...}[]; escrow owns listed gear. proceeds: unclaimed integer per currency;
+    // sales: sold snapshots. lastAt, nextVisitAt, rng (saved uint32), offerSequence, nextOfferAt, eventSequence, history: the stall's visitors.
+    listings: { version: 1, sequence: 0, rows: [], proceeds: { magicBud: 0, formlessDew: 0, goldenRule: 0 }, saleSequence: 0, sales: [],
+        lastAt: 0, nextVisitAt: 0, rng: 1357911, offerSequence: 0, nextOfferAt: 0, eventSequence: 0, history: [] },
     // 경매장(js/auction-house.js, modules/domain/auction-house.mjs): seed uint32 picked once (NPC lots only, never prices); lastAt UTC ms
     // watermark; bucket floor(clock / 15 min), never lower; lotZones [{ bucket, zone, atlas }] the zone id (or special zone key) and the atlas map tier (0: none) each listed batch
     // of NPC lots is rolled for, the lookback buckets only (modules/domain/auction-pulse.mjs AUCTION_LOT_LOOKBACK); bought the NPC lot ids
-    // ('birthBucket:index') I bought from those batches; quota { 'buy:key' | 'sell:key': bundles } of this bucket; lots my listings (escrow
-    // owns open and expired items); trend { key: int }. deltas: the server corrections [{ bucket, values: { pulse key: -0.06..0.06 } }] of
+    // ('birthBucket:index') I bought from those batches; quota { 'buy:key' | 'sell:key': bundles } of this bucket; trend { key: int }
+    // (my auction listings are rows of listings). deltas: the server corrections [{ bucket, values: { pulse key: -0.06..0.06 } }] of
     // the lookback buckets, this one and the next one, each fetched during the bucket before and saved so a reload cannot change a price.
     // searches: the item search's saved conditions, at most 5 (modules/domain/auction-search-query.mjs query shape).
-    auction: { version: 2, seed: 0, lastAt: 0, bucket: 0, lotZones: [], bought: [], quota: {}, lots: [], sequence: 0, trend: {}, deltas: [], searches: [] },
+    auction: { version: 2, seed: 0, lastAt: 0, bucket: 0, lotZones: [], bought: [], quota: {}, trend: {}, deltas: [], searches: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,

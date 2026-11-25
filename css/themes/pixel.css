@@ -286,9 +286,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   #startup-overlay .startup-policy-links, .message-frame .social-chat-time) {
   font-family: var(--font-pixel-meta); font-size: var(--font-size-meta);
 }
-/* 상점 칸의 값과 개수, 가판대 진열칸의 번호, 제안 표시, 값표(css/shop-view.css): 좁은 칸의 표식이라 갈무리9 10px. :not(#tab-battle)은 창 안의
+/* 상점 칸의 값과 개수, 출품 카드의 종류 꼬리표, 칸 번호, 상태 줄(css/shop-view.css, css/listings.css): 좁은 칸의 표식이라 갈무리9 10px. :not(#tab-battle)은 창 안의
    단추와 small 역할 규칙(.tab-content:not(#tab-battle) …)보다 앞서려는 것이다(그 규칙이 이 칸들을 갈무리11 12px로 덮었다). */
-:root body[data-ui-skin] .shop-view:not(#tab-battle) :is(.shop-item .shop-price, .shop-count, .shop-stand > :is(small, em, .shop-stand-tag)) {
+:root body[data-ui-skin] .shop-view:not(#tab-battle) :is(.shop-item .shop-price, .shop-count, .lst-kind, .lst-card-top small, .lst-card-state, .lst-empty-slot) {
   font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); line-height: 12px;
 }
 
@@ -789,7 +789,7 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
     .unlock-eyebrow, .records-stat-value, .stat-value) { font-family: var(--font-pixel); font-size: var(--font-size-ui); }
 /* 단추처럼 쓰는 접힘 제목(해금 상세의 '루프 전환 시' · '포함된 성장 요소')은 옆 단추와 같은 본문 글꼴 —
    소제목 크기(갈무리 15)라 옆 단추와 글꼴 · 크기가 달랐다(검토 4차) */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.unlock-lifetime, .unlock-related, #map-ready-destinations > details, #market-panel-stall details) > summary { font-family: var(--font-pixel); font-size: 12px; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.unlock-lifetime, .unlock-related, #map-ready-destinations > details, #market-panel-listings details) > summary { font-family: var(--font-pixel); font-size: 12px; }
 /* 가판대 구경 손님 줄: 앞에 HUD 메뉴의 사람 아이콘(캐릭터 메뉴와 같은 13도트 금빛 그림, 2배) */
 :root body[data-ui-skin] .stall-visitor-count::before { content: ''; flex: none; width: 26px; height: 26px; background: var(--px-menu-icons) -26px 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat; image-rendering: pixelated; }
 /* 원정 입장 단추(벌집 입장 등)는 화면의 주 동작: 금 테 · 밝은 글(작고 흐린 단추라 눈에 띄지 않았다 — 검토 4차) */

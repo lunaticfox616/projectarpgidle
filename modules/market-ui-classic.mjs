@@ -8,17 +8,13 @@ const marketUi = createMarketView({
     get switchMergedTabSubtab() { return switchMergedTabSubtab; },
     get window() { return window; },
     get _t() { return _t; },
-    get hallItemIssue() { return hallItemIssue; },
     get refreshBlackMarket() { return refreshBlackMarket; },
     get blackMarketUi() { return blackMarketUi; },
-    get hideItemTooltip() { return hideItemTooltip; },
-    get selectPlayerHallItem() { return selectPlayerHallItem; },
     get playerStallUi() { return playerStallUi; },
     get npcRosterUi() { return npcRosterUi; },
     get auctionHouse() { return auctionHouse; },
     get auctionHouseUi() { return auctionHouseUi; }
 });
 safeExposeGlobals({ marketUi,
-    marketPickHallItem: marketUi.marketPickHallItem,
     renderMarketUI: marketUi.renderMarketUI
 });

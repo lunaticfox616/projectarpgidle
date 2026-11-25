@@ -1,6 +1,7 @@
 import { stallRulesRecord, stallRulesSell } from './stall-ledger.mjs';
 import { stallRulesViewingInterest, stallRulesBuyerLimit } from './stall-appraisal.mjs';
 import { stallRulesRandom } from './stall-clock.mjs';
+import { stallRulesRows } from './stall-access.mjs';
 
 export function stallRulesReleaseOffer(env, stall, row, at) {
     if (!row.offer) return;
@@ -9,7 +10,7 @@ export function stallRulesReleaseOffer(env, stall, row, at) {
 }
 
 export function stallRulesExpireOffers(env, stall, at) {
-    for (const row of stall.listings) {
+    for (const row of stallRulesRows(stall)) {
         if (!row.offer || row.offer.expiresAt > at) continue;
         const deadline = row.offer.expiresAt;
         stallRulesRecord(env, stall, { at: deadline, currency: row.currency, customer: env.deps.PLAYER_STALL_CUSTOMERS[row.offer.customerId].name,

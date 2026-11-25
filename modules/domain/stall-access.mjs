@@ -1,4 +1,4 @@
-
+import { listingCapacity, listingFreeSlot, listingSlotOpen, listingRowsOf } from './listing-rows.mjs';
 
 export function stallRulesUnlocked(env, owner) { return env.deps.contentProgression.isUnlocked('market', owner); }
 
@@ -8,24 +8,23 @@ export function stallRulesValidPrice(env, price) { return Number.isSafeInteger(p
 
 export function stallRulesValidCurrency(env, currency) { return env.rules.currencies.includes(currency); }
 
-export function stallRulesBankKey(env, currency) { return env.rules.proceedsKeys[currency]; }
-
 export function stallRulesValidClock(now) { return Number.isSafeInteger(now) && now >= 0; }
 
-export function stallRulesValidSlot(env, slot) { return Number.isInteger(slot) && slot >= 0 && slot < env.rules.slots; }
+/** The stall's own listings (kind 'stall') in the one store. */
+export function stallRulesRows(store) { return listingRowsOf(store, 'stall'); }
 
-export function stallRulesFirstEmptySlot(env, occupied) {
-    for (let slot = 0; slot < env.rules.slots; slot++) if (!occupied.has(slot)) return slot;
-    return -1;
-}
+/** The stall listing listingId, or undefined. */
+export function stallRulesRow(store, listingId) { return store.rows.find(row => row.kind === 'stall' && row.id === listingId); }
 
-export function stallRulesListingPlacement(env, stall, options) {
+/** Where a new listing goes and in what: options { slot, currency, negotiate } (a bare boolean is the old negotiate flag). The place is
+ * any empty one of the shelf below owner's capacity (modules/domain/listing-rows.mjs). */
+export function stallRulesListingPlacement(env, owner, options) {
     const settings = options && typeof options === 'object' ? options : { negotiate: options };
-    const occupied = new Set(stall.listings.map(row => row.slot));
-    const slot = Object.prototype.hasOwnProperty.call(settings, 'slot') ? settings.slot : stallRulesFirstEmptySlot(env, occupied);
+    const store = owner.listings, capacity = listingCapacity(env.deps, owner);
+    const slot = Object.prototype.hasOwnProperty.call(settings, 'slot') ? settings.slot : listingFreeSlot(store, capacity);
     const currency = settings.currency === undefined ? 'formlessDew' : settings.currency;
     return { slot, currency, negotiate: settings.negotiate === true,
-        available: stallRulesValidCurrency(env, currency) && stallRulesValidSlot(env, slot) && !occupied.has(slot) };
+        available: stallRulesValidCurrency(env, currency) && listingSlotOpen(store, capacity, slot) };
 }
 
 export function stallRulesListBlockReason(env, item, owner) {

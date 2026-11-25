@@ -159,7 +159,8 @@ const telegraphs = new EnemyTelegraphs({
     get woodsman() { return woodsmanView; },
     get sideEncounters() { return sideEncounterCanvas; },
     get bossMoves() { return bossMoveView; },
-    observerZone: () => window.GameModules.state.game.currentZoneId === BEYOND_BOUNDARY_UNLOCK_BOSS_ID
+    observerZone: () => window.GameModules.state.game.currentZoneId === BEYOND_BOUNDARY_UNLOCK_BOSS_ID,
+    reduced: () => uiDisplay.reducedEffects()
 });
 const facing = new EnemyFacing({
     get bossMoves() { return bossMoveView; },

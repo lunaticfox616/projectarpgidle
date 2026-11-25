@@ -16,6 +16,12 @@ export function stashCellHtml(ctx, key, picked) {
 * currency list (craftingCatalogUi.description). The card's edge takes the theme's tone. */
 export function stashTip(ctx, event, key) {
     if (event.pointerType !== 'mouse') return;
+    stashCard(ctx, event, key);
+}
+
+/** The same card without the mouse-only gate: the battle screen's currency strip (modules/ui/combat-currency-hud.mjs) shows it on
+* hover, and on a tap where a phone sends the mouse events after the touch (2026-11-26 사용자: 제작 재료의 색감). */
+export function stashCard(ctx, event, key) {
     const amount = finishHeld(ctx.deps.game.currencies,key);
     const held = (0, ctx.deps._t)('보유 {currencies}', { currencies: amount.toLocaleString(ctx.deps.i18n.locale) });
     const html = `<div class="cl-stash-tip"><div class="tooltip-title">${ctx.deps.craftingCatalogUi.styledName(key)}</div>`

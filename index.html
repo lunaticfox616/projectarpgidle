@@ -308,7 +308,6 @@
         <div class="tutorial-title" id="deathlog-title" data-i18n>사망 보고서</div>
         <div class="deathlog-scroll">
             <div class="tutorial-body" id="deathlog-body"></div>
-            <div class="deathlog-hints" id="deathlog-hints" hidden></div>
             <div class="deathlog-panel">
                 <div class="deathlog-subtitle" id="deathlog-damage-title" data-i18n>최근 3초 피해 요약</div>
                 <div class="deathlog-tabs" role="tablist" aria-label="사망 원인 분류" data-i18n-attr="aria-label">
@@ -317,14 +316,17 @@
                 </div>
                 <div class="deathlog-list" id="deathlog-damage-list"></div>
             </div>
+        </div>
+        <!-- 할 수 있는 일은 조언 보기로 띄우고(modules/ui/death-report-view.mjs renderDeathHints), 알림 설정은 확인과 한 줄에 둔다(2026-11-26 사용자: 스크롤 줄이기). -->
+        <div class="tutorial-actions deathlog-actions">
             <label class="deathlog-setting" data-i18n>
                 <input type="checkbox" id="chk-death-notice-inline">
                 사망 시 알림 표시
             </label>
-        </div>
-        <div class="tutorial-actions">
+            <button type="button" class="deathlog-advice-open" data-death-advice popovertarget="deathlog-advice" aria-haspopup="dialog" hidden data-i18n>조언 보기</button>
             <button autofocus data-death-close data-i18n>확인</button>
         </div>
+        <div class="deathlog-advice" id="deathlog-advice" popover="auto" role="dialog" aria-labelledby="deathlog-advice-title"></div>
     </div>
 </dialog>
 <dialog id="ring-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="ring-slot-overlay-heading">
@@ -953,7 +955,8 @@
 
     <!-- 거래(2026-11-06 사용자: "거래소에서 이름 바꾸고 탭 안에 NPC와 장비 전당을", "NPC 안에 암거래상도", 같은 날 "장비 탭에 있는 거래를 탭 하나 새로
          만들어서"): 제 메뉴 단추(Trade icon.zip, assets/ui/pixel/buttons/trade*.png)와 창. NPC(만난 NPC와 암거래상의 카드, 재화 교환은 베일라
-         js/orga-exchange-ui.js), 가판대, 장비 전당, 경매장(js/auction-house-ui.js). 열린 칸만 보인다(js/market-ui.js). 암거래상의 판은 그 창이 열릴 때 창 안으로 옮겨 간다. -->
+         js/orga-exchange-ui.js), 경매장의 아이템과 재료(js/auction-house-ui.js), 출품(가판대, 경매장, 장비 전당 출품 하나, js/player-stall-ui.js), 전당 소장품.
+         열린 칸만 보인다(js/market-ui.js). 암거래상의 판은 그 창이 열릴 때 창 안으로 옮겨 간다. -->
     <div id="tab-trade" class="tab-content">
         <div class="forge-panel market-shell">
             <section id="market-panel-npc" aria-label="NPC"><div id="npc-roster-panel"></div>
@@ -968,13 +971,12 @@
                 <nav id="market-exchange-tabs" class="market-tabs" role="tablist" aria-label="경매장" onkeydown="marketUi.moveTab(event)" data-i18n-attr="aria-label">
                     <button type="button" role="tab" id="ah-tab-gear" aria-controls="market-panel-auction" data-market-section="auction" data-ah-tab="gear" aria-selected="false" onclick="marketUi.showAuctionTab('gear')" hidden><span class="ah-tab-label"></span></button>
                     <button type="button" role="tab" id="ah-tab-materials" aria-controls="market-panel-auction" data-market-section="auction" data-ah-tab="materials" aria-selected="false" onclick="marketUi.showAuctionTab('materials')" hidden><span class="ah-tab-label"></span></button>
-                    <button type="button" role="tab" id="ah-tab-mine" aria-controls="market-panel-auction" data-market-section="auction" data-ah-tab="mine" aria-selected="false" onclick="marketUi.showAuctionTab('mine')" hidden><span class="ah-tab-label"></span></button>
-                    <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')"><span class="px-center" data-i18n>가판대</span></button>
-                    <button type="button" role="tab" aria-controls="market-panel-hall" data-market-section="hall" aria-selected="false" onclick="marketUi.show('hall')"><span class="px-center" data-i18n>장비 전당</span></button>
+                    <button type="button" role="tab" aria-controls="market-panel-listings" data-market-section="listings" aria-selected="false" onclick="marketUi.show('listings')" hidden><span class="lst-tab-label"></span></button>
+                    <button type="button" role="tab" aria-controls="market-panel-hall" data-market-section="hall" aria-selected="false" onclick="marketUi.show('hall')"><span class="px-center" data-i18n>전당 소장품</span></button>
                 </nav>
                 <section id="market-panel-auction" role="tabpanel" aria-label="경매장" hidden data-i18n-attr="aria-label"></section>
-                <section id="market-panel-stall" role="tabpanel" aria-label="가판대" hidden data-i18n-attr="aria-label"></section>
-                <section id="market-panel-hall" role="tabpanel" aria-label="장비 전당" hidden data-i18n-attr="aria-label"><div id="map-player-hall"></div></section>
+                <section id="market-panel-listings" role="tabpanel" aria-label="출품" hidden data-i18n-attr="aria-label"></section>
+                <section id="market-panel-hall" role="tabpanel" aria-label="전당 소장품" hidden data-i18n-attr="aria-label"><div id="map-player-hall"></div></section>
             </div>
         </div>
     </div>
@@ -1398,6 +1400,11 @@
                     </div>
                     <div class="cfg-block">
                         <h3 class="cfg-block-title" data-i18n>전투 기록</h3>
+                        <!-- 최근 사망 기록은 묶음 맨 위(2026-11-26 사용자) -->
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><span data-i18n>최근 사망 기록</span><small data-i18n>마지막으로 쓰러졌을 때 받은 피해</small></div>
+                            <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn" data-i18n>열기</button>
+                        </div>
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="chk-log-combat" data-i18n>전투 로그 표시</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-combat">
@@ -1425,10 +1432,6 @@
                         <div class="cfg-row">
                             <div class="cfg-row-text"><label for="chk-log-loot" data-i18n>전리품 획득</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-loot">
-                        </div>
-                        <div class="cfg-row">
-                            <div class="cfg-row-text"><span data-i18n>최근 사망 기록</span><small data-i18n>마지막으로 쓰러졌을 때 받은 피해</small></div>
-                            <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn" data-i18n>열기</button>
                         </div>
                     </div>
                 </section>

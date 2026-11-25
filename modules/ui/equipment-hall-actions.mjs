@@ -1,7 +1,8 @@
 import { getPlayerExchangeError } from '../common/equipment-hall-errors.mjs';
 import { listenView, releaseViewEvents } from './view-events.mjs';
 
-/** UI orchestration: confirmations/rendering around the hall's account-safe service. */
+/** UI orchestration: confirmations/rendering around the hall's account-safe service. The hall panel (전당 소장품) browses and buys; listing
+ * and withdrawing my shows start from the 출품 tab through the hall bridge (js/player-exchange.js window.GameModules.equipmentHall). */
 export class EquipmentHallActions {
     constructor(deps, state, service, view) {
         this.deps = deps; this.state = state; this.service = service; this.rules = service.rules; this.view = view;
@@ -9,11 +10,8 @@ export class EquipmentHallActions {
         this.commands = Object.freeze({
             select: id => { (0, deps.hideInfoTooltip)(); view.selectPlayerHallListing(id); },
             buy: id => this.buyPlayerHallReplica(id),
-            withdraw: id => this.withdrawPlayerHallListing(id),
-            list: () => this.createPlayerHallListing(),
             refresh: () => this.loadPlayerExchange(),
             reset: () => view.resetPlayerHallBrowse(),
-            choose: () => deps.marketUi.openHallPicker(),
             login: () => (0, deps.openStartupGate)({ accountOnly: true })
         });
         listenView(this, deps.document, 'click', event => this.onClick(event));

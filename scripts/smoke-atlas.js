@@ -1091,7 +1091,7 @@ assert.equal(copy(`atlas.dropFromKill(game, getZone(getAbyssZoneIdForDepth(12)),
         };
         var before = mergeDefaults(JSON.parse(serializeSaveState(game))), once = mergeDefaults(oldSave());`);
     const once = read('once.atlas');
-    assert.equal(oldRun('once.saveVersion'), 22);
+    assert.equal(oldRun('once.saveVersion'), oldRun('defaultGame.saveVersion'), 'the loaded save takes the current version');
     assert.deepEqual([once.completed, once.bonus, once.passives], [['apex_gardener'], [], []],
         'first clears and bonus marks of the old maps, guardians and pinnacle are dropped, late fights stay, every passive is released');
     assert.deepEqual([once.unlocked, once.sextant, once.seeds, once.starterSeason, once.autoMap, once.autoGuardians, once.fragments, once.loadout, once.nextUid],

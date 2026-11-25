@@ -54,11 +54,11 @@ body .cl-goal-dialog:focus-visible{outline:none}.cl-goal-dialog::backdrop{backgr
 .cl-affix.is-max-tier{position:relative}.just-crafted .is-max-tier::after{content:"";position:absolute;left:0;top:0;width:28px;height:2px;background:#fff4cf;box-shadow:0 0 5px 2px #ffe0a0;offset-path:inset(1px round 5px);offset-rotate:auto;pointer-events:none;opacity:0;animation:cl-border-orbit 1.8s linear}
 @keyframes cl-border-orbit{0%{offset-distance:0%;opacity:0}5%{opacity:1}95%{opacity:1}100%{offset-distance:100%;opacity:0}}
 @media(prefers-reduced-motion:reduce){.just-crafted .is-max-tier::after{display:none;animation:none}}
-/* 재화 테마의 빛: 재화 목록, 제작실, 재화 보관함 칸의 툴팁 카드(.cl-stash-tip, #info-tooltip 안이라 제작실 밖이다) */
-.cl-catalog [data-theme],#crafting-workspace [data-theme],.cl-stash-tip [data-theme]{--resource-tone:#dfbf82}
-:is(.cl-catalog,#crafting-workspace,.cl-stash-tip) [data-theme="fossil"]{--resource-tone:#bcb1d4}
-:is(.cl-catalog,#crafting-workspace,.cl-stash-tip) [data-theme="special"]{--resource-tone:#d8a2bf}
-:is(.cl-catalog,#crafting-workspace,.cl-stash-tip) [data-theme="omen"]{--resource-tone:#b8a1df}
+/* 재화 테마의 빛: 재화 목록, 제작실, 재화 보관함 칸의 툴팁 카드(.cl-stash-tip, #info-tooltip 안이라 제작실 밖이다), 전투 화면의 재화 줄(#ui-combat-currencies, 카드 테의 빛) */
+.cl-catalog [data-theme],#crafting-workspace [data-theme],.cl-stash-tip [data-theme],#ui-combat-currencies [data-theme]{--resource-tone:#dfbf82}
+:is(.cl-catalog,#crafting-workspace,.cl-stash-tip,#ui-combat-currencies) [data-theme="fossil"]{--resource-tone:#bcb1d4}
+:is(.cl-catalog,#crafting-workspace,.cl-stash-tip,#ui-combat-currencies) [data-theme="special"]{--resource-tone:#d8a2bf}
+:is(.cl-catalog,#crafting-workspace,.cl-stash-tip,#ui-combat-currencies) [data-theme="omen"]{--resource-tone:#b8a1df}
 /* 성화의 뿌리: 결과 셋을 나란히(휴대폰은 위아래로), 고를 때까지 닫히지 않는다. */
 .cl-goal-dialog.cl-choice-dialog{width:min(920px,94vw)}.cl-choice-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.cl-choice{display:flex;flex-direction:column;padding:12px;border:1px solid #484233;border-radius:8px;background:#23251d}.cl-choice h3{margin:0 0 6px;font-size:14px;color:#e0c185}.cl-choice ul{flex:1;margin:0;padding:0;list-style:none;font-size:var(--font-size-ui);line-height:1.55}.cl-choice small{color:var(--cl-muted)}.cl-goal-dialog .cl-choice button{margin-top:12px}
 @media(max-width:700px){.cl-choice-list{grid-template-columns:1fr}}

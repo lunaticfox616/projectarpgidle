@@ -40,6 +40,7 @@ const stageRoster = Object.freeze({
     headOrigin: native.headOrigin,
     chorusMouth: native.chorusMouth,
     bodySize: (enemy, tile) => native.bodySize((typeof game === 'undefined' ? undefined : game), enemy, tile),
+    actorFor: enemy => native.actorFor((typeof game === 'undefined' ? undefined : game), enemy),
     renderer: Object.freeze({ draw: native.draw, drawClip: native.drawClip }),
     preparation: Object.freeze({ keepFor: native.keepFor })
 });

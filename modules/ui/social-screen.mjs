@@ -52,7 +52,7 @@ export class SocialScreen {
             ${nickname ? '' : this.deps._t('<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>')}
             <div class="social-chat-wrap">
                 <span id="social-chat-online" class="social-chat-online" hidden></span>
-                <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${this.deps._t('대화를 불러오는 중')}</strong></div></div>
+                <div id="social-chat-list" class="social-chat-list"></div>
                 <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
                 <div class="social-chat-inputbar">
                     <button class="social-attach-btn" onclick="openItemPicker()" data-tip="${this.deps._t('아이템 첨부')}" aria-label="${this.deps._t('아이템 첨부')}" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> ${this.deps._t('첨부')}</button>

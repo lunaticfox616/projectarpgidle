@@ -50,12 +50,11 @@ export function loopFlowGetLoopAdvancePathLabel(path) {
     return path === 'cosmos' ? '우주계 루프' : '혼돈 루프';
 }
 
+/** Why gear held for sale blocks the loop, or '': the listings (stall and auction kinds, and their unclaimed proceeds), then the hall's
+ * originals on show (server rows). */
 export function loopFlowGetHeldGearLoopBlockReason(env, owner) {
-    const stallReason = typeof env.deps.playerStall === 'object' ? env.deps.playerStall.loopBlockReason(owner) : '';
-    if (stallReason) return stallReason;
-    const hallReason = getHeldHallLoopBlockReason(env.deps.hallState, env.deps.hallUserId, env.deps._t);
-    if (hallReason) return hallReason;
-    return typeof env.deps.auctionHouse === 'object' ? env.deps.auctionHouse.loopBlockReason(owner) : '';
+    const listingReason = typeof env.deps.playerStall === 'object' ? env.deps.playerStall.loopBlockReason(owner) : '';
+    return listingReason || getHeldHallLoopBlockReason(env.deps.hallState, env.deps.hallUserId, env.deps._t);
 }
 
 export function loopFlowGetSeasonResetBlockReason(env, owner, loopPath) {

@@ -1,13 +1,13 @@
 import { finishKeys } from '../data/equipment-finishes.mjs';
-import { stashHtml, stashShowTab, stashTip } from './crafting-stash-view.mjs';
+import { stashHtml, stashShowTab, stashTip, stashCard } from './crafting-stash-view.mjs';
 
 /** Owns the visible currency tab only. Balances and discovered slots are read on each render. */
 export function createCraftingStash(deps) {
     const ctx = { deps, state: {}, handlers: {}, api: null };
-    const handlers = { stashHtml, stashShowTab, stashTip };
+    const handlers = { stashHtml, stashShowTab, stashTip, stashCard };
     for (const [name, handler] of Object.entries(handlers)) ctx.handlers[name] = handler.bind(undefined, ctx);
     initialize(ctx);
-    ctx.api = Object.freeze({ html: ctx.handlers.stashHtml, showTab: ctx.handlers.stashShowTab, tip: ctx.handlers.stashTip });
+    ctx.api = Object.freeze({ html: ctx.handlers.stashHtml, showTab: ctx.handlers.stashShowTab, tip: ctx.handlers.stashTip, card: ctx.handlers.stashCard });
     return ctx.api;
 }
 

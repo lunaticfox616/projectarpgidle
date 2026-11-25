@@ -67,8 +67,8 @@ function* publishPickupResult(env, item, result, logLoot) {
         (yield { kind: 'acquisitionLog', args: [`자동해체: <span class='loot-${item.rarity}'>[${env.deps._t(item.name)}]</span>, ${(yield { kind: 'acquisitionSalvageText', args: [result.rewards] })}`, 'loot-normal'] });
 }
 
-/** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full a rare or unique one waits in the temporary
- * storage and the rest are lost. One whose rarity the auto-salvage takes is salvaged instead of kept
+/** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full one is lost at any rarity (no temporary
+ * storage). One whose rarity the auto-salvage takes is salvaged instead of kept
  * (bagItems.salvagedOnDrop); the receipt then reads stored: false with the bag not full. */
 export function* acquireReceiveJewelDrop(env, owner, jewel) {
     if(env.deps.bagItems.salvagedOnDrop(jewel, owner))return {jewel,inventoryFull:false,stored:false,protectOverflow:false,shardGain:(yield* acquireSalvageJewelObject(env, owner, jewel,true))};
