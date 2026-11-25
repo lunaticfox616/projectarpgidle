@@ -4,10 +4,13 @@ import { dropRetiredSupportGems } from './saved-gems.mjs';
 import { migratePassiveSaveNodeReferences } from './saved-passive-nodes.mjs';
 import { normalizeSavedCurrencies } from './saved-combat-values.mjs';
 import { markLegacyEquipmentGrace, normalizeCarriedEquipmentSave, recoverStoredUniqueKeys } from './saved-equipment.mjs';
+import { moveOldListingsSave } from './saved-listings.mjs';
 
 export function restoreInitialSnapshot(deps, context) {
     captureSavedLayout(deps, context);
     mergeSavedDefaults(deps, context);
+    // Before any item check reads them: the old stall and auction lots become the one listing store (saveVersion 23).
+    moveOldListingsSave(context.merged, deps.defaultGame, text => deps.console.warn(text));
 }
 
 export function restoreRuneAndCurrencyMigrations(deps, context) {

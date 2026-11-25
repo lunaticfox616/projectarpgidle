@@ -59,5 +59,5 @@ export function getHeldHallLoopBlockReason(hall, userId, translate) {
     const data = hall?.data;
     if (!data || !userId || hall.dataUserId !== userId) return '';
     const shown = (Array.isArray(data.mine) ? data.mine : []).filter(row => row && ['open', 'sold_out'].includes(row.status)).length;
-    return shown ? translate('장비 전당에 전시한 원본 {shown}개가 남아 있습니다. 거래 → 장비 전당에서 회수한 뒤 루프를 진행하세요.', { shown }) : '';
+    return shown ? translate('장비 전당에 전시한 원본 {shown}개가 남아 있습니다. 거래 → 출품에서 회수한 뒤 루프를 진행하세요.', { shown }) : '';
 }

@@ -4,14 +4,8 @@ import { HALL_LIST_LIMIT, HALL_SORTS, HALL_BROWSE_DEFAULT } from '../state/equip
 export class EquipmentHallView {
     constructor(deps, state, service) {
         this.deps = deps; this.state = state; this.service = service; this.active = true;
-        this.renderMyHallStand = this.renderMyHallStand.bind(this);
     }
     dispose() { this.active = false; this.state.itemTips.clear(); this.state.tipCards.clear(); this.state.compare = null; }
-    selectPlayerHallItem(itemId) {
-        this.state.selectedItemId = Number(itemId);
-        this.renderPlayerExchange();
-    }
-
     /** Opens a show's full card and purchase above the list: a phone has no hover tooltip, so the options were bought unseen. */
     selectPlayerHallListing(listingId) {
         this.state.selectedListingId = Number(listingId);
@@ -114,28 +108,6 @@ export class EquipmentHallView {
         return html;
     }
 
-    /** 내 전시(2026-11-06): three display stands in one row. My shows first (with their withdraw), then the chosen gear with its listing
-     * button and 다른 장비 고르기, then 등록 (opens the bag picker, js/market-ui.js openHallPicker) and empty stands up to three shows. */
-    renderHallStands(data, activeCount) {
-        let mine = Array.isArray(data.mine) ? data.mine : [], busy = this.state.loading || this.state.asking;
-        let item = this.service.getHallEligibleItems().find(row => Number(row.id) === Number(this.state.selectedItemId));
-        let stands = mine.map(this.renderMyHallStand);
-        if (item && activeCount < 3) stands.push(`<div class="hall-stand is-chosen">${this.renderHallItemCard(item, `owned-${item.id}`, '')}<div class="hall-stand-actions">${this.renderHallRegisterButton(activeCount)}<button type="button" data-hall-action="choose" ${busy ? 'disabled' : ''}>${(0, this.deps._t)('다른 장비 고르기')}</button></div></div>`);
-        for (let open = activeCount + (item ? 1 : 0), first = true; open < 3; open += 1, first = false) {
-            stands.push(first ? `<button type="button" class="hall-stand is-empty is-register" data-hall-action="choose" ${busy ? 'disabled' : ''}><b>+</b>${(0, this.deps._t)('등록')}</button>`
-                : `<div class="hall-stand is-empty" aria-hidden="true">${(0, this.deps._t)('빈 전시대')}</div>`);
-        }
-        return `<div class="hall-stands">${stands.join('')}</div>`;
-    }
-
-    /** The listing button, or what is missing (a trade under way, three shows up, nothing chosen). */
-    renderHallRegisterButton(activeCount) {
-        let item = this.service.getHallEligibleItems().find(row => Number(row.id) === Number(this.state.selectedItemId));
-        let busy = this.state.loading || this.state.asking;
-        let reason = busy ? '처리 중' : activeCount >= 3 ? '전시 3칸이 모두 찼습니다' : item ? '' : '전시할 장비를 고르세요';
-        return `<button class="hall-list-confirm" data-hall-action="list" ${reason ? 'disabled' : ''}>${reason ? (0, this.deps._t)(reason) : (0, this.deps._t)('서버 감정 후 전시')}</button>`; // 이름은 위 카드에 있다
-    }
-
     /** The shows the browse lets through, in its order: the server's (appraisal) or by price, ties by id so the order holds between draws. */
     getHallBrowsedListings() {
         let { slot, sort, query } = this.state.browse, words = query.trim().toLowerCase();
@@ -193,13 +165,6 @@ export class EquipmentHallView {
         return `${this.renderHallListingDetail(rows)}${count}<div class="player-trade-grid">${list}</div>`;
     }
 
-    /** One of my shows on its stand: the card, its state, copies and withdraw. */
-    renderMyHallStand(row) {
-        return `<div class="hall-stand is-mine">${this.renderHallItemCard(row.item || {}, `mine-${row.id}`,
-            `<div class="player-trade-price"><b>${this.hallMineLabel(row)}</b><span>${(0, this.deps._t)('{copiesSold}/{copyCap} 소장', { copiesSold: Number(row.copiesSold || 0), copyCap: Number(row.copyCap || 5) })}</span><button data-hall-action="withdraw" data-hall-id="${Number(row.id)}" ${this.state.loading || this.state.asking ? 'disabled' : ''}>${row.status === 'open' ? (0, this.deps._t)('전시 종료') : (0, this.deps._t)('원본 회수')}</button></div>`,
-            `<small class="hall-appraisal">${(0, this.deps._t)('감정 {score}', { score: Number(row.score || 0).toLocaleString() })}</small>`)}</div>`;
-    }
-
     /** 전당의 머리(2026-11-02 사용자: 색감, 전당이라는 웅장함; 2026-11-06 "공간효율"): 두 기둥 사이의 얇은 띠에 이름, 규칙(? 툴팁), 명예, 소장, 공유,
      * 황금률 현판을 한 줄로. */
     hallHeroHtml(plaques) {
@@ -218,17 +183,15 @@ export class EquipmentHallView {
         return '<div class="player-exchange-empty"><span class="px-center">장비 전당은 클라우드 로그인 후 이용할 수 있습니다.<button type="button" data-hall-action="login">로그인 화면 열기</button></span></div>';
     }
 
+    /** 전당 소장품(2026-11-26): 다른 플레이어의 전시품 둘러보기와 구매. 내 전시는 출품 탭이 맡는다(modules/ui/listings-hall.mjs). */
     renderPlayerHallPanel() {
         if (!this.service.isPlayerExchangeServerReady()) return this.playerHallUnavailableHtml();
         this.state.itemTips.clear();
         this.state.tipCards.clear();
         let data = this.service.getPlayerHallData() || {};
-        let activeCount = (Array.isArray(data.mine) ? data.mine : [])
-            .filter(row => ['open', 'sold_out'].includes(row.status)).length;
         let busy = this.state.loading || this.state.asking;
         const plaques = [['명예', data.honor], ['소장', data.collectionCount], ['공유', data.copiesShared], ['보유 황금률', this.deps.game.currencies.goldenRule]];
         return this.hallHeroHtml(plaques)
-            + `<section class="player-exchange-card is-register"><header><div><strong>${(0, this.deps._t)('내 전시 {activeCount}/3', { activeCount })}</strong><small>${(0, this.deps._t)('원본은 전시 종료 시 직접 회수할 수 있습니다.')}</small></div></header>${this.renderHallStands(data, activeCount)}</section>`
             + `<section class="player-exchange-card is-market"><header><strong>${(0, this.deps._t)('전당 소장품')}</strong>${this.renderHallBrowseTools()}<span class="hall-market-tools"><button data-hall-action="refresh" ${busy ? 'disabled' : ''}>${(0, this.deps._t)('새로고침')}</button></span></header><div id="hall-market-view">${this.renderHallMarketView()}</div></section>`;
     }
 
@@ -238,12 +201,5 @@ export class EquipmentHallView {
         if (!hallHost) return;
         let message = this.state.message ? `<p class="player-exchange-message">${(0, this.deps.escapeHTML)(this.state.message)}</p>` : '';
         hallHost.innerHTML = message + this.renderPlayerHallPanel();
-    }
-
-    /** My listing's price box: its price while on show, '복제 한도 완료' once every copy went, '전시 닫힘' when it closed before that
-     * (an operator's hold closes open listings, db/anti-cheat.sql admin_set_cheat_hold). */
-    hallMineLabel(row) {
-        if (row.status !== 'sold_out') return (0, this.deps._t)('황금률 {price}', { price: Number(row.price || 0).toLocaleString() });
-        return Number(row.copiesSold || 0) >= Number(row.copyCap || 5) ? '복제 한도 완료' : '전시 닫힘';
     }
 }

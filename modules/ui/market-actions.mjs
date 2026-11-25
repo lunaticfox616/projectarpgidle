@@ -10,12 +10,14 @@ export function moveTab(runtime, event) {
 
 export function openSections(runtime) {
     const market = (0, runtime.deps.isMarketUnlocked)();
-    const open = { npc: runtime.deps.contentProgression.npcsMet(runtime.deps.game) || market, stall: market, hall: runtime.deps.contentProgression.isUnlocked('hall'),
-        auction: runtime.deps.auctionHouse.canOpen(runtime.deps.game) };
+    const hall = runtime.deps.contentProgression.isUnlocked('hall'), auction = runtime.deps.auctionHouse.canOpen(runtime.deps.game);
+    // 출품: any way to list is open, or listings are left on the shelf (they are never stranded).
+    const listings = market || hall || auction || runtime.deps.game.listings.rows.length > 0;
+    const open = { npc: runtime.deps.contentProgression.npcsMet(runtime.deps.game) || market, listings, hall, auction };
     return runtime.state.MARKET_SECTIONS.filter(id => open[id]);
 }
 
-/** The trade window's screen that holds a section: NPC on the first, the auction, the stall and the hall on the second (js/ui.js MERGED_TAB_GROUPS trade). */
+/** The trade window's screen that holds a section: NPC on the first, the auction, 출품 and the hall on the second (js/ui.js MERGED_TAB_GROUPS trade). */
 const screenOf = section => (section === 'npc' ? 'tab-trade' : 'tab-auction');
 
 /** The screen the window's head tabs chose (the first one until the second is chosen). */
@@ -25,10 +27,10 @@ function chosenScreen(runtime) {
 }
 
 /** The section the chosen screen shows: NPC on the first screen; on the second the one shown last when it is open, else the first open one
- * (the auction before the stall before the hall). */
+ * (the auction before 출품 before the hall). */
 function shownSection(runtime, open) {
     if (chosenScreen(runtime) === 'tab-trade') return 'npc';
-    return [runtime.state.view_section, runtime.state.exchange, 'auction', 'stall', 'hall'].find(id => id !== 'npc' && open.includes(id)) || 'stall';
+    return [runtime.state.view_section, runtime.state.exchange, 'auction', 'listings', 'hall'].find(id => id !== 'npc' && open.includes(id)) || 'listings';
 }
 
 /** Shows a section, changing the window's screen when the section is on the other one. */
@@ -42,7 +44,7 @@ export function show(runtime, section) {
     else renderMarketUI(runtime);
 }
 
-/** Shows a tab of the auction (아이템, 재료, 내 출품): they stand on the second screen's tab row beside the stall and the hall. */
+/** Shows a tab of the auction (아이템, 재료): they stand on the second screen's tab row beside 출품 and 전당 소장품. */
 export function showAuctionTab(runtime, tab) {
     runtime.deps.auctionHouseUi.showTab(tab);
     show(runtime, 'auction');
@@ -51,17 +53,10 @@ export function showAuctionTab(runtime, tab) {
 
 export function open(runtime, section) {
     const target = runtime.state.MARKET_SECTIONS.includes(section) ? section : runtime.state.view_section;
-    // 루프 정산 카드가 출품 때문에 막힌 루프에서 이 칸을 연다: 내 출품을 바로 보인다.
-    if (section === 'auction' && runtime.deps.game.auction.lots.length) runtime.deps.auctionHouseUi.showTab('mine');
     runtime.state.view_section = target;
     if (target !== 'npc') runtime.state.exchange = target;
     (0, runtime.deps.switchMergedTabSubtab)('trade', screenOf(target));
     show(runtime, target);
-}
-
-export function openHallPicker(runtime) {
-    runtime.deps.window.openCraftItemPickerOverlay('inventory', { title: (0, runtime.deps._t)('장비 전당에 전시할 장비 선택'), desc: (0, runtime.deps._t)('장비를 누르면 전시할 장비로 고릅니다.'),
-        picks: { inventory: runtime.handlers.marketPickHallItem, blocked: runtime.deps.hallItemIssue } });
 }
 
 export function blackCardHtml(runtime) {
@@ -110,12 +105,6 @@ export function closeMarketBlackDialog(runtime) {
     owned.dialog.remove();
 }
 
-export function marketPickHallItem(runtime, itemId) {
-    (0, runtime.deps.hideItemTooltip)();
-    runtime.deps.window.closeCraftItemPickerOverlay();
-    (0, runtime.deps.selectPlayerHallItem)(itemId);
-}
-
 export function renderMarketUI(runtime) {
     if (!runtime.active) return;
     const panel = runtime.deps.document.getElementById('ui-market-panel');
@@ -125,16 +114,17 @@ export function renderMarketUI(runtime) {
     if (section !== 'npc') runtime.state.exchange = section;
     if ((0, runtime.deps.isMarketUnlocked)()) (0, runtime.deps.refreshBlackMarket)(false);
     // The sections are shown first: a hidden section draws nothing.
-    for (const id of ['auction', 'stall', 'hall']) runtime.deps.document.getElementById('market-panel-' + id).hidden = id !== section;
+    for (const id of ['auction', 'listings', 'hall']) runtime.deps.document.getElementById('market-panel-' + id).hidden = id !== section;
     renderMarketSection(runtime, section);
     paintExchangeTabs(runtime, panel, open, section);
 }
 
-/** The second screen's tab row: the auction's three tabs (their names and marks are the auction's), the stall and the hall. Only open ones
- * show; the chosen one is the shown section (for the auction, its shown tab). */
+/** The second screen's tab row: the auction's two tabs (their names are the auction's), 출품 (its name and mark are its own) and 전당 소장품.
+ * Only open ones show; the chosen one is the shown section (for the auction, its shown tab). */
 function paintExchangeTabs(runtime, panel, open, section) {
     const auctionTab = runtime.deps.auctionHouseUi.shownTab(), buttons = [...panel.querySelectorAll('[data-market-section]')];
     if (open.includes('auction')) runtime.deps.auctionHouseUi.paintTabLabels();
+    if (open.includes('listings')) runtime.deps.playerStallUi.paintTabLabel();
     for (const button of buttons) {
         const id = button.dataset.marketSection, active = id === section && (!button.dataset.ahTab || button.dataset.ahTab === auctionTab);
         button.hidden = !open.includes(id);
@@ -149,7 +139,7 @@ export function renderMarketSection(runtime, section) {
         if (runtime.deps.game.noti) runtime.deps.game.noti.npcs = false;
         runtime.deps.npcRosterUi.render();
     }
-    if (section === 'stall') runtime.deps.playerStallUi.render();
+    if (section === 'listings') runtime.deps.playerStallUi.render();
     if (section === 'auction') runtime.deps.auctionHouseUi.render();
     if (runtime.deps.document.getElementById('black-market-dialog')?.open) runtime.deps.blackMarketUi.render();
 }

@@ -8,7 +8,6 @@ import { EquipmentHallActions } from './ui/equipment-hall-actions.mjs';
 const state = createEquipmentHallState();
 const deps = {
     get hideInfoTooltip() { return hideInfoTooltip; },
-    get marketUi() { return marketUi; },
     get openStartupGate() { return openStartupGate; },
     get _t() { return _t; },
     get backgroundCombatRuntime() { return backgroundCombatRuntime; },
@@ -51,14 +50,19 @@ const rules = new EquipmentHallRules({
 const service = new EquipmentHallService(deps, state, rules);
 const view = new EquipmentHallView(deps, state, service);
 const actions = new EquipmentHallActions(deps, state, service, view);
-// The auction's 다른 플레이어 lots (modules/ui/auction-house-hall.mjs) read the hall rows and buy through the hall's own purchase.
+// The auction's 다른 플레이어 lots (modules/ui/auction-house-hall.mjs) read the hall rows and buy through the hall's own purchase. The 출품 tab
+// (modules/ui/listings-hall.mjs) shows my shows (mine: open or every copy gone) among the listings and lists and withdraws through the hall's own
+// flows (appraisal, confirmation, server RPC); itemIssue is the hall's item rule, busy a trade or its dialog under way, loaded the rows read.
 window.GameModules.equipmentHall = { state, dispose: () => actions.dispose(), isServerReady: () => service.isPlayerExchangeServerReady(),
     listings: () => service.getPlayerHallListings(), buyBlockReason: listing => service.getHallBuyBlockReason(listing),
-    buyReplica: listingId => actions.buyPlayerHallReplica(listingId) };
-// Existing market/navigation consumers keep these four bridges until their composition is native.
+    buyReplica: listingId => actions.buyPlayerHallReplica(listingId),
+    loaded: () => !!service.getPlayerHallData(), load: () => actions.loadPlayerExchange(),
+    mine: () => { const data = service.getPlayerHallData(); return (Array.isArray(data && data.mine) ? data.mine : []).filter(row => row && ['open', 'sold_out'].includes(row.status)); },
+    itemIssue: item => rules.hallItemIssue(item), busy: () => state.loading || state.asking,
+    list: itemId => { state.selectedItemId = Number(itemId); return actions.createPlayerHallListing(); },
+    withdraw: listingId => actions.withdrawPlayerHallListing(listingId) };
+// Existing market/navigation consumers keep these two bridges until their composition is native.
 safeExposeGlobals({
-    hallItemIssue: rules.hallItemIssue.bind(rules),
     loadPlayerExchange: actions.loadPlayerExchange.bind(actions),
-    selectPlayerHallItem: view.selectPlayerHallItem.bind(view),
     renderPlayerExchange: view.renderPlayerExchange.bind(view),
 });

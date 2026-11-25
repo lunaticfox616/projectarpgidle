@@ -271,7 +271,7 @@
   :root body[data-ui-skin] #tab-map .map-power-estimate { position: relative; padding-block: 12px; margin-block: -12px; }
   /* 거래소 탭 셋은 한 줄로: '나의 가판대'가 두 줄로 꺾여 높이가 들쭉날쭉했다 */
   :root body[data-ui-skin] .market-tabs button { padding-inline: 2px; font-size: 12px; white-space: nowrap; }
-  /* 경매장 화면의 탭 줄은 다섯 칸(아이템, 재료, 내 출품, 가판대, 장비 전당)이라 등분하면 내 출품의 칸 수가 잘렸다: 제 폭으로 서고 옆으로 민다 */
+  /* 경매장 화면의 탭 줄(아이템, 재료, 출품, 전당 소장품)은 등분하면 출품의 수가 잘렸다: 제 폭으로 서고 옆으로 민다 */
   :root body[data-ui-skin] #market-exchange-tabs { grid-template-columns: none; grid-auto-columns: max-content; overflow-x: auto; scrollbar-width: none; }
   :root body[data-ui-skin] #market-exchange-tabs > button { padding-inline: 8px; }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }

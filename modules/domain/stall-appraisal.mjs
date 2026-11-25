@@ -1,7 +1,7 @@
-
+import { stallRulesRows } from './stall-access.mjs';
 
 export function stallRulesAppraiseListings(env, stall) {
-    return stall.listings.map(row => ({ row, value: env.deps.itemAppraisal.quote(row.item, row.currency),
+    return stallRulesRows(stall).map(row => ({ row, value: env.deps.itemAppraisal.quote(row.item, row.currency),
         fits: env.deps.PLAYER_STALL_CUSTOMERS.map(customer => env.deps.itemAppraisal.affinity(row.item, customer)) }));
 }
 

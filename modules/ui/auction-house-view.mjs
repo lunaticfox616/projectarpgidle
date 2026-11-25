@@ -5,13 +5,13 @@
  */
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { renderAuction, stopWork, frameStep, tickStep, dropGeneratedLots, paintTabs } from './auction-house-render.mjs';
-import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearCategory,
+import { buyLot, trade, typeCount, preset, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearCategory,
     gearWeapon, pickFilter, pickSort, resetQuery, unpickLot, moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, saveQuery, runSaved, deleteSaved,
     repaintGear } from './auction-house-actions.mjs';
 import { pickSuggest, hideSuggest, activeSuggest, moveSuggest } from './auction-house-suggest.mjs';
 import { peekLot, unpeekLot, hidePeek, scrollPeek } from './auction-house-peek.mjs';
 
-const TABS = Object.freeze(['gear', 'materials', 'mine']);
+const TABS = Object.freeze(['gear', 'materials']);
 // The selects that search at once: the rarity of the search bar and the source of the panel.
 const FILTERS = Object.freeze({ source: ['all', 'merchant', 'user'], rarity: ['all', 'normal', 'magic', 'rare', 'unique'] });
 
@@ -32,9 +32,9 @@ export function createAuctionHouseView(deps) {
     runtime.dropLots = () => dropGeneratedLots(runtime);
     runtime.api = Object.freeze({
         render: (force = false) => renderAuction(runtime, force),
-        /** The trade window opens this section on tab (its tab row holds this section's tabs; the loop card asks for 내 출품). */
+        /** The trade window opens this section on tab (its tab row holds this section's tabs beside 출품 and 전당 소장품). */
         showTab: tab => { if (TABS.includes(tab)) runtime.state.tab = tab; },
-        /** The tab this section shows ('gear', 'materials', 'mine'). A function: the adapter copies this object's values. */
+        /** The tab this section shows ('gear', 'materials'). A function: the adapter copies this object's values. */
         shownTab: () => runtime.state.tab,
         /** Writes the three tabs' names and marks on the trade window's tab row. */
         paintTabLabels: () => paintTabs(runtime, null),
@@ -58,7 +58,6 @@ function initialState() {
         // keeps only the lots the purse can pay.
         gear: { mode: 'open', query: null, panel: false, afford: false, sort: 'newest', dir: -1, selected: '' },
         materials: { group: 'all', key: '', side: 'buy', count: 1 },
-        mine: { draft: null },
         hall: { seen: null, seenAt: 0, triedAt: -Infinity, loading: false, version: 0 }
     };
 }
@@ -93,13 +92,7 @@ const CLICKS = Object.freeze([
     ['data-ah-material', (runtime, value, el) => selectMaterial(runtime, value, el)],
     ['data-ah-side', (runtime, value) => { runtime.state.materials.side = value === 'sell' ? 'sell' : 'buy'; runtime.api.render(true); }],
     ['data-ah-preset', (runtime, value) => preset(runtime, value)],
-    ['data-ah-trade', (runtime, value) => trade(runtime, Number(value))],
-    ['data-ah-pick', runtime => pickItem(runtime)],
-    ['data-ah-list', runtime => list(runtime)],
-    ['data-ah-cancel', runtime => cancelDraft(runtime)],
-    ['data-ah-withdraw', (runtime, value) => withdraw(runtime, Number(value))],
-    ['data-ah-claim', (runtime, value) => claim(runtime, Number(value))],
-    ['data-ah-claim-all', runtime => claimAll(runtime)]
+    ['data-ah-trade', (runtime, value) => trade(runtime, Number(value))]
 ]);
 
 /** A picked suggestion: the conditions change, the search runs and (with a mouse) the box takes the focus back for the next word. */
@@ -168,11 +161,10 @@ function onInput(runtime, event) {
     else if (el.matches('[data-ah-search]')) typeSearch(runtime, el);
     else if (el.matches('[data-ah-q]')) typeCondition(runtime, el);
     else if (el.matches('[data-ah-opt-min]')) typeOption(runtime, el);
-    else if (el.matches('[data-ah-ask]')) typeAsk(runtime, el);
 }
 
-// Enter in an input presses its box's button: the count trades, the ask lists, the search box, the option minimums and the panel's boxes search.
-const ENTER_KEYS = Object.freeze([['[data-ah-count]', '[data-ah-trade]'], ['[data-ah-ask]', '[data-ah-list]'],
+// Enter in an input presses its box's button: the count trades, the search box, the option minimums and the panel's boxes search.
+const ENTER_KEYS = Object.freeze([['[data-ah-count]', '[data-ah-trade]'],
     ['[data-ah-search], [data-ah-q], [data-ah-opt-min]', '[data-ah-find]']]);
 const ARROW_STEPS = Object.freeze({ ArrowDown: 1, ArrowUp: -1 });
 

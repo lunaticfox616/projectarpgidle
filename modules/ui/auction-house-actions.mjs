@@ -1,8 +1,7 @@
 /**
  * 경매장 칸의 사용자 명령. 명령마다 먼저 시계를 지금으로 옮기고(syncClock, 정산된 출품을 알린다), 규칙의 명령을 부르고, 그 결과의
- * settled도 알린다. 거절은 그 까닭을 알림으로 보인다. 된 명령 뒤에는 가판대처럼 저장하고 화면을 새로 그린다.
+ * settled도 알린다. 거절은 그 까닭을 알림으로 보인다. 된 명령 뒤에는 저장하고 화면을 새로 그린다. 출품은 출품 탭(modules/ui/listings-*.mjs)의 것이다.
  */
-import { itemName } from './auction-house-format.mjs';
 import { lotName, openKinds } from './auction-house-kinds.mjs';
 import { syncClock, announce, wantFrame, budgetStop, SEARCH_CLICK_MS } from './auction-house-render.mjs';
 import { startSearch, rowLot, SORTABLE } from './auction-house-search.mjs';
@@ -13,7 +12,6 @@ import { fillGear } from './auction-house-gear.mjs';
 import { showMore } from './auction-house-board.mjs';
 import { buyUserLot } from './auction-house-hall.mjs';
 import { tradeToast, maxCount, receiptHtml, bookHtml } from './auction-house-materials.mjs';
-import { startingAsk, askTermsHtml, draftItem, claimToast } from './auction-house-stands.mjs';
 
 function refuse(runtime, reason) {
     if (reason) runtime.deps.showGameToast(reason, { tone: 'warning' });
@@ -238,77 +236,6 @@ export function typeSearch(runtime, input) {
 export function preset(runtime, value) {
     runtime.state.materials.count = value === 'max' ? maxCount(runtime) : Number(value);
     runtime.api.render(true);
-}
-
-/** Opens the real bag picker; items the auction refuses are dimmed with the rules' reason. */
-export function pickItem(runtime) {
-    const { window } = runtime.deps;
-    window.openCraftItemPickerOverlay('inventory', { title: runtime.deps._t('경매장에 올릴 장비 선택'), desc: runtime.deps._t('장비를 누르면 출품할 장비로 고릅니다.'),
-        picks: { inventory: itemId => choose(runtime, itemId), blocked: item => pickIssue(runtime, item) } });
-}
-
-/** Why a bag item cannot go on a stand: the rules' listIssue, or an appraisal too low for any ask (most early rares). */
-function pickIssue(runtime, item) {
-    const { auctionHouse, game } = runtime.deps, issue = auctionHouse.listIssue(game, item);
-    if (issue) return issue;
-    return auctionHouse.listQuote(game, item).listable ? '' : runtime.deps._t('감정가가 낮아 출품할 수 없습니다.');
-}
-
-function choose(runtime, itemId) {
-    runtime.deps.hideItemTooltip();
-    runtime.deps.window.closeCraftItemPickerOverlay();
-    const game = runtime.deps.game, item = game.inventory.find(entry => entry && entry.id === Number(itemId));
-    const quote = item && runtime.deps.auctionHouse.listQuote(game, item);
-    if (!quote) return;
-    runtime.state.mine.draft = { itemId: item.id, ask: startingAsk(quote) };
-    runtime.state.tab = 'mine';
-    runtime.api.render(true);
-}
-
-/** The ask input typed: the mood, fee and net alone are repainted. */
-export function typeAsk(runtime, input) {
-    const draft = runtime.state.mine.draft, item = draftItem(runtime);
-    if (!draft || !item) return;
-    draft.ask = input.value;
-    const box = input.closest('.ah-stand')?.querySelector('[data-ah-ask-terms]');
-    if (box) box.innerHTML = askTermsHtml(runtime, runtime.deps.auctionHouse.listQuote(runtime.deps.game, item), Number(input.value));
-}
-
-export function list(runtime) {
-    const draft = runtime.state.mine.draft;
-    if (!draft) return;
-    const result = command(runtime, now => runtime.deps.auctionHouse.list(runtime.deps.game, draft.itemId, Number(draft.ask), now));
-    if (!result) return;
-    runtime.state.mine.draft = null;
-    runtime.deps.showGameToast(runtime.deps._t('[{name}] 출품', { name: itemName(runtime, result.lot.item) }), { tone: 'success' });
-    settle(runtime);
-}
-
-export function cancelDraft(runtime) {
-    runtime.state.mine.draft = null;
-    runtime.api.render(true);
-}
-
-export function withdraw(runtime, lotId) {
-    const result = command(runtime, now => runtime.deps.auctionHouse.withdraw(runtime.deps.game, lotId, now));
-    if (!result) return;
-    runtime.deps.showGameToast(claimToast(runtime, result), { tone: 'success' });
-    settle(runtime);
-}
-
-export function claim(runtime, lotId) {
-    const result = command(runtime, () => runtime.deps.auctionHouse.claim(runtime.deps.game, lotId));
-    if (!result) return;
-    runtime.deps.showGameToast(claimToast(runtime, result), { tone: 'success' });
-    settle(runtime);
-}
-
-export function claimAll(runtime) {
-    const result = command(runtime, () => runtime.deps.auctionHouse.claimAll(runtime.deps.game));
-    if (!result) return;
-    runtime.deps.showGameToast(runtime.deps._t('출품 {count}개를 수령했습니다.', { count: result.claimed }), { tone: 'success' });
-    if (result.reason) runtime.deps.showGameToast(result.reason, { tone: 'warning' });
-    settle(runtime);
 }
 
 /** A family chip of the band: the item tab searches that family (the chip's ✕ only clears the filter). A material chip: that material in the
