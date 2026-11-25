@@ -79,7 +79,8 @@ export class SocialChatMarkup {
         }
         this.state.current.lastChatRenderKey = key;
         if (!messages.length) {
-            listEl.innerHTML = `<div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${this.deps._t('아직 조용합니다')}</strong><small>${this.deps._t('첫 메시지를 남겨보세요.')}</small></div>`;
+            // 빈 목록은 전투 기록처럼 한 줄만 보인다(css .social-chat-list:empty, --copy-chat-empty).
+            listEl.innerHTML = '';
             this.state.current.scrollChatToLatestOnNextRender = false;
             return;
         }

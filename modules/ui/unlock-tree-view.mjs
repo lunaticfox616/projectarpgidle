@@ -1,7 +1,7 @@
 import { listenView, releaseViewEvents } from './view-events.mjs';
 import { initializeUnlockSelection, releaseUnlockPanel } from './unlock-tree-lifetime.mjs';
 import { boardTextWidth, boardIsStep, boardFamilyOf } from './unlock-tree-metrics.mjs';
-import { boardBuilt, boardLayout, boardEdgePoints, createBoardPlaceAlong, createBoardClearRun } from './unlock-tree-layout.mjs';
+import { boardBuilt, boardLayout, boardEdgePoints } from './unlock-tree-layout.mjs';
 import { stateOf, readyRows, tipOf, nodeClass, unseenIds, nodeHtml, edgesHtml, nowEntry, nowLeft, railLabelsHtml, canvasHtml, overviewHtml, pointsHtml, headHtml, view_parentsOpen, view_openCount, view_unseenHtml } from './unlock-tree-markup.mjs';
 import { upgradeEffect, gainOf, cardGain, view_cardName } from './unlock-tree-labels.mjs';
 import { goalHtml, planStepsHtml, planHtml, lifecycleSummaryHtml, pinHtml, lifecycleHtml, relatedHtml, loreHtml, moreHtml, nextHtml, actionHtml, requirementsHtml, detailDescriptionHtml, detailHtml } from './unlock-tree-detail.mjs';
@@ -12,19 +12,18 @@ export function createUnlockTreeView(deps) {
     const handlers = { boardTextWidth, boardIsStep, boardBuilt, boardLayout, boardEdgePoints, boardFamilyOf, stateOf, readyRows, upgradeEffect, gainOf, cardGain, tipOf, nodeClass, unseenIds, nodeHtml, edgesHtml, nowEntry, nowLeft, railLabelsHtml, canvasHtml, overviewHtml, pointsHtml, headHtml, goalHtml, planStepsHtml, planHtml, lifecycleSummaryHtml, pinHtml, lifecycleHtml, relatedHtml, loreHtml, moreHtml, nextHtml, actionHtml, requirementsHtml, detailDescriptionHtml, detailHtml, settleSelection, readMarks, readPlans, render, fillBoard, syncOverlays, scrollToNode, select, jumpOffscreen, cycleReady, pin, handleClick, markPath, startPan, startOverview, onPointerDown, onWheel, bindPanel, view_parentsOpen, view_openCount, view_cardName, view_unseenHtml };
     for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = (...args) => runtime.active ? handler(runtime, ...args) : undefined;
     initialize(runtime);
-    runtime.handlers.boardPlaceAlong = createBoardPlaceAlong(runtime);
-    runtime.handlers.boardClearRun = createBoardClearRun();
     runtime.api = UnlockTreeViewApi(runtime);
     installUnlockTreeViewEvents(runtime);
     return runtime.api;
 }
 
 function initialize(runtime) {
-    runtime.state.UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, unknownWidth: 104, minPitch: 24, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
+    // laneClear: 칸 위아래로 줄 사이 선(gutter)이 지나갈 틈. slot: 열 경계의 세로선 자리 간격. stemReaches: 줄기로 곧게 잇는 자식까지의 열 수 후보, laneCost: 줄 하나의 값(긴 세로선, 꺾인 선 몇 개와 바꿀지, unlock-tree-layout.mjs boardBestPlan).
+    runtime.state.UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 14, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, unknownWidth: 104, minPitch: 36, maxPitch: 60, maxCard: 40, laneClear: 7, slot: 3, stemReaches: [1, 2, 3, 4], laneCost: 24, boardPad: 6 });
     runtime.state.UNLOCK_FAMILIES = Object.freeze([
-        { id: 'gear', root: 'craft', side: -1, at: 0.22 },
-        { id: 'rune', root: 'support', side: 1, at: 0.56 },
-        { id: 'growth', root: 'loopTree', side: 1, at: 0.84 }
+        { id: 'gear', root: 'craft' },
+        { id: 'rune', root: 'support' },
+        { id: 'growth', root: 'loopTree' }
     ]);
     runtime.state.boardFamilyRoots = new Map(runtime.state.UNLOCK_FAMILIES.map(family => [family.root, family.id]));
     runtime.state.boardFamilyRoots.set('passiveTree', 'growth');

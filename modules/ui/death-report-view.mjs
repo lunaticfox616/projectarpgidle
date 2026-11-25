@@ -73,7 +73,13 @@ export class DeathReportView {
         this.deps.session.lastTime = Date.now();
     }
 
+    closeDeathAdvice() {
+        const advice = this.deps.document.getElementById('deathlog-advice');
+        if (advice?.matches(':popover-open')) advice.hidePopover();
+    }
+
     hideReport() {
+        this.closeDeathAdvice();
         let overlay = this.deps.document.getElementById('death-overlay');
         if (overlay) { overlay.close(); overlay.classList.remove('active'); }
         this.deathOverlayActive = false;
@@ -214,12 +220,15 @@ export class DeathReportView {
             action: { label: this.deps._t('장비'), run: () => { this.closeDeathOverlay(); this.deps.switchTab('tab-items'); this.deps.switchItemSubtab('item-tab-equip'); } } } : null;
     }
 
+    /** 할 수 있는 일: 확인 줄의 조언 보기(popovertarget)가 띄우는 카드. 할 일이 없으면 단추를 숨기고 열린 카드도 닫는다. */
     renderDeathHints() {
-        const box = this.deps.document.getElementById('deathlog-hints');
+        const box = this.deps.document.getElementById('deathlog-advice');
         if (!box) return;
         const hints = this.hints = this.getDeathHints();
-        box.hidden = hints.length === 0;
-        box.innerHTML = hints.length === 0 ? '' : `<div class="deathlog-subtitle">${this.deps._t('할 수 있는 일')}</div>` + hints.map((hint, index) => `<div class="deathlog-hint">
+        const opener = this.deps.document.querySelector('#death-overlay [data-death-advice]');
+        if (opener) opener.hidden = hints.length === 0;
+        if (hints.length === 0) this.closeDeathAdvice();
+        box.innerHTML = hints.length === 0 ? '' : `<div class="deathlog-subtitle" id="deathlog-advice-title">${this.deps._t('할 수 있는 일')}</div>` + hints.map((hint, index) => `<div class="deathlog-hint">
             <span>${this.escapeDeathLogText(hint.text)}</span>${hint.action ? `<button type="button" class="deathlog-hint-action" data-death-hint="${index}">${this.deps._t(hint.action.label)}</button>` : ''}</div>`).join('');
     }
 

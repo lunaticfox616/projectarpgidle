@@ -71,17 +71,18 @@ export function nowLeft(runtime, scroller) {
 export function railLabelsHtml(runtime, L) {
     const rails = new Map();
     runtime.state.unlockBoard.rows.filter(def => def.rail && !unknownUnlock(runtime, def)).forEach(def => {
-        const at = L.pos.get(def.id), span = rails.get(def.rail) || { left: at.left, right: at.right, first: at.right, y: at.y, def };
+        const at = L.pos.get(def.id), span = rails.get(def.rail) || { left: at.left, right: at.right, first: at.right, top: Math.max(at.rowTop - 6, runtime.state.boardSIZE.ruler + 1), def };
         span.right = Math.max(span.right, at.right);
         rails.set(def.rail, span);
     });
-    return [...rails.values()].map(span => `<div class="unlock-rail fam-${runtime.state.unlockBoard.familyOf(span.def)}" data-card-end="${span.first}" style="left:${span.left}px;width:${span.right - span.left}px;top:${span.y - 24}px"><span>${(0, runtime.deps.escapeHTML)(view_cardName(runtime, span.def))}</span></div>`).join('');
+    return [...rails.values()].map(span => `<div class="unlock-rail fam-${runtime.state.unlockBoard.familyOf(span.def)}" data-card-end="${span.first}" style="left:${span.left}px;width:${span.right - span.left}px;top:${span.top}px"><span>${(0, runtime.deps.escapeHTML)(view_cardName(runtime, span.def))}</span></div>`).join('');
 }
 
 export function canvasHtml(runtime, L, marks, height) {
     const board = L.board, now = nowEntry(runtime, board);
     const ticks = board.loops.map(row => `<span class="unlock-tick${row === now ? ' is-now' : ''}${row.loop < now.loop ? ' is-past' : ''}${row.loop % 5 === 0 ? ' is-major' : ''}" style="left:${row.x}px;width:${row.w}px">${row.loop}</span>`).join('');
-    const bands = board.loops.map(row => `<span class="unlock-col${Math.floor(row.loop / 5) % 2 ? ' is-alt' : ''}" style="left:${row.x}px;width:${row.w}px"></span>`).join('');
+    const bands = board.loops.map(row => `<span class="unlock-col${Math.floor(row.loop / 5) % 2 ? ' is-alt' : ''}" style="left:${row.x}px;width:${row.w}px"></span>`).join('')
+        + Array.from({ length: board.count }, (_, lane) => (lane % 2 ? `<span class="unlock-lane" style="top:${runtime.state.boardSIZE.ruler + lane * L.pitch}px;height:${L.pitch}px"></span>` : '')).join('');
     return `${bands}<div class="unlock-past" style="width:${now.x}px"></div><div class="unlock-now" style="left:${now.x}px;width:${now.w}px"></div><div class="unlock-ruler">${ticks}</div>
             <svg class="unlock-lines" width="${board.width}" height="${height}" aria-hidden="true">${edgesHtml(runtime, L, marks)}</svg>${railLabelsHtml(runtime, L)}${runtime.state.unlockBoard.rows.map(def => nodeHtml(runtime, def, L, marks)).join('')}`;
 }
