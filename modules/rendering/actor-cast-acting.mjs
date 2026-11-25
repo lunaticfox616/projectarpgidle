@@ -1,7 +1,19 @@
+import { paintChorusCasterRing } from './chorus-burst.mjs';
+
 const ROOTLET = { x: 105, y: -70, color: '#f6b46c' };
 const CHORUS = { x: -15, y: -58, color: '#f1bcff', load: 10, release: -15 };
 const ELEMENT = { fire: '#ffc284', cold: '#d8eefe', light: '#fff0aa', chaos: '#edbeff', phys: '#f6d0a3' };
+// The casting chorus bulb wears a bright lilac rim from its wind-up through the release (stage-roster look outline).
+const CHORUS_RIM = /* @__PURE__ */ Object.freeze({ color: '#e9adff', ink: '#2a1236' });
+// After its seed lands the bulb keeps the rim and sign this long, fading, so the hit still points back to its caster.
+const CHORUS_AFTER_MS = 300;
+const chorusLandings = new WeakMap();
+// A chaos sign over the casting bulb, in dots: # ink, V violet, W white-lilac.
+const CHORUS_SIGN = /* @__PURE__ */ Object.freeze(['   #   ', '  #V#  ', ' #VWV# ', '#VW#WV#', ' #VWV# ', '  #V#  ', '   #   ']);
+const CHORUS_SIGN_SMALL = /* @__PURE__ */ Object.freeze(['  #  ', ' #V# ', '#VWV#', ' #V# ', '  #  ']);
+const SIGN_TONES = /* @__PURE__ */ Object.freeze({ '#': '#26102f', V: '#c070ff', W: '#fbe8ff' });
 const ROOTLET_DRIVE_MS = 175;
+const RING_STRENGTH = /* @__PURE__ */ Object.freeze({ wind: share => 0.55 + 0.45 * share, release: () => 1, spent: () => 0.9, after: share => 1 - share });
 const ROOTLET_SETTLE_MS = 225;
 
 function windup(style, share) {
@@ -70,15 +82,34 @@ function chorusActing(deps, enemy) {
         return { ...windup(CHORUS, Math.max(0, Math.min(1, share))), element: enemy.ele, frame:share<.48?1:2 };
     }
     const pending = deps.pendingAttacks().find(attack => attack.source === enemy && attack.groundCell);
-    if (!pending) return null;
+    if (!pending) return chorusAfter(enemy, now);
+    chorusLandings.set(enemy, pending.at);
     const age = now - pending.castStartAt;
     if (age >= 0 && age < 190) return burst(CHORUS, age / 190, 3, pending.groundElement);
     const share = Math.max(0, (pending.at - now) / Math.max(1, pending.at - pending.castStartAt));
     return { style: CHORUS, phase:'spent', dx:0, dy:0, share, element:pending.groundElement, frame:share>.4?3:4 };
 }
 
+function chorusAfter(enemy, now) {
+    const since = now - (chorusLandings.get(enemy) ?? -Infinity);
+    if (since < 0 || since >= CHORUS_AFTER_MS) return null;
+    return { style: CHORUS, phase: 'after', dx: 0, dy: 0, share: since / CHORUS_AFTER_MS, frame: undefined };
+}
+
 export function chorusBloomOrigin(position, dot) {
     return {x:Math.round(position.x + CHORUS.x * dot),y:Math.round(position.y + CHORUS.y * dot)};
+}
+
+/** The screen-dot rim a casting actor wears over its usual one (js/rendering/stage-roster.mjs castHalo), or null. */
+export function castRimOf(acting) {
+    if (acting?.style !== CHORUS) return null;
+    return { ...CHORUS_RIM, alpha: acting.phase === 'after' ? 1 - acting.share : 1 };
+}
+
+/** The floor circle under a casting chorus bulb, drawn just before its body (feet at `feet`). */
+export function drawCastGround(ctx, acting, feet, projection) {
+    if (acting?.style !== CHORUS || !projection) return;
+    paintChorusCasterRing(ctx, { x: feet.x, y: feet.y, tileW: projection.tileW, tileH: projection.tileH }, RING_STRENGTH[acting.phase](acting.share || 0));
 }
 
 /** These two authored attacks get local acting. Other roster actors use their existing pose unchanged. */
@@ -94,7 +125,7 @@ export function drawActorCastAccent(ctx, acting, position, dot, reduced) {
     const scale = Math.max(1, Math.round(dot));
     const {style, share, phase} = acting;
     const x = Math.round(position.x + style.x * dot), y = Math.round(position.y + style.y * dot);
-    if (style === CHORUS) return drawBudAfterglow(ctx,{x,y,scale,share},phase,reduced);
+    if (style === CHORUS) return drawChorusSign(ctx, acting, { x, y, tile: position.projection?.tileH }, reduced);
     const span = reduced ? 3 : phase === 'wind' ? 3 + Math.round(share * 2) : 5 + Math.round(share * 3);
     ctx.save();
     ctx.globalAlpha *= reduced ? .8 : phase === 'wind' ? .75 + share * .2 : .95 - share * .55;
@@ -103,21 +134,25 @@ export function drawActorCastAccent(ctx, acting, position, dot, reduced) {
     ctx.restore();
 }
 
-function drawBudAfterglow(ctx,{x,y,scale:p,share},phase,reduced) {
-    const released = phase === 'release', spent = phase === 'spent';
-    const height = spent ? 8 : 10 + Math.floor(share * 4);
-    const top = y - Math.floor(height * 0.66) * p;
+function signRows(rows, x, top, p, ctx) {
+    for (const [symbol, colour] of Object.entries(SIGN_TONES)) {
+        ctx.fillStyle = colour;
+        rows.forEach((row, dy) => {
+            for (let dx = 0; dx < row.length; dx++) if (row[dx] === symbol) ctx.fillRect(x + dx * p, top + dy * p, p, p);
+        });
+    }
+}
+
+/** A chaos sign over the bulb while it winds up (grows at the halfway mark) and as it lets go; dots sized to the tile, not the art. */
+function drawChorusSign(ctx, acting, { x, y, tile }, reduced) {
+    const p = Math.max(3, Math.round((tile || 26) / 7)), { phase, share } = acting;
+    const rows = reduced || phase !== 'wind' || share >= 0.2 ? CHORUS_SIGN : CHORUS_SIGN_SMALL;
+    const lift = phase === 'release' ? 2 * p : 0;
+    const left = Math.round(x / p) * p - Math.floor(rows[0].length / 2) * p;
+    const top = Math.round(y / p) * p - (rows.length + 5) * p - lift;
     ctx.save();
-    ctx.globalAlpha *= reduced ? .84 : 1;
-    ctx.fillStyle = '#372137';
-    ctx.fillRect(x - 5*p,top + 3*p,10*p,(height-3)*p);
-    ctx.fillRect(x - 2*p,top,5*p,4*p);
-    ctx.fillStyle = '#b773ae';
-    ctx.fillRect(x - 3*p,top + 4*p,6*p,(height-5)*p);
-    ctx.fillStyle = '#edbadc';
-    ctx.fillRect(x - 2*p,top + (spent ? 5 : 2)*p,4*p,(spent ? 2 : height-4)*p);
-    ctx.fillStyle = '#ffe9cd';
-    ctx.fillRect(x - p,top + (spent ? 5 : 3)*p,(released ? 3 : 2)*p,(spent ? 1 : 4)*p);
+    ctx.globalAlpha *= phase === 'after' ? 1 - share : 1;
+    signRows(rows, left, top, p, ctx);
     ctx.restore();
 }
 

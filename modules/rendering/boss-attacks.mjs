@@ -1,7 +1,7 @@
 import { createBossAttackTiming } from './boss-attack-timing.mjs';
 import { drawEnemyWarningMark } from './enemy-warning-mark.mjs';
 import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
-import { paintRootletContact } from './rootlet-fault.mjs';
+import { paintRootletContact, paintRootletDebris, paintRootletScar, ROOTLET_CONTACT_MS, ROOTLET_SCAR_MS } from './rootlet-fault.mjs';
 
 const SLAM_STEPS = [[-8,-1,6,1],[-3,-1,1,3],[-3,1,7,1],[3,-2,1,4],[3,-2,6,1]];
 const RAY_STEPS = [[-8,-3,5,1],[-4,-2,5,1],[0,-1,6,1],[4,0,5,1]];
@@ -45,6 +45,7 @@ class BossAttacks {
         this.IMPACT_FLASH_MS = 240;
         this.RAY_KINDS = new Set(['line', 'fan']);
         this.cracks = [];
+        this.rootletScars = [];
         this.landed = new WeakSet();
         this.easeOut = t => 1 - (1 - t) * (1 - t);
         this.onStage = () => typeof this.deps.stageView === 'object' && true;
@@ -260,50 +261,56 @@ class BossAttacks {
     /** Struck-cell damage art replaces the warning on the battlefield clock (held back by hit stops). */
     drawImpactFlashes(ctx, projection) {
         const now = Number.isFinite(this.deps.battleVisualState.visualNow) ? this.deps.battleVisualState.visualNow : this.deps.performance.now();
+        const reduced = this.deps.reduced();
+        this.drawRootletScars(ctx, projection, now);
         for (const fx of this.deps.battleFx) {
             if (!fx || fx.type !== 'bossAreaImpact' || now < fx.start) continue;
-            const ms = now - fx.start;
-            if (ms >= this.IMPACT_FLASH_MS) continue;
-            const t = ms / this.IMPACT_FLASH_MS, reduced = this.deps.reduced();
-            this.drawScars(ctx, fx, projection, t, reduced);
+            const ms = now - fx.start, rootlet = this.rootletRing(fx.element, fx.footprint);
+            if (ms >= (rootlet ? ROOTLET_CONTACT_MS : this.IMPACT_FLASH_MS)) continue;
+            if (rootlet) this.drawRootletContact(ctx, fx, projection, { age: ms, reduced, outer: fx.wave > 1 });
+            else this.drawScars(ctx, fx, projection, ms / this.IMPACT_FLASH_MS, reduced);
         }
     }
 
     drawScars(ctx, fx, projection, progress, reduced) {
         const footprint = this.deps.projectSkillFootprint(fx.footprint, projection);
         if (!footprint) return;
-        if (this.rootletRing(fx.element, fx.footprint) && this.drawRootletScars(ctx, footprint, {progress,reduced,outer:fx.wave > 1})) return;
         const look = this.groundContactLook(fx, footprint, reduced);
         this.paintContactGround(ctx, footprint, { ...look, reduced, progress, element: fx.element });
     }
 
     rootletRing(element, area) { return (!element || element === 'phys') && this.isRing(area) && this.deps.rootletZone(); }
 
-    rootletGroundImages() {
-        const look = this.deps.getSkillGemVfxImage;
-        return {crack:look('skillFxEarthCrack'), slam:look('skillFxSlamPrimary')};
-    }
-
     warmPhysicalGround(count, element, area) {
-        if (count < 2 || (element && element !== 'phys')) return;
-        if (this.rootletRing(element, area)) {
-            this.rootletGroundImages();
-            return;
-        }
-        if (this.deps.reduced()) return;
+        if (count < 2 || (element && element !== 'phys') || this.deps.reduced()) return;
         this.deps.getSkillGemVfxImage('skillFxEnemyEarthContact');
+        if (this.rootletRing(element, area)) return;
         if (this.isRing(area)) this.deps.getSkillGemVfxImage('skillFxEnemyRingFault');
     }
 
-    drawRootletScars(ctx, footprint, look) {
-        const images = this.rootletGroundImages();
-        if (!images.crack || !images.slam) return false;
+    /** The Rootlet's struck cells: flash and cracks inside them, then what the ground throws out around them. Its scar stays. */
+    drawRootletContact(ctx, fx, projection, look) {
+        const footprint = this.deps.projectSkillFootprint(fx.footprint, projection);
+        if (!footprint) return;
+        if (!this.rootletScars.some(scar => scar.fx === fx)) this.rootletScars.push({ fx, area: fx.footprint, start: fx.start });
         ctx.save();
         this.deps.clipSkillFootprintTerrain(ctx, footprint);
         this.deps.clipSkillFootprint(ctx, footprint);
-        paintRootletContact(ctx, footprint, look, images);
+        paintRootletContact(ctx, footprint, look);
         ctx.restore();
-        return true;
+        paintRootletDebris(ctx, footprint, look, this.deps.getSkillGemVfxImage('skillFxEnemyEarthContact'));
+    }
+
+    drawRootletScars(ctx, projection, now) {
+        this.rootletScars = this.rootletScars.filter(scar => now - scar.start < ROOTLET_SCAR_MS && now >= scar.start - 1000);
+        for (const scar of this.rootletScars) {
+            const footprint = this.deps.projectSkillFootprint(scar.area, projection);
+            if (!footprint) continue;
+            ctx.save();
+            this.deps.clipSkillFootprintTerrain(ctx, footprint);
+            paintRootletScar(ctx, footprint, now - scar.start);
+            ctx.restore();
+        }
     }
 
     groundContactLook(fx, footprint, reduced) {

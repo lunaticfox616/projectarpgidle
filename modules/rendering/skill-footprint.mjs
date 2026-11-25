@@ -1,5 +1,5 @@
 import { drawGroundDangerSign, drawGroundDangerDye } from './enemy-ground-danger.mjs';
-import { paintRootletWarning, rootletWarningLook } from './rootlet-fault.mjs';
+import { paintDangerTiles } from './danger-tiles.mjs';
 
 function strokeGroundBoundary(ctx, color, alpha, outlineOnly) {
     const warning = typeof alpha === 'object' ? alpha : null;
@@ -186,15 +186,15 @@ class SkillFootprintRenderer {
             ctx.restore();
             return;
         }
-        const rootlet = typeof alpha === 'object' && alpha.rootlet;
-        if (rootlet || alpha?.dash) this.clipSkillFootprint(ctx, footprint);
-        const look = rootlet ? rootletWarningLook(alpha) : alpha;
-        this.drawGroundCells(ctx, footprint, {color, look, outlineOnly});
-        if (rootlet) this.drawRootletCrack(ctx, footprint, look);
-        else {
-            paintWarningDye(ctx, footprint, alpha);
-            paintGroundWarningMarks(ctx, footprint, alpha);
+        if (typeof alpha === 'object' && (alpha.rootlet || alpha.later)) {
+            paintDangerTiles(ctx, footprint, { charge: alpha.cracks ?? 0, later: !!alpha.later });
+            ctx.restore();
+            return;
         }
+        if (alpha?.dash) this.clipSkillFootprint(ctx, footprint);
+        this.drawGroundCells(ctx, footprint, {color, look: alpha, outlineOnly});
+        paintWarningDye(ctx, footprint, alpha);
+        paintGroundWarningMarks(ctx, footprint, alpha);
         ctx.restore();
     }
 
@@ -221,12 +221,6 @@ class SkillFootprintRenderer {
             });
         });
         strokeGroundBoundary(ctx, look?.edgeColor ?? color, look, outlineOnly);
-    }
-
-    drawRootletCrack(ctx, footprint, warning) {
-        const crack = this.deps.earthCrack();
-        if (crack?.complete && crack.naturalWidth) paintRootletWarning(ctx, footprint, crack, warning);
-        else drawDangerSigns(ctx, footprint, warning);
     }
 
     /** The smooth boundary uses the same cell-center geometry as combat, including at board edges. */

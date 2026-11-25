@@ -3,10 +3,15 @@ import { drawEnemyWarningMark } from './enemy-warning-mark.mjs';
 import { drawGroundDangerSign, drawGroundDangerDye } from './enemy-ground-danger.mjs';
 import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
 import { realmLiquid, REALM_LIQUID_ASSET, paintRealmFlight, paintRealmContact } from './enemy-realm-liquids.mjs';
+import { paintDangerTiles } from './danger-tiles.mjs';
+import { chorusDot, paintChorusBurst, paintChorusCorners, paintChorusHit, paintChorusSplash, paintChorusPath } from './chorus-burst.mjs';
 
 const CHAOS_FALLBACK = { asset: 'skillFxSignatureVoidSlash', color: '#e2a7ff', height: 2.15,
     ground: 0.54, angle: -0.31, frames: [5, 6, 8, 10, 12, 14] };
 const CHORUS_FRONT = 0.18;
+// The aimed cell's warning runs through the caster's wind-up (first part) and the seed's flight (the rest).
+const CHORUS_WINDUP_SHARE = 0.35;
+const outlinedSeeds = new Map();
 const ARC = 5.4;
 const isChorusShot = attack => (attack.source?.spriteVariantId || attack.source?.monsterVisualId) === 'act9-chorus-bulbs';
 const CONTACT = Object.freeze({
@@ -82,14 +87,6 @@ function paintChorusSeam(ctx, footprint, age, empty = false) {
     }
 }
 
-function paintChorusShadow(ctx, {x,width,height}, y, alpha) {
-    const step = Math.max(1, Math.round(height / 11));
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#2a1727';
-    ctx.fillRect(Math.round(x - width * .34), y - 2 * step, Math.round(width * .68), 4 * step);
-    ctx.fillRect(Math.round(x - width * .42), y - step, Math.round(width * .84), 2 * step);
-}
-
 function paintChorusHusk(ctx) {
     ctx.fillStyle = '#251425';
     ctx.beginPath();
@@ -117,37 +114,6 @@ function paintChorusHusk(ctx) {
     ctx.fillRect(-2, -3, 4, 2);
     ctx.fillRect(0, -5, 3, 2);
     ctx.fillRect(2, -6, 2, 1);
-}
-
-function paintChorusWarning(ctx, footprint, share) {
-    const { x,y,width,height } = footprint;
-    ctx.save();
-    ctx.translate(Math.round(x), Math.round(y + height * 0.14));
-    ctx.scale(width / 48, height / 25);
-    ctx.globalAlpha = 0.86 + share * 0.14;
-    ctx.fillStyle = '#291727';
-    ctx.beginPath();
-    ctx.moveTo(-23,-4);
-    ctx.lineTo(-16,-4); ctx.lineTo(-13,-8); ctx.lineTo(-5,-8);
-    ctx.lineTo(-2,-5); ctx.lineTo(5,-5); ctx.lineTo(9,-8);
-    ctx.lineTo(15,-8); ctx.lineTo(18,-4); ctx.lineTo(23,-4);
-    ctx.lineTo(21,1); ctx.lineTo(17,4); ctx.lineTo(13,4); ctx.lineTo(10,7);
-    ctx.lineTo(-10,7); ctx.lineTo(-14,5); ctx.lineTo(-19,4); ctx.lineTo(-22,1);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#a76394';
-    ctx.beginPath();
-    ctx.moveTo(-20,-2); ctx.lineTo(-13,0); ctx.lineTo(-11,2); ctx.lineTo(-6,2);
-    ctx.lineTo(-4,4); ctx.lineTo(5,4); ctx.lineTo(8,2); ctx.lineTo(13,2);
-    ctx.lineTo(16,0); ctx.lineTo(20,-2); ctx.lineTo(18,2); ctx.lineTo(15,4);
-    ctx.lineTo(11,4); ctx.lineTo(8,6); ctx.lineTo(-8,6); ctx.lineTo(-12,4);
-    ctx.lineTo(-17,3); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#dea6be';
-    ctx.fillRect(-16,1,5,1);
-    ctx.fillRect(-10,3,4,1);
-    ctx.fillRect(-5,5,10,1);
-    ctx.fillRect(7,3,5,1);
-    ctx.fillRect(13,1,4,1);
-    ctx.restore();
 }
 
 /** Eight small static sprites; no additional particles, filters or animation timers. A boss shot (fx.screenShotScale, set by
@@ -211,8 +177,15 @@ class EnemyProjectiles {
         this.deps.clipSkillFootprintTerrain(ctx, footprint, fullContact ? footprint.height * 2 : 0);
         ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none'; ctx.shadowBlur = 0;
         const drawn = this.paintGroundFootprint(ctx, fx, footprint, look, {elapsed, reduced, liquid});
-        if (fullContact && !drawn) this.contact(ctx, footprint, look, elapsed / 220);
+        if (fullContact && !drawn && !isChorusShot(fx.enemyFlight)) this.contact(ctx, footprint, look, elapsed / 220);
         ctx.restore();
+        if (isChorusShot(fx.enemyFlight)) this.paintChorusGround(ctx, fx, footprint, {elapsed, reduced});
+    }
+
+    /** Around the aimed cell (outside its clip): the lilac corners closing in, then the splash and ring where the seed lands. */
+    paintChorusGround(ctx, fx, footprint, {elapsed, reduced}) {
+        if (fx.groundImpact) paintChorusSplash(ctx, footprint, elapsed, reduced);
+        else paintChorusCorners(ctx, footprint, this.targetProgress(fx), reduced);
     }
 
     paintGroundFootprint(ctx, fx, footprint, look, {elapsed, reduced, liquid}) {
@@ -223,9 +196,10 @@ class EnemyProjectiles {
             if (!reduced && !liquidImage) this.deps.getSkillGemVfxImage(look.asset);
             this.warning(ctx, fx, footprint);
         }
-        else if (!reduced && isChorusShot(fx.enemyFlight)) {
-            paintChorusShadow(ctx, footprint, Math.round(footprint.y + footprint.height * CHORUS_FRONT),
-                0.8 * Math.max(0, 1 - elapsed / 170));
+        else if (isChorusShot(fx.enemyFlight)) {
+            // The aimed tile stays a beat under the landing, so a dodge reads as the seed bursting on the cell the hero left.
+            ctx.globalAlpha = Math.max(0, 1 - elapsed / 170);
+            paintDangerTiles(ctx, footprint, { charge: 1, chaos: true });
             ctx.restore();
             return true;
         } else {
@@ -244,19 +218,33 @@ class EnemyProjectiles {
         if (image) paintContact(ctx, image, footprint, look.fallback, progress);
     }
 
-    chorusContact(ctx, fx, footprint, now) {
-        const age = now - fx.start;
-        if (age < 0 || age >= 180) return;
+    chorusContact(ctx, fx, footprint, view) {
+        const age = view.now - fx.start;
+        if (age < 0 || age >= 220) return;
         ctx.save();
-        this.deps.clipSkillFootprintTerrain(ctx, footprint, 0);
-        this.deps.clipSkillFootprint(ctx, footprint);
-        paintChorusSeam(ctx, footprint, age, fx.groundOccupied === false);
+        this.deps.clipSkillFootprintTerrain(ctx, footprint, footprint.height * 2);
+        if (age < 180) {
+            ctx.save();
+            this.deps.clipSkillFootprint(ctx, footprint);
+            paintChorusSeam(ctx, footprint, age, fx.groundOccupied === false);
+            ctx.restore();
+        }
         ctx.restore();
+        this.chorusPathEcho(ctx, fx, footprint, age);
+        paintChorusBurst(ctx, footprint, age, { reduced: view.reduced, image: this.deps.getSkillGemVfxImage(CONTACT.chaos.asset) });
+        if (fx.groundOccupied) paintChorusHit(ctx, footprint, age);
+    }
+
+    /** 0 when the caster starts its wind-up, 1 when the seed lands (a wind-up's stand-in carries windupStartAt). */
+    targetProgress(fx) {
+        const { windupStartAt, at, castStartAt } = fx.enemyFlight, now = this.deps.getCombatTime();
+        if (Number.isFinite(windupStartAt)) return CHORUS_WINDUP_SHARE * this.deps.clampNumber((now - windupStartAt) / Math.max(1, at - windupStartAt), 0, 1);
+        return CHORUS_WINDUP_SHARE + (1 - CHORUS_WINDUP_SHARE) * this.deps.clampNumber((now - castStartAt) / Math.max(1, at - castStartAt), 0, 1);
     }
 
     warning(ctx, fx, footprint) {
+        if (isChorusShot(fx.enemyFlight)) return paintDangerTiles(ctx, footprint, { charge: this.targetProgress(fx), chaos: true });
         const share = this.warningShare(fx);
-        if (isChorusShot(fx.enemyFlight)) return paintChorusWarning(ctx, footprint, share);
         const { x, y, width, height } = footprint;
         const edge = Math.min(2, width / 8, height / 6), inset = edge;
         const left = x - width / 2 + inset, top = y - height / 2 + inset;
@@ -290,8 +278,27 @@ class EnemyProjectiles {
         if (imageForLiquid) return paintRealmFlight(ctx, imageForLiquid, liquid, {from, to, tileW:projection.tileW, progress:t});
         const look = CONTACT[vfxElement(attack.groundElement)] || CONTACT.phys;
         const pixel = Math.max(2.5, Math.round(projection.tileW / 15));
-        const point = queuedArc(ctx, { from,to,t,tileW:projection.tileW, tileH:projection.tileH,chorus });
+        const arc = { from,to,t,tileW:projection.tileW, tileH:projection.tileH,chorus };
+        const point = queuedArc(ctx, arc);
+        if (chorus) this.paintChorusTrail(ctx, arc, { start: Math.max(0.02, t - 0.55), end: t - 0.07, fade: 1 });
         return this.paintQueuedComet(ctx, point, { look,pixel,t,chorus });
+    }
+
+    /** Dots along the seed's own arc behind it, so its path reads where it crosses actors of its colour. */
+    paintChorusTrail(ctx, arc, span) {
+        const p = chorusDot(arc), length = Math.hypot(arc.to.x - arc.from.x, arc.to.y - arc.from.y) * 1.35, step = 3.2 * p / Math.max(1, length);
+        const points = [];
+        for (let t = span.end; t > span.start && points.length < 40; t -= step) points.push(queuedArc(ctx, { ...arc, t }));
+        paintChorusPath(ctx, points, { p, fade: span.fade });
+    }
+
+    /** After the landing: the seed's whole path stays a moment and fades, pointing from the hit back to its caster. */
+    chorusPathEcho(ctx, fx, footprint, age) {
+        const { sourceCell, targetCell } = fx.enemyFlight, offset = this.chorusMuzzles.get(fx.enemyFlight);
+        if (!sourceCell || !offset || age >= 300) return;
+        const { board, tileW, tileH } = footprint, cell = c => ({ x: board.x + (c.gx + 0.5) * tileW, y: board.y + (c.gy + 0.5) * tileH });
+        const source = cell(sourceCell), from = { x: source.x + offset.x * tileW, y: source.y + offset.y * tileH };
+        this.paintChorusTrail(ctx, { from, to: cell(targetCell), t: 1, tileW, tileH, chorus: true }, { start: 0.04, end: 0.99, fade: 1 - age / 300 });
     }
 
     chorusSource(attack, source, projection) {
@@ -332,7 +339,10 @@ class EnemyProjectiles {
         ctx.globalAlpha = 0.98;
         ctx.imageSmoothingEnabled = false;
         const tip = Math.round(width * (chorus ? 0.06 : 0.34));
-        ctx.drawImage(image, -tip, -Math.round(height * 0.52), width, height);
+        if (chorus) {
+            const art = outlinedSeed(ctx, image, width, height);
+            ctx.drawImage(art.canvas, -tip - art.pad, -Math.round(height * 0.52) - art.pad);
+        } else ctx.drawImage(image, -tip, -Math.round(height * 0.52), width, height);
         ctx.restore();
         if (chorus) paintChorusSeedTip(ctx, pixel);
         return { width, height, offset: tip - width / 2 };
@@ -393,6 +403,26 @@ function chorusArcLimit(ctx, {from,dx,trend,curve,tileW}) {
     return Math.max(-curve / 4, available / mid);
 }
 
+/** The seed art at its drawn size with a one-dot lilac rim, made once per size. */
+function outlinedSeed(ctx, image, width, height) {
+    const key = width + 'x' + height;
+    if (outlinedSeeds.has(key)) return outlinedSeeds.get(key);
+    const pad = Math.max(1, Math.round(width / Math.max(1, image.naturalWidth)));
+    const canvas = ctx.canvas.ownerDocument.createElement('canvas');
+    canvas.width = width + 2 * pad; canvas.height = height + 2 * pad;
+    const paint = canvas.getContext('2d');
+    paint.imageSmoothingEnabled = false;
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) paint.drawImage(image, pad + dx * pad, pad + dy * pad, width, height);
+    paint.globalCompositeOperation = 'source-in';
+    paint.fillStyle = '#f3d6ff';
+    paint.fillRect(0, 0, canvas.width, canvas.height);
+    paint.globalCompositeOperation = 'source-over';
+    paint.drawImage(image, pad, pad, width, height);
+    const art = { canvas, pad };
+    outlinedSeeds.set(key, art);
+    return art;
+}
+
 function paintChorusHusks(ctx, p, t) {
     if (t < 0.06 || t > 0.96) return;
     const fade = Math.min(1, (1 - t) * 3.5), drift = 1 + (t * 17) % 1;
@@ -425,15 +455,20 @@ function paintChorusFallbackSeed(ctx, p, color) {
     return {width:17*p,height:6*p,offset:-6.5*p};
 }
 
+// The seed pod at the head of the chorus seed, in dots ending at its tip (x = 0): # ink, D deep, V violet, L lilac, W white.
+const SEED_POD = Object.freeze(['   ####   ', ' ##DVVL## ', '#DDVLLWWL#', '#DVLWWWWW#', '#DDVLLWWL#', ' ##DVVL## ', '   ####   ']);
+const SEED_TONES = Object.freeze({ '#': '#1c1225', D: '#5a2479', V: '#9a4ad6', L: '#e2b3ff', W: '#fff4ff' });
+
 function paintChorusSeedTip(ctx, dot) {
-    ctx.fillStyle = '#1c1225';
-    ctx.fillRect(-dot * 5, -dot * 1.45, dot * 6.5, dot * 2.9);
-    ctx.fillRect(-dot * 3.5, -dot * 2.35, dot * 3.5, dot * 4.7);
-    ctx.fillStyle = '#d894dd';
-    ctx.fillRect(-dot * 4.2, -dot * .75, dot * 4.5, dot * 1.5);
-    ctx.fillStyle = '#fff0d6';
-    ctx.fillRect(-dot * 3, -dot * .85, dot * 3.4, dot * 1.7);
-    ctx.fillRect(-dot * 2, -dot * 1.5, dot * 1.45, dot * 3);
+    const q = Math.max(2, Math.round(dot * 0.55)), right = SEED_POD[0].length - 1;
+    for (const [symbol, colour] of Object.entries(SEED_TONES)) {
+        ctx.fillStyle = colour;
+        ctx.beginPath();
+        SEED_POD.forEach((row, y) => {
+            for (let x = 0; x < row.length; x++) if (row[x] === symbol) ctx.rect((x - right) * q + q, (y - 3) * q - q / 2, q, q);
+        });
+        ctx.fill();
+    }
 }
 
 export function createEnemyProjectiles(deps) {

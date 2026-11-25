@@ -25,6 +25,7 @@ const native = createBossMoveView({
     get actExplorationState() { return actExplorationState; },
     get actExplorationMotion() { return actExplorationMotion; },
     get clipSkillFootprint() { return clipSkillFootprint; },
+    get clipSkillFootprintTerrain() { return clipSkillFootprintTerrain; },
     get getCombatTime() { return getCombatTime; },
     get getGridFootprintCells() { return getGridFootprintCells; },
     get getGridUnitFootprint() { return getGridUnitFootprint; },

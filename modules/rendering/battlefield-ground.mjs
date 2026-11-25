@@ -183,7 +183,7 @@ export class BattlefieldGround {
             if (!cast?.targetCell || cast.finishAt <= now || source.hp <= 0 || source.attackDelivery !== 'magicCell') continue;
             if (!this.travel.chorusWindup(source,pending) || !this.deps.explorationView.inSight(cast.targetCell)) continue;
             this.travel.groundWarning(ctx,{source,targetCell:cast.targetCell,groundCell:true,groundElement:source.ele,
-                castStartAt:cast.finishAt,at:cast.finishAt},scene ??= groundAttackScene(view));
+                castStartAt:cast.finishAt,at:cast.finishAt,windupStartAt:cast.startAt},scene ??= groundAttackScene(view));
         }
         return scene;
     }

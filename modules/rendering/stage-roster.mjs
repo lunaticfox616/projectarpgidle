@@ -1,7 +1,7 @@
 import { stageCache } from './stage-cache.mjs';
 import { getEnemyOutlineStyle } from './enemy-outline.mjs';
-import { stageActorCastActing, drawActorCastAccent, chorusBloomOrigin } from './actor-cast-acting.mjs';
-import { ringPeekCell, paintWithRingPeek } from './stage-roster-peek.mjs';
+import { stageActorCastActing, drawActorCastAccent, chorusBloomOrigin, castRimOf, drawCastGround } from './actor-cast-acting.mjs';
+import { ringPeekCells, paintWithRingPeek } from './stage-roster-peek.mjs';
 
 /** 옆에서 보는 무대의 몬스터 새 그림 (data/monster-stage-roster.js, docs/stage-view-20261011.md).
  * 몬스터마다 걷기와 공격 두 장을 쓴다. 공격은 앞서와 같은 규칙으로 타격 프레임을 때린 순간에 맞춘다(js/canvas-monster-actors.js).
@@ -41,6 +41,7 @@ class StageRoster {
         this.RIM = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]);
         this.RIM_NONE = Object.freeze([0, 0]);
         this.RIM_OUTER = Object.freeze([[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [1, -1], [-1, 1], [-1, -1]]);
+        this.HALO_INK = Object.freeze([[3, 0], [-3, 0], [0, 3], [0, -3], [2, 2], [2, -2], [-2, 2], [-2, -2]]);
         this.AIRBORNE = Object.freeze(['fly', 'float', 'swim']);
         this.OBSERVER_FORMS = 'pinnacle_observer-forms-v3.png';
         this.OBSERVER_FORM_COLS = 3;
@@ -359,7 +360,7 @@ class StageRoster {
         const visible = this.visiblePose(owner, enemy, actor, p, pair);
         const acting = stageActorCastActing(this.deps,enemy,actor);
         const pose = acting?.frame === undefined ? visible : { ...visible, clip: 'attack', index: acting.frame };
-        const peek = actor.id === 'bossAct1' ? ringPeekCell(this.deps,owner,enemy,p.projection) : null;
+        const peek = actor.id === 'bossAct1' ? ringPeekCells(this.deps,owner,enemy,p.projection) : null;
         this.drawRosterPose(ctx,enemy,actor,{p,pair,pose,dot,acting,peek});
         return true;
     }
@@ -369,6 +370,7 @@ class StageRoster {
         const art = pose.clip === 'forms' ? pair.formActor : actor;
         const size = this.picture(pair, art, pose, this.lookOf(enemy, p));
         this.shadow(ctx, actor, p, dot, hop);
+        drawCastGround(ctx, acting, p, p.projection);
         this.deps.noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         const west = this.deps.stageView.facing(enemy, p.facing) === 'west';
         this.notePlacement(enemy, actor, p, { dot, west, hop, frame: pose.index, clip: pose.clip, strikeFrame: pose.strikeFrame });
@@ -377,11 +379,24 @@ class StageRoster {
         const position = this.castPosition(p,dot,acting);
         const left = this.deps.monsterMotion.snap(position.x - (size.pad + art.feet[0]) * dot);
         const top = this.deps.monsterMotion.snap(position.y - (size.pad + art.feet[1] + hop) * dot);
+        const rim = castRimOf(acting);
+        if (rim) this.castHalo(ctx, { pair, art, pose, rim }, { x: left + size.pad * dot, y: top + size.pad * dot, dot, p: p.projection });
         if (peek) {
-            const readMask = () => this.readRingMask(pair,art,pose);
-            paintWithRingPeek(ctx,size,{left,top,dot,west,footX:p.x,peek,readMask},this.deps.stageDots);
+            paintWithRingPeek(ctx,size,{left,top,dot,west,footX:p.x,peek},this.deps.stageDots);
         } else this.deps.stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
         if (acting) this.castAccent(ctx, {acting,actor,enemy,west}, {x:position.x,y:position.y-hop*dot,axis:p.x,dot,projection:p.projection});
+        ctx.restore();
+    }
+
+    /** A casting actor's rim in screen dots (its art may be drawn below one pixel a dot): a lilac band inside a dark one. */
+    castHalo(ctx, { pair, art, pose, rim }, at) {
+        const px = Math.max(1, Math.round((at.p?.tileH || 26) / 26)), from = { x: 0, y: 0, w: art.w, h: art.h };
+        ctx.save();
+        ctx.globalAlpha *= rim.alpha;
+        for (const [colour, rings] of [[rim.ink, this.HALO_INK], [rim.color, this.RIM_OUTER]]) {
+            const tint = this.tintedFrame(pair, art, pose, colour);
+            for (const [dx, dy] of rings) this.deps.stageDots.blit(ctx, tint, from, { x: at.x + dx * px, y: at.y + dy * px, scale: at.dot }, false);
+        }
         ctx.restore();
     }
 
@@ -396,11 +411,6 @@ class StageRoster {
     chorusMouth(enemy, projection) {
         const mouth = this.chorusSockets.get(enemy);
         return mouth?.projection === projection ? mouth : null;
-    }
-
-    readRingMask(pair, art, pose) {
-        const mask = this.tintedFrame(pair,art,pose,this.INK);
-        return mask === this.tintWork ? null : mask;
     }
 
     castPosition(p,dot,acting) {

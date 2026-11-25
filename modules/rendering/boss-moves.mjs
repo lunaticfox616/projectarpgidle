@@ -4,6 +4,12 @@ import { createObserverArena } from './observer-arena.mjs';
 import { createBossMoveTiming } from './boss-move-timing.mjs';
 import { WOODSMAN_BLADE, WOODSMAN_SHAPES } from './boss-move-clips.mjs';
 import { ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE } from './rootlet-next-wave.mjs';
+import { paintDangerTileEdges, paintSafeTicks } from './danger-tiles.mjs';
+import { bossWarningFirstWaveCells } from '../combat/boss-move-stages.mjs';
+
+// A Rootlet wave stays in its cool preview this long after the wave before it lands, so the hit reads before the next warning.
+const ROOTLET_HANDOFF_MS = 150;
+const castElement = enemy => enemy.nextPatternState?.attackElement || enemy.ele || 'phys';
 
 /** The boss moves on screen (js/boss-moves.js; 2026-10-16 사용자: GPT가 만든 적 공격 효과로 보스 패턴을 다양하게, "vfx용량과 색 검수,
  * 늘어나거나 줄어들어서 이상하게 보이지 않는지 검수, 몬스터가 자연스럽게 사용하는지도 중요해"). Effects come from the boss's own sheet
@@ -101,7 +107,7 @@ class BossMoveView {
         const charge = this.deps.clampNumber(1 - left / stage.window, 0, 1);
         const footprint = this.deps.projectSkillFootprint({ cells: stage.cells, kind: 'blast', center: stage.center }, projection);
         if (!footprint) return;
-        const active = stage.next && (stage.ring || stage.first || left <= 220);
+        const active = stage.next && (stage.ring || stage.first || left <= 220) && !stage.settling;
         if (!active) return this.drawLaterStage(ctx, footprint, stage.rootlet);
         this.deps.drawSkillFootprintGround(ctx, footprint, stage.rootlet ? '#ffc29a' : '#ffae72',
             { fill: 0.34 + charge * 0.15, edge: 0.78 + charge * 0.21, rootlet: stage.rootlet, outer: !stage.first,
@@ -211,6 +217,7 @@ class BossMoveView {
         }
         if (move.kind === 'observer') { this.arena.drawObserverMove(owner, ctx, entry, projection, now); return; }
         if (move.kind !== 'signature') this.drawStageWarnings(ctx,entry,projection,now);
+        if (move.kind === 'rings') this.drawRootletSafeCells(owner, ctx, entry, projection, now);
         this.drawPhysicalLead(ctx, entry, projection, now);
         if (move.kind === 'grind') this.drawGrindGround(ctx, move, now, projection);
         if (found && this.fx()) this.drawBursts(ctx, entry, found.row, now, projection);
@@ -224,7 +231,8 @@ class BossMoveView {
             const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
             const window = this.stageWarningWindow(move, index);
             const center = (rootlet && warningCenter) || cells[0];
-            if (cells.length) this.drawStageWarning(ctx, { cells, center, first: index === 0, next: index === move.next, ring, rootlet, window },
+            const settling = rootlet && index > 0 && now - (move.releasedAt + move.stages[index - 1].ms) < ROOTLET_HANDOFF_MS;
+            if (cells.length) this.drawStageWarning(ctx, { cells, center, first: index === 0, next: index === move.next, ring, rootlet, window, settling },
                 move.releasedAt + stage.ms, now, projection);
         }
     }
@@ -456,9 +464,87 @@ class BossMoveView {
         }
     }
 
+    /** Over the actors: the struck Rootlet wave's outer edge once more as dots, so a cell under the boss's body still reads. */
+    drawRootletEdges(owner, ctx, projection, now) {
+        if (!this.deps.rootletZone()) return;
+        const waves = this.deps.bossMoves.live(now).map(entry => this.rootletNextWave(entry, now)).filter(Boolean);
+        for (const enemy of owner.enemies || []) {
+            const wave = !waves.some(row => row.source === enemy) && this.rootletCastWave(enemy);
+            if (wave) waves.push(wave);
+        }
+        for (const wave of waves) {
+            const footprint = this.deps.projectSkillFootprint({ cells: wave.cells, kind: 'blast', center: wave.cells[0] }, projection);
+            const cover = this.bodyBox(owner, wave.source, projection);
+            if (!footprint || !cover) continue;
+            ctx.save();
+            this.deps.clipSkillFootprintTerrain(ctx, footprint);
+            paintDangerTileEdges(ctx, footprint, { charge: wave.charge, cover: [cover] });
+            ctx.restore();
+        }
+    }
+
+    /** Where a boss's body was last drawn on screen (feet, art size), or null. */
+    bodyBox(owner, enemy, projection) {
+        const placed = this.deps.stageRoster?.placementOf(enemy.id), size = placed && this.deps.stageRoster.bodySize(enemy, projection.tileW);
+        if (!size) return null;
+        return { left: placed.x - size.halfW, right: placed.x + size.halfW, top: placed.y - size.h, bottom: placed.y + projection.tileH * 0.3 };
+    }
+
+    /** Ground pass: quiet ticks on the open cells next to the hero while the struck wave nears (not on cells it or the boss covers). */
+    drawRootletSafeCells(owner, ctx, entry, projection, now) {
+        const wave = this.deps.rootletZone() && owner.gridPlayer ? this.rootletNextWave(entry, now) : null;
+        if (!wave || wave.charge < 0.3 || wave.charge >= 1) return;
+        const cells = this.openCellsAround(owner.gridPlayer, [wave.cells, this.bodyCells(entry.source)]);
+        const footprint = cells.length && this.deps.projectSkillFootprint({ cells, kind: 'blast', center: cells[0] }, projection);
+        if (!footprint) return;
+        ctx.save();
+        this.deps.clipSkillFootprintTerrain(ctx, footprint);
+        paintSafeTicks(ctx, footprint, Math.min(1, (wave.charge - 0.3) * 4));
+        ctx.restore();
+    }
+
+    bodyCells(enemy) { return this.deps.getGridFootprintCells(enemy.gx, enemy.gy, this.deps.getGridUnitFootprint(enemy)); }
+
+    /** The 3x3 cells around `hero` not in any of `taken` (cell lists). */
+    openCellsAround(hero, taken) {
+        const keys = new Set(taken.flat().map(cell => cell.gx + ':' + cell.gy)), cells = [];
+        for (let i = 0; i < 9; i++) {
+            const cell = { gx: hero.gx + (i % 3) - 1, gy: hero.gy + Math.floor(i / 3) - 1 };
+            if (!keys.has(cell.gx + ':' + cell.gy)) cells.push(cell);
+        }
+        return cells;
+    }
+
+    rootletNextWave({ move, element, source }, now) {
+        if (move.kind !== 'rings' || element !== 'phys' || move.cutAt) return null;
+        const landed = move.stages[move.next - 1];
+        if (landed && now - (move.releasedAt + landed.ms) < ROOTLET_HANDOFF_MS) return null;
+        const stage = move.stages[move.next];
+        if (!stage?.cells.length) return null;
+        const left = move.releasedAt + stage.ms - now;
+        const charge = this.deps.clampNumber(1 - left / this.stageWarningWindow(move, move.next), 0, 1);
+        return { source, cells: stage.cells, charge: this.stageFaultCharge({ ring: true, first: move.next === 0 }, charge) };
+    }
+
+    /** Before the boss lets go: the first wave of its warned ring, at the charge the ground warning shows (28% at release). */
+    rootletCastWave(enemy) {
+        const area = this.rootletCastArea(enemy);
+        if (!area) return null;
+        const cells = area.firstWaveCells ?? bossWarningFirstWaveCells(area);
+        const share = this.deps.bossAttackView.warningShare(enemy) || 0;
+        return cells?.length ? { source: enemy, cells, charge: 0.28 * share } : null;
+    }
+
+    rootletCastArea(enemy) {
+        const area = enemy.isBoss && enemy.hp > 0 && enemy.patternArea;
+        if (!area || area.shape !== 'diamond' || area.radius < 2) return null;
+        return castElement(enemy) === 'phys' && this.deps.bossAttackView.isLiveWarning(enemy) ? area : null;
+    }
+
     drawAir(owner, ctx, projection) {
         if (!projection || !this.fx()) return;
         const now = this.deps.bossAttackView.now();
+        this.drawRootletEdges(owner, ctx, projection, now);
         this.drawShiftFlashes(owner, ctx, projection, now);
         this.drawCharges(owner, ctx, projection);
         for (const entry of this.deps.bossMoves.live(now)) {

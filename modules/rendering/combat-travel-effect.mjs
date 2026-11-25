@@ -133,7 +133,7 @@ export class CombatTravelEffect {
     }
 
     chorusContact(ctx, fx, view) {
-        if (fx.screenFootprint) this.deps.enemyProjectiles.chorusContact(ctx,fx,fx.screenFootprint,view.now);
+        if (fx.screenFootprint) this.deps.enemyProjectiles.chorusContact(ctx,fx,fx.screenFootprint,{now:view.now,reduced:this.deps.tree.feedback.reduced()});
     }
 
     isGround(fx) {
