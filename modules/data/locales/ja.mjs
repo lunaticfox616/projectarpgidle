@@ -3237,7 +3237,6 @@ const LANGUAGE_PACK_JA = Object.freeze({
         // ── 2026-11-04 표에서 넣음(bf11-ja.json) ──
         "🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>": "🛡️ 空いた{autoEquipSlot}スロットに自動装着: <span class='loot-{rarity}'>[{name}]</span>",
         "🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🚫 アイテムフィルターにより未取得: <span class='loot-{rarity}'>[{name}]</span>",
-        "🎒 가방이 가득 차 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🎒 バッグが満杯で未取得: <span class='loot-{rarity}'>[{name}]</span>",
         "🎯 파밍 목표 획득: <span class='loot-unique'>[{name}]</span>": "🎯 周回目標を獲得: <span class='loot-unique'>[{name}]</span>",
         '가판대 판매: {goods}, {gains}개. 거래 → 가판대에서 수령하세요.': '露店で売却: {goods}、{gains}個。取引 → 露店で受け取ってください。',
         '가판대 가격 제안: {detail}. 가판대에서 수락하거나 거절할 수 있습니다.': '露店への価格提案: {detail}。露店で承諾または拒否できます。',

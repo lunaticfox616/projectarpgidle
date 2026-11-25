@@ -19,16 +19,13 @@ export function* acquireStowBoughtItem(env, owner, item, place = null) {
     return true;
 }
 
-/** Resolve auto-salvage, then capacity, at pickup time. Gear that would stay but finds the bag full is lost, not salvaged
- * (2026-11-25 사용자: 가득 차서 못 얻은 장비로 재화를 얻지 않게). Guaranteed gear goes over the limit instead. */
+/** Resolve auto-salvage, then capacity, at pickup time. Gear that would stay but finds the bag full is lost, not salvaged,
+ * and nothing shows it (2026-11-25 사용자: 가득 차서 못 얻은 장비로 재화를 얻지 않게, 없는 아이템이라 보여 주지 않는다). Guaranteed gear goes over the limit instead. */
 export function* acquireStoreEquipmentPickup(env, owner, item, { guaranteedKeep, ignoreAutoSalvage }) {
     if (!ignoreAutoSalvage && owner.settings.autoSalvageEnabled && owner.settings.autoSalvageRarities?.[item.rarity])
         return (yield* acquireSalvageEquipmentPickup(env, owner, item));
     const fits = env.deps.canStoreEquipmentItems([item], owner);
-    if (!fits && !guaranteedKeep) {
-        if (owner.isBackgroundCalculation) acquireCountBackgroundOverflowLoss(owner);
-        return { accepted: false, kind: 'overflow', log: !owner.isBackgroundCalculation };
-    }
+    if (!fits && !guaranteedKeep) return { accepted: false, kind: 'overflow' };
     owner.inventory.push(item);
     return { accepted: true, kind: fits ? 'stored' : 'protected' };
 }
@@ -37,8 +34,6 @@ export function* acquireSalvageEquipmentPickup(env, owner, item) {
     const rewards = (yield* acquireSalvageItemObject(env, owner, item, true, {}));
     return { accepted: false, kind: 'salvaged', rewards, log: true };
 }
-
-export function acquireCountBackgroundOverflowLoss(owner) { owner.backgroundOverflowLostCount = Math.max(0, Math.floor(Number(owner.backgroundOverflowLostCount) || 0)) + 1; }
 
 export function* acquireAddItemToInventory(env, owner, item, options) {
     env.deps.normalizeItem(item);
@@ -70,8 +65,6 @@ function pickupAdmission(env, owner, item, options) {
 
 function* publishPickupResult(env, item, result, logLoot) {
     if (result.kind === 'protected') (yield { kind: 'acquisitionLog', args: [env.deps._t('🎒 인벤토리가 가득 찼지만 [{name}]{particle} 유실 방지를 위해 초과 보관됩니다.', { name: env.deps.getItemDisplayName(item), particle: env.deps.pickParticle(item.name, '은', '는') }), 'attack-monster'] });
-    else if (logLoot && result.kind === 'overflow' && result.log)
-        (yield { kind: 'acquisitionLog', args: [env.deps._t("🎒 가방이 가득 차 미습득: <span class='loot-{rarity}'>[{name}]</span>", { rarity: item.rarity, name: env.deps._t(item.name) }), 'attack-monster'] });
     else if (logLoot && result.rewards && result.log)
         (yield { kind: 'acquisitionLog', args: [`자동해체: <span class='loot-${item.rarity}'>[${env.deps._t(item.name)}]</span>, ${(yield { kind: 'acquisitionSalvageText', args: [result.rewards] })}`, 'loot-normal'] });
 }

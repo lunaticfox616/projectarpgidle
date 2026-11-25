@@ -14,7 +14,7 @@ export function normalizeSavedCombatRuntime(deps, state) {
     state.combatTimeMs = Number.isFinite(time) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, time)) : 0;
     delete state.isBackgroundCalculation;
     delete state.backgroundStopReason;
-    delete state.backgroundOverflowLostCount;
+    delete state.backgroundOverflowSalvageCount;
     delete state.backgroundKillMix;
     return state;
 }

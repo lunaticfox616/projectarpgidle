@@ -3237,7 +3237,6 @@ const LANGUAGE_PACK_ZH_TW = Object.freeze({
         // ── 2026-11-04 표에서 넣음(bf11-zh-TW.json) ──
         "🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>": "🛡️ 自動裝備到空的{autoEquipSlot}欄：<span class='loot-{rarity}'>[{name}]</span>",
         "🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🚫 因物品篩選未拾取：<span class='loot-{rarity}'>[{name}]</span>",
-        "🎒 가방이 가득 차 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🎒 背包已滿，未拾取：<span class='loot-{rarity}'>[{name}]</span>",
         "🎯 파밍 목표 획득: <span class='loot-unique'>[{name}]</span>": "🎯 獲得刷取目標：<span class='loot-unique'>[{name}]</span>",
         '가판대 판매: {goods}, {gains}개. 거래 → 가판대에서 수령하세요.': '攤位售出：{goods}，{gains} 個。請在交易 → 攤位領取。',
         '가판대 가격 제안: {detail}. 가판대에서 수락하거나 거절할 수 있습니다.': '攤位報價：{detail}。可在攤位接受或拒絕。',

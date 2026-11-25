@@ -3266,7 +3266,6 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '🌠 체이싱 유니크 발견! [{name}]': '🌠 Chase unique found! [{name}]',
         "🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>": "🛡️ Auto-equipped into the empty {autoEquipSlot} slot: <span class='loot-{rarity}'>[{name}]</span>",
         "🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🚫 Skipped by the item filter: <span class='loot-{rarity}'>[{name}]</span>",
-        "🎒 가방이 가득 차 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🎒 Not picked up, the bag is full: <span class='loot-{rarity}'>[{name}]</span>",
         "🎯 파밍 목표 획득: <span class='loot-unique'>[{name}]</span>": "🎯 Farming target obtained: <span class='loot-unique'>[{name}]</span>",
         '가판대 판매: {goods}, {gains}개. 거래 → 가판대에서 수령하세요.': 'Stall sale: {goods}, {gains}. Collect it at Trade → Stall.',
         '가판대 가격 제안: {detail}. 가판대에서 수락하거나 거절할 수 있습니다.': 'Stall price offer: {detail}. Accept or decline it at the Stall.',
