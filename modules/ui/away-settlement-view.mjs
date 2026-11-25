@@ -2,8 +2,9 @@ import { awayProgressLimits } from '../domain/away-progress.mjs';
 
 /** Presentation only; the application commits replay results before showing this view. */
 export class AwaySettlementView {
-    constructor(deps) {
+    constructor(deps, links = {}) {
         this.deps=deps;
+        this.hunt=links.hunt || null;
         for(const name of ["formatBackgroundMasteryLine","formatBackgroundDuration","getBackgroundProgressOverlay","renderBackgroundSpeedControls","updateBackgroundProgressOverlay","backgroundProgressPhaseText","hideBackgroundProgressOverlay","updateBackgroundSkippedTime","formatBackgroundProjection","formatBackgroundSkippedReward","formatBackgroundRealLimits","showBackgroundCombatResult","renderBackgroundResultHeader","formatBackgroundResultTime","renderBackgroundResultTiles","renderBackgroundResultTile","renderBackgroundResultLoot","renderBackgroundResultAtlas","renderBackgroundResultCurrencies","renderBackgroundResultCoin","backgroundResultCurrencyIcon","renderBackgroundResultGrowth","renderBackgroundResultNotes","backgroundNoExpReason","renderBackgroundStoryLine","restoreBattlefieldBeforeBackgroundReplay"]) this[name]=this[name].bind(this);
     }
 
@@ -28,9 +29,16 @@ export class AwaySettlementView {
         overlay = this.deps.document.createElement('div');
         overlay.id = 'background-combat-progress-overlay';
         overlay.className = 'background-combat-progress-overlay';
-        overlay.innerHTML = '<div class="background-combat-progress-card" role="dialog" aria-modal="true" aria-label="방치 정산"><h2>방치 정산</h2><div id="background-combat-progress-percent" aria-live="polite">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="방치 정산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide"></div><p id="background-combat-sacrifice">가속할 때마다 남은 전투 시간의 절반과 그 보상 기회를 포기합니다. 이미 계산한 보상은 유지됩니다.</p><p id="background-combat-skipped" aria-live="polite"></p><div class="background-combat-actions"><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">2배 가속, 남은 시간 ½</button><button type="button" id="background-combat-finish-button" onclick="requestFasterBackgroundCombat(true)">즉시 종료, 남은 시간 포기</button></div></div>';
+        overlay.innerHTML = '<div class="background-combat-progress-card" role="dialog" aria-modal="true" aria-label="방치 정산"><h2 class="away-hunt-title"><span>방치 정산</span>' + this.huntFrame() + '</h2><div id="background-combat-progress-percent" aria-live="polite">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="방치 정산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide"></div><p id="background-combat-sacrifice">가속할 때마다 남은 전투 시간의 절반과 그 보상 기회를 포기합니다. 이미 계산한 보상은 유지됩니다.</p><p id="background-combat-skipped" aria-live="polite"></p><div class="background-combat-actions"><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">2배 가속, 남은 시간 ½</button><button type="button" id="background-combat-finish-button" onclick="requestFasterBackgroundCombat(true)">즉시 종료, 남은 시간 포기</button></div></div>';
         this.deps.document.body.appendChild(overlay);
+        this.playHunt(overlay, 'hunt');
         return overlay;
+    }
+    /** 정산 창의 작은 사냥 장면(modules/ui/away-hunt-scene.mjs)이 서는 틀: 제목 줄이나 결과 머리의 구분선 위. */
+    huntFrame() { return this.hunt ? '<span class="away-hunt-frame" aria-hidden="true"><canvas class="away-hunt-scene"></canvas></span>' : ''; }
+    playHunt(overlay, mode) {
+        const canvas = overlay.querySelector('.away-hunt-scene');
+        if (canvas && !this.hunt.play(canvas, mode)) canvas.parentElement.remove();
     }
     renderBackgroundSpeedControls(finish) {
         let button = typeof this.deps.document !== 'undefined' ? this.deps.document.getElementById('background-combat-fast-button') : null;
@@ -104,13 +112,14 @@ export class AwaySettlementView {
             + `<div class="background-result-body">${body}</div><footer><button type="button" onclick="${close};switchTab('tab-items', {keepWindowOpen:true})">${this.deps._t('장비 확인')}</button>`
             + `<button type="button" class="background-result-continue" onclick="${close}">${this.deps._t('계속하기')}</button></footer></div>`;
         this.deps.document.body.appendChild(overlay);
+        this.playHunt(overlay, 'cheer');
     }
     renderBackgroundResultHeader(result, limits) {
         const away = this.formatBackgroundResultTime(result.actualElapsedMs);
         const fought = this.formatBackgroundResultTime(result.effectiveProgressMs);
         return `<header><h2 id="background-result-title">${this.deps._t('정산 결과')}</h2><p class="background-result-times"><span>${this.deps._t('자리 비움')} <strong>${away}</strong></span>`
             + `<span class="background-result-arrow" aria-hidden="true">→</span><span class="fought">${this.deps._t('전투 진행')} <strong>${fought}</strong></span></p>`
-            + `<p class="background-result-formula">${this.deps._t('효율 {round}%, 한도 {recognitionHours}시간.', { round: Math.round(limits.efficiencyRate * 100), recognitionHours: limits.recognitionHours })}</p></header>`;
+            + `<p class="background-result-formula">${this.deps._t('효율 {round}%, 한도 {recognitionHours}시간.', { round: Math.round(limits.efficiencyRate * 100), recognitionHours: limits.recognitionHours })}</p>${this.huntFrame()}</header>`;
     }
     formatBackgroundResultTime(ms) {
         const value = Math.max(0, Number(ms) || 0);
@@ -213,5 +222,5 @@ export class AwaySettlementView {
 
     complete() { this.deps.document.getElementById('background-combat-progress-percent').textContent=this.deps._t('정산 완료'); }
 
-    dispose() { this.hideBackgroundProgressOverlay(); this.deps.document.getElementById('background-combat-result-overlay')?.remove(); }
+    dispose() { if (this.hunt) this.hunt.stop(); this.hideBackgroundProgressOverlay(); this.deps.document.getElementById('background-combat-result-overlay')?.remove(); }
 }

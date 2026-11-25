@@ -237,6 +237,16 @@
 .background-result-times .fought strong { color: var(--color-reward-gold-bright); font-size: 17px; }
 .background-result-arrow { color: var(--color-text-tertiary); }
 .background-result-formula { margin: 6px 0 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
+/* 작은 사냥 장면(modules/ui/away-hunt-scene.mjs, 2026-11-26): 진행 창은 제목 줄의 오른쪽, 결과 창은 머리의 오른쪽 칸에서 구분선 위를 걷는다.
+   캔버스 높이는 스크립트가 정한다(그림 도트 하나가 캔버스 화소 하나). 하늘은 비워 두어 창 바탕이 비친다. */
+.away-hunt-frame { display: block; min-width: 0; line-height: 0; pointer-events: none; }
+.away-hunt-scene { display: block; width: 0; height: 0; margin-left: auto; image-rendering: pixelated; }
+.background-combat-progress-card .away-hunt-title { display: flex; align-items: flex-end; gap: 12px; padding-bottom: 0; }
+.away-hunt-title > span:first-child { flex: none; padding-bottom: 8px; }
+.away-hunt-title > .away-hunt-frame { flex: 1 1 0; }
+.background-combat-result-card header:has(> .away-hunt-frame) { display: grid; grid-template-columns: minmax(0, 1fr) clamp(130px, 44%, 250px); column-gap: 12px; }
+.background-combat-result-card header > :not(.away-hunt-frame) { grid-column: 1; }
+.background-combat-result-card header > .away-hunt-frame { grid-column: 2; grid-row: 1 / span 3; align-self: end; margin-bottom: -14px; }
 .background-result-body { display: grid; gap: 14px; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px 18px; }
 .background-result-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .background-result-tile { display: grid; align-content: start; gap: 2px; min-width: 0; padding: 9px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface); }
