@@ -1,7 +1,7 @@
 import { createBossAttackTiming } from './boss-attack-timing.mjs';
 import { drawEnemyWarningMark } from './enemy-warning-mark.mjs';
 import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
-import { paintRootletContact, paintRootletDebris, paintRootletScar, ROOTLET_CONTACT_MS, ROOTLET_SCAR_MS } from './rootlet-fault.mjs';
+import { paintRootletContact, paintRootletDebris, paintRootletScar, paintRootletStomp, ROOTLET_CONTACT_MS, ROOTLET_SCAR_MS } from './rootlet-fault.mjs';
 
 const SLAM_STEPS = [[-8,-1,6,1],[-3,-1,1,3],[-3,1,7,1],[3,-2,1,4],[3,-2,6,1]];
 const RAY_STEPS = [[-8,-3,5,1],[-4,-2,5,1],[0,-1,6,1],[4,0,5,1]];
@@ -298,7 +298,10 @@ class BossAttacks {
         this.deps.clipSkillFootprint(ctx, footprint);
         paintRootletContact(ctx, footprint, look);
         ctx.restore();
-        paintRootletDebris(ctx, footprint, look, this.deps.getSkillGemVfxImage('skillFxEnemyEarthContact'));
+        const earth = this.deps.getSkillGemVfxImage('skillFxEnemyEarthContact');
+        paintRootletDebris(ctx, footprint, look, earth);
+        const placed = fx.casterId != null && this.deps.stageRoster?.placementOf(fx.casterId);
+        if (placed) paintRootletStomp(ctx, { placed, footprint, wave: fx.wave }, look, earth);
     }
 
     drawRootletScars(ctx, projection, now) {

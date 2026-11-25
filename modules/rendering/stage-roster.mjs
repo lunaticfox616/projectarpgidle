@@ -1,7 +1,6 @@
 import { stageCache } from './stage-cache.mjs';
 import { getEnemyOutlineStyle } from './enemy-outline.mjs';
 import { stageActorCastActing, drawActorCastAccent, chorusBloomOrigin, castRimOf, drawCastGround } from './actor-cast-acting.mjs';
-import { ringPeekCells, paintWithRingPeek } from './stage-roster-peek.mjs';
 
 /** 옆에서 보는 무대의 몬스터 새 그림 (data/monster-stage-roster.js, docs/stage-view-20261011.md).
  * 몬스터마다 걷기와 공격 두 장을 쓴다. 공격은 앞서와 같은 규칙으로 타격 프레임을 때린 순간에 맞춘다(js/canvas-monster-actors.js).
@@ -360,12 +359,11 @@ class StageRoster {
         const visible = this.visiblePose(owner, enemy, actor, p, pair);
         const acting = stageActorCastActing(this.deps,enemy,actor);
         const pose = acting?.frame === undefined ? visible : { ...visible, clip: 'attack', index: acting.frame };
-        const peek = actor.id === 'bossAct1' ? ringPeekCells(this.deps,owner,enemy,p.projection) : null;
-        this.drawRosterPose(ctx,enemy,actor,{p,pair,pose,dot,acting,peek});
+        this.drawRosterPose(ctx,enemy,actor,{p,pair,pose,dot,acting});
         return true;
     }
 
-    drawRosterPose(ctx,enemy,actor,{p,pair,pose,dot,acting,peek}) {
+    drawRosterPose(ctx,enemy,actor,{p,pair,pose,dot,acting}) {
         const hop = pose.hop || 0;
         const art = pose.clip === 'forms' ? pair.formActor : actor;
         const size = this.picture(pair, art, pose, this.lookOf(enemy, p));
@@ -381,9 +379,7 @@ class StageRoster {
         const top = this.deps.monsterMotion.snap(position.y - (size.pad + art.feet[1] + hop) * dot);
         const rim = castRimOf(acting);
         if (rim) this.castHalo(ctx, { pair, art, pose, rim }, { x: left + size.pad * dot, y: top + size.pad * dot, dot, p: p.projection });
-        if (peek) {
-            paintWithRingPeek(ctx,size,{left,top,dot,west,footX:p.x,peek},this.deps.stageDots);
-        } else this.deps.stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
+        this.deps.stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
         if (acting) this.castAccent(ctx, {acting,actor,enemy,west}, {x:position.x,y:position.y-hop*dot,axis:p.x,dot,projection:p.projection});
         ctx.restore();
     }

@@ -164,7 +164,8 @@ function landBossPatternArea(c, attack, now) {
     const stage = c.deps.bossMoves.takeStage(attack, c.deps.pendingEnemyCombatAttacks, now);
     if (c.deps.woodsmanStumps.resolve(attack, now)) return;
     if (stage && !stage.burst) return;
-    c.deps.addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, wave: attack.bossPattern.move?.next,
+    // casterId: drawing only (the Rootlet's paw cracks the ground under it as its wave lands).
+    c.deps.addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, wave: attack.bossPattern.move?.next, casterId: attack.source.id,
         element: c.deps.enemyAttackRules.element(attack.source,attack.bossPattern), duration: 560 });
 }
 

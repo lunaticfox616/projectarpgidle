@@ -4,12 +4,10 @@ import { createObserverArena } from './observer-arena.mjs';
 import { createBossMoveTiming } from './boss-move-timing.mjs';
 import { WOODSMAN_BLADE, WOODSMAN_SHAPES } from './boss-move-clips.mjs';
 import { ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE } from './rootlet-next-wave.mjs';
-import { paintDangerTileEdges, paintSafeTicks } from './danger-tiles.mjs';
-import { bossWarningFirstWaveCells } from '../combat/boss-move-stages.mjs';
+import { paintSafeTicks } from './danger-tiles.mjs';
 
 // A Rootlet wave stays in its cool preview this long after the wave before it lands, so the hit reads before the next warning.
 const ROOTLET_HANDOFF_MS = 150;
-const castElement = enemy => enemy.nextPatternState?.attackElement || enemy.ele || 'phys';
 
 /** The boss moves on screen (js/boss-moves.js; 2026-10-16 사용자: GPT가 만든 적 공격 효과로 보스 패턴을 다양하게, "vfx용량과 색 검수,
  * 늘어나거나 줄어들어서 이상하게 보이지 않는지 검수, 몬스터가 자연스럽게 사용하는지도 중요해"). Effects come from the boss's own sheet
@@ -464,32 +462,6 @@ class BossMoveView {
         }
     }
 
-    /** Over the actors: the struck Rootlet wave's outer edge once more as dots, so a cell under the boss's body still reads. */
-    drawRootletEdges(owner, ctx, projection, now) {
-        if (!this.deps.rootletZone()) return;
-        const waves = this.deps.bossMoves.live(now).map(entry => this.rootletNextWave(entry, now)).filter(Boolean);
-        for (const enemy of owner.enemies || []) {
-            const wave = !waves.some(row => row.source === enemy) && this.rootletCastWave(enemy);
-            if (wave) waves.push(wave);
-        }
-        for (const wave of waves) {
-            const footprint = this.deps.projectSkillFootprint({ cells: wave.cells, kind: 'blast', center: wave.cells[0] }, projection);
-            const cover = this.bodyBox(owner, wave.source, projection);
-            if (!footprint || !cover) continue;
-            ctx.save();
-            this.deps.clipSkillFootprintTerrain(ctx, footprint);
-            paintDangerTileEdges(ctx, footprint, { charge: wave.charge, cover: [cover] });
-            ctx.restore();
-        }
-    }
-
-    /** Where a boss's body was last drawn on screen (feet, art size), or null. */
-    bodyBox(owner, enemy, projection) {
-        const placed = this.deps.stageRoster?.placementOf(enemy.id), size = placed && this.deps.stageRoster.bodySize(enemy, projection.tileW);
-        if (!size) return null;
-        return { left: placed.x - size.halfW, right: placed.x + size.halfW, top: placed.y - size.h, bottom: placed.y + projection.tileH * 0.3 };
-    }
-
     /** Ground pass: quiet ticks on the open cells next to the hero while the struck wave nears (not on cells it or the boss covers). */
     drawRootletSafeCells(owner, ctx, entry, projection, now) {
         const wave = this.deps.rootletZone() && owner.gridPlayer ? this.rootletNextWave(entry, now) : null;
@@ -526,25 +498,9 @@ class BossMoveView {
         return { source, cells: stage.cells, charge: this.stageFaultCharge({ ring: true, first: move.next === 0 }, charge) };
     }
 
-    /** Before the boss lets go: the first wave of its warned ring, at the charge the ground warning shows (28% at release). */
-    rootletCastWave(enemy) {
-        const area = this.rootletCastArea(enemy);
-        if (!area) return null;
-        const cells = area.firstWaveCells ?? bossWarningFirstWaveCells(area);
-        const share = this.deps.bossAttackView.warningShare(enemy) || 0;
-        return cells?.length ? { source: enemy, cells, charge: 0.28 * share } : null;
-    }
-
-    rootletCastArea(enemy) {
-        const area = enemy.isBoss && enemy.hp > 0 && enemy.patternArea;
-        if (!area || area.shape !== 'diamond' || area.radius < 2) return null;
-        return castElement(enemy) === 'phys' && this.deps.bossAttackView.isLiveWarning(enemy) ? area : null;
-    }
-
     drawAir(owner, ctx, projection) {
         if (!projection || !this.fx()) return;
         const now = this.deps.bossAttackView.now();
-        this.drawRootletEdges(owner, ctx, projection, now);
         this.drawShiftFlashes(owner, ctx, projection, now);
         this.drawCharges(owner, ctx, projection);
         for (const entry of this.deps.bossMoves.live(now)) {

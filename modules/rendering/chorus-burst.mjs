@@ -1,89 +1,130 @@
-// The Act 9 chorus seed's aimed cell and its burst, drawn in whole dots. Lilac marks the chaos caster's cast (corners closing on the
-// aimed cell, the seed's trail); the cell itself carries the shared warm danger tile (js/rendering/danger-tiles.mjs). On contact the
-// cell splashes, a ring runs out and short shards jump up, all inside the cell's own width. Paint only.
+// The Act 9 chorus seed's burst, the short trail behind it and the glow under its caster, drawn in whole dots. The aimed cell itself
+// heats up and its crack opens in the chaos palette like the Rootlet's cells (js/rendering/danger-tiles.mjs). On contact violet
+// crystals jump out of the cell, kept to the cell's own width; when the hero has stepped off the cell they stay below its top edge.
+// Paint only.
+import { steppedOval } from './danger-tiles.mjs';
 
-const INK = '#22102c';
 const LILAC = '#f3d6ff';
 const VIOLET = '#b45cf2';
 const DEEP = '#5a2479';
 const WHITE = '#fff6ff';
-const craters = new Map();
+// The caster's floor light: a soft lilac-violet, less saturated than the burst so it reads as light on the stone.
+const GLOW = '#9b6ad8';
+// Crystal blades [x from the cell middle, height, base width, lean of the tip] in dots, splaying outward inside the cell's half
+// width of 13 dots.
+const CRYSTALS = /* @__PURE__ */ Object.freeze([[0, 16, 3, -1], [-4, 11, 3, -5], [4, 12, 3, 5], [-8, 6, 2, -4], [9, 5, 2, 3]]);
+// On an empty cell they stay below its top edge, so nothing rises toward the hero standing on the next cell.
+const LOW_CRYSTALS = /* @__PURE__ */ Object.freeze([[0, 9, 3, -1], [-4, 7, 3, -4], [4, 7, 3, 4], [-8, 4, 2, -3], [9, 4, 2, 2]]);
+// Stone chips the burst throws up inside the cell: x across the cell at the end, height of the arc in tiles, colour.
+const CHIPS = /* @__PURE__ */ Object.freeze([{ dx: -0.42, lift: 1.1, colour: '#d9cbb4' }, { dx: -0.26, lift: 1.6, colour: '#b8a792' },
+    { dx: -0.1, lift: 0.9, colour: '#efe2cc' }, { dx: 0.12, lift: 1.4, colour: '#d9cbb4' }, { dx: 0.28, lift: 1, colour: '#b8a792' },
+    { dx: 0.44, lift: 1.5, colour: '#efe2cc' }]);
 // [x across the cell, reach in tiles, delay ms]
-// Chaos contact frames [sheet frame, from ms] (assets/effects/enemy-chaos-contact-v1.webp: 3 x 2 frames of 128 x 64, ground at y 57).
-const CRYSTALS = /* @__PURE__ */ Object.freeze([[1, 0], [2, 30], [3, 95], [4, 145], [5, 185]]);
-const SHARDS = /* @__PURE__ */ Object.freeze([[-0.36, 1.7, 0], [0.02, 2.2, 10], [0.36, 1.8, 20]]);
-// An eight-point star, in dots from its middle: # ink, V violet, L lilac, W white.
-const STAR = /* @__PURE__ */ Object.freeze([
-    '      #      ',
-    '  #  #W#  #  ',
-    '  #V#LWL#V#  ',
-    '   #VLWLV#   ',
-    ' ##LLWWWLL## ',
-    '#WWWWWWWWWWW#',
-    ' ##LLWWWLL## ',
-    '   #VLWLV#   ',
-    '  #V#LWL#V#  ',
-    '  #  #W#  #  ',
-    '      #      '
-]);
-const STAR_TONES = /* @__PURE__ */ Object.freeze({ '#': '#22102c', V: '#b45cf2', L: '#f3d6ff', W: '#fff6ff' });
-
+const SHARDS = /* @__PURE__ */ Object.freeze([[-0.3, 1.7, 0], [0.02, 2.2, 10], [0.3, 1.8, 20]]);
 /** One dot of these marks at the current tile size. */
 export function chorusDot(footprint) {
     return Math.max(2, Math.round(footprint.tileH / 13));
 }
 
 function inkedRect(ctx, [x, y, w, h], colour) {
-    ctx.fillStyle = INK;
+    ctx.fillStyle = DEEP;
     ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
     ctx.fillStyle = colour;
     ctx.fillRect(x, y, w, h);
 }
 
-/**
- * Four lilac corners that close on the aimed cell from outside as the shot nears (fixed on the cell with reduced motion).
- * @param {number} progress 0 when the caster starts its wind-up → 1 at contact
- */
-export function paintChorusCorners(ctx, footprint, progress, reduced) {
-    const p = chorusDot(footprint), arm = 4 * p;
-    const gap = reduced ? p : Math.round((1 - progress) * 6) * p + p;
-    const left = Math.round(footprint.x - footprint.tileW / 2) - gap, right = Math.round(footprint.x + footprint.tileW / 2) + gap;
-    const top = Math.round(footprint.y - footprint.tileH / 2) - gap, bottom = Math.round(footprint.y + footprint.tileH / 2) + gap;
-    ctx.save();
+/** The contact flash: lilac light added onto the stone (and the hero over it) around a small white sparkle, no outlined star. */
+function paintFlash(ctx, { cx, cy, p, tileW, tileH }, age, small) {
+    const span = small ? 70 : 100;
+    if (age >= span) return;
+    const heat = 1 - age / span, scale = small ? 0.7 : 1, arm = (age < 45 && !small ? 4 : 2) * p;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = VIOLET;
+    for (const [reach, alpha] of [[0.5, 0.22], [0.34, 0.28], [0.2, 0.36]]) {
+        ctx.globalAlpha = alpha * heat;
+        steppedOval(ctx, { cx, cy, rx: tileW * reach * scale, ry: tileH * reach * scale * 1.1 }, p);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = Math.min(1, heat * 1.6);
+    ctx.fillStyle = age < 45 ? WHITE : LILAC;
+    ctx.fillRect(cx - arm, cy, 2 * arm + p, p);
+    ctx.fillRect(cx, cy - arm, p, 2 * arm + p);
+    ctx.fillRect(cx - p, cy - p, 3 * p, 3 * p);
     ctx.globalAlpha = 1;
-    for (const [x, y, sx, sy] of [[left, top, 1, 1], [right, top, -1, 1], [left, bottom, 1, -1], [right, bottom, -1, -1]]) {
-        const ox = sx > 0 ? x : x - p, oy = sy > 0 ? y : y - p;
-        inkedRect(ctx, [sx > 0 ? ox : ox - arm + p, oy, arm, p], LILAC);
-        inkedRect(ctx, [ox, sy > 0 ? oy : oy - arm + p, p, arm], LILAC);
-        ctx.fillStyle = LILAC;
-        ctx.fillRect(sx > 0 ? ox : ox - arm + p, oy, arm, p);
-    }
-    ctx.restore();
 }
 
-function craterSprite(ctx, cols, rows, p) {
-    const key = cols + 'x' + rows + 'x' + p;
-    if (craters.has(key)) return craters.get(key);
-    const canvas = ctx.canvas.ownerDocument.createElement('canvas');
-    canvas.width = (2 * cols + 3) * p; canvas.height = (2 * rows + 1) * p;
-    const paint = canvas.getContext('2d');
-    for (let r = -rows; r <= rows; r++) {
-        const half = Math.round(cols * Math.sqrt(Math.max(0, 1 - (r / (rows + 0.5)) ** 2))), y = (r + rows) * p, mid = (cols + 1) * p;
-        paint.fillStyle = INK;
-        paint.fillRect(mid - (half + 1) * p, y, (2 * half + 2) * p, p);
-        for (let c = -half + 1; c < half; c++) {
-            paint.fillStyle = (c + r) % 2 ? DEEP : VIOLET;
-            paint.fillRect(mid + c * p, y, p, p);
-        }
-    }
-    craters.set(key, canvas);
-    return canvas;
+/** @param {readonly number[]} shard [x across the cell, reach in tiles, delay ms] */
+function paintShard(ctx, { cx, cy, p, tileW, tileH }, shard, age) {
+    const [dx, reach, delay] = shard;
+    const u = (age - delay) / 185;
+    if (u < 0 || u >= 1) return;
+    const length = Math.max(2, Math.round((1 - u) * 7)) * p, width = u < 0.55 ? 2 * p : p;
+    const x = Math.round((cx + dx * tileW) / p) * p, top = Math.round((cy - tileH * (0.2 + reach * Math.sqrt(u))) / p) * p;
+    inkedRect(ctx, [x, top, width, length], VIOLET);
+    ctx.fillStyle = LILAC;
+    ctx.fillRect(x, top, width, 2 * p);
 }
 
-/** A dark violet splash pressed into the cell: ink rim, deep fill dithered with violet (a sprite made once per size). */
-function paintCrater(ctx, { cx, cy, rx, ry }, p) {
-    const cols = Math.round(rx / p), rows = Math.max(1, Math.round(ry / p)), image = craterSprite(ctx, cols, rows, p);
-    ctx.drawImage(image, Math.round(cx / p) * p - (cols + 1) * p, Math.round(cy / p) * p - rows * p);
+/** The crystals' height share at `age`: half grown, full, broken off at the top, stumps; null once they are gone. */
+function crystalStage(age) {
+    if (age < 35) return { share: 0.5, tip: true, alpha: 1 };
+    if (age < 150) return { share: 1, tip: age < 90, alpha: 1 };
+    if (age < 190) return { share: 0.6, tip: false, alpha: 1 };
+    return age < 220 ? { share: 0.3, tip: false, alpha: 1 - (age - 190) / 30 } : null;
+}
+
+/** One crystal's rows from its base up, as [left, right] dot spans around its foot.
+ * @param {readonly number[]} shape [x from the cell middle, height, base width, lean of the tip] */
+function crystalRows(shape, share) {
+    const [dx, height, base, lean] = shape;
+    const rows = [], h = Math.max(1, Math.round(height * share));
+    for (let r = 0; r < h; r++) {
+        const t = r / height, width = Math.max(1, Math.round(base * (1 - t))), left = dx + Math.round(lean * t) - Math.floor(width / 2);
+        rows.push([left, left + width - 1]);
+    }
+    return rows;
+}
+
+function crystalPass(ctx, shapes, { cx, cy, p }, { grow, pick }) {
+    ctx.beginPath();
+    for (const rows of shapes) {
+        rows.forEach(([left, right], r) => {
+            const span = pick(left, right, r, rows.length);
+            if (span) ctx.rect(cx + span[0] * p - grow, cy - (r + 1) * p - grow, (span[1] - span[0] + 1) * p + 2 * grow, p + 2 * grow);
+        });
+    }
+    ctx.fill();
+}
+
+/** Violet crystals jumping out of the cell, drawn in whole dots and kept to its width (lower when the cell was empty). */
+function paintCrystals(ctx, at, age, empty) {
+    const stage = crystalStage(age);
+    if (!stage) return;
+    const shapes = (empty ? LOW_CRYSTALS : CRYSTALS).map(shape => crystalRows(shape, stage.share));
+    ctx.globalAlpha = stage.alpha;
+    const passes = [{ colour: DEEP, grow: 1, pick: (l, r) => [l, r] }, { colour: stage.share < 1 ? DEEP : VIOLET, grow: 0, pick: (l, r) => [l, r] },
+        { colour: LILAC, grow: 0, pick: (l, r, row, n) => (row < n - 1 ? [l, l] : null) }];
+    for (const pass of passes) {
+        ctx.fillStyle = pass.colour;
+        crystalPass(ctx, shapes, at, pass);
+    }
+    if (!stage.tip) return;
+    ctx.fillStyle = LILAC;
+    crystalPass(ctx, shapes, at, { grow: 0, pick: (l, r, row, n) => (row === n - 1 ? [l, r] : null) });
+}
+
+/** A column of violet light rising out of the struck cell over the hero, added onto what is drawn (a hit only). */
+function paintPillar(ctx, { cx, cy, p, tileW, tileH }, age) {
+    if (age >= 200) return;
+    const heat = 1 - age / 200;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = VIOLET;
+    for (const [w, h, alpha] of [[0.4, 1.9, 0.16], [0.28, 1.7, 0.2], [0.15, 1.5, 0.26]]) {
+        ctx.globalAlpha = alpha * heat;
+        steppedOval(ctx, { cx, cy: Math.round((cy - tileH * h * 0.75) / p) * p, rx: tileW * w, ry: tileH * h }, p);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
 }
 
 function ringDots(ctx, { cx, cy, rx, ry }, p) {
@@ -96,104 +137,92 @@ function ringDots(ctx, { cx, cy, rx, ry }, p) {
     ctx.fill();
 }
 
-/** Under the actors: the cell splashes dark violet and a lilac ring runs out to the cell's edges. */
-export function paintChorusSplash(ctx, footprint, age, reduced) {
-    const p = chorusDot(footprint), u = Math.min(1, age / 200), { x, y, tileW, tileH } = footprint;
-    const cx = Math.round(x), cy = Math.round(y + tileH * 0.1);
-    ctx.save();
-    ctx.globalAlpha = 1;
-    paintCrater(ctx, { cx, cy, rx: tileW * 0.34, ry: tileH * 0.3 }, p);
-    const grow = reduced ? 0.46 : 0.22 + 0.28 * Math.sqrt(u);
-    const ring = { cx, cy, rx: tileW * grow, ry: tileH * grow * 0.95 };
-    ctx.globalAlpha = Math.min(1, 1.6 * (1 - u));
-    ctx.fillStyle = INK;
-    ringDots(ctx, { ...ring, rx: ring.rx + p, ry: ring.ry + p }, p);
-    ringDots(ctx, { ...ring, rx: ring.rx - p, ry: ring.ry - p }, p);
-    ctx.fillStyle = age < 60 ? WHITE : LILAC;
-    ringDots(ctx, ring, p);
-    ctx.restore();
-}
-
-function paintFlash(ctx, { cx, cy, p }, age) {
-    if (age >= 90) return;
-    const q = age < 45 ? p + 1 : p, half = Math.floor(STAR[0].length / 2);
-    for (const [symbol, colour] of Object.entries(STAR_TONES)) {
-        ctx.fillStyle = age >= 60 && symbol === 'W' ? STAR_TONES.L : colour;
-        ctx.beginPath();
-        STAR.forEach((row, dy) => {
-            for (let dx = 0; dx < row.length; dx++) if (row[dx] === symbol) ctx.rect(cx + (dx - half) * q, cy + (dy - 5) * q, q, q);
-        });
-        ctx.fill();
+/** A ring of light running out over the stone to the cell's edges, and a few stone chips thrown up inside the cell (lower when the
+ * cell was empty). */
+function paintShock(ctx, { cx, cy, p, tileW, tileH }, age, empty) {
+    if (age >= 180) return;
+    const u = age / 180, reach = Math.sqrt(u);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.85 * (1 - u);
+    ctx.fillStyle = LILAC;
+    ringDots(ctx, { cx, cy, rx: tileW * (0.16 + 0.31 * reach), ry: tileH * (0.16 + 0.29 * reach) }, p);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1 - u * 0.6;
+    for (const { dx, lift, colour } of CHIPS) {
+        const x = Math.round((cx + dx * tileW * (0.15 + 0.85 * u)) / p) * p;
+        const y = Math.round((cy - tileH * lift * (empty ? 0.35 : 1) * 4 * u * (1 - u)) / p) * p;
+        ctx.fillStyle = DEEP;
+        ctx.fillRect(x + 1, y + 1, p, p);
+        ctx.fillStyle = colour;
+        ctx.fillRect(x, y, p, p);
     }
+    ctx.globalAlpha = 1;
 }
 
-/** @param {readonly number[]} shard [x across the cell, reach in tiles, delay ms] */
-function paintShard(ctx, { cx, cy, p, tileW, tileH }, shard, age) {
-    const [dx, reach, delay] = shard;
-    const u = (age - delay) / 185;
-    if (u < 0 || u >= 1) return;
-    const length = Math.max(2, Math.round((1 - u) * 7)) * p, width = u < 0.55 ? 2 * p : p;
-    const x = Math.round((cx + dx * tileW) / p) * p, top = Math.round((cy - tileH * (0.2 + reach * Math.sqrt(u))) / p) * p;
-    inkedRect(ctx, [x, top, width, length], VIOLET);
-    ctx.fillStyle = u < 0.5 ? WHITE : LILAC;
-    ctx.fillRect(x, top, width, 2 * p);
-}
-
-function paintCrystals(ctx, footprint, age, image) {
-    const frame = CRYSTALS.reduce((found, row) => (age >= row[1] ? row : found), CRYSTALS[0])[0];
-    const scale = Math.max(1, Math.round(footprint.tileW * 1.6 / 115)), w = 128 * scale, h = 64 * scale;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image, (frame % 3) * 128, Math.floor(frame / 3) * 64, 128, 64,
-        Math.round(footprint.x - w / 2), Math.round(footprint.y + footprint.tileH * 0.22 - 57 * scale), w, h);
+/** The burst's room: the aimed cell's own columns; above the cell only while the hero stands on it. */
+function clipToCell(ctx, { x, y, tileW, tileH }, empty) {
+    const left = Math.round(x - tileW / 2), right = Math.round(x + tileW / 2), bottom = Math.round(y + tileH / 2);
+    const top = Math.round(empty ? y - tileH / 2 : y - tileH * 3.2);
+    ctx.beginPath();
+    ctx.rect(left, top, right - left, bottom - top);
+    ctx.clip();
 }
 
 /**
- * Over the actors: violet crystals burst out of the cell (the authored sheet when it has loaded), a short white-lilac flash on
- * top and a few shards jumping up.
- * @param {{reduced:boolean, image:HTMLImageElement|null}} look image: the chaos contact sheet
+ * Over the actors: violet crystals burst out of the cell, a short white-lilac flash on top and, on a hit, a few shards jumping up.
+ * @param {{reduced:boolean, empty:boolean}} look empty: nobody stood on the cell when the seed landed
  */
 export function paintChorusBurst(ctx, footprint, age, look) {
-    const { reduced, image } = look;
+    const { reduced, empty } = look;
     const p = chorusDot(footprint), { x, y, tileW, tileH } = footprint;
     const at = { cx: Math.round(x / p) * p, cy: Math.round((y + tileH * 0.05) / p) * p, p, tileW, tileH };
     ctx.save();
     ctx.globalAlpha = 1;
-    if (image) paintCrystals(ctx, footprint, age, image);
-    paintFlash(ctx, at, age);
-    if (!reduced) for (const shard of SHARDS) paintShard(ctx, at, shard, age);
+    clipToCell(ctx, footprint, empty);
+    if (!empty) paintPillar(ctx, at, age);
+    paintCrystals(ctx, { cx: at.cx, cy: Math.round((y + tileH * 0.3) / p) * p, p }, age, empty);
+    ctx.globalAlpha = 1;
+    paintFlash(ctx, at, age, empty);
+    if (!reduced) paintShock(ctx, { ...at, cy: Math.round((y + tileH * 0.12) / p) * p }, age, empty);
+    if (!reduced && !empty) for (const shard of SHARDS) paintShard(ctx, at, shard, age);
     ctx.restore();
 }
 
 /**
- * Dots along the seed's path, newest first: white, then lilac, then small violet; `fade` dims the whole path (after the landing).
+ * The short trail right behind the seed, newest first: white, then lilac, then violet, one dot apart with a deep violet shadow.
  * @param {Array<{x:number,y:number}>} points
  */
-export function paintChorusPath(ctx, points, { p, fade }) {
+export function paintChorusPath(ctx, points, { p }) {
     ctx.save();
     points.forEach((point, index) => {
-        const older = index / Math.max(1, points.length);
-        const size = older < 0.25 ? 2 * p : older < 0.6 ? p + 1 : p;
-        ctx.globalAlpha = fade * (older < 0.6 ? 1 : 1.6 - older);
-        inkedRect(ctx, [Math.round(point.x - size / 2), Math.round(point.y - size / 2), size, size], older < 0.25 ? WHITE : older < 0.6 ? LILAC : VIOLET);
+        const older = index / Math.max(1, points.length), size = older < 0.3 ? 2 * p : p;
+        const x = Math.round((point.x - size / 2) / p) * p, y = Math.round((point.y - size / 2) / p) * p;
+        ctx.globalAlpha = older < 0.5 ? 1 : 1.7 - older * 1.4;
+        ctx.fillStyle = DEEP;
+        ctx.fillRect(x, y + p, size, size);
+        ctx.fillStyle = older < 0.3 ? WHITE : older < 0.65 ? LILAC : VIOLET;
+        ctx.fillRect(x, y, size, size);
     });
     ctx.restore();
 }
 
-/** A violet circle on the floor under the casting bulb, with four bright marks, from its wind-up until just after its seed lands. */
-export function paintChorusCasterRing(ctx, footprint, strength) {
-    const p = chorusDot(footprint), { x, y, tileW, tileH } = footprint;
-    const ring = { cx: Math.round(x), cy: Math.round(y), rx: tileW * 0.5, ry: tileH * 0.46 };
+/** Light on the floor under the casting bulb, from its wind-up until just after its seed lands: violet glow laid over the stone
+ * (overlay keeps the stone's own texture), brighter toward the middle, with a few lilac glints on its rim. */
+export function paintChorusCasterGlow(ctx, footprint, strength) {
+    const p = chorusDot(footprint), { x, y, tileW, tileH } = footprint, cx = Math.round(x / p) * p, cy = Math.round(y / p) * p;
     ctx.save();
-    ctx.globalAlpha = 0.85 * strength;
-    paintCrater(ctx, { ...ring, rx: ring.rx - p, ry: ring.ry - p }, p);
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = GLOW;
+    for (const [reach, alpha] of [[0.72, 0.4], [0.52, 0.45], [0.32, 0.5]]) {
+        ctx.globalAlpha = alpha * strength;
+        steppedOval(ctx, { cx, cy, rx: tileW * reach, ry: tileH * reach }, p);
+    }
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = strength;
-    ctx.fillStyle = INK;
-    ringDots(ctx, { ...ring, rx: ring.rx + p, ry: ring.ry + p }, p);
-    ringDots(ctx, { ...ring, rx: ring.rx - p, ry: ring.ry - p }, p);
     ctx.fillStyle = LILAC;
-    ringDots(ctx, ring, p);
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-        inkedRect(ctx, [Math.round((ring.cx + dx * ring.rx) / p) * p - p / 2, Math.round((ring.cy + dy * ring.ry) / p) * p - p / 2, 2 * p, 2 * p], WHITE);
+    for (let i = 0; i < 10; i++) {
+        const a = (i + 0.5) / 10 * Math.PI * 2;
+        ctx.fillRect(Math.round((cx + Math.cos(a) * tileW * 0.68) / p) * p, Math.round((cy + Math.sin(a) * tileH * 0.66) / p) * p, p, p);
     }
     ctx.restore();
 }
@@ -205,7 +234,12 @@ export function paintChorusHit(ctx, footprint, age) {
     const reach = (age < 50 ? 4 : 3) * p;
     ctx.save();
     for (const [dx, dy] of [[1, 1], [1, -1]]) {
-        for (let i = -reach; i <= reach; i += p) inkedRect(ctx, [cx + i * dx, cy + i * dy, p, p], age < 50 ? WHITE : LILAC);
+        for (let i = -reach; i <= reach; i += p) {
+            ctx.fillStyle = DEEP;
+            ctx.fillRect(cx + i * dx + 1, cy + i * dy + 1, p, p);
+            ctx.fillStyle = age < 50 ? WHITE : LILAC;
+            ctx.fillRect(cx + i * dx, cy + i * dy, p, p);
+        }
     }
     ctx.restore();
 }

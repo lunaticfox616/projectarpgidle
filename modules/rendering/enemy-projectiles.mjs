@@ -3,8 +3,8 @@ import { drawEnemyWarningMark } from './enemy-warning-mark.mjs';
 import { drawGroundDangerSign, drawGroundDangerDye } from './enemy-ground-danger.mjs';
 import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
 import { realmLiquid, REALM_LIQUID_ASSET, paintRealmFlight, paintRealmContact } from './enemy-realm-liquids.mjs';
-import { paintDangerTiles } from './danger-tiles.mjs';
-import { chorusDot, paintChorusBurst, paintChorusCorners, paintChorusHit, paintChorusSplash, paintChorusPath } from './chorus-burst.mjs';
+import { paintDangerTiles, paintTileStrike } from './danger-tiles.mjs';
+import { chorusDot, paintChorusBurst, paintChorusHit, paintChorusPath } from './chorus-burst.mjs';
 
 const CHAOS_FALLBACK = { asset: 'skillFxSignatureVoidSlash', color: '#e2a7ff', height: 2.15,
     ground: 0.54, angle: -0.31, frames: [5, 6, 8, 10, 12, 14] };
@@ -179,13 +179,6 @@ class EnemyProjectiles {
         const drawn = this.paintGroundFootprint(ctx, fx, footprint, look, {elapsed, reduced, liquid});
         if (fullContact && !drawn && !isChorusShot(fx.enemyFlight)) this.contact(ctx, footprint, look, elapsed / 220);
         ctx.restore();
-        if (isChorusShot(fx.enemyFlight)) this.paintChorusGround(ctx, fx, footprint, {elapsed, reduced});
-    }
-
-    /** Around the aimed cell (outside its clip): the lilac corners closing in, then the splash and ring where the seed lands. */
-    paintChorusGround(ctx, fx, footprint, {elapsed, reduced}) {
-        if (fx.groundImpact) paintChorusSplash(ctx, footprint, elapsed, reduced);
-        else paintChorusCorners(ctx, footprint, this.targetProgress(fx), reduced);
     }
 
     paintGroundFootprint(ctx, fx, footprint, look, {elapsed, reduced, liquid}) {
@@ -197,10 +190,13 @@ class EnemyProjectiles {
             this.warning(ctx, fx, footprint);
         }
         else if (isChorusShot(fx.enemyFlight)) {
-            // The aimed tile stays a beat under the landing, so a dodge reads as the seed bursting on the cell the hero left.
-            ctx.globalAlpha = Math.max(0, 1 - elapsed / 170);
+            // The aimed tile stays a beat under the landing while its crack opens, so a dodge reads as the seed bursting on the cell
+            // the hero left.
+            ctx.globalAlpha = Math.max(0, 1 - elapsed / 110);
             paintDangerTiles(ctx, footprint, { charge: 1, chaos: true });
             ctx.restore();
+            // Outside the cell clip, so the light around the opening crack stays an oval on the stone instead of a lit square.
+            paintTileStrike(ctx, footprint, { age: elapsed, heavy: true, reduced, chaos: true });
             return true;
         } else {
             paintContactRim(ctx, footprint, look, elapsed / 220, reduced);
@@ -230,8 +226,7 @@ class EnemyProjectiles {
             ctx.restore();
         }
         ctx.restore();
-        this.chorusPathEcho(ctx, fx, footprint, age);
-        paintChorusBurst(ctx, footprint, age, { reduced: view.reduced, image: this.deps.getSkillGemVfxImage(CONTACT.chaos.asset) });
+        paintChorusBurst(ctx, footprint, age, { reduced: view.reduced, empty: !fx.groundOccupied });
         if (fx.groundOccupied) paintChorusHit(ctx, footprint, age);
     }
 
@@ -280,25 +275,16 @@ class EnemyProjectiles {
         const pixel = Math.max(2.5, Math.round(projection.tileW / 15));
         const arc = { from,to,t,tileW:projection.tileW, tileH:projection.tileH,chorus };
         const point = queuedArc(ctx, arc);
-        if (chorus) this.paintChorusTrail(ctx, arc, { start: Math.max(0.02, t - 0.55), end: t - 0.07, fade: 1 });
+        if (chorus) this.paintChorusTrail(ctx, arc, { start: Math.max(0.02, t - 0.2), end: t - 0.05 });
         return this.paintQueuedComet(ctx, point, { look,pixel,t,chorus });
     }
 
-    /** Dots along the seed's own arc behind it, so its path reads where it crosses actors of its colour. */
+    /** A short run of dots along the seed's own arc right behind it; it ends with the flight. */
     paintChorusTrail(ctx, arc, span) {
-        const p = chorusDot(arc), length = Math.hypot(arc.to.x - arc.from.x, arc.to.y - arc.from.y) * 1.35, step = 3.2 * p / Math.max(1, length);
+        const p = chorusDot(arc), length = Math.hypot(arc.to.x - arc.from.x, arc.to.y - arc.from.y) * 1.35, step = 1.5 * p / Math.max(1, length);
         const points = [];
-        for (let t = span.end; t > span.start && points.length < 40; t -= step) points.push(queuedArc(ctx, { ...arc, t }));
-        paintChorusPath(ctx, points, { p, fade: span.fade });
-    }
-
-    /** After the landing: the seed's whole path stays a moment and fades, pointing from the hit back to its caster. */
-    chorusPathEcho(ctx, fx, footprint, age) {
-        const { sourceCell, targetCell } = fx.enemyFlight, offset = this.chorusMuzzles.get(fx.enemyFlight);
-        if (!sourceCell || !offset || age >= 300) return;
-        const { board, tileW, tileH } = footprint, cell = c => ({ x: board.x + (c.gx + 0.5) * tileW, y: board.y + (c.gy + 0.5) * tileH });
-        const source = cell(sourceCell), from = { x: source.x + offset.x * tileW, y: source.y + offset.y * tileH };
-        this.paintChorusTrail(ctx, { from, to: cell(targetCell), t: 1, tileW, tileH, chorus: true }, { start: 0.04, end: 0.99, fade: 1 - age / 300 });
+        for (let t = span.end; t > span.start && points.length < 24; t -= step) points.push(queuedArc(ctx, { ...arc, t }));
+        paintChorusPath(ctx, points, { p });
     }
 
     chorusSource(attack, source, projection) {
