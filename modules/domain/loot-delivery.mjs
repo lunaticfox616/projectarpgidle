@@ -20,8 +20,11 @@ class LootDelivery {
         this.deps.normalizeItem(item);
         const highlight = this.deps.policy.highlight(item, state);
         const guaranteed = this.deps.isGuaranteedEquipmentPickup(item, options);
-        if (this.holdEquipment(state, enemy, item, options, { highlight, guaranteed })) return { status: 'floor' };
-        const run = this.floorFor(state, enemy);
+        // Gear the pickup filter turns away never reaches the floor or the boss hold (2026-11-25 사용자: 필터에 걸리면 줍거나 보이지 않게).
+        // It takes the bag path below, which logs the filter miss.
+        const floorable = this.deps.previewEquipmentPickup(item, options) !== 'filtered';
+        if (floorable && this.holdEquipment(state, enemy, item, options, { highlight, guaranteed })) return { status: 'floor' };
+        const run = floorable && this.floorFor(state, enemy);
         if (run) {
             const held = this.deps.floor.place(run, enemy, item, { highlight: !!highlight, guaranteed,
                 filterOnPickup: !options?.ignoreFilter, ignoreAutoSalvage: !!options?.ignoreAutoSalvage });

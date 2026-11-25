@@ -3237,6 +3237,7 @@ const LANGUAGE_PACK_ZH_CN = Object.freeze({
         // ── 2026-11-04 표에서 넣음(bf11-zh-CN.json) ──
         "🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>": "🛡️ 自动装备到空的{autoEquipSlot}槽：<span class='loot-{rarity}'>[{name}]</span>",
         "🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🚫 因物品筛选未拾取：<span class='loot-{rarity}'>[{name}]</span>",
+        "🎒 가방이 가득 차 미습득: <span class='loot-{rarity}'>[{name}]</span>": "🎒 背包已满，未拾取：<span class='loot-{rarity}'>[{name}]</span>",
         "🎯 파밍 목표 획득: <span class='loot-unique'>[{name}]</span>": "🎯 获得刷取目标：<span class='loot-unique'>[{name}]</span>",
         '가판대 판매: {goods}, {gains}개. 거래 → 가판대에서 수령하세요.': '摊位售出：{goods}，{gains} 个。请在交易 → 摊位领取。',
         '가판대 가격 제안: {detail}. 가판대에서 수락하거나 거절할 수 있습니다.': '摊位报价：{detail}。可在摊位接受或拒绝。',
@@ -3543,7 +3544,6 @@ const LANGUAGE_PACK_ZH_CN = Object.freeze({
         "✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}": "✨ 获得攻击符文 <span class='loot-magic'>[{name}]</span>！{awakened}",
         '(각성 후보)': '（觉醒候选）',
         '💠 {how}: [{name}], 주얼 결정 +{gain}': '💠 {how}：[{name}]，珠宝结晶 +{gain}',
-        '가방이 가득 차 해체': '背包已满，分解',
         '주얼 자동해체': '珠宝自动分解',
         '💠 {rarity} 주얼 [{name}] 획득!{protect} ({lines})': '💠 获得{rarity}珠宝 [{name}]！{protect}（{lines}）',
         '(공간 부족 보호)': '（空间不足保护）',

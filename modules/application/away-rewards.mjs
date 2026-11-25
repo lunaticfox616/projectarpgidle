@@ -52,10 +52,10 @@ function combatGains(deps, before, after, metrics) {
 }
 
 /** Build the result card's accounting from the same snapshots used by the replay; never apply rewards here. */
-export function backgroundRewardSummary(deps, before, after, metrics, overflowSalvaged) {
+export function backgroundRewardSummary(deps, before, after, metrics, overflowLost) {
     return {...combatGains(deps,before,after,metrics),...inventoryGains(before,after),
         currencies:currencyGains(deps,before,after),highlights:deps.equipmentLootPolicy.collectHighlights(before,after),
-        overflowSalvaged:Math.max(0,Math.floor(Number(overflowSalvaged) || 0)),
+        overflowLost:Math.max(0,Math.floor(Number(overflowLost) || 0)),
         masteryGains:typeof deps.weaponMastery==='object' && before && after ? deps.weaponMastery.gains(before,after) : [],
         knitting:deps.knitting.gainedBetween(before.knitting,after.knitting),atlas:backgroundAtlasGains(deps.memoryLeaves,before,after)};
 }

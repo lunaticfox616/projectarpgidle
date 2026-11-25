@@ -4,7 +4,7 @@ const bag = createBagItems({
     get visuals() { return ITEM_VISUAL_ASSET_DB; }, get cores() { return coreItems; }, get sockets() { return equipmentSockets; },
     get wards() { return typeof colonyWards === 'object' ? colonyWards : null; }, get policy() { return equipmentLootPolicy; },
     isUnlocked: (id, state) => contentProgression.isUnlocked(id, state),
-    jewelStats: item => getJewelStats(item), salvageJewel: (...args) => salvageJewelObject(...args), jewelShardGain: item => getJewelSalvageShardGain(item),
+    jewelStats: item => getJewelStats(item), jewelShardGain: item => getJewelSalvageShardGain(item),
     placement: {
         findAddPlacement: (item, state) => equipmentInventoryGridRuntime.findAddPlacement(item, state),
         ensureItemIdentity: item => equipmentLoadoutRuntime.ensureItemIdentity(item)

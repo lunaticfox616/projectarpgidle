@@ -112,7 +112,7 @@ export class AwaySettlement {
             const result=await this.simulate(run);
             if (!this.active) return false;
             if (!this.mayApply(this.runtime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
-            const summary=backgroundRewardSummary(this.deps,run.snapshot,result.game,result.metrics,result.overflowSalvaged);
+            const summary=backgroundRewardSummary(this.deps,run.snapshot,result.game,result.metrics,result.overflowLost);
             this.commit(result,run.original);
             run.committed=true;
             await this.presentResult(run,result,summary);

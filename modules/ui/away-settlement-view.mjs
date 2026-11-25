@@ -137,8 +137,8 @@ export class AwaySettlementView {
         const gains = summary.rarityGains || {};
         const chips = ['unique', 'rare', 'magic', 'normal'].filter(rarity => gains[rarity] > 0)
             .map(rarity => `<span class="background-result-chip" style="--chip-tone:${this.deps.getRarityColor(rarity)}">${this.deps._t(this.deps.ITEM_RARITY_LABELS[rarity])} <b>${gains[rarity]}</b></span>`);
-        const salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
-        if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" data-tip="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
+        const lost = Math.max(0, Number(summary.overflowLost) || 0);
+        if (lost > 0) chips.push(`<span class="background-result-chip quiet" data-tip="가방이 차서 줍지 못했습니다.">미습득 <b>${lost}</b></span>`);
         const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
         return row + this.deps.equipmentLootUi.renderHighlights(summary.highlights);
     }
