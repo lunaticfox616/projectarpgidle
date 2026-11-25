@@ -82,7 +82,7 @@ export class SaveCodec {
     }
 
     /** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
- * (playerStall.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
+ * (listings.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
     cloudSaveFingerprint(saveData) {
         return values.printOfSaveText(JSON.stringify(values.cloudSavePrintSource(saveData)));
     }

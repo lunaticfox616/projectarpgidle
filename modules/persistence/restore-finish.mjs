@@ -28,10 +28,10 @@ export function restoreRetiredSystems(deps, context) {
 export function finishRestoredSave(deps, context) {
     const normalized = normalizeContentProgressionSave(deps, normalizeSavedCombatRuntime(deps, context.merged), context.save);
     normalizeStoredEquipmentSave(deps, normalized);
-    // Escrow identity checks need the migrated exploration loot containers first.
-    deps.playerStall.restore(normalized);
-    // The auction escrow after the stall's: its duplicate check reads the restored stall listings.
+    // The auction's market first: an auction listing's bucket is read against it. Escrow identity checks need the migrated exploration
+    // loot containers first.
     deps.auctionHouse.restore(normalized);
+    deps.playerStall.restore(normalized);
     normalized.craftOmen = (0, deps.normalizeCraftOmen)(normalized.craftOmen);
     normalizeEquipmentCraftChoiceSave(deps, normalized);
     return normalized;

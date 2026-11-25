@@ -14,7 +14,6 @@ const PLAYER_STALL_RULES = Object.freeze({
     maxAppraisal: 5000, pricePremium: 1.2, maxAsk: 1000000, historyLimit: 16, salesLimit: 50,
     offerLifetimeMs: 24 * 3600000, offerCooldownMs: 30 * 60000,
     currency: 'formlessDew', currencies: ['magicBud', 'formlessDew', 'goldenRule'],
-    proceedsKeys: { magicBud: 'budProceeds', formlessDew: 'proceeds', goldenRule: 'goldProceeds' },
     // Payment ceilings use the best discounted cash-out (5 buds -> 1 dew), not the ordinary 8:1 price unit.
     // Thus changing denomination cannot bypass resale limits. audit-player-stall verifies this boundary.
     // Gold uses its 100-dew purchase unit, exceeding even the best discounted 65.5-dew cash-out.

@@ -27,9 +27,9 @@ function shop(item,negotiate) {
 function measure(item,negotiate,elapsed,count) {
     const scene=shop(item,negotiate), times=[];
     for(let index=0;index<count+3;index++) {
-        const owner=ctx.mergeDefaults(structuredClone(scene)), at=start+(elapsed??scene.playerStall.nextVisitAt-start);
+        const owner=ctx.mergeDefaults(structuredClone(scene)), at=start+(elapsed??scene.listings.nextVisitAt-start);
         const before=performance.now(), paid=ctx.playerStall.advance(owner,at), duration=performance.now()-before;
-        if(paid!==0 || owner.playerStall.listings.length!==4)throw new Error('Timing fixture must remain unsold for the entire window');
+        if(paid!==0 || owner.listings.rows.length!==4)throw new Error('Timing fixture must remain unsold for the entire window');
         if(index>=3)times.push(duration);
     }
     times.sort((a,b)=>a-b);

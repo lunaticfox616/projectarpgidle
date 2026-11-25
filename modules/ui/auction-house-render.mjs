@@ -15,11 +15,10 @@ import { indexStep, dropIndex } from './auction-house-index.mjs';
 import { savedCountStep, savedCountsPending, paintSaved } from './auction-house-saved.mjs';
 import { stepSearch, searchPrefer } from './auction-house-search.mjs';
 import { materialsViewHtml, listScroll, keepListScroll } from './auction-house-materials.mjs';
-import { standsViewHtml, claimable } from './auction-house-stands.mjs';
 import { watchHall } from './auction-house-hall.mjs';
 import { hidePeek } from './auction-house-peek.mjs';
 
-const TABS = Object.freeze([['gear', '아이템'], ['materials', '재료'], ['mine', '내 출품']]);
+const TABS = Object.freeze([['gear', '아이템'], ['materials', '재료']]);
 const MOVERS = 3;
 const WALLET = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
 // The work one animation frame may do (ms of performance.now): drawing rows, the search and warming the lots' bodies. A 240 Hz frame is 4 ms.
@@ -75,30 +74,25 @@ function bandHtml(runtime) {
         <span class="ah-next">${nextChangeText(runtime, pulse.bucket)}</span>`;
 }
 
-/** The frame: the head (market band and purse) and the view. The three tabs stand outside it, on the trade window's tab row
- * (index.html #market-exchange-tabs, beside the stall and the hall): paintTabs writes their names and marks there. */
+/** The frame: the head (market band and purse) and the view. The two tabs stand outside it, on the trade window's tab row
+ * (index.html #market-exchange-tabs, beside 출품 and 전당 소장품): paintTabs writes their names there. */
 function skeletonHtml(runtime) {
     return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-top"><div class="ah-band"></div><div class="ah-purse"></div></header>
         <div class="ah-view" id="ah-view"></div></div>`;
 }
 
-function tabLabelHtml(runtime, id, label) {
-    if (id !== 'mine') return `<span class="px-center">${trHtml(runtime, label)}</span>`;
-    const lots = runtime.deps.game.auction.lots.length, waiting = claimable(runtime).length;
-    const dot = waiting ? `<i class="ah-dot" role="img" aria-label="${runtime.deps._t('수령할 출품이 있습니다')}"></i>` : '';
-    return `<span class="px-center">${trHtml(runtime, label)} <small>${lots}/${runtime.deps.auctionHouse.rules.myLots.slots}</small></span>${dot}`;
-}
+function tabLabelHtml(runtime, label) { return `<span class="px-center">${trHtml(runtime, label)}</span>`; }
 
-/** Writes the three tabs' names and marks on the trade window's tab row (which one is chosen is the market's to say: the row also holds
- * the stall and the hall) and, with the section's root, which tab its view shows. */
+/** Writes the two tabs' names on the trade window's tab row (which one is chosen is the market's to say: the row also holds 출품 and
+ * 전당 소장품) and, with the section's root, which tab its view shows. */
 export function paintTabs(runtime, root) {
     const row = runtime.deps.document.getElementById('market-exchange-tabs');
     for (const [id, label] of TABS) {
         const button = row && row.querySelector(`[data-ah-tab="${id}"]`);
-        if (button) paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, id, label));
+        if (button) paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, label));
     }
     if (root) root.dataset.tab = runtime.state.tab;
-    // 칸 안의 동작(시세 칩, 재료 칩, 출품할 장비 고르기)이 탭을 바꿔도 그 줄의 고른 표시가 따라간다(경매장이 보일 때만: 그 줄에는 가판대와 전당도 있다)
+    // 칸 안의 동작(시세 칩, 재료 칩)이 탭을 바꿔도 그 줄의 고른 표시가 따라간다(경매장이 보일 때만: 그 줄에는 출품과 전당 소장품도 있다)
     const panel = runtime.deps.document.getElementById('market-panel-auction');
     if (row && panel && !panel.hidden) for (const button of row.querySelectorAll('[data-market-section]')) {
         const chosen = button.dataset.ahTab === runtime.state.tab;
@@ -107,7 +101,7 @@ export function paintTabs(runtime, root) {
     }
 }
 
-const VIEWS = Object.freeze({ gear: gearViewHtml, materials: materialsViewHtml, mine: standsViewHtml });
+const VIEWS = Object.freeze({ gear: gearViewHtml, materials: materialsViewHtml });
 
 /** The attribute that names a focused control (its first data-ah-* attribute), to focus its successor after a repaint. */
 function focusKey(view) {
@@ -131,8 +125,8 @@ function signature(runtime) {
     const purse = ['magicBud', 'formlessDew', 'goldenRule', ...runtime.deps.auctionHouse.rules.materials.keys].map(key => game.currencies[key] || 0);
     const bag = game.inventory.length ? `${game.inventory.length}:${game.inventory[game.inventory.length - 1].id}` : '0';
     const worn = Object.values(game.equipment || {}).map(item => (item ? item.id : 0));
-    return JSON.stringify([state.bucket, state.lots.map(lot => [lot.id, lot.status, lot.rolls]), state.bought, state.quota, purse, bag, worn,
-        game.woodsmanBuildLock ? 1 : 0, view.tab, view.gear, view.materials, view.mine.draft, view.hall.version, runtime.deps.i18n.locale,
+    return JSON.stringify([state.bucket, state.bought, state.quota, purse, bag, worn,
+        game.woodsmanBuildLock ? 1 : 0, view.tab, view.gear, view.materials, view.hall.version, runtime.deps.i18n.locale,
         runtime.deps.auctionHouse.mode, runtime.deps.auctionPulse.version,
         runtime.deps.shopView.busyReason()]);
 }

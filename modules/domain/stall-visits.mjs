@@ -2,12 +2,12 @@ import { stallRulesRandom, stallRulesReadyAt, stallRulesVisitDelay, stallRulesSt
 import { stallRulesSell, stallRulesRecord } from './stall-ledger.mjs';
 import { stallRulesPurchaseChance, stallRulesAppraiseListings } from './stall-appraisal.mjs';
 import { stallRulesPropose, stallRulesExpireOffers } from './stall-offers.mjs';
-import { stallRulesValidClock, stallRulesUnlocked } from './stall-access.mjs';
+import { stallRulesValidClock, stallRulesUnlocked, stallRulesRows } from './stall-access.mjs';
 
 export function stallRulesVisit(env, stall, at, appraisals) {
     const customerId = Math.floor(stallRulesRandom(stall) * env.deps.PLAYER_STALL_CUSTOMERS.length);
     const customer = env.deps.PLAYER_STALL_CUSTOMERS[customerId];
-    const candidates = appraisals.filter(entry => stall.listings.includes(entry.row) && at >= stallRulesReadyAt(env, entry.row))
+    const candidates = appraisals.filter(entry => stall.rows.includes(entry.row) && at >= stallRulesReadyAt(env, entry.row))
         .map(entry => ({ row: entry.row, value: entry.value, fit: entry.fits[customerId],
             chance: stallRulesPurchaseChance(env, entry.value, entry.row.price, entry.fits[customerId], at - entry.row.listedAt, customer) }))
         .sort((a, b) => b.chance - a.chance || a.row.id - b.row.id);
@@ -30,7 +30,7 @@ export function stallRulesBargainHeat(env, entry, at) {
 
 export function stallRulesArrival(env, stall, at, appraisals) {
     stallRulesExpireOffers(env, stall, at);
-    const heat = Math.max(0, ...appraisals.filter(entry => stall.listings.includes(entry.row)).map(entry => stallRulesBargainHeat(env, entry, at)));
+    const heat = Math.max(0, ...appraisals.filter(entry => stall.rows.includes(entry.row)).map(entry => stallRulesBargainHeat(env, entry, at)));
     let visitors = 1;
     if (heat > 0) {
         const probability = env.rules.crowdBaseChance + heat * env.rules.crowdDiscountChance, roll = stallRulesRandom(stall);
@@ -46,25 +46,25 @@ export function stallRulesArrival(env, stall, at, appraisals) {
 export function stallRulesFinishVisits(env, stall, now, end) {
     stall.lastAt = now;
     stallRulesExpireOffers(env, stall, now);
-    if (!stall.listings.length) stall.nextVisitAt = 0;
+    if (!stallRulesRows(stall).length) stall.nextVisitAt = 0;
     // Discard excess absence once. Never replay the capped tail on reload.
     else if (now > end) stall.nextVisitAt = now + stallRulesVisitDelay(env, stall);
 }
 
 export function stallRulesAdvance(env, owner, now) {
-    const stall = owner.playerStall;
+    const stall = owner.listings;
     if (!stallRulesValidClock(now) || owner.isBackgroundCalculation) return 0;
     const clock = stallRulesStallClock(stall, now);
     if (clock === stall.lastAt) return 0;
     if (!stall.lastAt || !stallRulesUnlocked(env, owner)) {
-        stall.lastAt = clock; stall.nextVisitAt = stall.listings.length ? clock + stallRulesVisitDelay(env, stall) : 0;
+        stall.lastAt = clock; stall.nextVisitAt = stallRulesRows(stall).length ? clock + stallRulesVisitDelay(env, stall) : 0;
         return 0;
     }
     const end = Math.min(clock, stall.lastAt + env.rules.offlineLimitMs);
     const first = Math.max(stall.nextVisitAt, stall.lastAt + 1);
     const appraisals = first <= end ? stallRulesAppraiseListings(env, stall) : [];
     let paid = 0;
-    for (let at = first; at <= end && stall.listings.length; at = stall.nextVisitAt) {
+    for (let at = first; at <= end && stallRulesRows(stall).length; at = stall.nextVisitAt) {
         paid += stallRulesArrival(env, stall, at, appraisals);
         stall.nextVisitAt = at + stallRulesVisitDelay(env, stall);
     }

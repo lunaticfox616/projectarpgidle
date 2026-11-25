@@ -91,12 +91,9 @@ const auctionHouse = (() => {
         buyGearLot: (owner, lotId, now) => run(rules.buyGearLot(live(owner), lotId, now)),
         listIssue: rules.listIssue, listQuote: rules.listQuote,
         list: rules.list, withdraw: rules.withdraw,
-        claim: (owner, lotId) => run(rules.claim(live(owner), lotId)),
-        claimAll: owner => run(rules.claimAll(live(owner))),
-        loopBlockReason: rules.loopBlockReason,
         restore: rules.restore,
         /** Per-tick settlement of the current game at now (UTC ms): nothing (one integer compare) unless the auction can open (unlocked,
-         * or lots left) and the bucket has turned. Returns advance's result; the caller announces result.settled (modules/application/foreground-loop.mjs announceAuction). */
+         * or auction listings left) and the bucket has turned. Returns advance's result; the caller announces result.settled (modules/application/foreground-loop.mjs announceAuction). */
         tick(now) {
             if (!game || game.isBackgroundCalculation || !rules.canOpen(game) || !rules.needsAdvance(game, now)) return idle;
             return rules.advance(game, now);

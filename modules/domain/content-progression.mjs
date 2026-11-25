@@ -23,19 +23,21 @@ function createContentProgressChecks(deps) {
     };
 }
 
+/** Whether owner has listings left on the shelf (game.listings rows of any kind). */
+const contentHasListings = owner => Array.isArray(owner?.listings?.rows) && owner.listings.rows.length > 0;
+
 function createContentProgressRoutes(env) {
     return {
         'tab-map': contentCanOpenMap,
         'tab-season': owner => owner.season >= 2,
         'tab-unlocks': owner => owner.season >= 2,
         'tab-guide': owner => contentCanOpen(env, 'tab-journal', owner),
-        // NPC, 거래소, 장비 전당 중 하나가 열리면 거래 창을 연다. 옛 칸 주소는 UI가 이 창으로 보낸다. 경매장 출품이 남아 있으면 해금이 없어도
-        // 연다(수령하지 못한 출품이 루프를 막지 않게).
-        'tab-trade': owner => contentNpcsMet(owner) || contentIsUnlocked(env, 'market', owner) || contentIsUnlocked(env, 'hall', owner)
-            || (Array.isArray(owner?.auction?.lots) && owner.auction.lots.length > 0),
-        // 거래 창의 둘째 화면(경매장, 가판대, 장비 전당이 탭 줄 하나를 쓴다): 셋 가운데 하나가 열리면 연다. 출품이 남아 있을 때도 연다.
+        // NPC, 거래소, 장비 전당 중 하나가 열리면 거래 창을 연다. 옛 칸 주소는 UI가 이 창으로 보낸다. 출품이 남아 있으면 해금이 없어도
+        // 연다(회수하지 못한 출품이 루프를 막지 않게).
+        'tab-trade': owner => contentNpcsMet(owner) || contentIsUnlocked(env, 'market', owner) || contentIsUnlocked(env, 'hall', owner) || contentHasListings(owner),
+        // 거래 창의 둘째 화면(경매장의 아이템, 재료와 출품, 전당 소장품이 탭 줄 하나를 쓴다): 셋 가운데 하나가 열리면 연다. 출품이 남아 있을 때도 연다.
         'tab-auction': owner => contentIsUnlocked(env, 'market', owner) || contentIsUnlocked(env, 'hall', owner) || contentIsUnlocked(env, 'auction', owner)
-            || (Array.isArray(owner?.auction?.lots) && owner.auction.lots.length > 0),
+            || contentHasListings(owner),
         // 아틀라스와 혼돈계의 최초 개방 기록은 서로 독립적이다.
         'map-explore-worldtree': owner => !!owner.atlas?.unlocked
     };
