@@ -53,6 +53,8 @@ class BossAttacks {
         this.ARROW = Object.freeze({ depth: 0.36, half: 0.32, thick: 0.16, first: 1.15, every: 1.7, endGap: 0.45 });
         this.onShownCell = (frame, point) => frame.shown.some(cell => Math.abs(point.x - cell.x) <= frame.unit / 2 && Math.abs(point.y - cell.y) <= frame.tileH / 2);
         this.closesIn = attack => attack.delivery === 'patternArea' && !attack.bossPattern.move;
+        // A held beam has no stage warnings (js/canvas-boss-moves.js HELD_MOVES): its released line keeps the edge until the last tick.
+        this.edgedAfterRelease = attack => this.closesIn(attack) || (attack.delivery === 'patternArea' && attack.bossPattern.move?.kind === 'beam');
     }
 
     blink(share, span) {
@@ -248,10 +250,10 @@ class BossAttacks {
         }
     }
 
-    /** The bright edge of every live and released boss warning (a released snapshot owns its warning even when the boss no longer
-     * previews one). Under the actors since 2026-10-19 (before, it was the last part of a warning still drawn over them). */
+    /** The bright edge of a released boss warning that has no stage warnings: an area without a move and a held beam (a released
+     * snapshot owns its warning even when the boss no longer previews one). Under the actors since 2026-10-19. */
     drawEdges(ctx, scene) {
-        const areas = (scene.pending || []).filter(attack => this.closesIn(attack)).map(attack => attack.bossPattern.area);
+        const areas = (scene.pending || []).filter(attack => this.edgedAfterRelease(attack)).map(attack => attack.bossPattern.area);
         new Set(areas.filter(area => !area.woodsman)).forEach(area => this.deps.drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
     }
 
@@ -416,8 +418,10 @@ class BossAttacks {
             const quadrant = `${dx}:${dy}`;
             if (quadrants.has(quadrant)) continue;
             quadrants.add(quadrant);
+            ctx.save(); // drawSkillSpriteFrame moves the canvas to the chunk; the next chunk starts from the cell grid again
             drawSkillSpriteFrame(ctx, image, frame, {columns:3, rows:2, angle:0, width, height,
                 x:Math.round(at.x + dx * tileW * progress * 0.12), y:Math.round(at.y - height * 0.18)});
+            ctx.restore();
         }
         return quadrants.size > 0;
     }
