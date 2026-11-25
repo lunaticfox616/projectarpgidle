@@ -1,4 +1,5 @@
-import { atlasCoreNormalizeBonus } from './atlas-bonuses.mjs';
+import { atlasCoreNormalizeBonus, atlasCorePortalCap } from './atlas-bonuses.mjs';
+import { atlasCoreChartRun } from './atlas-graph.mjs';
 import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
 
 function restorePassages(raw) {
@@ -27,11 +28,22 @@ export function atlasCoreRoomIds(value) { return [...new Set(Array.isArray(value
 
 export function atlasCoreRoomTypes(env, value) { return [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(env.deps.ATLAS.encounters, type)); }
 
+/** The open map's star terms (frozen at entry; only a chart map opened from a stone has any, older saves: none), portals (1 .. its cap:
+ * more than the cap, as the removed 여분의 포털 passive left them, keeps the cap; none or garbage is 1) and its 형체 없는 이슬 entry flags. */
+function restorePortals(env, raw, map) {
+    const chart = atlasCoreChartRun(env, { map, board: raw.board }), stars = env.deps.atlasPassives.normalizeTerms(chart ? raw.stars : null);
+    const dew = raw.dew === true && chart, portals = Math.floor(Number(raw.portals));
+    return { portals: portals >= 1 ? Math.min(atlasCorePortalCap(env, dew, stars), portals) : 1, dew, dewKept: dew && raw.dewKept === true, stars, free: restoreFree(raw, map) };
+}
+
+/** 천문도 보스 자리의 비용 없는 첫 도전(개편 C): 기억 싸움과 원정 판은 아니다. 예전 저장은 없음(false). */
+function restoreFree(raw, map) { return raw.free === true && !map.memory && !raw.board; }
+
 export function atlasCoreNormalizeRun(env, raw, validMap) {
     const map = raw && validMap(raw.map);
     if (!map) return null;
-    const bonus = atlasCoreNormalizeBonus(env, raw.bonus), portals = Math.floor(Number(raw.portals));
-    return { map, ...restorePassages(raw.passages), portals: portals >= 1 && portals <= env.deps.ATLAS.portals + bonus.portals ? portals : 1,
+    const bonus = atlasCoreNormalizeBonus(env, raw.bonus);
+    return { map, ...restorePassages(raw.passages), ...restorePortals(env, raw, map),
         drops: (Array.isArray(raw.drops) ? raw.drops : []).map(validMap).filter(Boolean).slice(0, env.deps.ATLAS.stashCap),
         found: atlasCoreFragmentIds(env, raw.found, env.deps.ATLAS.fragmentRules.held), fragments: atlasCoreFragmentIds(env, raw.fragments, env.deps.ATLAS.fragments.length),
         spent: atlasCoreFragmentIds(env, raw.spent, env.deps.ATLAS.fragments.length), cleared: atlasCoreRoomIds(raw.cleared), bonus,

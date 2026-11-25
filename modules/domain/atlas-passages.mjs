@@ -12,7 +12,7 @@ function pickExpedition(env, owner, zone, count) {
     if (forced.length) return forced[Math.floor(Math.random() * forced.length)];
     if (found.size + run.encounters.filter(type => !ATLAS.encounters[type].late).length >= rules.roomLimit(run.bonus, owner.season)) return null;
     const candidates = Object.keys(atlasExpeditions).filter(eligible).filter(type => {
-        const chance = Math.min(1, rules.chance(type, run.bonus, zone.atlasRegion) / 100);
+        const chance = Math.min(1, rules.chance(type, zone.atlasRegion) / 100);
         return Math.random() < 1 - (1 - chance) ** (1 / count);
     });
     return candidates[Math.floor(Math.random() * candidates.length)];
@@ -79,9 +79,12 @@ export function* atlasSessionEnterPassage(env, owner, type) {
     return true;
 }
 
-export function restoreMainMap(owner) {
+/** Back from an expedition (cleared, a defeat or a portal). The expedition's floor and held boss loot are paid as at any map's
+ * departure (filters, auto-salvage, bag capacity), before the main map takes its place. */
+export function restoreMainMap(env, owner) {
     const home = owner.actExploration?.home;
     if (!home) return false;
+    env.deps.actExplorationProgress.depart(owner);
     owner.actExploration = home.main;
     owner.actExploration.motionTimeMs = 0;
     owner.actExploration.mode = owner.settings.autoMove === false ? 'manual' : owner.settings.actExplorationMode;

@@ -1,4 +1,5 @@
 const MAX_BATTLE_DAMAGE_TEXTS = 48;
+const COMPACT_PLAIN_HIT = Object.freeze({ mergeWindow: 320, duration: 760 });
 
 /** Damage labels use visual milliseconds, sharing the current scene across combat resets. */
 export class DamageTextQueue {
@@ -9,12 +10,17 @@ export class DamageTextQueue {
         if (!config.aggregateKey) return false;
         // DoT labels share only the first 350 visual ms; continuous ticks must still create fresh, readable sums.
         let text = activeTexts.find(row => row && row.aggregateKey === config.aggregateKey
-            && !!row.dot === !!config.dot && (!config.dot || (start >= row.start && start - row.start <= 350)));
+            && !!row.dot === !!config.dot && this.inMergeWindow(row, config, start));
         let nextValue = Number(config.value);
         if (!text || !Number.isFinite(nextValue)) return false;
         this.updateMergedLabel(text, config, start, x, y);
         if (!config.dot) this.updateImpactTier(text, config);
         return true;
+    }
+
+    inMergeWindow(row, config, start) {
+        const limit = config.mergeWindow || (config.dot ? 350 : 0);
+        return !limit || (start >= row.start && start - row.start <= limit);
     }
 
     updateMergedLabel(text, config, start, x, y) {
@@ -73,6 +79,8 @@ export class DamageTextQueue {
             duration: this.getDamageTextDuration(config),
             x: x,
             y: y,
+            enemyId: config.enemyId,
+            finishAt: config.finishAt,
             offsetX: 0,
             offsetY: 0,
             driftX: 0,
@@ -82,6 +90,8 @@ export class DamageTextQueue {
             aggregateKey: config.aggregateKey || '',
             crit: !!config.crit,
             enemyHit: !!config.enemyHit,
+            heroTarget: !!config.heroTarget,
+            elementColor: config.elementColor || '',
             dot: !!config.dot,
             dotType: config.dotType || '',
             miss: !!config.miss,
@@ -104,15 +114,38 @@ export class DamageTextQueue {
         return true;
     }
 
-    fromHit(fx, x, y, start) {
+    endingFor(fx) {
+        const ended = this.lastBoss;
+        return ended?.scene === this.runtime.scene && ended.id === fx.enemyId && fx.start <= ended.until ? ended.finishAt : undefined;
+    }
+
+    fromHit(fx, x, y, start, compact) {
+        const low = compact && !fx.dot && !fx.crit && (!fx.impactTier || fx.impactTier === 'normal');
         this.spawnDamageText({
-            start, x, y,
+            start, x, y, enemyId: fx.enemyId, finishAt: this.endingFor(fx),
             value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
             crit: !!fx.crit, dot: !!fx.dot, dotType: fx.element || '',
             impactTier: fx.impactTier || 'normal', damageRatio: fx.damageRatio || 0,
-            // Direct hits retain their skill bucket; DoT sums use the first label's visual time.
-            aggregateKey: fx.dot ? `dot:${fx.enemyId}:${fx.element || ''}`
-                : `${fx.skillName}:${fx.enemyId}:${Math.floor(fx.start / 250)}`
+            // Compact normal hits share a short target-and-element window. Other direct hits keep their skill bucket.
+            // Phones: plain hits share a 320 ms window and leave sooner, so numbers over a crowd do not pile up.
+            ...(low ? COMPACT_PLAIN_HIT : {}),
+            aggregateKey: this.hitGroup(fx, low)
         });
+    }
+
+    hitGroup(fx, low) {
+        const element = fx.element || '';
+        if (fx.dot) return `dot:${fx.enemyId}:${element}`;
+        if (low) return `compact:${fx.enemyId}:${element}`;
+        return `${fx.skillName}:${fx.enemyId}:${Math.floor(fx.start / 250)}`;
+    }
+
+    finishBoss(id, fx) {
+        // The slow-motion camera can stretch visual milliseconds over several real seconds.
+        const finishAt = this.deps.performance.now() + 280;
+        this.lastBoss = { id, scene: this.runtime.scene, until: fx.start + fx.duration, finishAt };
+        for (const label of this.runtime.scene.damageTexts || []) {
+            if (label.enemyId === id) label.finishAt = finishAt;
+        }
     }
 }

@@ -39,9 +39,9 @@ export function atlasMapReroll(env, map, rarity, random, count = null) {
 export function atlasMapHasRoom(env, map) { return map.mods.length < atlasMapLimits(env, map).max && atlasMapOpenKinds(env, map, false).length > 0; }
 
 export function atlasMapCraftReason(env, map, key) {
-    if (!env.CRAFTS[key]) return '지도석에 쓸 수 없는 재화입니다.';
-    if (map.corrupted) return '타락한 지도석은 더 바꿀 수 없습니다.';
-    return env.CRAFTS[key].can(map) ? '' : '지금 지도석 상태에는 쓸 수 없습니다.';
+    if (!env.CRAFTS[key]) return '지침에 쓸 수 없는 재화입니다.';
+    if (map.corrupted) return '타락한 지침은 더 바꿀 수 없습니다.';
+    return env.CRAFTS[key].can(map) ? '' : '지금 지침 상태에는 쓸 수 없습니다.';
 }
 
 /** @returns {string} '' when applied, otherwise why not (the map is untouched). */
@@ -51,13 +51,16 @@ export function atlasMapCraft(env, map, key, random = Math.random) {
     return reason;
 }
 
+/** 지도 노드의 지도석은 천문도 등급(1~starChart.tiers)을 지닌다. 그보다 높은 등급을 지닌 것은 예전 수호자의 지도석(싸움 등급 16 이상)이다. */
+export function atlasMapTierCap(env, map) { return map.tier <= env.deps.ATLAS.starChart.tiers ? env.deps.ATLAS.starChart.tiers : env.deps.ATLAS.tierCap; }
+
 /** 잿불가지: 무변화 · 등급 +1 · 한도를 넘는 옵션 추가 · 5~6옵션 희귀로 재구성. 어느 쪽이든 수량 보너스가 붙고 더는 바꿀 수 없다. */
 export function atlasMapCorrupt(env, map, random) {
     const weights = env.deps.ATLAS.corruption, outcomes = ['none', 'tier', 'extra', 'reforge'];
     let roll = random() * outcomes.reduce((sum, key) => sum + weights[key], 0);
     const outcome = outcomes.find(key => (roll -= weights[key]) < 0) || 'none';
     map.corrupted = true;
-    if (outcome === 'tier') map.tier = Math.min(env.deps.ATLAS.tierCap, map.tier + 1);
+    if (outcome === 'tier') map.tier = Math.min(atlasMapTierCap(env, map), map.tier + 1);
     if (outcome === 'extra') atlasMapAddMod(env, map, random, true);
     if (outcome === 'reforge') atlasMapReroll(env, map, 'rare', random, 5 + Math.floor(random() * 2));
     return outcome;

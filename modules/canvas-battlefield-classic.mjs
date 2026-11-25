@@ -40,6 +40,8 @@ const body = new BattlefieldBody({
     get heroSizeScale() { return HERO_SIZE_SCALE; }
 });
 const labels = new BattlefieldLabels({
+    get translate() {return _t;},
+    get locale() {return document.documentElement.lang;},
     get mechanics() { return COSMOS_MECHANIC_DB; },
     get habitats() { return COSMOS_ROUTE_G1.habitats; },
     get tones() { return statToneText; }
@@ -145,9 +147,11 @@ const events = new BattlefieldEventEffects({
     get _t() { return _t; },
     get drawText() { return drawCrispCanvasText; },
     get atlas() { return SKILL_FX_ATLAS; },
+    get image() { return getSkillGemVfxImage; },
     get hitFx() { return drawBattleHitFx; }
 }, text);
 const telegraphs = new EnemyTelegraphs({
+    rootletZone: () => window.GameModules.state.game.currentZoneId === 0,
     get bossAttacks() { return bossAttackView; },
     get traps() { return trialTrapArt; },
     get projectFootprint() { return projectSkillFootprint; },
@@ -255,6 +259,7 @@ const travelEffects = new CombatTravelEffect({
 }, images, cellEffects);
 
 const ground = new BattlefieldGround({
+    pendingAttacks: () => window.GameModules.state.combat.pendingEnemyCombatAttacks,
     get cosmos() { return cosmosRouteRuntime; },
     get gridSize() { return getCombatGridSize; },
     get exploration() { return actExplorationState; },

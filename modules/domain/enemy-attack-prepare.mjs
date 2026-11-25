@@ -49,11 +49,11 @@ function waitEnemyRecovery(c, e) {
     if (!e.pendingAttack && c.deps.bossMoves.observer.wait(e.enemy, c.deps.getCombatTime())) return 'skip';
 }
 
-function aimEnemyCast(c, e) {
+export function aimEnemyCast(c, e) {
     e.impactTargets = e.pendingAttack ? c.deps.flights.targets(c.owner, e.pendingAttack) : [c.deps.engagement.getEnemyPreferredGridTarget(c.owner, e.enemy)];
     e.attackTarget = e.impactTargets[0];
     c.deps.enemyAttackRules.noteAim(e.enemy, c.deps.engagement.getColonyDefenseCoreTarget(c.owner) ? e.attackTarget : null);
-    if (!e.attackTarget) return 'skip';
+    if (!e.attackTarget && !e.pendingAttack?.volley) return 'skip';
 }
 
 function approachEnemyTarget(c, e) {

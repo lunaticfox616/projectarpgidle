@@ -1,117 +1,256 @@
-@layer components{/* 세계수 아틀라스 "한 장" 시험판(js/atlas-sheet-ui.js): 윗줄, 아틀라스 원화 차트와 오른쪽 서랍, 아래 도크. 길은 원화 위의 선(.as-art),
-   노드는 그 위의 표식 단추(js/world-map-ui.js atlasIcon). 색은 css/atlas.css의 --atlas-* 를 쓴다. */
-/* 아틀라스 안에서는 길잡이 한 줄만: 세계 지도로 돌아가기와 이 화면의 쪽들. 다른 곳의 표식 탭과 따로 있던 아틀라스 지도 단추는 접는다(이 화면이 그 지도다). */
-/* 길잡이는 세계 지도의 머리줄(탐험, 54px)과 같은 높이의 한 줄: 그 아래 지도가 세계 지도와 같은 자리에 선다 */
-#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:4px 14px;box-sizing:border-box;height:54px;margin:-8px 0 -10px;padding:0 14px;overflow:hidden}
-#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location>:is(.exploration-regions,.exploration-routes){display:flex;flex-wrap:nowrap;align-items:center;gap:4px;margin:0;padding:0;border:0;width:auto}
-#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location :is(.exploration-place-tab,.exploration-home+.exploration-home){display:none}
-#ui-atlas .atlas-sheet{container-type:inline-size;display:grid;grid-template-rows:minmax(0,1fr) auto auto;color:var(--atlas-ink)}
-/* 윗줄 */
-#ui-atlas .as-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:6px 14px;border-bottom:1px solid var(--atlas-line);font-size:13px}
-#ui-atlas .atlas-sheet>.as-top{border-top:1px solid var(--atlas-line);border-bottom:0}
-#ui-atlas .as-progress{position:relative;flex:1 1 180px;max-width:320px;height:18px;border:1px solid var(--atlas-edge);background:#0c0a08}
-#ui-atlas .as-progress::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#b98f45,#7c5b24)}
-#ui-atlas .as-progress b{position:relative;display:block;padding:0 8px;line-height:16px;font-weight:400;color:#fff1c9;text-shadow:1px 1px 0 #000}
-#ui-atlas .as-seeds{display:inline-flex;align-items:center;gap:4px;color:#c9a0f0}
-#ui-atlas .as-seeds i{width:12px;height:12px;border:1px solid #6b5488;background:#1a1420;transform:rotate(45deg);margin:0 2px}
-#ui-atlas .as-seeds i.is-on{background:#c9a0f0;border-color:#f0dcff;box-shadow:0 0 6px #c9a0f0}
-#ui-atlas .as-seeds i.is-fresh{animation:as-seed 1.4s steps(7,end) 1}
-#ui-atlas .as-points{color:var(--atlas-muted)}
-#ui-atlas .as-points b{color:#7fd6cf;font-weight:400}
-#ui-atlas .as-points em{color:#9fd46a;font-style:normal}
-#ui-atlas .as-auto{display:inline-flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer}
-/* 차트와 서랍 */
-/* 세계 지도(css/world-map.css .world-map)와 같은 칸: 안여백 12px 14px, 사이 12px, 오른쪽 칸 250px */
-#ui-atlas .as-body{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:0 12px;padding:12px 14px 12px;min-height:0}
-#ui-atlas .as-chart{position:relative;box-sizing:border-box;min-width:0;overflow:hidden;border:1px solid #5a4322;box-shadow:0 0 0 1px #c7ac6333,0 6px 18px #00000080;background:#16131c center/100% 100% no-repeat}
-#ui-atlas .as-art{position:absolute;inset:0;width:100%;height:100%}
-#ui-atlas .as-region{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 5px;align-items:center;padding:2px 6px 3px;font-size:12px;line-height:1.2;color:#f4ead6;background:color-mix(in srgb,var(--tint) 30%,#0e0b12f2);border:1px solid color-mix(in srgb,var(--tint) 70%,#fff);pointer-events:none;white-space:nowrap;z-index:1}
-#ui-atlas .as-region span{grid-column:1/-1}
-#ui-atlas .as-region b{font-weight:400;font-size:11px;color:var(--atlas-gold-hi)}
-#ui-atlas .as-region i{height:4px;background:linear-gradient(90deg,#f3d28c var(--fill),#0c0a08 var(--fill))}
-/* 노드: 아틀라스 지도의 표식. 갈 수 있는 곳은 천천히 빛나고, 다 깬 곳은 표시가 붙고, 잠긴 곳은 회색이다. */
-#ui-atlas .atlas-sheet button.as-node{--n:clamp(22px,4.2cqw,30px);position:absolute;left:var(--x);top:var(--y);width:var(--n);height:var(--n);margin:calc(var(--n) / -2) 0 0 calc(var(--n) / -2);padding:0;border:0;background:none;box-shadow:none;min-height:0;cursor:pointer;overflow:visible;z-index:2;color:var(--tone)}
-#ui-atlas .atlas-sheet button.as-node.kind-guardian{--n:clamp(26px,4.9cqw,34px);z-index:3}
-#ui-atlas .atlas-sheet button.as-node.kind-pinnacle{--n:clamp(32px,6.2cqw,44px);z-index:3}
-#ui-atlas .as-stone{position:absolute;inset:0;display:grid;place-items:center;background:center/100% 100% no-repeat;image-rendering:pixelated;filter:drop-shadow(0 1px 1px #000c);font:700 clamp(9px,1.9cqw,13px)/1 var(--font-pixel-meta);text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000}
-#ui-atlas .as-node.is-locked{color:color-mix(in srgb,var(--tone) 60%,#5d5563)}
-#ui-atlas .as-node.is-open .as-stone{animation:as-beckon 1.8s steps(4,end) infinite}
-#ui-atlas .as-node:is(.is-complete,.is-bonus) .as-stone::after{content:'✓';position:absolute;right:-3px;bottom:-2px;padding:1px;background:#221d27;color:#daf2b8;font:700 9px/1 sans-serif;text-shadow:none}
-#ui-atlas .as-node.is-bonus .as-stone::after{content:'★';color:#f4d989}
-#ui-atlas .as-node:is(.is-selected,:hover){z-index:5}
-#ui-atlas .as-node:is(.is-selected,:hover) .as-stone{filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #fff0cf);animation:none}
-#ui-atlas .as-node.is-running .as-stone{filter:drop-shadow(0 0 5px #9fd46a)}
-#ui-atlas .as-node i{position:absolute;right:-8px;top:-7px;min-width:13px;padding:0 2px;border:1px solid #000;background:#f3d28c;color:#1a140d;font-size:10px;line-height:12px;font-style:normal;text-align:center}
-#ui-atlas .as-node em{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);padding:1px 5px;background:#0c0a08e6;border:1px solid var(--atlas-edge);color:#fff4d6;font-size:12px;font-style:normal;white-space:nowrap;pointer-events:none}
-/* 처음 보는 완료: 깬 곳이 한 번 번쩍이고, 길이 다 자란 뒤 새로 열린 곳이 퍼지는 테와 함께 뜬다. 수호자의 봉인은 더 크게 풀린다. */
-#ui-atlas .as-node.is-fresh .as-stone{animation:as-fresh .9s steps(6,end) 1}
-#ui-atlas .as-node.is-unsealed .as-stone{animation:as-unseal .7s steps(5,end) .8s 1 backwards,as-beckon 1.8s steps(4,end) 1.5s infinite}
-#ui-atlas .as-node.is-unsealed::before{content:"";position:absolute;inset:-2px;border:2px solid #fff0cf;opacity:0;animation:as-ring .8s steps(6,end) .8s 1;pointer-events:none}
-#ui-atlas .as-node.is-unsealed.kind-guardian::before{inset:-6px;border-width:3px;border-color:#f3d28c;animation-duration:1.2s}
-@keyframes as-beckon{0%,100%{filter:drop-shadow(0 1px 1px #000c)}50%{filter:drop-shadow(0 0 4px #ffe7a6) drop-shadow(0 0 2px #ffe7a6)}}
-@keyframes as-fresh{0%{filter:brightness(3) drop-shadow(0 0 8px #fff)}100%{filter:brightness(1) drop-shadow(0 1px 1px #000c)}}
+@layer components{/* 천문도(아틀라스 개편 2026-11-24 D1, js/atlas-sheet-ui.js와 js/atlas-ui.js의 atlas-view-pick, -stash, -progress): 위에 양피지 천문도,
+   아래에 카드 띠(고른 것, 지침 보관함, 진행)와 주 단추. 천문도 위의 모양은 사용자 패키지의 시뮬레이터를 따른다:
+   길은 두 겹의 SVG 경로(.as-routes), 지도는 양피지 원판(.as-pin), 보스 자리는 그림의 문장 위 누르는 자리와 이름 판(.as-gate), 표지는 판(.as-mark).
+   띠의 색은 css/atlas.css의 --atlas-* 와 아래의 먹빛(--ink)을 쓴다. 글은 갈무리11 12px(제 크기)만 쓴다. */
+/* 아틀라스 안에서는 길잡이 한 줄만: 세계 지도로 돌아가기와 이 화면의 쪽들. 다른 곳의 표식 탭은 접는다(이 화면이 그 지도다). */
+#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .atlas-shell) #exploration-location{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:4px 14px;box-sizing:border-box;height:54px;margin:-8px 0 -10px;padding:0 14px;overflow:hidden}
+#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .atlas-shell) #exploration-location>:is(.exploration-regions,.exploration-routes){display:flex;flex-wrap:nowrap;align-items:center;gap:4px;margin:0;padding:0;border:0;width:auto}
+#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .atlas-shell) #exploration-location .exploration-place-tab{display:none}
+#ui-atlas .atlas-sheet{--ink:#2b1c0f;container-type:inline-size;display:grid;color:var(--atlas-ink)}
+/* 천문도: 창 안 너비를 다 쓰되, 아래 띠가 창 안에 들어오도록 화면 높이로 너비를 묶는다(1536x864에서 띠 164px). 높은 화면에서는 창 너비 그대로. */
+#ui-atlas .as-chart-box{min-width:0;padding:8px 10px 0}
+#ui-atlas .as-chart{position:relative;box-sizing:border-box;width:min(100%,round(down,(100dvh - 420px) * 1.7917,2px));aspect-ratio:688/384;margin:0 auto;overflow:hidden;border:1px solid #5a4322;box-shadow:0 0 0 1px #c7ac6333,0 6px 18px #00000080;background:#d9c39a center/100% 100% no-repeat}
+/* 길(사용자 패키지의 시뮬레이터 .atlas-route 그대로): 한 길은 두 겹, 아래에 밝은 테(#fff0cf), 위에 갈래 빛깔의 가는 선. 닿지 않은 길은 가는 점선,
+   열린 곳으로 가는 길은 실선, 지나온 길은 조금 굵은 갈색 실선. 신전 갈래의 첫 길은 조금 굵고, 고른 곳까지 가는 길이 아닌 길은 옅다 */
+#ui-atlas .as-routes{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#ui-atlas .as-route{--route-width:1.55px;--route-casing:3.55px;--route-dash:2.5 3.5}
+#ui-atlas .as-route.side-solar{--route:#754522}
+#ui-atlas .as-route.side-lunar{--route:#4b4c65}
+#ui-atlas .as-route.side-interior{--route:#3f5743}
+#ui-atlas .as-route.is-fork{--route-width:1.9px;--route-casing:3.9px}
+#ui-atlas .as-route.is-lit{--route-width:2.1px;--route-casing:4.1px;--route-dash:none}
+#ui-atlas .as-route.is-done{--route:#845535;--route-width:2.45px;--route-casing:4.45px;--route-dash:none}
+#ui-atlas .as-route.is-muted{opacity:.56}
+#ui-atlas .as-route path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+#ui-atlas .as-route-casing{stroke:#fff0cf;stroke-width:var(--route-casing)}
+#ui-atlas .as-route-ink{stroke:var(--route);stroke-width:var(--route-width);stroke-dasharray:var(--route-dash)}
+/* 지도 표식(시뮬레이터 .atlas-map-tier): 양피지 원판에 천문도 등급, 테는 권역 빛깔(--pin)을 섞은 갈색, 안쪽에 밝은 고리, 뒤에 옅게 기운 타원 둘.
+   잠김은 점선 테와 바랜 바탕, 처음 열린 곳(고르기 전)은 밝은 살구빛, 완료는 갈색으로 찬다. 고른 곳은 짙은 테와 안쪽 선, 열린 탐사는 테가 천천히 숨 쉰다.
+   단추는 누르는 자리(PC 22px, 휴대폰 44px)이고, 그림은 안의 원판(b)이 그린다 */
+#ui-atlas .atlas-sheet button.as-pin{--hit:22px;position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);z-index:2;display:grid;place-items:center;width:var(--hit);height:var(--hit);min-width:0;min-height:0;margin:calc(var(--hit) / -2) 0 0 calc(var(--hit) / -2);padding:0;border:0;background:none;box-shadow:none;cursor:pointer;overflow:visible}
+#ui-atlas .atlas-sheet button.as-pin:hover:not(:disabled){border:0;background:none}
+#ui-atlas .as-pin>b{position:relative;isolation:isolate;display:grid;place-items:center;box-sizing:border-box;width:22px;height:22px;border:1px solid color-mix(in srgb,var(--pin) 45%,#523421);background:#fae9c5;color:#342216;box-shadow:inset 0 0 0 1px #fff4d7;font-size:12px;font-weight:700;line-height:12px;pointer-events:none}
+#ui-atlas .as-pin>b::before,#ui-atlas .as-pin>b::after{content:"";position:absolute;inset:2px;z-index:-1;border:1px solid var(--pin);opacity:.25;transform:rotate(32deg)}
+#ui-atlas .as-pin>b::after{transform:rotate(-32deg)}
+#ui-atlas .as-pin.is-locked>b{border-style:dashed;background:#dcc49f;color:#4e3524}
+#ui-atlas .as-pin.is-new>b{border-color:#764622;background:#ffe0a0;box-shadow:inset 0 0 0 1px #fff3d3}
+#ui-atlas .as-pin.is-complete>b{border-color:#54321e;background:#845535;color:#fff3d6;box-shadow:inset 0 0 0 1px #ddb987}
+#ui-atlas .as-pin:is(:hover,.is-selected)>b{border-color:#392618}
+#ui-atlas .as-pin.is-selected>b{outline:1px solid currentColor;outline-offset:-3px}
+#ui-atlas .as-pin:is(.is-selected,:hover){z-index:6}
+#ui-atlas .atlas-sheet :is(.as-pin,.as-gate,.as-mark):focus-visible{z-index:6;outline:2px solid #fff6dc;outline-offset:2px}
+#ui-atlas .as-pin.is-running>b{animation:as-pulse 2.4s ease-in-out infinite}
+/* 고른 지도의 이름 판(시뮬레이터 .atlas-pin-label): 원판 아래, 위, 오른쪽, 왼쪽 가운데 이웃 표식을 덮지 않는 쪽(js platePlace) */
+#ui-atlas .as-pin em{position:absolute;z-index:7;padding:1px 5px;background:#211610;color:#fff0d8;font-size:12px;font-style:normal;line-height:16px;white-space:nowrap;pointer-events:none}
+#ui-atlas .as-pin em:is(.at-below,.at-above){left:50%;transform:translateX(round(-50%,1px))}
+#ui-atlas .as-pin em.at-below{top:calc(50% + 16px)}
+#ui-atlas .as-pin em.at-above{bottom:calc(50% + 16px)}
+#ui-atlas .as-pin em:is(.at-right,.at-left){top:50%;transform:translateY(round(-50%,1px))}
+#ui-atlas .as-pin em.at-right{left:calc(50% + 16px)}
+#ui-atlas .as-pin em.at-left{right:calc(50% + 16px)}
+/* 보스 자리(시뮬레이터 .atlas-boss-gate): 그림의 문장 위에 놓인 투명한 누르는 자리. 들어갈 수 있거나(is-ready) 고르거나 마우스를 올리면 권역 빛깔의
+   가는 테와 옅은 빛. 크기는 시뮬레이터의 비율: 권역 보스는 해와 달, 수호자는 신전 문장, 세계수의 두 입구는 줄기의 두 틈 */
+#ui-atlas .atlas-sheet button.as-gate{position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);z-index:3;box-sizing:border-box;width:clamp(24px,7%,57px);height:clamp(23px,12%,56px);min-width:0;min-height:0;margin:0;padding:0;border:1px solid transparent;background:none;box-shadow:none;transform:translate(round(-50%,1px),round(-50%,1px));cursor:pointer;overflow:visible}
+#ui-atlas .atlas-sheet button.as-gate:is(.gate-sunBoss,.gate-moonBoss){width:clamp(44px,8.5%,70px);height:clamp(44px,15%,74px)}
+#ui-atlas .atlas-sheet button.as-gate.gate-tree{width:clamp(26px,6.8%,58px);height:8.4%}
+#ui-atlas .atlas-sheet button.as-gate:is(.is-ready,.is-selected,:hover:not(:disabled)){border-color:var(--pin);background:#33213533}
+#ui-atlas .atlas-sheet button.as-gate.is-running{border-color:var(--pin);animation:as-pulse-gate 2.4s ease-in-out infinite}
+/* 이름 판(시뮬레이터 .atlas-gate-label): 어두운 판에 권역 빛깔의 테와 글, 들어갈 수 있으면 뒤집힌다, 마친 자리는 앞에 표시.
+   해와 달은 문장 아래, 세계수의 위 입구는 나무 왼쪽 위, 아래 입구는 나무 아래. 수호자의 판은 문장 가운데에, 잠긴 동안은 숨긴다 */
+#ui-atlas .as-gate>small{position:absolute;left:50%;top:80%;padding:1px 5px;border:1px solid var(--pin);background:#221622;color:var(--pin);font-size:12px;font-weight:700;line-height:16px;white-space:nowrap;transform:translateX(round(-50%,1px));pointer-events:none}
+#ui-atlas .as-gate.is-ready>small{background:var(--pin);color:#241725}
+#ui-atlas .as-gate.is-complete>small::before{content:"";display:inline-block;width:6px;height:3px;margin:0 5px 4px 1px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);vertical-align:middle}
+#ui-atlas .as-gate:is(.gate-sunBoss,.gate-moonBoss)>small{top:92%}
+#ui-atlas .as-gate:is(.gate-guardian,.gate-tree)>small{transform:translate(round(-50%,1px),round(-50%,1px))}
+#ui-atlas .as-gate.gate-guardian>small{top:50%}
+#ui-atlas .as-gate.gate-guardian.is-locked:not(.is-selected)>small{display:none}
+#ui-atlas .as-gate[data-atlas-node="gardener"]>small{top:-124%;left:-31%}
+#ui-atlas .as-gate[data-atlas-node="abyss"]>small{top:157%}
+/* 표지(시뮬레이터 .atlas-landmark의 판): 어두운 판에 밝은 글. 시작 육분의는 육분의 그림 오른쪽 위, 피나클 장치는 블랙홀 아래. 켤 수 있는 시작 육분의는 손짓 */
+#ui-atlas .atlas-sheet button.as-mark{position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);z-index:4;min-width:0;min-height:0;padding:1px 5px;border:0;background:#211610;color:#fff0d8;box-shadow:none;font-size:12px;line-height:16px;white-space:nowrap;transform:translate(round(-50%,1px),round(-50%,1px));cursor:pointer}
+#ui-atlas .atlas-sheet button.as-mark:is(:hover:not(:disabled),.is-selected){border:0;background:#352136;color:#ffdf9e;box-shadow:0 0 0 1px #e8b87e}
+#ui-atlas .atlas-sheet button.as-mark.mark-entry{transform:translate(0,round(-50%,1px))}
+#ui-atlas .as-mark.is-locked{color:#c9b597}
+#ui-atlas .as-mark.is-ready{animation:as-beckon 1.8s steps(4,end) infinite}
+/* 처음 보는 완료: 깬 곳이 한 번 번쩍이고, 길이 다 자란 뒤 새로 열린 곳이 퍼지는 테와 함께 뜬다. 보스 자리는 이름 판이 뜨고 문장 둘레에 테가 퍼진다 */
+#ui-atlas .as-pin.is-fresh>b,#ui-atlas .as-gate.is-fresh>small{animation:as-fresh .9s steps(6,end) 1}
+#ui-atlas .as-pin.is-unsealed>b{animation:as-unseal .7s steps(5,end) .8s 1 backwards}
+#ui-atlas .as-gate.is-unsealed>small{animation:as-fresh .9s steps(6,end) .8s 1 backwards}
+#ui-atlas :is(.as-pin,.as-gate).is-unsealed::before{content:"";position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border:2px solid #fff0cf;opacity:0;animation:as-ring .8s steps(6,end) .8s 1;pointer-events:none}
+#ui-atlas .as-gate.is-unsealed::before{inset:0;width:auto;height:auto;margin:0}
+@keyframes as-pulse{0%,100%{box-shadow:inset 0 0 0 1px #fff4d7,0 0 0 1px #fff0cf,0 0 0 3px color-mix(in srgb,var(--pin) 45%,#523421)}50%{box-shadow:inset 0 0 0 1px #fff4d7,0 0 0 1px #fff0cf,0 0 0 6px color-mix(in srgb,var(--pin) 45%,#52342100)}}
+@keyframes as-pulse-gate{0%,100%{box-shadow:0 0 0 1px var(--pin)}50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--pin) 30%,transparent)}}
+@keyframes as-beckon{0%,100%{filter:none}50%{filter:drop-shadow(0 0 3px #ffe7a6) drop-shadow(0 0 2px #ffe7a6)}}
+@keyframes as-fresh{0%{filter:brightness(2.4) drop-shadow(0 0 8px #fff)}100%{filter:none}}
 @keyframes as-unseal{0%{opacity:.2;transform:scale(.6)}60%{opacity:1;transform:scale(1.25)}100%{transform:scale(1)}}
 @keyframes as-ring{0%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(2.4)}}
-@keyframes as-seed{0%{transform:rotate(45deg) scale(2.2);box-shadow:0 0 14px #fff}100%{transform:rotate(45deg) scale(1);box-shadow:0 0 6px #c9a0f0}}
-/* 서랍 */
-#ui-atlas .as-drawer{min-width:0;min-height:0;overflow-y:auto;contain:size;background:var(--atlas-panel)}
-#ui-atlas .as-stash{padding:8px 10px;border-bottom:1px solid var(--atlas-line)}
-#ui-atlas .as-stash h3{margin:0 0 6px;font-size:13px;font-weight:400;color:var(--atlas-gold)}
-#ui-atlas .as-stash h3 span{color:var(--atlas-muted)}
-#ui-atlas .as-tiles{display:grid;grid-template-columns:repeat(auto-fill,30px);gap:4px;margin-bottom:6px}
-#ui-atlas .atlas-sheet button.as-tile{position:relative;width:30px;height:30px;min-height:0;padding:0;border:2px solid var(--tone);background:#17130e;color:var(--tone);font-size:13px;box-shadow:none;cursor:pointer}
-#ui-atlas .as-tile b{font-weight:400}
-#ui-atlas .as-tile.rarity-magic{background:#16202c}
-#ui-atlas .as-tile.rarity-rare{background:#2c2612}
-#ui-atlas .as-tile.is-corrupted{background:#2a1418}
-#ui-atlas .as-tile.is-other{opacity:.38}
-#ui-atlas .as-tile[aria-pressed="true"]{outline:2px solid #fff4d6;outline-offset:1px;opacity:1}
-#ui-atlas .as-tile i{position:absolute;right:1px;bottom:1px;width:5px;height:5px;background:var(--omen)}
-#ui-atlas .as-drawer .atlas-device,#ui-atlas .as-drawer .atlas-node-detail{border:0;border-bottom:1px solid var(--atlas-line)}
-/* 도크 */
-#ui-atlas .as-dock{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;border-top:1px solid var(--atlas-edge);background:linear-gradient(180deg,#1d1813,#120f0b)}
-#ui-atlas .as-info{min-width:0;padding-left:8px;border-left:3px solid var(--tint,var(--atlas-edge))}
-#ui-atlas .as-info small{color:var(--atlas-muted);font-size:11px}
-#ui-atlas .as-info h3{display:flex;align-items:center;gap:8px;margin:0;font-size:15px;font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#fff4d6)}
-#ui-atlas .as-info h3 b{min-width:20px;padding:0 4px;border:1px solid var(--tone);color:var(--tone);font-weight:400;font-size:13px;text-align:center}
-#ui-atlas .as-info p{margin:1px 0 0;font-size:12px}
-#ui-atlas .as-fragments p{display:flex;align-items:center;gap:5px;margin:0 0 4px;font-size:12px;color:var(--atlas-muted)}
-#ui-atlas .as-fragments p i{width:10px;height:10px;border:1px solid var(--atlas-edge);background:#0c0a08}
-#ui-atlas .as-fragments p i.is-on{background:var(--atlas-gold);border-color:var(--atlas-gold-hi)}
-#ui-atlas .as-fragments div{display:flex;flex-wrap:wrap;gap:4px;font-size:12px}
-#ui-atlas .atlas-sheet button.as-fragment{display:inline-flex;gap:6px;min-height:0;padding:2px 7px;font-size:12px}
-#ui-atlas .as-fragment.is-on{border-color:var(--atlas-gold-hi);color:var(--atlas-gold-hi)}
-#ui-atlas .as-fragment small{color:var(--atlas-muted)}
-#ui-atlas .as-go{display:grid;justify-items:end;gap:4px;max-width:230px}
-#ui-atlas .as-go small{color:var(--atlas-muted);font-size:11px;text-align:right}
-#ui-atlas .as-go .atlas-primary{min-width:120px;padding:8px 18px;font-size:15px}
-#ui-atlas .as-loaded{display:inline-flex;align-items:center;gap:6px;font-size:12px}
-#ui-atlas .as-loaded b{min-width:20px;padding:0 4px;border:2px solid var(--tone);color:var(--tone);font-weight:400;text-align:center}
-/* 패시브 쪽: 왼쪽 줄에 다섯 바퀴의 작은 그림, 가운데 고른 바퀴, 오른쪽에 노드 설명과 합계, 아래에 포인트 막대 */
-#ui-atlas .as-passives{display:grid;grid-template-columns:156px minmax(0,1fr);gap:10px 14px;padding:10px 12px}
-#ui-atlas .as-wheel-rail{display:grid;gap:5px;align-content:start}
-#ui-atlas .as-passives .as-wheel-rail>button{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto auto;gap:1px 8px;align-items:center;min-height:0;padding:4px 6px;text-align:left;font-size:12px}
-#ui-atlas .as-wheel-rail .atlas-wheel-art{grid-row:1/-1;width:48px;margin:0}
-#ui-atlas .as-wheel-rail b{font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#f4ead6);line-height:1.2}
-#ui-atlas .as-wheel-rail small{color:var(--atlas-muted);font-size:11px}
-#ui-atlas .as-wheel-rail i{height:3px;background:linear-gradient(90deg,var(--tint) var(--fill),#2a2218 var(--fill))}
-#ui-atlas .as-wheel-rail>button[aria-pressed="true"]{box-shadow:inset 3px 0 0 var(--tint);background:color-mix(in srgb,var(--tint) 16%,var(--atlas-raised))}
-#ui-atlas .as-passives .atlas-wheel{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);column-gap:16px;align-items:start}
-#ui-atlas .as-passives .atlas-wheel[hidden]{display:none}
-#ui-atlas .as-wheel-side h3{margin:0 0 4px;font-size:15px;font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#fff4d6)}
-#ui-atlas .as-wheel-side h4{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--atlas-line);font-size:12px;font-weight:400;color:var(--atlas-gold)}
-#ui-atlas .as-wheel-side .atlas-wheel-note{min-height:54px;margin:0;font-size:12px}
-#ui-atlas .as-passive-totals{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:12px}
-#ui-atlas .as-passive-totals li{display:flex;justify-content:space-between;gap:8px;padding:1px 0;border-bottom:1px dotted #2a2218}
-#ui-atlas .as-passive-totals b{font-weight:400;color:#9fd46a;white-space:nowrap}
-#ui-atlas .as-passive-points{grid-column:1/-1;position:relative;margin:0;height:18px;border:1px solid var(--atlas-edge);background:#0c0a08}
-#ui-atlas .as-passive-points::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#4f9a93,#2c5f5a)}
-#ui-atlas .as-passive-points b{position:relative;display:block;padding:0 8px;line-height:16px;font-weight:400;font-size:12px;color:#e6fffb;text-shadow:1px 1px 0 #000}
-@container (max-width:640px){#ui-atlas .as-passives{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-wheel-rail{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}#ui-atlas .as-passives .atlas-wheel{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){#ui-atlas :is(.as-pin>b,.as-gate,.as-gate>small,.as-mark,.as-pin::before,.as-gate::before){animation:none}#ui-atlas .as-pin.is-running>b{box-shadow:inset 0 0 0 1px #fff4d7,0 0 0 1px #fff0cf,0 0 0 3px color-mix(in srgb,var(--pin) 45%,#523421)}#ui-atlas .atlas-sheet button.as-gate.is-running{box-shadow:0 0 0 2px var(--pin)}}
+/* 아래 띠: 고른 것(남는 너비), 지침 보관함, 진행. 주 단추(.as-go)는 고른 것 카드의 오른쪽 아래에 같은 칸으로 얹는다 */
+#ui-atlas .as-band{display:grid;grid-template-columns:minmax(0,1fr) 208px 180px;grid-template-rows:164px;gap:8px;padding:8px 10px 8px}
+#ui-atlas .as-card{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border:1px solid #4a3b26;background:linear-gradient(180deg,#1b1611,#110e0a);box-shadow:inset 0 0 0 1px #000,inset 0 1px 0 #6b543466}
+#ui-atlas .as-pick{grid-column:1;grid-row:1}
+#ui-atlas .as-stash{grid-column:2;grid-row:1}
+#ui-atlas .as-progress{grid-column:3;grid-row:1}
+#ui-atlas .as-card-head{display:flex;align-items:center;gap:6px;flex:none;height:26px;padding:0 6px 0 8px;border-bottom:1px solid #3a2f20;background:linear-gradient(180deg,#2a2117,#19140e)}
+#ui-atlas .as-card-head h3{flex:0 1 auto;min-width:0;margin:0;overflow:hidden;color:var(--atlas-gold-hi);font-size:12px;font-weight:700;line-height:16px;white-space:nowrap;text-overflow:ellipsis}
+#ui-atlas .as-card-head .as-sub{display:flex;flex:1 1 0;gap:8px;min-width:0;overflow:hidden;color:var(--atlas-muted);white-space:nowrap}
+#ui-atlas .as-card-head .as-sub span{overflow:hidden;text-overflow:ellipsis}
+#ui-atlas .as-card-head .as-sub span+span::before{content:"";display:inline-block;width:1px;height:10px;margin-right:8px;background:#5d4a2e;vertical-align:-1px}
+#ui-atlas .as-card-head>.as-plate{margin-left:auto}
+#ui-atlas .as-card-body{display:grid;align-content:start;gap:3px;flex:1 1 auto;min-height:0;padding:4px 8px;overflow:auto;scrollbar-width:thin}
+#ui-atlas .as-tier{flex:none;min-width:26px;padding:0 4px;border:1px solid var(--tone,var(--atlas-edge));background:#0c0a08;color:var(--tone,var(--atlas-gold-hi));font-size:12px;font-weight:700;line-height:16px;text-align:center}
+#ui-atlas .as-kind{flex:none;padding:0 5px;border:1px solid #6b5434;background:#0c0a08;color:#e5c88c;font-size:12px;font-weight:400;line-height:16px;white-space:nowrap}
+#ui-atlas .as-plate{flex:none;padding:0 6px;border:1px solid #4a3d2a;background:#0f0c09;color:var(--atlas-muted);font-size:12px;line-height:16px;white-space:nowrap}
+#ui-atlas .as-plate.is-open{border-color:#7a6232;color:#f3d28c}
+#ui-atlas .as-plate.is-complete{border-color:#4d6b37;color:#b9dd92}
+#ui-atlas .as-plate.is-running{border-color:#4f8a3a;color:#cfeeb0;background:#14200f}
+#ui-atlas .as-plate.is-failed{border-color:#7a3a30;color:#e9a08a}
+/* 고른 것 카드의 줄: 이름 칸(작은 회색 글) 뒤에 값. 칩은 소모와 열쇠, 각인 */
+#ui-atlas .as-line{display:flex;align-items:center;gap:5px;min-width:0;min-height:20px;margin:0;white-space:nowrap}
+#ui-atlas .as-line>small{flex:none;color:var(--atlas-muted)}
+#ui-atlas .as-line>span:not(.as-chip):not(.as-holes){min-width:0;overflow:hidden;text-overflow:ellipsis}
+#ui-atlas .as-chip{flex:none;display:inline-flex;align-items:center;gap:4px;padding:0 6px;border:1px solid #4a3d2a;background:#0f0c09;color:var(--atlas-muted);font-size:12px;line-height:16px;white-space:nowrap}
+#ui-atlas .as-chip.is-on{border-color:#7a6232;color:#f0dfb4}
+#ui-atlas .as-chip.is-missing{border-style:dashed;color:#c99a86}
+#ui-atlas .as-chip.rarity-magic{border-color:#4f6f94;color:var(--atlas-magic)}
+#ui-atlas .as-chip.rarity-rare{border-color:#8a7434;color:var(--atlas-rare)}
+#ui-atlas .as-chip.is-dew{border-color:#5a6f86;color:#cfe2f4}
+#ui-atlas .as-chip.is-key.is-on{border-color:#9a7a3a;background:#241b0e;color:#ffe39a}
+#ui-atlas .atlas-sheet button.as-chip{min-height:20px;cursor:pointer}
+#ui-atlas .atlas-sheet button.as-chip.is-on{border-color:var(--atlas-gold-hi);color:var(--atlas-gold-hi);background:#241b0e}
+#ui-atlas .as-chip b{color:var(--atlas-muted);font-weight:400}
+#ui-atlas .as-frags{overflow-x:auto;scrollbar-width:none}
+#ui-atlas .as-frags em{color:#7d7262;font-style:normal}
+#ui-atlas .as-holes{display:inline-flex;gap:3px}
+#ui-atlas .as-holes i{width:10px;height:10px;border:1px solid var(--atlas-edge);background:#0c0a08;transform:rotate(45deg)}
+#ui-atlas .as-holes i.is-on{border-color:var(--atlas-gold-hi);background:var(--atlas-gold)}
+#ui-atlas .as-stars span{color:#d9c79c}
+/* 형체 없는 이슬 사용: 체크 칸, 이슬 그림, 이름, 보유 수 */
+#ui-atlas .as-dew{display:flex;align-items:center;gap:6px;min-height:20px;cursor:pointer;white-space:nowrap}
+#ui-atlas .as-dew input{width:14px;height:14px;margin:0;accent-color:#8fb4d8}
+#ui-atlas .as-dew small{margin-left:auto;color:var(--atlas-muted)}
+#ui-atlas .as-dew.is-on>span{color:#cfe2f4}
+#ui-atlas .as-dew.is-off{cursor:default;opacity:.6}
+#ui-atlas .as-icon{flex:none;width:22px;height:22px}
+#ui-atlas .as-icon .m{fill:#0b0907}
+#ui-atlas .as-icon .f{fill:#c9a35a}
+#ui-atlas .as-dew .as-icon .f{fill:#8fb4d8}
+/* 수 칸 둘(포털, 장비 상자): 도트 그림, 이름, 값. 이슬이나 별이 바꾼 수는 기준을 긋고 → 새 값 */
+#ui-atlas .as-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#ui-atlas .as-stat{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:16px 16px;align-content:center;column-gap:7px;box-sizing:border-box;min-width:0;height:34px;padding:0 8px 0 5px;border:1px solid #3a2f20;background:#0b0907;box-shadow:inset 0 1px 0 #000}
+#ui-atlas .as-stat>.as-icon{grid-row:1/3;align-self:center}
+#ui-atlas .as-stat small{overflow:hidden;color:var(--atlas-muted);line-height:16px;white-space:nowrap;text-overflow:ellipsis}
+#ui-atlas .as-stat b{display:inline-flex;align-items:center;gap:4px;min-width:0;color:#f0dfb4;font-weight:700;line-height:16px;white-space:nowrap}
+#ui-atlas .as-stat b s{color:#7d7262;font-weight:400;text-decoration-thickness:1px}
+#ui-atlas .as-stat b i{color:#7d7262;font-style:normal}
+#ui-atlas .as-stat.is-changed{border-color:#6b5434}
+#ui-atlas .as-stat.is-changed b{color:#ffe39a}
+#ui-atlas .as-stats:has(>.as-foe){grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}
+#ui-atlas .as-foe b{display:block;overflow:hidden;text-overflow:ellipsis}
+#ui-atlas .as-foe .as-icon .f{fill:#d6c3a0}
+#ui-atlas .as-portals b .as-pips{margin-right:4px}
+#ui-atlas .as-pips{display:inline-flex;gap:4px;align-items:center}
+#ui-atlas .as-pips i{width:8px;height:8px;border:1px solid #8a7048;background:#0c0a08;transform:rotate(45deg)}
+#ui-atlas .as-portals .as-pips i{width:10px;height:10px}
+#ui-atlas .as-pips i.is-on{border-color:#cfeeb0;background:#7fae52}
+#ui-atlas .as-pips.is-boss i.is-on{border-color:#ffe39a;background:#c8902c}
+#ui-atlas .as-pips.is-seed i.is-on{border-color:#f0dcff;background:#c9a0f0}
+/* 피나클 장치: 외부 피나클 두 줄(기호, 이름과 상대, 상태, 비용, 제 단추) */
+#ui-atlas .as-outers{gap:4px}
+#ui-atlas .as-outer{display:grid;grid-template-columns:28px minmax(0,1fr) 168px;align-items:center;gap:8px;box-sizing:border-box;min-height:0;padding:2px 3px 2px 6px;border:1px solid #3a2f20;background:#0b0907}
+#ui-atlas .as-token{display:grid;place-items:center;width:26px;height:26px;border:1px solid #c7a35e;background:var(--ink);color:#f3d28c;font-size:12px;font-weight:700}
+#ui-atlas .as-outer.is-locked .as-token{border-style:dashed;border-color:#6b5434;color:#9d927d}
+#ui-atlas .as-outer-name{display:grid;min-width:0}
+#ui-atlas .as-outer-name>p{display:flex;align-items:center;gap:6px;min-width:0;margin:0}
+#ui-atlas .as-outer-name :is(strong,small){overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#ui-atlas .as-outer-name strong{color:#f0dfb4;font-size:12px;font-weight:700}
+#ui-atlas .as-outer-name small{color:var(--atlas-muted)}
+#ui-atlas .as-outer .as-cost{min-height:0;line-height:16px}
+#ui-atlas .as-outer .as-plate{line-height:14px}
+#ui-atlas .atlas-sheet .as-outer .as-go-main{box-sizing:border-box;min-height:52px;padding:0 6px}
+/* 시작 육분의: 네 시작 길(등급 판, 지도 이름, 권역) */
+#ui-atlas .as-starts{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#ui-atlas .atlas-sheet button.as-start{display:flex;align-items:center;gap:8px;min-width:0;min-height:40px;padding:3px 8px;text-align:left}
+#ui-atlas .as-start span{display:grid;min-width:0}
+#ui-atlas .as-start :is(strong,small){overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#ui-atlas .as-start strong{color:#f0dfb4;font-size:12px;font-weight:700}
+#ui-atlas .as-start small{color:var(--atlas-muted)}
+#ui-atlas .as-start.is-locked{opacity:.7}
+#ui-atlas .as-held span{color:#e5d2aa}
+/* 주 단추: 고른 것 카드의 오른쪽 아래 칸. 들어갈 수 없으면 까닭이 단추 글 자리에 선다(두 줄까지). 휴대폰은 아래쪽에 붙는다 */
+#ui-atlas .as-band:has(>.as-go) .as-pick .as-card-body{margin-right:136px}
+#ui-atlas .as-go{grid-column:1;grid-row:1;align-self:end;justify-self:end;z-index:1;display:grid;gap:4px;width:128px;margin:0 6px 6px 0}
+#ui-atlas .atlas-sheet .as-go-main{display:grid;place-items:center;width:100%;min-height:58px;padding:4px 8px;font-size:12px;font-weight:700;line-height:16px;white-space:normal;word-break:keep-all;text-align:center}
+#ui-atlas .atlas-sheet .as-go-main.is-refused{font-weight:400}
+#ui-atlas .atlas-sheet .as-go-side{min-height:30px;padding:2px 8px}
+/* 지침 보관함: 머리의 수와 도구, 등급 줄(판, 수, 칸), 고른 지침의 줄 */
+#ui-atlas .as-count{color:var(--atlas-muted)}
+#ui-atlas .as-count.is-full{color:#e9a08a}
+#ui-atlas .as-tools{display:flex;gap:3px;margin-left:auto}
+#ui-atlas .atlas-sheet button.as-mini{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:22px;min-height:20px;padding:0 4px;line-height:16px;white-space:nowrap}
+#ui-atlas .atlas-sheet button.as-mini.is-on{border-color:var(--atlas-gold-hi);color:var(--atlas-gold-hi)}
+#ui-atlas .as-mini .as-icon{width:11px;height:11px}
+#ui-atlas .as-mini b{font-weight:400;color:var(--atlas-gold-hi)}
+#ui-atlas .as-stash .as-card-body{gap:3px}
+#ui-atlas .as-tier-row{display:grid;grid-template-columns:30px 14px minmax(0,1fr);align-items:start;gap:4px}
+#ui-atlas .as-tier-row>.as-tier{margin-top:4px;min-width:0;padding:0}
+#ui-atlas .as-tier.is-guardian{display:grid;place-items:center;height:18px}
+#ui-atlas .as-tier.is-guardian .as-icon{width:11px;height:11px}
+#ui-atlas .as-tier-row>small{margin-top:5px;color:var(--atlas-muted)}
+#ui-atlas .as-tiles{display:flex;flex-wrap:wrap;gap:3px}
+/* 지침 칸: 천문도 표식과 같은 양피지 원판(.as-pin>b)에 등급, 테와 안쪽 고리는 희귀도 빛깔. 타락은 칸에 붉은 테, 기운과 품질은 모서리의 작은 점.
+   수호자 지침은 보스 자리의 이름 판처럼 어두운 판에 권역 빛깔(--pin) */
+#ui-atlas .atlas-sheet button.as-tile{--rim:var(--atlas-normal);--disc:22px;position:relative;display:grid;place-items:center;width:26px;height:26px;min-width:0;min-height:0;padding:0;border:1px solid transparent;background:none;box-shadow:none;cursor:pointer}
+#ui-atlas .atlas-sheet button.as-tile.rarity-magic{--rim:var(--atlas-magic)}
+#ui-atlas .atlas-sheet button.as-tile.rarity-rare{--rim:var(--atlas-rare)}
+#ui-atlas .atlas-sheet button.as-tile.is-corrupted{border-color:#8a3a46;background:#26111a}
+#ui-atlas .as-tile>b{display:grid;place-items:center;box-sizing:border-box;width:var(--disc);height:var(--disc);border:2px solid var(--rim);background:#fae9c5;color:#342216;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rim) 55%,#3a2716);font-size:12px;font-weight:700;line-height:12px}
+#ui-atlas .as-tile.is-guardian>b{border:1px solid var(--pin);background:#221622;color:var(--pin);box-shadow:none}
+#ui-atlas .atlas-sheet button.as-tile:hover:not(:disabled)>b{filter:brightness(1.08)}
+#ui-atlas .as-tile[aria-pressed="true"]>b{outline:2px solid #fff4d6;outline-offset:1px}
+#ui-atlas .as-tile>i{position:absolute;right:calc(50% - var(--disc) / 2);bottom:calc(50% - var(--disc) / 2);width:5px;height:5px;background:var(--omen)}
+#ui-atlas .as-tile.has-quality::after{content:"";position:absolute;left:calc(50% - var(--disc) / 2);top:calc(50% - var(--disc) / 2);width:4px;height:4px;background:#f0dfb4}
+#ui-atlas .as-empty{margin:4px 0;color:var(--atlas-muted);white-space:normal}
+#ui-atlas .as-stash-foot{display:flex;align-items:center;gap:3px;flex:none;height:26px;padding:0 4px 0 6px;border-top:1px solid #3a2f20;background:#15110c}
+#ui-atlas .as-picked{flex:1 1 0;min-width:0;overflow:hidden;color:var(--atlas-normal);white-space:nowrap;text-overflow:ellipsis}
+#ui-atlas .as-picked.rarity-magic{color:var(--atlas-magic)}
+#ui-atlas .as-picked.rarity-rare{color:var(--atlas-rare)}
+/* 지침 제작 면: 옵션, 보상 배율, 제작 단추(두 칸), 꽃 */
+#ui-atlas .as-craft{display:grid;gap:4px}
+#ui-atlas .as-craft .atlas-omen{margin:0}
+#ui-atlas .as-mods{display:grid;gap:2px;margin:0;padding:0;list-style:none;color:#aebfe0;white-space:normal}
+#ui-atlas .as-craft.rarity-rare .as-mods{color:#d9cf9f}
+#ui-atlas .as-reward{margin:0;color:#c9bfa8;white-space:normal}
+#ui-atlas .as-crafts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+#ui-atlas .as-crafts button{display:grid;justify-items:start;min-width:0;min-height:34px;padding:2px 5px;text-align:left}
+#ui-atlas .as-crafts button :is(span,small){max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#ui-atlas .as-crafts small{color:var(--atlas-muted)}
+#ui-atlas .as-craft .atlas-flowers{grid-template-columns:minmax(0,1fr);margin:0}
+/* 진행 카드: 머리의 두 쪽, 지도 첫 완료 막대, 보스와 씨앗 칸, 자동 지도, 지난 결과 */
+#ui-atlas .as-tabs{display:flex;gap:2px;height:100%;margin-left:-8px}
+#ui-atlas .atlas-sheet button.as-tab{min-height:0;height:100%;padding:0 8px;border:0;border-right:1px solid #3a2f20;background:none;box-shadow:none;color:var(--atlas-muted)}
+#ui-atlas .atlas-sheet button.as-tab[aria-pressed="true"]{background:linear-gradient(180deg,#3a2c1a,#241b10);color:var(--atlas-gold-hi);font-weight:700}
+#ui-atlas .as-meter{position:relative;display:flex;justify-content:space-between;align-items:center;height:22px;padding:0 6px;border:1px solid var(--atlas-edge);background:#0c0a08}
+#ui-atlas .as-meter::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#b98f45,#7c5b24)}
+#ui-atlas .as-meter :is(b,span){position:relative;color:#fff1c9;font-weight:400;text-shadow:1px 1px 0 #000}
+#ui-atlas .as-count-row b{margin-left:auto;color:#f0dfb4;font-weight:400}
+#ui-atlas .as-auto-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+#ui-atlas .as-check{display:inline-flex;align-items:center;gap:5px;min-height:20px;cursor:pointer;white-space:nowrap}
+#ui-atlas .as-check input{width:14px;height:14px;margin:0;accent-color:var(--atlas-gold)}
+#ui-atlas .as-result{display:grid;gap:4px}
+#ui-atlas .as-result-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;margin:0}
+#ui-atlas .as-result-head strong{color:#f0dfb4;font-size:12px;font-weight:700}
+#ui-atlas .as-result-head small{flex-basis:100%;color:var(--atlas-muted);white-space:normal}
+#ui-atlas .as-result :is(.atlas-result-finds,.atlas-result-currencies){display:flex;flex-wrap:wrap;align-items:center;gap:3px}
+#ui-atlas .as-result :is(.atlas-result-finds,.atlas-result-currencies)>small{flex-basis:100%;margin:0;color:var(--atlas-muted)}
+#ui-atlas .as-result .atlas-find{min-height:20px;padding:0 5px}
+#ui-atlas .as-result .atlas-result-given{padding:2px 5px;border:1px solid #6b5434;background:#1c160d;color:#ffe39a;line-height:16px;white-space:normal}
+#ui-atlas .as-result .atlas-result-finds>small:first-child{color:#f0dfb4}
+#ui-atlas .as-result p{margin:0}
 /* 세계 지도의 아틀라스 입구(js/world-map-ui.js atlasEntranceHtml): 글 없이 표식만. 누르면 색이 뒤집히고(.is-turning) 그 자리에서 새 그림이 원으로 퍼진다(.wm-turn).
-   아틀라스 지도의 같은 자리에는 세계 지도로 돌아가는 단추(.as-home)가 서고 같은 전환이 거꾸로 돈다. */
+   천문도의 같은 자리에는 세계 지도로 돌아가는 단추(.as-home)가 서고 같은 전환이 거꾸로 돈다. */
 #ui-exploration-atlas .wm-atlas-entrance.is-icon,#ui-atlas .atlas-sheet button.as-home{position:absolute;z-index:6;width:clamp(30px,5cqw,40px);height:clamp(30px,5cqw,40px);min-height:0;padding:0;border:0;background:none;box-shadow:none;transform:translate(-50%,-50%);cursor:pointer}
-#ui-atlas .atlas-sheet button.as-home{left:var(--x);top:var(--y)}
+#ui-atlas .atlas-sheet button.as-home{left:var(--x);top:var(--y);width:34px;height:34px}
 :is(#ui-exploration-atlas .wm-atlas-entrance.is-icon,#ui-atlas .as-home)>i{display:block;width:100%;height:100%;background:center/100% 100% no-repeat;image-rendering:pixelated;filter:drop-shadow(0 1px 1px #000c);animation:as-beckon 1.8s steps(4,end) infinite}
 :is(#ui-exploration-atlas .wm-atlas-entrance.is-icon,#ui-atlas .as-home):is(:hover,:focus-visible)>i{filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px #fff0cf);animation:none}
 :is(#ui-exploration-atlas .wm-atlas-entrance.is-icon,#ui-atlas .as-home).is-turning>i{filter:invert(1) drop-shadow(0 0 6px #fff);animation:none}
@@ -120,6 +259,98 @@
 @media (prefers-reduced-motion:reduce){.wm-turn{animation:none;clip-path:none}}
 /* 자리 표식의 액트 번호: 새 표식의 어두운 돌판 위에서는 밝은 글자 */
 #ui-exploration-atlas .wm-pin>b,#exploration-location .exploration-place-tab>i>b{color:#fff1c9;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000}
-/* 좁은 창: 서랍이 차트 아래로, 도크는 세로로 */
-@container (max-width:640px){#ui-atlas .as-body{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-chart{border-right:0}#ui-atlas .as-drawer{contain:none;overflow:visible}#ui-atlas .as-dock{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-go{justify-items:stretch;max-width:none}}
+/* 아래쪽 메뉴를 쓰는 넓은 터치 화면(1024x768 같은): 공통 터치 규칙(themes/pixel-mobile.css)이 단추를 44px로 키우므로 띠는 내용만큼 자라고 카드는 잘리지 않는다 */
+@container (min-width:641px){body.mobile-primary-navigation #ui-atlas .as-band{grid-template-columns:minmax(0,1fr) 236px 196px;grid-template-rows:auto}}
+body.mobile-primary-navigation #ui-atlas :is(.as-card,.as-card-body){overflow:visible}
+body.mobile-primary-navigation #ui-atlas .as-card-head{height:auto;min-height:26px}
+body.mobile-primary-navigation #ui-atlas .atlas-sheet button.as-tile{--disc:30px}
+/* 좁은 창(휴대폰의 한 가지 좁은 배치): 천문도는 표식이 서로 덮지 않는 너비(900px)를 지킨 채 옆으로 밀고, 카드는 한 줄로 쌓는다.
+   누르는 자리는 44px(공통 규칙): 핀은 그림보다 넓은 누르는 자리를 갖는다. 주 단추는 화면 아래에 붙고, 오른쪽에 전투 보기 단추의 자리를 둔다. */
+@container (max-width:640px){
+  #ui-atlas .as-chart-box{overflow-x:auto;padding:6px 0 0;scrollbar-width:thin}
+  #ui-atlas .as-chart{width:900px;min-width:900px}
+  #ui-atlas .atlas-sheet button.as-pin{--hit:44px}
+  #ui-atlas .as-band{grid-template-columns:minmax(0,1fr);grid-template-rows:none;padding:8px 8px 0}
+  #ui-atlas :is(.as-pick,.as-stash,.as-progress,.as-go){grid-column:1;grid-row:auto}
+  #ui-atlas .as-card{overflow:visible}
+  #ui-atlas .as-card-body{overflow:visible}
+  #ui-atlas .as-card-head{height:auto;min-height:30px;flex-wrap:wrap;padding:4px 6px 4px 8px}
+  #ui-atlas .as-card-head .as-sub{flex-basis:100%;order:4}
+  #ui-atlas .as-band:has(>.as-go) .as-pick .as-card-body{margin-right:0}
+  #ui-atlas .as-line{flex-wrap:wrap;white-space:normal}
+  #ui-atlas .as-stats{grid-template-columns:minmax(0,1fr)}
+  #ui-atlas .as-dew,#ui-atlas .as-check,#ui-atlas .atlas-sheet button.as-chip,#ui-atlas .atlas-sheet button.as-mini{min-height:44px}
+  #ui-atlas .atlas-sheet button.as-mini{min-width:44px}
+  #ui-atlas .atlas-sheet button.as-tile{width:44px;height:44px}
+  #ui-atlas .as-tier-row>.as-tier{margin-top:13px}
+  #ui-atlas .as-tier-row>small{margin-top:14px}
+  #ui-atlas .as-stash-foot{height:auto;min-height:48px;flex-wrap:wrap;padding:2px 6px}
+  #ui-atlas .as-tabs .as-tab{min-height:44px}
+  #ui-atlas .as-outer{grid-template-columns:28px minmax(0,1fr)}
+  #ui-atlas .as-outer>.as-go-main{grid-column:1/-1}
+  #ui-atlas .as-starts{grid-template-columns:minmax(0,1fr)}
+  #ui-atlas .atlas-sheet button.as-start{min-height:44px}
+  #ui-atlas .as-go{position:sticky;bottom:0;z-index:8;display:flex;gap:6px;width:auto;margin:0 -8px;padding:8px;background:linear-gradient(180deg,transparent,var(--atlas-deep) 10px);justify-self:stretch}
+  #ui-atlas .atlas-sheet .as-go-main{flex:1 1 auto;min-height:48px}
+  #ui-atlas .atlas-sheet .as-go-side{flex:none;min-height:48px}
+  #map-explore-worldtree.has-battle-pip #ui-atlas .as-go{padding-right:112px}
+}
+/* 패시브 별자리(js/atlas-passives-ui.js, 개편 2026-11-24 B, 모양은 사용자 패키지의 시뮬레이터 .atlas-constellations): 왼쪽에 양피지 판(세 갈래의 머리,
+   옅은 동심원과 점 격자 위의 별과 이음), 오른쪽에 포인트 줄과 고른 별의 상자(이 창의 어두운 판). 갈래의 먹빛은 태양 갈색, 세계수 초록, 달 남빛(--star-ink).
+   별은 둥근 메달: 할당하지 않은 별은 비어 있고 테와 무늬가 갈래 빛깔, 할당한 별은 갈래 빛깔로 차고 무늬가 밝다. 관(최종 별)은 겹테, 고른 별은 바깥 고리와 밑줄.
+   이음은 양 끝이 비면 가는 점선, 한쪽을 할당하면 실선, 양쪽이면 굵다. 갈래 안의 이음은 갈래 빛깔, 갈래를 넘는 이음은 갈색 */
+#ui-atlas .atlas-stars{display:grid;grid-template-columns:minmax(0,1fr) 260px;grid-template-rows:auto minmax(0,1fr);grid-template-areas:"board points" "board side";gap:12px 14px;padding:12px 14px}
+#ui-atlas .ast-board-box{grid-area:board}
+#ui-atlas .ast-points{grid-area:points}
+#ui-atlas .ast-side{grid-area:side}
+#ui-atlas .ast-board-box .side-solar{--star-ink:#854715}
+#ui-atlas .ast-board-box .side-interior{--star-ink:#415337}
+#ui-atlas .ast-board-box .side-lunar{--star-ink:#49466c}
+#ui-atlas .ast-board-box{min-width:0;padding:8px 12px 30px;border:1px solid #9f794c;background:radial-gradient(circle at 50% 50%,#80623b55 0 .7px,transparent 1.1px) 6px 2px/27px 23px,radial-gradient(ellipse at 38% 15%,#fff1d6,transparent 78%),#eedbb4;box-shadow:0 0 0 1px #c7ac6333,0 6px 18px #00000080;color:#38271c}
+#ui-atlas .ast-heads{position:relative;height:40px;margin-bottom:14px;border-bottom:1px solid #ac956d}
+#ui-atlas .ast-heads>div{position:absolute;left:calc(var(--x) * .9 + 5%);top:2px;display:grid;justify-items:center;transform:translateX(round(-50%,1px));white-space:nowrap}
+#ui-atlas .ast-heads b{display:flex;align-items:center;gap:4px;color:var(--star-ink);font-size:12px;font-weight:700;line-height:16px}
+#ui-atlas .ast-heads small{color:#644f3a;font-size:12px;line-height:16px}
+#ui-atlas .ast-heads svg{width:12px;height:12px;fill:currentColor}
+#ui-atlas .ast-heads svg .is-ring{fill:none;stroke:currentColor;stroke-width:1.5px}
+#ui-atlas .ast-heads svg .is-core{fill:#f4e3bf}
+/* 판: 별의 자리(0~100)를 안쪽 90%에 펴서 가장자리 별과 이름이 잘리지 않는다. 동심원 둘은 시뮬레이터의 판 무늬 */
+#ui-atlas .ast-board{position:relative;height:clamp(420px,58vh,600px);margin:0 5%;padding:0;background:radial-gradient(ellipse at 50% 50%,transparent 39%,#78563628 39.3%,transparent 39.65%,transparent 46%,#78563627 46.4%,transparent 46.8%)}
+#ui-atlas .ast-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+#ui-atlas .ast-links line{stroke:var(--star-ink);stroke-width:1.35px;stroke-opacity:.57;stroke-dasharray:3 4}
+#ui-atlas .ast-links line.is-cross{stroke:#906b46;stroke-dasharray:2 3}
+#ui-atlas .ast-links line:is(.is-lit,.is-done){stroke-dasharray:none}
+#ui-atlas .ast-links line.is-done{stroke-opacity:1;stroke-width:2px}
+#ui-atlas .atlas-stars button.ast-star{position:absolute;left:var(--x);top:var(--y);z-index:2;width:44px;height:44px;margin:-22px 0 0 -22px;min-width:0;min-height:0;padding:0;border:0;background:none;box-shadow:none;color:var(--star-ink);cursor:pointer;overflow:visible}
+#ui-atlas .atlas-stars button.ast-star:hover:not(:disabled){border:0;background:none}
+#ui-atlas .ast-star i{position:absolute;left:50%;top:50%;display:grid;place-items:center;box-sizing:border-box;width:28px;height:28px;border:1px solid currentColor;background:#f6e6c3;transform:translate(-50%,-50%)}
+#ui-atlas .ast-star svg{width:14px;height:14px;fill:currentColor}
+#ui-atlas .ast-star svg.is-hollow{fill:none;stroke:currentColor;stroke-width:1.2px;stroke-linejoin:round}
+#ui-atlas .ast-star.is-taken i{background:var(--star-ink);color:#fff0d0}
+#ui-atlas .ast-star.kind-keystone i{width:34px;height:34px;border:3px double currentColor}
+#ui-atlas .ast-star:is(.is-focus,:hover,:focus-visible){z-index:3}
+#ui-atlas .ast-star:is(.is-focus,:hover,:focus-visible) i{box-shadow:0 0 0 2px #f9e7c3,0 0 0 3px var(--star-ink)}
+#ui-atlas .ast-star span{position:absolute;left:50%;top:calc(50% + 16px);padding:0 2px;background:#f4e5c5;color:#38271c;font-size:12px;line-height:16px;white-space:nowrap;transform:translateX(round(-50%,1px));pointer-events:none}
+#ui-atlas .ast-star.kind-keystone span{top:calc(50% + 19px)}
+#ui-atlas .ast-star.is-focus span{text-decoration:underline;text-underline-offset:3px}
+/* 오른쪽: 포인트 줄과 고른 별(이 창의 어두운 판, 왼쪽 띠는 갈래 빛깔) */
+#ui-atlas .ast-side{display:grid;align-content:start;gap:10px;min-width:0}
+#ui-atlas .ast-points{display:grid;gap:4px}
+#ui-atlas .ast-meter{position:relative;margin:0;height:20px;border:1px solid var(--atlas-edge);background:#0c0a08}
+#ui-atlas .ast-meter::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#b98f45,#7c5b24)}
+#ui-atlas .ast-meter b{position:relative;display:block;padding:0 8px;line-height:18px;font-weight:400;font-size:12px;color:#fff1c9;text-shadow:1px 1px 0 #000}
+#ui-atlas .ast-next{margin:0;font-size:12px;color:var(--atlas-muted)}
+#ui-atlas .ast-detail{--tone:#a9c77a;display:grid;gap:6px;padding:10px 12px;border:1px solid var(--atlas-edge);border-left:3px solid var(--tone);background:var(--atlas-panel)}
+#ui-atlas .ast-detail.side-solar{--tone:#e0b062}
+#ui-atlas .ast-detail.side-lunar{--tone:#a9bedc}
+#ui-atlas .ast-detail small{color:var(--atlas-muted);font-size:12px}
+#ui-atlas .ast-detail h3{margin:0;font-size:16px;font-weight:400;color:color-mix(in srgb,var(--tone) 45%,#fff4d6)}
+#ui-atlas .ast-detail p{margin:0;font-size:13px;line-height:1.5}
+#ui-atlas .ast-detail .ast-reason{color:#e0a08a;font-size:12px}
+#ui-atlas .ast-detail .atlas-primary{justify-self:start;min-width:110px;min-height:36px;padding:6px 16px}
+/* 좁은 창: 포인트 줄, 판, 고른 별의 상자가 한 줄로. 상자는 화면 아래에 붙고(고른 별이 그 밑에 깔리면 js/atlas-passives-ui.js pick이 별을 가운데로 민다),
+   판 아래에 상자만큼의 자리를 둔다. 휴대폰의 별은 누르는 자리 44px(공통 규칙), 판은 별 사이가 그보다 넓은 높이. 머리의 둘째 줄은 접고, 별 이름은 두 줄까지 접힌다.
+   상자의 오른쪽은 전투 보기 단추(has-battle-pip)의 자리로 비운다 */
+@container (max-width:640px){#ui-atlas .atlas-stars{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-template-areas:"points" "board" "side";padding:8px}#ui-atlas .ast-side{position:sticky;bottom:0;z-index:4;padding-top:6px;background:linear-gradient(180deg,transparent,var(--atlas-deep) 8px)}#ui-atlas .ast-board-box{padding:6px 4px 30px}#ui-atlas .ast-heads{height:24px}#ui-atlas .ast-heads small{display:none}#ui-atlas .ast-board{height:600px;margin:0 7%}#ui-atlas .ast-star span{width:max-content;max-width:48px;white-space:normal;word-break:keep-all;text-align:center}#ui-atlas .ast-detail .atlas-primary{min-height:44px;min-width:150px}
+  #map-explore-worldtree.has-battle-pip #ui-atlas .ast-detail{padding-right:112px}}
 }

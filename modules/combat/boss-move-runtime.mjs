@@ -7,7 +7,8 @@ import { observerCollapse, observerSeal } from './observer-floor-impact.mjs';
         if (!move) return;
         move.releasedAt = now;
         attack.at = now + move.stages[0].ms;
-        env.memory.live.push({ move, source: attack.source, element: env.deps.enemyAttackRules.element(attack.source, attack.bossPattern), endsAt: now + move.stages[move.stages.length - 1].ms + LINGER_MS });
+        env.memory.live.push({ move, source: attack.source, center: attack.bossPattern.area?.center,
+            element: env.deps.enemyAttackRules.element(attack.source, attack.bossPattern), endsAt: now + move.stages[move.stages.length - 1].ms + LINGER_MS });
     }
 
 /** A volley's shots that hit someone this stage stop there (their later cells drop out). */
@@ -26,21 +27,38 @@ export function moveRestArea(env, pattern, move) {
         return { ...pattern.area, cells: [...unique.values()] };
     }
 
+function moveUnspentStageCells(move, stage) {
+    return stage.cells.filter(cell => !move.spent.includes(cell.lane));
+}
+
+/** Only the queued next strike determines immediate danger. Later beats can target the same floor again. */
+export function moveNextStrikeHits(attack, target) {
+    const move = attack.bossPattern?.move;
+    if (attack.delivery !== 'patternArea' || !move || move.cutAt) return false;
+    const stage = move.stages[move.next];
+    return !!stage && moveUnspentStageCells(move,stage).some(cell => cell.gx === target.gx && cell.gy === target.gy);
+}
+
 /** The landing attack's stage (takePendingEnemyCombatAttack): its pattern becomes this stage's cells and damage, the rest goes back
      * in the queue. null when the attack has no move. { cells, burst }: burst → a ground burst (rings, cross, scatter: the slam's
      * flash, shake and sound). */
     export function* moveTakeBossMoveStage(env, attack, queue, now) {
         const pattern = attack.bossPattern, move = pattern && pattern.move;
         if (!move || move.next >= move.stages.length) return null;
-        const stage = move.stages[move.next++], cells = stage.cells.filter(cell => !move.spent.includes(cell.lane));
+        const stage = move.stages[move.next++], cells = moveUnspentStageCells(move,stage);
         if (move.kind === 'volley') moveSpendHitLanes(env, move, cells, now, stage.ms);
         moveQueueRestOfMove(env, attack, move, queue);
         attack.bossPattern = { ...pattern, area: { ...pattern.area, cells: cells.map(cell => ({ gx: cell.gx, gy: cell.gy })) },
             damageMul: (Number(pattern.damageMul) || 1) * (stage.share || 1), isSpecial: pattern.isSpecial && move.next === 1 };
         if (move.observerMove === 'collapse') (yield* observerCollapse(env, attack, now));
         if (move.observerMove === 'seal') (yield* observerSeal(env, attack));
-        return { cells, burst: ['rings', 'cross', 'scatter'].includes(move.kind) };
+        return { cells, burst:stageBursts(move) };
     }
+
+function stageBursts(move) {
+    if (move.family==='forge') return move.next===move.stages.length;
+    return ['rings','cross','scatter','signature'].includes(move.kind);
+}
 
 /** The stages still to land go back in the queue as one attack (not a special any more: no cast bar, no second log line). A volley
      * whose every shot hit has nothing left. */
@@ -52,7 +70,7 @@ export function moveRestArea(env, pattern, move) {
 
 export function moveLaneCount(move) { return new Set(move.stages.flatMap(stage => stage.cells.map(cell => cell.lane))).size; }
 
-/** Moves still to draw (js/canvas-boss-moves.js): { move, source, element, endsAt }. */
+/** Moves still to draw (js/canvas-boss-moves.js), with their frozen warning centre. */
     export function moveLiveBossMoves(env, now) {
         for (let i = env.memory.live.length - 1; i >= 0; i--) if (now > env.memory.live[i].endsAt || now < env.memory.live[i].move.releasedAt) env.memory.live.splice(i, 1);
         return env.memory.live;

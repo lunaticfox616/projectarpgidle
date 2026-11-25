@@ -1,8 +1,8 @@
 import { BATTLE_FX_QUEUE_CAP } from '../data/battle-feedback.mjs';
 import { getBattleHitFeedback } from './battle-hit-feedback.mjs';
 
-/** 스킬 그림을 이끄는 기록: 휘두름(준비와 발사 연출)과 날아가는 발(투사체의 몸, 파동, 장판). */
-const SKILL_CUES = new Set(['playerSwing', 'combatTravel']);
+/** 휘두름, 적의 시전 모션, 투사체처럼 공격 그림을 이끄는 기록. */
+const SKILL_CUES = new Set(['playerSwing', 'combatTravel', 'enemyCastRelease']);
 
 /** Owns cue ordering and expiry; CombatFeedbackRenderer alone advances the visual clock. */
 export class BattleEffectQueue {

@@ -50,7 +50,8 @@ function moverRows(runtime, pulse) {
         .map(row => ({ ...row, factor: pulse.factors[row.key] }));
     const up = rows.filter(row => row.factor > 1).sort((a, b) => b.factor - a.factor).slice(0, MOVERS);
     const down = rows.filter(row => row.factor < 1).sort((a, b) => a.factor - b.factor).slice(0, MOVERS);
-    return [...up, ...down];
+    // Risers and fallers take turns (the largest of each first): the band shows only the chips that fit whole, so both kinds stay in view.
+    return up.flatMap((row, at) => [row, down[at]]).concat(down.slice(up.length)).filter(Boolean);
 }
 
 function chipHtml(runtime, row) {
@@ -74,12 +75,11 @@ function bandHtml(runtime) {
         <span class="ah-next">${nextChangeText(runtime, pulse.bucket)}</span>`;
 }
 
+/** The frame: the head (market band and purse) and the view. The three tabs stand outside it, on the trade window's tab row
+ * (index.html #market-exchange-tabs, beside the stall and the hall): paintTabs writes their names and marks there. */
 function skeletonHtml(runtime) {
-    const tabs = TABS.map(([id]) => `<button type="button" role="tab" class="psd-tab" id="ah-tab-${id}" aria-controls="ah-view" data-ah-tab="${id}"><span class="ah-tab-label"></span></button>`).join('');
-    return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-top">
-            <nav class="ah-tabs psd-tabs" role="tablist" aria-label="${runtime.deps._t('경매장')}" onkeydown="marketUi.moveTab(event)">${tabs}</nav><div class="ah-purse"></div></header>
-        <div class="ah-band"></div>
-        <div class="ah-view" id="ah-view" role="tabpanel"></div></div>`;
+    return `<div class="ah-root" data-locale="${esc(runtime, runtime.deps.i18n.locale)}"><header class="ah-top"><div class="ah-band"></div><div class="ah-purse"></div></header>
+        <div class="ah-view" id="ah-view"></div></div>`;
 }
 
 function tabLabelHtml(runtime, id, label) {
@@ -89,16 +89,22 @@ function tabLabelHtml(runtime, id, label) {
     return `<span class="px-center">${trHtml(runtime, label)} <small>${lots}/${runtime.deps.auctionHouse.rules.myLots.slots}</small></span>${dot}`;
 }
 
-function paintTabs(runtime, root) {
-    const tab = runtime.state.tab;
+/** Writes the three tabs' names and marks on the trade window's tab row (which one is chosen is the market's to say: the row also holds
+ * the stall and the hall) and, with the section's root, which tab its view shows. */
+export function paintTabs(runtime, root) {
+    const row = runtime.deps.document.getElementById('market-exchange-tabs');
     for (const [id, label] of TABS) {
-        const button = root.querySelector(`[data-ah-tab="${id}"]`), active = id === tab;
-        button.setAttribute('aria-selected', String(active));
-        button.tabIndex = active ? 0 : -1;
-        paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, id, label));
+        const button = row && row.querySelector(`[data-ah-tab="${id}"]`);
+        if (button) paint(button.querySelector('.ah-tab-label'), tabLabelHtml(runtime, id, label));
     }
-    root.querySelector('.ah-view').setAttribute('aria-labelledby', `ah-tab-${tab}`);
-    root.dataset.tab = tab;
+    if (root) root.dataset.tab = runtime.state.tab;
+    // 칸 안의 동작(시세 칩, 재료 칩, 출품할 장비 고르기)이 탭을 바꿔도 그 줄의 고른 표시가 따라간다(경매장이 보일 때만: 그 줄에는 가판대와 전당도 있다)
+    const panel = runtime.deps.document.getElementById('market-panel-auction');
+    if (row && panel && !panel.hidden) for (const button of row.querySelectorAll('[data-market-section]')) {
+        const chosen = button.dataset.ahTab === runtime.state.tab;
+        button.setAttribute('aria-selected', String(chosen));
+        button.tabIndex = chosen ? 0 : -1;
+    }
 }
 
 const VIEWS = Object.freeze({ gear: gearViewHtml, materials: materialsViewHtml, mine: standsViewHtml });

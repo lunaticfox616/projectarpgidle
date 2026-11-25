@@ -85,6 +85,7 @@ const bossMoves = Object.freeze({
     plan(state, enemy) { return part7.movePlanBossMove(env, state, enemy); },
     begin(attack, now) { return part8.moveBeginBossMove(env, attack, now); },
     takeStage(attack, queue, now) { return runCommands(part8.moveTakeBossMoveStage(env, attack, queue, now)); },
+    nextStrikeHits: part8.moveNextStrikeHits,
     live(now) { return part8.moveLiveBossMoves(env, now); },
     cut(move, now) { return part8.moveCutBossMove(env, move, now); },
     firstImpactMs(state, enemy) { return part6.moveFirstImpactMs(env, state, enemy); },

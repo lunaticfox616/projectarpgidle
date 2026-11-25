@@ -1,6 +1,7 @@
 import { progressCanMove, progressCollectingLoot, progressWalkStep, progressWalkToLoot, progressPickUp } from './exploration-progress-loot.mjs';
 import { progressRecordVisitedInscription } from './exploration-progress-lifecycle.mjs';
 import { progressRunMode, progressWaitsForAutoGrace, COMMAND_GIVE_UP_STEPS } from './exploration-progress-rules.mjs';
+import { hiveBroods } from '../data/atlas-expeditions.mjs';
 
 export function* progressAdvance(env, stats) {
     const run=env.deps.actExplorationState.current(env.owner);
@@ -97,11 +98,30 @@ function advanceObjective(run,at) {
     const pack = run.packs.find(row => row.task && (row.aliveIds.length || row.task.index < row.task.spots.length));
     if (!pack || pack.aliveIds.length) return false;
     const task = pack.task;
-    if (!at(task.spots[task.index])) {task.elapsed=0;return false;}
+    const index = objectiveSpotIndex(run,task,at);
+    if (index < 0) {task.elapsed=0;return false;}
     if (at(run.destination)) run.destination = null;
     task.elapsed += 20;
-    if (task.elapsed >= task.duration) completeFloorAction(pack);
+    if (task.elapsed >= task.duration) {
+        if (task.cocoons) breakCocoon(run,task,index);
+        else completeFloorAction(pack);
+    }
     return true;
+}
+
+function objectiveSpotIndex(run,task,at) {
+    if (!task.cocoons) return at(task.spots[task.index]) ? task.index : -1;
+    return run.destination && !at(run.destination) ? -1 : task.spots.findIndex(at);
+}
+
+function breakCocoon(run,task,index) {
+    const boss = run.packs.find(row => row.stage === 0);
+    task.broken = hiveBroods[index].id;
+    task.index = task.spots.length;
+    task.elapsed = 0;
+    boss.waiting = boss.waiting.filter(enemy => enemy.brood !== task.broken);
+    boss.aliveIds = boss.waiting.map(enemy => enemy.id);
+    boss.eliteIds = boss.waiting.filter(enemy => enemy.isElite).map(enemy => enemy.id);
 }
 
 function completeFloorAction(pack) {
@@ -178,7 +198,8 @@ function* progressWatchEntrance(env, run,opened) {
     const pack=run.packs.find(row=>row.key===entrance.key);
     env.deps.roomInvaders.onBossEntrance(run,pack); // 보스 방의 불청객: 같은 보스가 하나 더 서면 함께 떠오른다
     const holdMs=env.deps.woodsmanBattle.introduction()?env.deps.WOODSMAN_BATTLE.intro.revealMs:entrance.holdMs;
-    (yield {kind:'addBattleFx',args:['bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs,duration:holdMs+600,red:pack.waiting.some(enemy=>enemy.redEntrance)}]});
+    const phaseChange=pack.waiting.some(enemy=>enemy.atlasPhase>0);
+    (yield {kind:'addBattleFx',args:['bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs,duration:holdMs+600,red:pack.waiting.some(enemy=>enemy.redEntrance),phaseChange}]});
     return entrance;
 }
 

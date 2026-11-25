@@ -1,3 +1,4 @@
+import { huntRarity } from './hunt-traits.mjs';
 /** Currency rolls retain table order, gated RNG consumption and the final level/unlock filter. */
 class CurrencyDropRules {
     constructor(tables, deps, rules) {
@@ -82,6 +83,7 @@ class CurrencyDropRules {
     getRareOrbDrops(state, enemy, zone, bonusRoll) {
         const drops = [];
         let divineChance = enemy.isBoss ? 0.006 : (enemy.isElite ? 0.0004 : 0.00007);
+        divineChance *= huntRarity(enemy);
         if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
         if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
         if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);

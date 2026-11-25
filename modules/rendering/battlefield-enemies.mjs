@@ -49,7 +49,7 @@ export class BattlefieldEnemies {
         const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
         const x = entry.x + recoil.x, y = pose.y + recoil.y, boss = this.bossScale(enemy);
         const sheet = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true,
-            shade: veil.shade, rim: veil.rim, awakened: pose.awakened, openingFrame: pose.openingFrame };
+            shade: veil.shade, rim: veil.rim, awakened: pose.awakened, openingFrame: pose.openingFrame, projection:state.gridProj };
         if (this.deps.wisps.draw(ctx, enemy, sheet) || this.deps.monsters.draw(ctx, enemy, sheet)) return;
         this.facing.note(enemy, entry, state.playerPos, tile);
         this.deps.drawSprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);

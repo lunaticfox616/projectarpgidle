@@ -5,6 +5,8 @@ import { recentBattleEffect } from './battlefield-motion.mjs';
 const ENEMY_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
 const HERO_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
 const HURT_TEXT_MERGE_MS = 400;
+// Phones merge a longer run of hits per element beside the hero (the newest two sums stay, js/rendering/damage-text-renderer.mjs).
+const COMPACT_HURT_MERGE_MS = 800;
 
 /** Visual displacement only: neither this curve nor its offsets move combat cells. */
 function recoilCurve(t) {
@@ -50,11 +52,12 @@ function overlaps(a, b) {
 export class BattlefieldHitFeedback {
     constructor(deps, body) { this.deps = deps; this.body = body; this.softened = new WeakSet(); }
 
-    heroText(fx, player, now) {
+    heroText(fx, player, now, compact) {
+        const group = compact ? (fx.color || '') : '';
         this.deps.damageText({
             start: now, x: player.x, y: damageBodyY(player.y, this.body.heroHeight(player, now)),
-            value: fx.damage, enemyHit: true, deflected: !!fx.deflected,
-            aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+            value: fx.damage, enemyHit: true, heroTarget: true, elementColor: fx.color, deflected: !!fx.deflected,
+            aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / (compact ? COMPACT_HURT_MERGE_MS : HURT_TEXT_MERGE_MS))}${group}`
         });
     }
 

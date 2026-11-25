@@ -79,8 +79,17 @@
 /* Floor piles on an exploration map wait to be picked up: the picture and the names take a click or a tap (the layer itself stays
    click-through so the battlefield keeps its move commands). */
 .battle-loot-drop.is-floor :is(.battle-loot-item,.battle-loot-name){pointer-events:auto;cursor:pointer}
-.battle-loot-drop.is-floor:focus-visible{outline:none}
-.battle-loot-drop.is-floor:focus-visible .battle-loot-labels{outline:2px solid #f2d27a;outline-offset:2px}
+.battle-loot-flight:focus-visible .battle-loot-item,.battle-loot-materials :is(summary,button):focus-visible{outline:2px solid #f2d27a;outline-offset:2px}
+.battle-loot-name.is-priority{white-space:normal;overflow-wrap:anywhere;text-overflow:clip;text-align:center;width:max-content;max-width:min(290px,calc(var(--loot-width) - 24px));border-inline-start:3px solid var(--loot-color)}
+.battle-loot-drop.is-floor.in-cleared-room .battle-loot-labels.is-packed{left:var(--floor-stack-x);top:var(--floor-stack-y);bottom:auto;transform:none;flex-direction:column}
+.battle-loot-labels:has(.is-priority){z-index:15}
+.battle-loot-labels:has(details[open]){z-index:16}
+.battle-loot-materials{pointer-events:auto;color:#dbc69d;background:#171512;border:1px solid #817351;font:inherit;font-size:12px;width:max-content;max-width:calc(var(--loot-width) - 16px)}
+.battle-loot-materials summary,.battle-loot-materials button{cursor:pointer;text-align:center;padding:4px 9px;line-height:1.4}
+.battle-loot-material-list{display:grid;gap:2px;max-height:min(112px,18dvh);overflow-y:auto;overscroll-behavior:contain}
+.battle-loot-drop.is-floor .battle-loot-material-list .battle-loot-name{cursor:default;opacity:1;animation:none;border:0;box-shadow:none;text-align:start}
+.battle-loot-materials button{width:100%;color:#fae1a3;background:#29241b;border:0;border-top:1px solid #766447;font:inherit}
+@media(pointer:coarse){.battle-loot-materials summary,.battle-loot-materials button{min-height:30px}}
 .battle-loot-drop.is-floor:hover .battle-loot-name{filter:brightness(1.18)}
 .battle-loot-mote{position:absolute;z-index:5;width:25px;height:4px;margin:-2px 0 0 -12.5px;border-radius:50%;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--loot-color) 70%,transparent) 55%,#fff 91%,transparent);filter:drop-shadow(0 0 3px var(--loot-color));pointer-events:none}
 .battle-loot-mote::after{content:'';position:absolute;right:2px;top:0;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 5px var(--loot-color)}

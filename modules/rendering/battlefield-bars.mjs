@@ -1,4 +1,5 @@
 import { clampNumber } from '../common/numbers.mjs';
+import { BattlefieldBossBarPlacement, shiftedBossBar } from './battlefield-boss-bar-placement.mjs';
 
 function playerBarLook(hpPct, now) {
     if (hpPct >= 0.6) return { fill: '#20bf6b', height: 6, alpha: 0.97 };
@@ -26,11 +27,15 @@ export class BattlefieldBars {
         this.text = text;
         this.tops = new Map();
         this.bossRects = [];
+        this.barRects = [];
+        this.placement = new BattlefieldBossBarPlacement();
+        this.positions = new Map();
     }
 
-    dispose() { this.tops.clear(); this.bossRects.length = 0; }
-    exclusions(extra) { return this.bossRects.concat(extra); }
-    reserve(enemy, rect) { if (enemy.isBoss) this.bossRects.push(rect); }
+    dispose() { this.tops.clear(); this.bossRects.length = 0; this.barRects.length = 0; this.positions.clear(); }
+    /** Boxes damage numbers keep off: boss bars, DOM overlays and, on compact screens, every shown enemy bar. */
+    exclusions(extra, compact = false) { return this.bossRects.concat(compact ? this.barRects : [], extra); }
+    reserve(enemy, rect) { (enemy.isBoss ? this.bossRects : this.barRects).push(rect); }
 
     player(ctx, scene) {
         const look = playerBarLook(scene.hpPct, scene.now);
@@ -64,9 +69,11 @@ export class BattlefieldBars {
 
     layout(entry, tileW) {
         const enemy = entry.enemy, width = enemyBarWidth(enemy, tileW);
-        const x = Math.round(entry.x - width / 2), baseY = Math.round(entry.y - this.body.barLift(enemy));
+        const baseY = Math.round(entry.y - this.body.barLift(enemy));
         const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
-        const reserved = this.deps.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
+        const shift = this.positions.get(enemy)?.box;
+        const { x, y } = shift ? shiftedBossBar(shift, width) : { x: Math.round(entry.x - width / 2), y: baseY };
+        const reserved = this.deps.readability.place({ x: x - 3, y: y - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
         this.tops.set(enemy, reserved.y);
         this.reserve(enemy, reserved);
         return { x, y: reserved.y + nameHeight, width, baseY };
@@ -99,7 +106,7 @@ export class BattlefieldBars {
         const rect = this.layout(entry, tileW), { x, y, width, baseY } = rect;
         ctx.save();
         ctx.globalAlpha = 0.96;
-        if (y < baseY) {
+        if (y < baseY && !this.positions.get(enemy)?.box) {
             ctx.strokeStyle = 'rgba(224,204,159,0.4)'; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(entry.x, y + 8); ctx.lineTo(entry.x, baseY + 6); ctx.stroke();
         }
@@ -116,27 +123,79 @@ export class BattlefieldBars {
         this.cast(ctx, entry, enemy);
     }
 
-    enemies(ctx, layout, targetIds, tileW) {
+    enemies(ctx, layout, targetIds, scene) {
         this.dispose();
-        (layout || []).forEach(entry => this.enemy(ctx, entry, targetIds.includes(entry.enemy.id), tileW));
+        this.placeBossBars(ctx, layout, scene, targetIds);
+        layout.forEach(entry => this.enemy(ctx, entry, targetIds.includes(entry.enemy.id), scene.tileW));
+    }
+
+    placeBossBars(ctx, layout, scene, targetIds) {
+        const bosses = layout.filter(entry => entry.enemy.isBoss);
+        if (!bosses.length) return;
+        const hero = scene.protectHero ? this.heroSpace(scene) : null;
+        const relocated = [];
+        let normalBars;
+        const blockers = () => (normalBars ??= this.otherBars(layout, scene.tileW, targetIds)).concat(relocated);
+        for (const entry of bosses) {
+            const enemy = entry.enemy, cast = this.activeCast(enemy);
+            const origin = { x: entry.x, y: entry.y - this.body.barLift(enemy),
+                width: cast?.fatal ? 122 : 102, top: cast?.fatal ? 38 : cast ? 16 : 4 };
+            const box = this.placement.next(ctx, enemy, origin, {hero, scene, blockers});
+            if (box) relocated.push(box);
+            this.positions.set(enemy, { box, cast });
+        }
+    }
+
+    heroSpace(scene) {
+        const { light, tileW, now } = scene;
+        const head = this.deps.heroHeadY(now) ?? light.y - 82 * this.deps.heroSizeScale;
+        const half = Math.max(27, Math.min(39, tileW * 0.38));
+        return { x: light.x - half, y: head - 16, w: half * 2, h: light.y - head + 20 };
+    }
+
+    otherBars(layout, tileW, targets) {
+        return layout.filter(({ enemy }) => !enemy.isBoss && this.shown(enemy, targets.includes(enemy.id)))
+            .map(({ enemy, x, y }) => {
+                const label = enemy.isElite || enemy.huntRisk;
+                const w = label ? 160 : enemyBarWidth(enemy, tileW) + 6;
+                const top = label ? 25 : 16;
+                return { x: x - w / 2, y: y - this.body.barLift(enemy) - top, w, h: top + 10 };
+            });
     }
 
     lockOn(ctx, scene, locked) {
         const entry = locked ? this.deps.drawnEntry(locked) : null;
         if (!entry) return;
         const top = this.tops.has(locked) ? this.tops.get(locked) : entry.y - this.body.barLift(locked);
-        this.deps.arrow(ctx, entry.x, top - 3, this.deps.actorScale(scene.tileW));
+        const shift = this.positions.get(locked)?.box;
+        this.deps.arrow(ctx, shift ? shift.x + shift.w / 2 : entry.x, top - 3, this.deps.actorScale(scene.tileW));
+    }
+
+    activeCast(enemy) {
+        if (!enemy.patternTelegraphKey && !enemy.attackCast && !(enemy.castInterruptedUntil > this.deps.combatTime())) return null;
+        return this.deps.castBar(enemy, this.deps.combatTime(), this.deps.pendingAttacks().find(attack => attack.enemyId === enemy.id));
+    }
+
+    castPosition(ctx, entry, width, shift, fatal) {
+        if (shift) {
+            const { x, y } = shiftedBossBar(shift, width);
+            return { x, y: y - (fatal ? 16 : 13) };
+        }
+        const viewWidth = ctx.canvas.width / ctx.getTransform().a;
+        const margin = fatal ? 4 : 6, top = fatal ? 28 : 6;
+        const lift = !fatal && this.deps.woodsmanActive(entry.enemy) ? 20 : this.body.barLift(entry.enemy) + (fatal ? 16 : 13);
+        const x = Math.round(clampNumber(entry.x - width / 2, margin, Math.max(margin, viewWidth - width - margin)));
+        return { x, y: Math.round(Math.max(top, entry.y - lift)) };
     }
 
     cast(ctx, entry, enemy) {
-        if (!enemy.patternTelegraphKey && !enemy.attackCast && !(enemy.castInterruptedUntil > this.deps.combatTime())) return;
-        const cast = this.deps.castBar(enemy, this.deps.combatTime(), this.deps.pendingAttacks().find(attack => attack.enemyId === enemy.id));
+        const placed = this.positions.get(enemy);
+        const cast = placed ? placed.cast : this.activeCast(enemy);
         if (!cast) return;
-        if (cast.fatal) { this.fatalCast(ctx, entry, enemy, cast); return; }
+        if (cast.fatal) { this.fatalCast(ctx, entry, enemy, cast, placed?.box); return; }
         ctx.save();
-        const width = enemy.isBoss ? 84 : 60, viewWidth = ctx.canvas.width / ctx.getTransform().a;
-        const x = Math.round(clampNumber(entry.x - width / 2, 6, Math.max(6, viewWidth - width - 6)));
-        const y = Math.round(Math.max(6, entry.y - (this.deps.woodsmanActive(enemy) ? 20 : this.body.barLift(enemy) + 13)));
+        const width = enemy.isBoss ? 84 : 60;
+        const { x, y } = this.castPosition(ctx, entry, width, placed?.box, false);
         this.reserve(enemy, { x: x - 3, y: y - 3, w: width + 6, h: 14 });
         const edge = cast.cancelled ? '#a8706a' : '#8e7951';
         ctx.globalAlpha = 0.96;
@@ -158,10 +217,9 @@ export class BattlefieldBars {
         ctx.restore();
     }
 
-    fatalCast(ctx, entry, enemy, cast) {
-        const width = 116, viewWidth = ctx.canvas.width / ctx.getTransform().a;
-        const x = Math.round(clampNumber(entry.x - width / 2, 4, viewWidth - width - 4));
-        const y = Math.round(Math.max(28, entry.y - this.body.barLift(enemy) - 16));
+    fatalCast(ctx, entry, enemy, cast, shift) {
+        const width = 116;
+        const { x, y } = this.castPosition(ctx, entry, width, shift, true);
         this.reserve(enemy, { x, y: y - 21, w: width, h: 32 });
         ctx.save();
         ctx.fillStyle = '#230b15';

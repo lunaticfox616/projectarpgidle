@@ -14,7 +14,7 @@
    --psd-button-frame, --psd-button-on    단추와 주 단추(고른 탭도 같은 금빛 테)
    --psd-tabbar, --psd-title, --psd-input 탭 줄 바탕, 창 제목 줄 바탕, 입력칸 바탕
    --psd-panel-frame                      창 속 묶음 판
-   부품 클래스도 같다: .psd-frame, .psd-popup, .psd-btn(.is-primary), .psd-tabs > .psd-tab, .psd-input, .psd-panel, .psd-attn(강조). */
+   부품 클래스도 같다: .psd-frame, .psd-popup, .psd-btn(.is-primary), .psd-tabs > .psd-tab, .psd-input, .psd-search(검색칸), .psd-panel, .psd-attn(강조). */
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui {
   --px-window-frame: url("../../assets/ui/psd/frame.png") 24 fill / 14px / 0 stretch;
   --px-window-edge: 14px;
@@ -182,7 +182,7 @@
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-picker-head { padding-bottom: 12px; background: url("../../assets/ui/psd/line.png") left bottom / 100% 8px no-repeat; }
 /* 검색 줄의 장착 중 단추가 켜지면 주 단추의 금빛 테(2026-11-09). */
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .search-action-row button[aria-pressed="true"] { border-image: var(--psd-button-on); color: #ffe8a8; }
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .search-filter-panel { border: 10px solid transparent; border-image: url("../../assets/ui/psd/search.png") 10 fill / 10px stretch; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(#tab-items .search-filter-panel, .psd-search) { border: 10px solid transparent; border-image: url("../../assets/ui/psd/search.png") 10 fill / 10px stretch; background: none; box-shadow: none; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile:not(.sealed-gem-card) { border: 12px solid transparent; border-image: url("../../assets/ui/psd/slot.png") 14 fill / 12px stretch; background: none; box-shadow: none; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile.active { border-image: url("../../assets/ui/psd/slot-on.png") 14 fill / 12px stretch; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui .psd-panel { border: 18px solid transparent; border-image: var(--psd-panel-frame); background: none; }

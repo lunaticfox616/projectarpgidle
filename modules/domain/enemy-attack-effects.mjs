@@ -1,5 +1,6 @@
 // Enemy turn stages. Explicit tick state and dependencies; existing rounding and short-circuit order.
 export function applyHitAilment(c, e, h) {
+    if (e.enemy.huntTraits) applyHuntAilments(c,e.enemy);
     h.ailRoll = c.deps.random();
     if (c.deps.hasKeystone('h3')) h.ailRoll = Math.max(h.ailRoll, c.deps.random());
     h.enemyAilmentChance = Math.max(0, Number(e.enemy.ailmentChance) || 0);
@@ -9,6 +10,12 @@ export function applyHitAilment(c, e, h) {
     if (h.enemyAilmentChance > 0 && h.ailRoll < h.enemyAilmentChance) {
         inflictRolledAilment(c, e, h);
     }
+}
+
+function applyHuntAilments(c,enemy) {
+    if (enemy.huntTraits.includes('frost')) c.deps.ailments.apply(c.owner,{type:'huntSlow',duration:2,power:0.25,pStats:c.pStats});
+    if (enemy.huntTraits.includes('hex') && !c.pStats.uniqueClosedEyes)
+        c.deps.ailments.apply(c.owner,{type:'huntHex',duration:4,power:0.15,pStats:c.pStats});
 }
 
 function inflictRolledAilment(c, e, h) {
@@ -55,7 +62,9 @@ export function showReceivedHit(c, e, h) {
         sourceType: 'monster', sourceId: e.enemy.id, sourceName: e.enemy.name
     }));
     c.deps.addBattleFx('playerHit', { enemyId: e.enemy.id, color: c.deps.getElementColor(h.topDamageEntry.ele), damage: h.dmg, duration: 220, deflected: h.deflected,
-        targetMaxHp: c.deps.getPlayerHpCap(c.pStats) });
+        targetMaxHp: c.deps.getPlayerHpCap(c.pStats),
+        meleeContact: h.topDamageEntry.ele === 'phys' && !h.resolvingPendingAttack &&
+            !e.enemy.isBoss && e.enemy.attackKind !== 'ranged' });
     if (c.owner.settings.showCombatLog && h.dmg > 0) {
         let damageLog = c.deps._t('{icon} {source}의 공격으로 {amount} 피해', { icon: c.deps.getDamageElementIcon(h.topDamageEntry.ele), source: h.damageSource, amount: c.deps.formatNumberKR(h.dmg) });
         if (c.owner.settings.showDetailedDamageLog === true) {

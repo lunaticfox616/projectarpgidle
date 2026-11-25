@@ -1,6 +1,29 @@
 /* Shared bars; base, theme and responsive variants retain their selectors. */
 @layer components {
 
+.hp-detail-trigger { display: none; }
+body.mobile-battle-tab .hp-detail-trigger {
+  position: absolute; inset: 0; z-index: 8; display: block; width: 100%; height: 100%;
+  min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent;
+  box-shadow: none; opacity: 0; cursor: pointer; pointer-events: auto; touch-action: manipulation;
+}
+.hp-bar-bg:has(> .hp-detail-trigger:focus-visible) { outline: 2px solid #f1cd80; outline-offset: -2px; }
+.hp-detail-trigger[popovertarget="player-life-detail"] { anchor-name: --player-life-gauge; }
+.hp-detail-trigger[popovertarget="boss-life-detail"] { anchor-name: --boss-life-gauge; }
+#player-life-detail { position-anchor: --player-life-gauge; }
+#boss-life-detail { position-anchor: --boss-life-gauge; }
+.hp-detail-panel { pointer-events: auto; }
+body.mobile-battle-tab .hp-detail-panel:popover-open {
+  display: grid; gap: 3px; position: fixed; inset: 15% 0 auto; margin: 4px auto 0;
+  width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box;
+  padding: 7px 12px; border: 1px solid #a98957; background: #191514;
+  color: #fff1db; font: 14px/1.4 var(--font-pixel-read); text-align: center; overflow-wrap: anywhere;
+}
+.hp-detail-panel strong { color: #f2d08a; }
+@supports (top: anchor(bottom)) {
+  body.mobile-battle-tab .hp-detail-panel:popover-open { top: anchor(bottom); }
+}
+
         .hp-bar-bg { width: 100%; box-sizing: border-box; background-color: #222; height: 16px; border-radius: 4px; overflow: hidden; margin-top: 2px; border: 1px solid #111; position: relative; }
         /* 막대의 전환은 계단식(steps): 전투 중에는 틱마다(100ms) 값이 바뀌어 전환이 거의 계속 도는데, 매끄러운 전환(linear)은 도는 동안
            화면을 모니터 주사율(240Hz면 초당 240번)로 다시 합성시킨다. 계단식은 값이 바뀌는 순간에만 그린다(2026-10-10 측정: 주사율 제한을 푼 조건에서 탭 전체 코어 1.8개에서 0.5개). */

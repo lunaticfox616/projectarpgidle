@@ -159,7 +159,7 @@ const FOSSIL_DB = [
     { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', ancientPrimalOnly: true },
     { key: 'fossilBulwark', name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/완갑.' },
     { key: 'fossilWedge', name: '쐐기 화석', desc: '투사체/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
-    { key: 'fossilOld', name: '오래된 화석', desc: '화석 전용 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilOld', name: '오래된 화석', desc: '장비를 희귀 등급으로 재련하며 화석 전용 옵션 한 줄을 확정합니다. 기존 일반 옵션 한 줄을 보존하면 결과 옵션 수가 한 줄 줄어듭니다(최대 4~5줄에서 3~4줄).' },
     { key: 'fossilRift', name: '균열 화석', desc: '희귀 아이템의 옵션을 다시 굴리고, 제거할 수 없는 균열 표식과 나머지 추가 옵션 50% 증폭 효과를 부여합니다.' }
 // The line each fossil guarantees comes from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.fossil); old and rift fossils have none.
 ].map(fossil => ({ ...fossil, guaranteedStats: AFFIX_TAG_LISTS.fossil[fossil.key] ? resolveAffixTagList(AFFIX_TAG_LISTS.fossil[fossil.key], MOD_DB) : [] }));

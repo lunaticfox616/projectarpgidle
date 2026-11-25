@@ -1,6 +1,8 @@
 import { createBossAttacks } from './rendering/boss-attacks.mjs';
 
 const native = createBossAttacks({
+    rootletZone: () => game.currentZoneId === 0,
+    reduced: () => uiDisplay.reducedEffects(),
     get stageView() { return typeof stageView === 'undefined' ? undefined : stageView; },
     get getCombatTime() { return getCombatTime; },
     get performance() { return performance; },

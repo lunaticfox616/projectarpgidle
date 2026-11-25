@@ -1,8 +1,12 @@
 import { clampNumber } from '../common/numbers.mjs';
+import { bossWarningFirstWaveCells } from '../combat/boss-move-stages.mjs';
+import { ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE } from './rootlet-next-wave.mjs';
 
 function attackElement(enemy) {
     return String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
 }
+
+function bossWarningElement(enemy) { return enemy.nextPatternState?.attackElement || enemy.ele || 'phys'; }
 
 export function enemyTelegraphColor(enemy) {
     const element = attackElement(enemy);
@@ -63,7 +67,10 @@ function eliteRing(ctx, entry, scale) {
 
 /** Read the immutable combat footprint; never rebuild or mutate its collision cells for drawing. */
 export class EnemyTelegraphs {
-    constructor(deps) { this.deps = deps; }
+    constructor(deps) {
+        this.deps = deps;
+        this.legacyFirstWaves = new WeakMap();
+    }
 
     trap(ctx, fx, progress, projection, warning) {
         if (fx.type === 'bossAreaImpact') return this.deps.bossAttacks.drawImpact(ctx, fx, progress, projection);
@@ -76,10 +83,46 @@ export class EnemyTelegraphs {
         ctx.restore();
     }
 
+    /** @param {number | {strength:number,share:number,element?:string}} alpha */
     pattern(ctx, area, projection, alpha = 3, outlineOnly = false) {
         if (!area || area.woodsman || area.observerMove) return;
         const footprint = this.deps.projectFootprint(area, projection);
-        if (footprint) this.deps.drawFootprint(ctx, footprint, outlineOnly ? '#ff9970' : '#ff684f', alpha, outlineOnly);
+        if (!footprint) return;
+        const look = this.patternLook(area, alpha, outlineOnly);
+        this.paintPattern(ctx, footprint, this.firstWave(area, projection), look);
+    }
+
+    /** @param {number | {strength:number,share:number,element?:string}} alpha */
+    patternLook(area, alpha, outlineOnly) {
+        const strength = typeof alpha === 'number' ? alpha : alpha.strength;
+        const charge = outlineOnly ? strength : clampNumber(strength / 7, 0, 1);
+        const ring = area.shape === 'diamond' && area.radius >= 2;
+        // The released-stage painter continues from this same fraction.
+        const fault = ring ? 0.28 * (typeof alpha === 'number' ? charge : alpha.share) : null;
+        return {charge, outlineOnly, fault, rootlet: ring && typeof alpha === 'object' && alpha.element === 'phys' && this.deps.rootletZone()};
+    }
+
+    firstWave(area, projection) {
+        const cells = area.firstWaveCells === undefined ? this.legacyFirstWave(area) : area.firstWaveCells;
+        return cells?.length && cells.length < area.cells.length
+            ? this.deps.projectFootprint({ cells, center: area.center }, projection) : null;
+    }
+
+    legacyFirstWave(area) {
+        if (!this.legacyFirstWaves.has(area)) this.legacyFirstWaves.set(area, bossWarningFirstWaveCells(area));
+        return this.legacyFirstWaves.get(area);
+    }
+
+    paintPattern(ctx, footprint, focus, {charge, outlineOnly, fault, rootlet}) {
+        if (focus) {
+            const first = new Set(focus.points.map(point => `${point.gx}:${point.gy}`));
+            const later = { ...footprint, points: footprint.points.filter(point => !first.has(`${point.gx}:${point.gy}`)) };
+            if (rootlet) this.deps.drawFootprint(ctx, later, ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE, outlineOnly);
+            else this.deps.drawFootprint(ctx, later, '#79a5b9', { fill: 0.19, edge: 0.75, marks: 0 }, outlineOnly);
+        }
+        this.deps.drawFootprint(ctx, focus || footprint, rootlet ? '#ffc29a' : '#ffae72',
+            { fill: 0.34 + charge * 0.15, edge: 0.78 + charge * 0.21, rootlet,
+                marks: 0.87 + charge * 0.13, cracks: fault, dye: 0.19 + charge * 0.18 }, outlineOnly);
     }
 
     enemy(ctx, entry, scale, projection) {
@@ -88,18 +131,26 @@ export class EnemyTelegraphs {
         const frozen = (enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0);
         if (frozen) return;
         if (enemy.isBoss) {
-            this.pattern(ctx, enemy.patternArea, projection, this.deps.bossAttacks.groundAlpha(enemy));
+            if (this.deps.bossAttacks.isLiveWarning(enemy)) {
+                const strength = this.deps.bossAttacks.groundAlpha(enemy);
+                const share = this.deps.bossAttacks.warningShare(enemy);
+                const element = bossWarningElement(enemy);
+                this.pattern(ctx, enemy.patternArea, projection, {strength,share,element});
+            }
             return;
         }
         if (enemy.isElite) eliteRing(ctx, entry, scale);
     }
 
     draw(ctx, layout, scale, projection, pending) {
+        // The overlay paints these in impact order. The generic warning would light all future cells at once.
+        const ordinary=(layout || []).filter(row=>!row.enemy.nextPatternState?.signature);
+        const ordinaryPending=pending.filter(attack=>!attack.bossPattern?.signature);
         this.deps.woodsman.field(ctx, projection);
-        this.deps.sideEncounters.pendingWarnings(ctx, projection, pending.filter(attack => !attack.bossPattern?.area?.woodsman));
+        this.deps.sideEncounters.pendingWarnings(ctx, projection, ordinaryPending.filter(attack => !attack.bossPattern?.area?.woodsman));
         this.deps.bossMoves.drawGround(ctx, projection);
         if (this.deps.observerZone()) this.deps.bossMoves.drawObserverWarnings(ctx, layout, projection);
-        (layout || []).forEach(entry => this.enemy(ctx, entry, scale, projection));
-        this.deps.bossAttacks.drawMarks(ctx, { layout, projection, pending });
+        ordinary.forEach(entry => this.enemy(ctx, entry, scale, projection));
+        this.deps.bossAttacks.drawMarks(ctx, { layout:ordinary, projection, pending:ordinaryPending });
     }
 }

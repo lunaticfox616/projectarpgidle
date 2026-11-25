@@ -302,5 +302,5 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
 // 시간)가 지난 것만 줍고 주우러 간다(js/exploration-ground-loot.js landed): 가장 늦게 닿는 그림에 이름이 다 뜬 뒤다. 전에는 580~679ms를
 // 날고 이름이 240ms에 걸쳐 떴으며, 주인공은 떨어지는 중에도 줍거나 주우러 갔다.
 /** gapMs: 앞 드랍이 떨어지기 시작하고 다음 드랍이 떨어지기 시작하기까지(2026-11-02 사용자: 한꺼번에가 아니라 약간의 텀을 두고 쌓이도록). queueCapMs: 차례를 기다리는 가장 긴 시간. */
-const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:520,gapMs:140,queueCapMs:3000});
+const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:960,gapMs:140,queueCapMs:3000});
 export { ACT_EXPLORATION_MAPS, CONTENT_EXPLORATION_MAPS, ACT_EXPLORATION_BACKDROPS, ACT_EXPLORATION_ART_VERSION, ACT_EXPLORATION_VISION, ACT_EXPLORATION_ALERT, ACT_EXPLORATION_AMBUSH, ACT_EXPLORATION_WAVES, ACT_EXPLORATION_INCIDENTS, GROUND_LOOT_DROP };

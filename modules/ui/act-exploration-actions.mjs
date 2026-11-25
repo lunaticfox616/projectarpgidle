@@ -138,15 +138,38 @@ export function toggleAuto(runtime) {
     return on;
 }
 
-/** 전장을 누른 자리에 그려진 몬스터가 있으면 그 몬스터를 락온한다(js/act-exploration-state.js lockOn, 2026-10-17 사용자 "몬스터(락온기능)").
-* @param {?{x:number,y:number}} point 전장의 CSS px @returns {boolean} 몬스터를 눌렀는지(눌렀으면 바닥 이동 명령은 없다) */
-export function lockOnAt(runtime, point) {
+/** @param {?{x:number,y:number}} point 전장의 CSS px @param {?{gx:number,gy:number}} [touchCell] */
+export function lockOnAt(runtime, point, touchCell = null) {
     const run=runtime.deps.actExplorationState.current(runtime.deps.game);if(!run||run.status!=='active')return false;
     const enemy=runtime.deps.battleDrawList.enemyAt(point);if(!enemy)return false;
+    if(touchCell && preferDodgeFloor(runtime,run,enemy,{point,cell:touchCell}) && commandMove(runtime,touchCell)) return true;
     if(!runtime.deps.actExplorationState.lockOn(run,enemy))(0, runtime.deps.showGameToast)((0, runtime.deps._t)('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
     else runtime.deps.actExplorationProgress.clearManualSteerHold(run);
     render(runtime);
     return true;
+}
+
+function preferDodgeFloor(runtime, run, enemy, {point,cell}) {
+    const deps=runtime.deps, game=deps.game;
+    if(!enemy.isBoss || run.mode!=='manual' || game.settings.autoMove!==false) return false;
+    if(game.playerHp<=0 || game.combatHalted || enemy.noAttack) return false;
+    if(!deps.battleDrawList.lowerBodyAt(enemy,point) || !bossThreatensHero(deps,enemy)) return false;
+    return openDodgeCell(deps,run,cell);
+}
+
+function openDodgeCell(deps, run, cell) {
+    const map=deps.actExplorationMap.forRun(run), sealed=deps.actExplorationState.gateSealed(run);
+    if(!deps.actExplorationMap.walkable(map,cell,sealed) || !deps.actExplorationSight.knownCell(run,cell)) return false;
+    const blocked=(0, deps.getGridBlockedCells)(deps.game.gridPlayer);
+    return !blocked.has((0, deps.gridCellKey)(cell.gx,cell.gy));
+}
+
+function bossThreatensHero(deps, enemy) {
+    const timing=deps.bossAttackView.timing, hero=deps.game.gridPlayer;
+    const coversHero=cell=>cell.gx===hero.gx && cell.gy===hero.gy;
+    if(timing.isLiveWarning(enemy) && enemy.patternArea.cells.some(coversHero)) return true;
+    if(timing.isHeld(enemy)) return false;
+    return deps.pendingAttacks().some(attack=>attack.source===enemy && deps.bossMoves.nextStrikeHits(attack,hero));
 }
 
 /** @param {HTMLCanvasElement} canvas 전장 @param {?PointerEvent} event null이면 마우스가 전장을 떠났다 */
@@ -227,7 +250,8 @@ export function steer(runtime) {
     if(!runtime.deps.actExplorationProgress.canMove(run)||!direction){runtime.state.held.length=0;return stopWalking(runtime, run);}
     if(runtime.deps.bossMoves.observer.sceneActive())return;
     if(runtime.deps.bossMoves.observer.playerBoundary(run)){steerFree(runtime, run);return;}
-    const [dx,dy]=runtime.state.STEPS[direction],from=footing(runtime, run);
+    const [dx,dy]=heldVector(runtime.state.held),from=footing(runtime, run);
+    if (!dx && !dy) {runtime.deps.actExplorationState.selectDestination(run,from,runtime.state.KEYED);return;}
     let reached=0;
     // 키보드로 거는 명령은 화면에 표시하지 않는다(KEYED: 클릭한 자리가 아니라 누른 방향의 몇 칸 앞이다)
     while(reached<runtime.state.WALK_REACH&&runtime.deps.actExplorationState.selectDestination(run,{gx:from.gx+dx*(reached+1),gy:from.gy+dy*(reached+1)},runtime.state.KEYED))reached++;
@@ -237,12 +261,15 @@ export function steer(runtime) {
 
 export function steerFree(runtime, run) {
     if((0, runtime.deps.isForegroundGameplayPausedForBackground)()){runtime.deps.actExplorationMotion.setFreeInput(run,runtime.deps.game.gridPlayer,0,0);return;}
-    const dx=Number(runtime.state.held.includes('right'))-Number(runtime.state.held.includes('left'));
-    const dy=Number(runtime.state.held.includes('down'))-Number(runtime.state.held.includes('up'));
+    const [dx,dy]=heldVector(runtime.state.held);
     run.destination=null;
     runtime.deps.actExplorationProgress.objects.cancel(run);
     runtime.deps.actExplorationProgress.holdAutoManual(run);
     runtime.deps.actExplorationMotion.setFreeInput(run,runtime.deps.game.gridPlayer,dx,dy);
+}
+
+function heldVector(held) {
+    return [Number(held.includes('right'))-Number(held.includes('left')),Number(held.includes('down'))-Number(held.includes('up'))];
 }
 
 export function stopWalking(runtime, run) {

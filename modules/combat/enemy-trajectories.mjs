@@ -51,8 +51,10 @@ export function attackFlightEnd(env, source, target, toEdge) {
 
 export function attackFlightCells(env, source, end) {
         const cells = [], size = env.deps.getCombatGridSize();
-        for (let gy=0;gy<size.rows;gy++) {
-            for (let gx=0;gx<size.columns;gx++) {
+        const x0=Math.max(0,Math.ceil(Math.min(source.gx,end.gx)-0.5)), x1=Math.min(size.columns-1,Math.floor(Math.max(source.gx,end.gx)+0.5));
+        const y0=Math.max(0,Math.ceil(Math.min(source.gy,end.gy)-0.5)), y1=Math.min(size.rows-1,Math.floor(Math.max(source.gy,end.gy)+0.5));
+        for (let gy=y0;gy<=y1;gy++) {
+            for (let gx=x0;gx<=x1;gx++) {
                 if (gx === source.gx && gy === source.gy) continue;
                 const progress = attackCellProgress(source,end,{gx,gy});
                 if (progress !== null) cells.push({gx,gy,progress});

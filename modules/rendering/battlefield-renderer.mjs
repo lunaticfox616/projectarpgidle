@@ -1,5 +1,6 @@
 import { clampNumber } from '../common/numbers.mjs';
 import { returnArrival, returnDeparture } from './battlefield-motion.mjs';
+import { drawCocoonChoices } from './atlas-passage-floor.mjs';
 
 const MAP_MONSTERS_LEFT_HINT = 5;
 
@@ -27,7 +28,12 @@ export class BattlefieldRenderer {
         const view = this.deps.canvasBox.read(canvas);
         const width = Math.max(1, view.width || Math.round(canvas.width / renderScale) || canvas.width);
         const height = Math.max(1, view.height || Math.round(canvas.height / renderScale) || canvas.height);
-        return { canvas, ctx, renderScale, box: view, width, height };
+        const compactDamageLabels = this.usesCompactDamage(width);
+        return { canvas, ctx, renderScale, box: view, width, height, compactDamageLabels };
+    }
+
+    usesCompactDamage(width) {
+        return width <= 540 && this.deps.document.body.classList.contains('mobile-primary-navigation');
     }
 
     loadAssets() {
@@ -130,6 +136,7 @@ export class BattlefieldRenderer {
         const { ctx, now, gridProj } = view;
         this.parts.frameEffects.afterimages(ctx, view);
         this.deps.frontSkills(ctx, now, gridProj);
+        view.airWarnings = this.parts.ground.drawGroundWarningAir(ctx, view);
         this.deps.woodsman.foreground(ctx, gridProj);
         if (typeof this.deps.drawAttacks === 'function') this.deps.drawAttacks(ctx);
         const health = this.parts.player.health(player.stats, view);
@@ -137,6 +144,7 @@ export class BattlefieldRenderer {
         this.parts.frameEffects.draw(ctx, view);
         return { width: view.width, height: view.height, light: view.playerPos, ...health, now,
             layout: view.layout, targets, tileW: gridProj.tileW, projection: gridProj,
+            enemyOverlays: view.box.enemyOverlays, renderScale: view.renderScale,
             pending: this.deps.pending(), observerScene: view.observerScene };
     }
 
@@ -145,23 +153,35 @@ export class BattlefieldRenderer {
         this.parts.screen.finish(ctx, scene);
         if (typeof this.deps.stageScene === 'object') this.deps.stageScene.drawMarks(ctx, gridProj);
         const exclusions = view.box.enemyOverlays.map(rect => ({ ...rect, x: rect.x - cameraShake.x, y: rect.y - cameraShake.y }));
-        this.deps.drawDamage(ctx, now, this.parts.bars.exclusions(exclusions));
+        this.deps.drawDamage(ctx, now, this.parts.bars.exclusions(exclusions, view.compactDamageLabels), this.compactDamageBounds(view));
+        if (gridProj.cocoonChoices) drawCocoonChoices(ctx,gridProj.cocoonChoices,this.deps._t);
         const impact = this.deps.director.finishImpact(ctx);
         // Story bubbles, the narration band and the act card stay at their size: drawn without the camera, anchors through it.
         scene.screen = this.deps.director.screen(target => {
             target.setTransform(renderScale, 0, 0, renderScale, 0, 0);
             target.translate(cameraShake.x, cameraShake.y);
         });
-        this.deps.titleCard.draw(ctx, scene);
+        const storyVictory = this.deps.titleCard.draw(ctx, scene);
         ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
         // The impact frame stays flat black and white: no hurt edge, entrance flash, red veil, defeat flash or bars over it. Their own
         // clocks run on, so they carry on from where they are on the next frame.
         const banner = this.parts.banner.update(view.enemies, now);
         if (!impact) this.parts.screen.hurtEdge(ctx, width, height, now);
-        this.deps.tree.feedback.screen(ctx, { width, height, now });
+        if (!storyVictory) this.deps.tree.feedback.screen(ctx, { width, height, now });
         if (!impact) this.parts.banner.draw(ctx, { width, height, now, project: this.deps.director.project }, banner);
         if (typeof this.deps.rooms === 'object') this.deps.rooms.drawOverlay(ctx, view.box, this.deps.director.projection(gridProj));
         this.deps.bossMoves.drawObserverTransition(ctx, view.observerScene, width, height);
+    }
+
+    compactDamageBounds(view) {
+        if (!view.compactDamageLabels) return null;
+        const player = view.playerPos;
+        const { a, d, e, f } = view.ctx.getTransform();
+        return { left: -e / a, right: (view.width * view.renderScale - e) / a, top: -f / d,
+            reduced: this.deps.display.reducedEffects(), airWarnings: view.airWarnings, hero: {
+            x: player.x, top: player.y - this.parts.hits.body.heroHeight(player, view.now), bottom: player.y,
+            halfWidth: Math.max(18, Math.min(35, view.gridProj.tileW * 0.32))
+        } };
     }
 
     monstersLeft() {
@@ -205,6 +225,7 @@ export class BattlefieldRenderer {
         this.parts.ground.grid(view.ctx, view.gridProj, player.targets, cells);
         if (this.loading(view)) return;
         this.position(view, player);
+        view.nextStrikes=this.deps.bossMoves.nextStrikes(view.enemies);
         this.parts.frameEffects.autoSwing(player, view);
         view.gridUnitScale = clampNumber(view.gridProj.tileW / 46, .48, Math.max(1.3, view.gridProj.unitScaleCap || 0));
         this.deps.drawGround(view.ctx, this.deps.effects(), view);

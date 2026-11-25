@@ -91,9 +91,10 @@ export class BattlefieldScreen {
         this.lighting(ctx, scene);
         this.deps.readability.draw(ctx);
         if (scene.observerScene) return;
-        if (!this.deps.actors.down()) this.bars.player(ctx, scene);
+        scene.protectHero = !this.deps.actors.down();
+        if (scene.protectHero) this.bars.player(ctx, scene);
         const locked = this.deps.exploration.lockedEnemy(this.deps.exploration.current(this.deps.game()));
-        this.bars.enemies(ctx, scene.layout.filter(entry => entry.drawn), locked ? scene.targets.concat(locked.id) : scene.targets, scene.tileW);
+        this.bars.enemies(ctx, scene.layout.filter(entry => entry.drawn), locked ? scene.targets.concat(locked.id) : scene.targets, scene);
         this.bars.lockOn(ctx, scene, locked);
     }
 

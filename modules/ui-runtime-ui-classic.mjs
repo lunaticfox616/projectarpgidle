@@ -70,6 +70,8 @@ const staticUiView = createStaticUiView({
     get STUMP_BOX_COLORS() { return STUMP_BOX_COLORS; },
     get selectForCrafting() { return selectForCrafting; },
     get formatValue() { return formatValue; },
+    get getEquipmentGridVisualAsset() { return getEquipmentGridVisualAsset; },
+    get getRarityColor() { return getRarityColor; },
     get getDropOnlyItemSourceMeta() { return typeof getDropOnlyItemSourceMeta === 'undefined' ? undefined : getDropOnlyItemSourceMeta; },
     get getExceptionalBaseStarsHtml() { return typeof getExceptionalBaseStarsHtml === 'undefined' ? undefined : getExceptionalBaseStarsHtml; },
     get getItemSlotDisplayLabel() { return getItemSlotDisplayLabel; },

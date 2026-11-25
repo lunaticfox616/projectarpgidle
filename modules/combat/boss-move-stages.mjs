@@ -1,5 +1,6 @@
 import { moveSteps, movePlain } from './boss-move-geometry.mjs';
 import { BOSS_MOVE_RULES } from './boss-move-values.mjs';
+import { moveMoveKind } from './boss-move-style.mjs';
 
 /** The area's lanes from the boss outward: a fan's rays, or a line's cells; only cells the warning covered. */
     export function moveLanesOf(env, area, source) {
@@ -28,16 +29,34 @@ export function moveGrindStages(area) {
         return Array.from({ length: rule.ticks }, (_, k) => ({ ms: rule.firstMs + k * rule.tickMs, cells, share: rule.tickShare }));
     }
 
+function firstRing(area, cell) {
+    const { gx, gy } = area.center;
+    return Math.abs(cell.gx - gx) + Math.abs(cell.gy - gy) <= 1;
+}
+
+function firstCross(area, cell) { return cell.gx === area.center.gx && cell.gy === area.center.gy; }
+
+export function ringFirstCells(area) { return area.cells.filter(cell => firstRing(area, cell)); }
+export function crossFirstCells(area) { return area.cells.filter(cell => firstCross(area, cell)); }
+
+/** Ordinary staged patterns can recover the first wave from a legacy locked warning. */
+export function bossWarningFirstWaveCells(area, telegraphKind = null) {
+    const wave = moveMoveKind(area, telegraphKind, null);
+    if (wave === 'rings') return ringFirstCells(area);
+    if (wave === 'cross') return crossFirstCells(area);
+    return null;
+}
+
 export function moveRingStages(area) {
-        const rule = BOSS_MOVE_RULES.rings, centre = area.center, near = cell => Math.abs(cell.gx - centre.gx) + Math.abs(cell.gy - centre.gy) <= 1;
-        return [{ ms: rule.firstMs, cells: area.cells.filter(near).map(movePlain) },
-            { ms: rule.firstMs + rule.gapMs, cells: area.cells.filter(cell => !near(cell)).map(movePlain) }];
+        const rule = BOSS_MOVE_RULES.rings;
+        return [{ ms: rule.firstMs, cells: ringFirstCells(area).map(movePlain) },
+            { ms: rule.firstMs + rule.gapMs, cells: area.cells.filter(cell => !firstRing(area, cell)).map(movePlain) }];
     }
 
 export function moveCrossStages(area) {
-        const rule = BOSS_MOVE_RULES.cross, centre = area.center, middle = cell => cell.gx === centre.gx && cell.gy === centre.gy;
-        return [{ ms: rule.firstMs, cells: area.cells.filter(middle).map(movePlain) },
-            { ms: rule.firstMs + rule.gapMs, cells: area.cells.filter(cell => !middle(cell)).map(movePlain) }];
+        const rule = BOSS_MOVE_RULES.cross;
+        return [{ ms: rule.firstMs, cells: crossFirstCells(area).map(movePlain) },
+            { ms: rule.firstMs + rule.gapMs, cells: area.cells.filter(cell => !firstCross(area, cell)).map(movePlain) }];
     }
 
 export function moveScatterStages(area) {

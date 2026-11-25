@@ -1,6 +1,7 @@
 import { atlasSessionInMap, atlasSessionReturnZone, atlasSessionInsideMap } from './atlas-run-access.mjs';
 import { atlasSessionNotify } from './atlas-run-events.mjs';
 import { restoreMainMap } from './atlas-passages.mjs';
+import { atlasSessionFinishExpedition } from './atlas-expedition-completion.mjs';
 
 /** A content's return or a finished departure left the hero in a map that has closed since: back to the frontier. */
 export function* atlasSessionRecoverClosedMap(env, owner) {
@@ -10,7 +11,7 @@ export function* atlasSessionRecoverClosedMap(env, owner) {
 /** 열린 지도를 닫는다: 지도석과 맵 안의 지도석 드롭을 잃는다. @returns {boolean} whether a map was open. */
 export function* atlasSessionAbandon(env, owner) {
     if (!owner.atlas.run) return false;
-    const { returnZoneId } = env.deps.atlas.close(owner, 'failed');
+    const { returnZoneId } = env.deps.atlas.close(owner, 'failed', 'abandoned');
     if (atlasSessionInMap(env, owner)) (yield* atlasSessionTravelBack(env, owner, returnZoneId));
     return true;
 }
@@ -47,12 +48,20 @@ export function* atlasSessionTravel(env, owner, zone) {
 }
 
 export function* atlasSessionSpendPortal(env, owner, reason) {
-    if (owner.actExploration?.source?.pocket) restoreMainMap(owner);
+    yield* leaveExpedition(env, owner);
     const portal = env.deps.atlas.usePortal(owner);
     if (!portal) return;
-    (yield* atlasSessionNotify(env, { kind: portal.closed ? 'failed' : 'portal', reason, portals: portal.portals || 0 }));
+    (yield* atlasSessionNotify(env, { kind: portal.closed ? 'failed' : 'portal', reason, portals: portal.portals || 0, refund: portal.refund || null }));
     if (!portal.closed) return;
     if (atlasSessionInMap(env, owner)) owner.currentZoneId = atlasSessionReturnZone(env, portal.returnZoneId);
     owner.killsInZone = 0;
     (yield { kind: 'atlasSessionEffectQueueImportantSave', args: [160] });
+}
+
+/** A portal (or a defeat) inside an expedition goes back to the main map first. A cleared expedition still gets its completion award;
+ * restoreMainMap pays its floor and held boss loot either way (a no-op once the finish has restored the main map). */
+function* leaveExpedition(env, owner) {
+    if (!owner.actExploration?.source?.pocket) return;
+    if (owner.actExploration.status === 'cleared') yield* atlasSessionFinishExpedition(env, owner, env.deps.getZone(owner.currentZoneId), true);
+    restoreMainMap(env, owner);
 }

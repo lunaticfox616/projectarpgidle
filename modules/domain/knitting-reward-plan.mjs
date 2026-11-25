@@ -47,7 +47,7 @@ export function threadRewardLockedReason(env, state, made) {
 
 export function threadRewardReason(env, state, made) {
     if (!made) return '현재 보상 풀에 맞는 아이템이 없습니다. 실타래는 유지됩니다.';
-    if (made.mapBlocked) return '아틀라스를 열고 지도석 보관함에 빈칸 두 개를 마련하세요. 실타래는 유지됩니다.';
+    if (made.mapBlocked) return '아틀라스를 열고 지침 보관함에 빈칸 두 개를 마련하세요. 실타래는 유지됩니다.';
     if (made.item && !env.deps.canStoreEquipmentItems([made.item], state)) return '장비 보관함에 빈자리가 필요합니다.';
     const locked = threadRewardLockedReason(env, state, made);
     if (locked) return locked;

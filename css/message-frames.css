@@ -25,6 +25,17 @@ body.message-frames-on .combat-feed { display: none; }
    바뀌는 순간에만 도는 짧은 계단식 전환이다(늘 도는 부드러운 전환은 화면 주사율마다 합성을 시킨다). */
 .message-frame { transition: opacity .16s steps(4); }
 .message-frame.over-hero:not(:hover):not(:focus-within) { opacity: .2; }
+/* 마우스를 올리지 않은 창은 글만 남는다(2026-11-25 사용자 요청: 배경만 투명하게, 글씨는 보이게). 판, 테, 그림자, 탭 줄,
+   채팅 입력 줄, 스크롤 막대가 사라지고 기록과 채팅 글은 외곽선으로 읽힌다. 마우스를 올리거나 채팅 칸에 글을 쓰는 동안,
+   창을 끌거나 크기를 바꾸는 동안에는 다시 보인다. 마우스가 없는 화면에서는 올릴 수가 없으므로 늘 보인다. */
+.message-frame-bar, .message-frame .social-chat-inputbar { transition: opacity .16s steps(4); }
+@media (hover: hover) and (pointer: fine) {
+  /* 둘째 선택자는 PSD 스킨의 창 테 그림(css/themes/psd-skin.css)보다 앞서려는 것이다. */
+  .message-frame:not(:hover):not(:focus-within):not(:active),
+  :root body[data-ui-skin].psd-skin.desktop-windowed-ui .message-frame:not(:hover):not(:focus-within):not(:active) { border-image-source: none; background-color: transparent; box-shadow: none; }
+  .message-frame:not(:hover):not(:focus-within):not(:active) :is(.message-frame-bar, .social-chat-inputbar) { opacity: 0; }
+  .message-frame:not(:hover):not(:focus-within):not(:active) .message-frame-body :is(#log, .social-chat-body) { scrollbar-color: transparent transparent; }
+}
 
 .message-frame-bar {
   flex: 0 0 auto;

@@ -20,9 +20,12 @@ const damageRenderer = new DamageTextRenderer({
     get document() { return typeof document === 'undefined' ? undefined : document; },
     get damageNumberFormat() { return window.GameModules.state.game?.settings?.damageNumberFormat; },
     translate: (...args) => _t(...args),
+    damageElementColor: element => getElementColor(element),
     get drawCrispCanvasText() { return drawCrispCanvasText; }
 }, runtime);
-const spawnDamageText = Object.assign(damageQueue.spawnDamageText.bind(damageQueue), { fromHit: damageQueue.fromHit.bind(damageQueue) });
+const spawnDamageText = Object.assign(damageQueue.spawnDamageText.bind(damageQueue), {
+    fromHit: damageQueue.fromHit.bind(damageQueue), finishBoss: damageQueue.finishBoss.bind(damageQueue)
+});
 const drawDamageTexts = damageRenderer.render.bind(damageRenderer);
 const heroMotion = new HeroMotionPlayback({
     get performance() { return performance; },

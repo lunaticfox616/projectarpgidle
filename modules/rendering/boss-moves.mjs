@@ -1,7 +1,13 @@
 import { createObserverScene } from './observer-scene.mjs';
+import { drawForgeFloor, drawSignature, nextSignatureStages, signatureRange } from './atlas-signature.mjs';
 import { createObserverArena } from './observer-arena.mjs';
 import { createBossMoveTiming } from './boss-move-timing.mjs';
 import { WOODSMAN_BLADE, WOODSMAN_SHAPES } from './boss-move-clips.mjs';
+import { ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE } from './rootlet-next-wave.mjs';
+import { paintSafeTicks } from './danger-tiles.mjs';
+
+// A Rootlet wave stays in its cool preview this long after the wave before it lands, so the hit reads before the next warning.
+const ROOTLET_HANDOFF_MS = 150;
 
 /** The boss moves on screen (js/boss-moves.js; 2026-10-16 사용자: GPT가 만든 적 공격 효과로 보스 패턴을 다양하게, "vfx용량과 색 검수,
  * 늘어나거나 줄어들어서 이상하게 보이지 않는지 검수, 몬스터가 자연스럽게 사용하는지도 중요해"). Effects come from the boss's own sheet
@@ -11,12 +17,11 @@ import { WOODSMAN_BLADE, WOODSMAN_SHAPES } from './boss-move-clips.mjs';
  * eruption, a falling boss's drop). Air (over them): the charge at the boss's hand through the warning, shots flying down their
  * lanes from the hand at its height, the beam (or, for bosses whose art is a shot, a stream of shots) held from the hand.
  * The hand is the emit point of the frame the boss strikes on (data/boss-fx.js emit), from where the boss was drawn
- * (js/canvas-stage-roster.js placementOf). Without the art the warnings and a flash of every stage still show. Draws only. */
+ * (js/canvas-stage-roster.js placementOf). Each stage's warning is retired by its combat tick. Draws only. */
 class BossMoveView {
     constructor(deps, arena) {
         this.deps = deps;
         this.arena = arena;
-        this.BURST_FLASH_MS = 200;
         this.STREAM_EVERY_MS = 120;
         this.FALL_MS = 320;
         this.FALL_TILES = 3.2;
@@ -94,12 +99,28 @@ class BossMoveView {
         return { feet, hand: { x: feet.x, y: feet.y - projection.tileH * 0.9 }, dot };
     }
 
-    /** A stage's cells on the ground: alpha rises as its turn comes (the last 0.6 s), then a short flash once it lands. */
+    /** The combat queue has yet to land these cells. Their brightness rises in the last 0.6 s. */
     drawStageWarning(ctx, stage, landAt, now, projection) {
-        const left = landAt - now, alpha = left > 0 ? 1.5 + 5.5 * this.deps.clampNumber(1 - left / 600, 0, 1) : 6 * (1 - -left / this.BURST_FLASH_MS);
-        if (alpha <= 0) return;
-        const footprint = this.deps.projectSkillFootprint({ cells: stage.cells, kind: 'blast', center: stage.cells[0] }, projection);
-        if (footprint) this.deps.drawSkillFootprintGround(ctx, footprint, '#ff684f', alpha);
+        const left = landAt - now;
+        const charge = this.deps.clampNumber(1 - left / stage.window, 0, 1);
+        const footprint = this.deps.projectSkillFootprint({ cells: stage.cells, kind: 'blast', center: stage.center }, projection);
+        if (!footprint) return;
+        const active = stage.next && (stage.ring || stage.first || left <= 220) && !stage.settling;
+        if (!active) return this.drawLaterStage(ctx, footprint, stage.rootlet);
+        this.deps.drawSkillFootprintGround(ctx, footprint, stage.rootlet ? '#ffc29a' : '#ffae72',
+            { fill: 0.34 + charge * 0.15, edge: 0.78 + charge * 0.21, rootlet: stage.rootlet, outer: !stage.first,
+                marks: 0.87 + charge * 0.13, cracks: this.stageFaultCharge(stage, charge), dye: 0.19 + charge * 0.18 });
+    }
+
+    drawLaterStage(ctx, footprint, rootlet) {
+        if (rootlet) return this.deps.drawSkillFootprintGround(ctx, footprint, ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE);
+        return this.deps.drawSkillFootprintGround(ctx, footprint, '#79a5b9', { fill: 0.19, edge: 0.75, marks: 0, dye: 0 });
+    }
+
+    stageFaultCharge(stage, charge) {
+        if (!stage.ring) return null;
+        // The initial warning reaches 28% when the caster releases the move.
+        return stage.first ? 0.28 + 0.72 * charge : charge;
     }
 
     /** What bursts out of the ground where a stage lands: a ground boss's eruption, else its impact. A volley and a beam do not burst. */
@@ -117,10 +138,22 @@ class BossMoveView {
             const since = now - (move.releasedAt + stage.ms);
             if (row.kind === 'fall') { this.drawFalls(ctx, { entry, row, stage, since }, projection); continue; }
             const frame = this.frameAt(clip, since, false);
-            if (frame) stage.cells.forEach(cell => this.drawFrame(ctx, clip, frame, this.floorOf(cell, projection), { scale }));
+            if (frame) this.drawBurstCells(ctx, { entry, stage, clip, frame, scale }, projection);
         }
     }
 
+    drawBurstCells(ctx, burst, projection) {
+        const { entry, stage, clip, frame, scale } = burst;
+        if (entry.move.kind === 'rings') return;
+        const earth = entry.element === 'phys' && ['rings', 'cross', 'scatter'].includes(entry.move.kind) && stage.cells.length > 1;
+        if (!earth) return stage.cells.forEach(cell => this.drawFrame(ctx, clip, frame, this.floorOf(cell, projection), { scale }));
+        // The shared fracture owns the centre. Keep this boss's foliage around its sides.
+        const left = stage.cells.reduce((best, cell) => cell.gx < best.gx ? cell : best, stage.cells[0]);
+        const right = stage.cells.reduce((best, cell) => cell.gx > best.gx ? cell : best, left);
+        const look = { scale: scale * 0.44, alpha: 0.55 };
+        const flank = left === right ? [left] : [left, right];
+        for (const cell of flank) this.drawFrame(ctx, clip, frame, this.floorOf(cell, projection), look);
+    }
     /** A falling boss's stage: the shot drops onto each cell over FALL_MS (down and a little sideways), then its impact plays. */
     drawFalls(ctx, fall, projection) {
         const { entry, row, stage, since } = fall, body = this.bodyOf(entry.source, row, projection), scale = body.dot * row.scale;
@@ -176,13 +209,78 @@ class BossMoveView {
     drawLiveMove(owner, ctx, entry, projection, now) {
         const move = entry.move, found = this.deps.bossMoves.fxOf(entry.source);
         if (move.kind === 'woodsman') return;
-        if (move.kind === 'observer') { this.arena.drawObserverMove(owner, ctx, entry, projection, now); return; }
-        for (const stage of move.stages) {
-            const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
-            if (cells.length && !this.HELD_MOVES.includes(move.kind)) this.drawStageWarning(ctx, { cells }, move.releasedAt + stage.ms, now, projection);
+        if (move.family==='forge') {
+            if (owner.enemies.some(enemy => enemy.id === entry.source.id && enemy.hp > 0)) drawForgeFloor(ctx,move,projection,now);
+            return;
         }
+        if (move.kind === 'observer') { this.arena.drawObserverMove(owner, ctx, entry, projection, now); return; }
+        if (move.kind !== 'signature') this.drawStageWarnings(ctx,entry,projection,now);
+        if (move.kind === 'rings') this.drawRootletSafeCells(owner, ctx, entry, projection, now);
+        this.drawPhysicalLead(ctx, entry, projection, now);
         if (move.kind === 'grind') this.drawGrindGround(ctx, move, now, projection);
         if (found && this.fx()) this.drawBursts(ctx, entry, found.row, now, projection);
+    }
+
+    drawStageWarnings(ctx,{move, element, center:warningCenter},projection,now) {
+        if (this.HELD_MOVES.includes(move.kind)) return;
+        const ring = move.kind === 'rings', rootlet = ring && element === 'phys' && this.deps.rootletZone();
+        for (let index = move.next; index < move.stages.length; index++) {
+            const stage = move.stages[index];
+            const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
+            const window = this.stageWarningWindow(move, index);
+            const center = (rootlet && warningCenter) || cells[0];
+            const settling = rootlet && index > 0 && now - (move.releasedAt + move.stages[index - 1].ms) < ROOTLET_HANDOFF_MS;
+            if (cells.length) this.drawStageWarning(ctx, { cells, center, first: index === 0, next: index === move.next, ring, rootlet, window, settling },
+                move.releasedAt + stage.ms, now, projection);
+        }
+    }
+
+    stageWarningWindow(move, index) {
+        if (index === 0) return move.kind === 'rings' ? move.stages[0].ms : 600;
+        if (move.kind === 'rings') return move.stages[index].ms - move.stages[index - 1].ms;
+        return 220;
+    }
+
+    drawPhysicalLead(ctx, entry, projection, now) {
+        const { move, element } = entry;
+        if (element !== 'phys' || move.next !== 0 || !['rings', 'cross'].includes(move.kind)) return;
+        const stage = move.stages[0], target = stage?.cells[0];
+        if (!target || !move.source || !this.deps.actExplorationState.inSight(move.source)) return;
+        const left = move.releasedAt + stage.ms - now;
+        if (left > 145) return;
+        const charge = this.deps.clampNumber(1 - left / 145, 0, 1);
+        const from = this.floorOf(move.source, projection), to = this.floorOf(target, projection);
+        const pixel = Math.max(1, Math.round(projection.tileW / 20));
+        ctx.save();
+        this.foreclawDust(ctx, { from, to, pixel, charge });
+        if (!this.deps.uiDisplay.reducedEffects()) this.groundChips(ctx, { from, to, pixel, charge });
+        ctx.restore();
+    }
+
+    foreclawDust(ctx, {from, to, pixel, charge}) {
+        const side = to.x >= from.x ? 1 : -1;
+        ctx.globalAlpha = 0.68 + charge * 0.25;
+        for (let i = 0; i < 3; i++) {
+            const x = Math.round(from.x + side * pixel * (i + 1)), y = Math.round(from.y + (i - 1) * pixel * 2);
+            ctx.fillStyle = '#382932';
+            ctx.fillRect(x - pixel * 3, y, pixel * 6, pixel * 2);
+            ctx.fillStyle = '#d39b68';
+            ctx.fillRect(x - pixel * 2, y, pixel * 4, pixel);
+        }
+    }
+
+    groundChips(ctx, {from, to, pixel, charge}) {
+        ctx.globalAlpha = 0.74;
+        for (let i = 0; i < 6; i++) {
+            const t = charge * 1.02 - i * 0.117;
+            if (t <= 0 || t >= 0.87) continue;
+            const x = Math.round(from.x + (to.x - from.x) * t);
+            const y = Math.round(from.y + (to.y - from.y) * t - Math.sin(t * Math.PI) * pixel * (3 + i % 3));
+            ctx.fillStyle = '#3d2930';
+            ctx.fillRect(x - pixel, y - pixel, pixel * 3, pixel * 2);
+            ctx.fillStyle = i % 2 ? '#eab57c' : '#ad795d';
+            ctx.fillRect(x, y - pixel, pixel * 2, pixel);
+        }
     }
 
     /** Pale footprint = arrival, red footprint = damage. Neither follows the victim after being warned. */
@@ -364,6 +462,42 @@ class BossMoveView {
         }
     }
 
+    /** Ground pass: quiet ticks on the open cells next to the hero while the struck wave nears (not on cells it or the boss covers). */
+    drawRootletSafeCells(owner, ctx, entry, projection, now) {
+        const wave = this.deps.rootletZone() && owner.gridPlayer ? this.rootletNextWave(entry, now) : null;
+        if (!wave || wave.charge < 0.3 || wave.charge >= 1) return;
+        const cells = this.openCellsAround(owner.gridPlayer, [wave.cells, this.bodyCells(entry.source)]);
+        const footprint = cells.length && this.deps.projectSkillFootprint({ cells, kind: 'blast', center: cells[0] }, projection);
+        if (!footprint) return;
+        ctx.save();
+        this.deps.clipSkillFootprintTerrain(ctx, footprint);
+        paintSafeTicks(ctx, footprint, Math.min(1, (wave.charge - 0.3) * 4));
+        ctx.restore();
+    }
+
+    bodyCells(enemy) { return this.deps.getGridFootprintCells(enemy.gx, enemy.gy, this.deps.getGridUnitFootprint(enemy)); }
+
+    /** The 3x3 cells around `hero` not in any of `taken` (cell lists). */
+    openCellsAround(hero, taken) {
+        const keys = new Set(taken.flat().map(cell => cell.gx + ':' + cell.gy)), cells = [];
+        for (let i = 0; i < 9; i++) {
+            const cell = { gx: hero.gx + (i % 3) - 1, gy: hero.gy + Math.floor(i / 3) - 1 };
+            if (!keys.has(cell.gx + ':' + cell.gy)) cells.push(cell);
+        }
+        return cells;
+    }
+
+    rootletNextWave({ move, element, source }, now) {
+        if (move.kind !== 'rings' || element !== 'phys' || move.cutAt) return null;
+        const landed = move.stages[move.next - 1];
+        if (landed && now - (move.releasedAt + landed.ms) < ROOTLET_HANDOFF_MS) return null;
+        const stage = move.stages[move.next];
+        if (!stage?.cells.length) return null;
+        const left = move.releasedAt + stage.ms - now;
+        const charge = this.deps.clampNumber(1 - left / this.stageWarningWindow(move, move.next), 0, 1);
+        return { source, cells: stage.cells, charge: this.stageFaultCharge({ ring: true, first: move.next === 0 }, charge) };
+    }
+
     drawAir(owner, ctx, projection) {
         if (!projection || !this.fx()) return;
         const now = this.deps.bossAttackView.now();
@@ -371,6 +505,7 @@ class BossMoveView {
         this.drawCharges(owner, ctx, projection);
         for (const entry of this.deps.bossMoves.live(now)) {
             if (entry.move.kind === 'observer') { this.arena.drawObserverAir(ctx, entry, projection, now); continue; }
+            if (entry.move.kind === 'signature') {drawSignature(ctx,entry,projection,now);continue;}
             if (entry.move.kind === 'grind') this.drawGrindSparks(ctx, entry, now);
             const found = this.deps.bossMoves.fxOf(entry.source);
             if (!found) continue;
@@ -386,5 +521,7 @@ export function createBossMoveView(deps) {
     const arena = createObserverArena(deps, scene);
     const motion = createBossMoveTiming(deps);
     const instance = new BossMoveView(deps, arena);
-    return Object.freeze({ motion, drawGround: instance.drawGround.bind(instance), drawAir: instance.drawAir.bind(instance), drawWoodsmanFx: instance.drawWoodsmanFx.bind(instance), drawObserverWarnings: arena.drawObserverWarnings, drawObserverTransition: scene.drawObserverTransition, observerScene: scene.observerScene, observerCamera: scene.observerCamera, strikeHoldMs: motion.strikeHoldMs, heldSide: motion.heldSide, shiftAlpha: motion.shiftAlpha });
+    const nextStrikes=enemies=>nextSignatureStages(enemies,deps.bossMoves.live(deps.getCombatTime()),deps.bossAttackView);
+    const castRange=enemy=>signatureRange(enemy,deps.bossMoves.live(deps.getCombatTime()),deps.bossAttackView);
+    return Object.freeze({ motion, nextStrikes, castRange, drawGround: instance.drawGround.bind(instance), drawAir: instance.drawAir.bind(instance), drawWoodsmanFx: instance.drawWoodsmanFx.bind(instance), drawObserverWarnings: arena.drawObserverWarnings, drawObserverTransition: scene.drawObserverTransition, observerScene: scene.observerScene, observerCamera: scene.observerCamera, strikeHoldMs: motion.strikeHoldMs, heldSide: motion.heldSide, shiftAlpha: motion.shiftAlpha });
 }

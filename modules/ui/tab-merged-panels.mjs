@@ -7,7 +7,7 @@ import { scheduleViewFrame } from './view-frames.mjs';
 export function renderVisibleManagementPanels(runtime, tabIds) {
     if (tabIds.has('tab-talent')) runtime.deps.talentUi.render();
     if (tabIds.has('tab-stump')) runtime.deps.stumpBoxUi.renderStumpBoxTab();
-    if (tabIds.has('tab-trade')) (0, runtime.deps.renderMarketUI)();
+    if (tabIds.has('tab-trade') || tabIds.has('tab-auction')) (0, runtime.deps.renderMarketUI)();
     else (0, runtime.deps.refreshBlackMarket)(false);
 }
 
@@ -84,8 +84,11 @@ export function renderMergedTabPanels(runtime, groupKey) {
 }
 
 /** 탭에 붙는 표시: 쓸 포인트가 있으면 그 수, 없고 새 소식이 있으면 점. */
+/** 그 화면의 알림 열쇠: 정한 것(거래 창의 NPC 화면은 npcs), 없으면 화면 id. */
+const mergedTabNotiKey = tab => tab.noti || tab.id.replace(/^tab-/, '');
+
 export function mergedTabMarkHtml(runtime, tab) {
-    let key = tab.id.replace(/^tab-/, ''), count = Math.max(0, Math.floor(Number(tab.count ? tab.count(runtime.deps.game, runtime.deps.contentProgression) : 0) || 0));
+    let key = mergedTabNotiKey(tab), count = Math.max(0, Math.floor(Number(tab.count ? tab.count(runtime.deps.game, runtime.deps.contentProgression) : 0) || 0));
     if (count > 0) return `<b class="window-tab-count">${count}</b>`;
     return runtime.deps.game.noti && runtime.deps.game.noti[key] && isNotiEnabled(runtime, key) ? '<i class="window-tab-dot"></i>' : '';
 }
@@ -216,7 +219,10 @@ export function resolveShownTab(runtime, tabId, mergedEntry) {
 export function refreshShownMergedTab(runtime, mergedEntry, shown) {
     if (!mergedEntry) return;
     renderMergedTabSubtabs(runtime, mergedEntry[0]);
-    if (shown.changed) enterShownTab(runtime, shown.id);
+    if (shown.changed) {
+        enterShownTab(runtime, shown.id);
+        (0, runtime.deps.updateStaticUI)();   // 다른 화면이 보이게 됐다: 그 화면을 그린다(거래 창이 전당을 그린 채 NPC로 바뀌었다)
+    }
     runtime.deps.tutorialActionUi.followOpeningTab(shown.id);
 }
 
@@ -255,7 +261,7 @@ export function syncMergedTabLauncherState(runtime) {
         if (!launcher) return;
         let root = runtime.deps.document.getElementById(group.launcher);
         launcher.classList.toggle('active', !!(root && root.classList.contains('active')));
-        let sourceKeys = group.tabs.map(tab => tab.id.replace(/^tab-/, ''));
+        let sourceKeys = group.tabs.map(mergedTabNotiKey);
         let dot = launcher.querySelector('.noti-dot');
         if (dot) dot.style.display = sourceKeys.some(key => runtime.deps.game.noti[key] && isNotiEnabled(runtime, key)) ? 'block' : 'none';
         // 열려 있는 묶음 창의 탭 줄(쓸 포인트의 수, 새 소식의 점)도 함께 맞춘다

@@ -10,5 +10,13 @@ export function* atlasFindOnAtlasKill(env, owner, zone, enemy) {
     const leaf = env.deps.memoryLeaves.rollKill(owner, zone, enemy, Math.random);
     if (leaf) (yield* atlasFindGrantMemoryLeaf(env, owner, enemy, leaf));
     if (enemy.treasureCarrier) (yield* atlasFindBurstTreasure(env, owner, enemy, zone));
-    if (enemy.isBoss && env.MAP_BOSS_KINDS.has(zone.atlasKind) && !zone.memoryTier) (yield* atlasFindGrantBossReward(env, enemy, zone));
+    if (enemy.isBoss && atlasFindBossRewardAtKill(env, zone, enemy)) (yield* atlasFindGrantBossReward(env, enemy, zone));
+}
+
+/** 지도와 수호자의 보스는 처치 때 보상을 떨어뜨린다. 기억 싸움은 아니고, 천문도 일반 지도의 제 보스 보상은 첫 장비 상자로 완료 때
+ * 열린다(atlas-run-spoils, 결과 카드의 장비 상자 칸). 보스 방의 불청객(난입 보스, 하나 더 선 보스, combat/room-invader-bodies)은 그 지도의
+ * 보스가 아니라 장비 상자가 대신하지 않으므로 처치 때 떨어뜨린다. */
+export function atlasFindBossRewardAtKill(env, zone, enemy) {
+    if (!env.MAP_BOSS_KINDS.has(zone.atlasKind) || zone.memoryTier) return false;
+    return !zone.atlasGearBoxes || !!(enemy.roomInvader || enemy.uninvited || enemy.bossTwin);
 }

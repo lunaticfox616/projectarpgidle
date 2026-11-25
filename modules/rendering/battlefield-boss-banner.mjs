@@ -87,7 +87,7 @@ export class BattlefieldBossBanner {
     update(enemies, now) {
         const boss = this.named(enemies, now), visual = this.deps.visual();
         visual.bossBannerFor = null;
-        if (!boss) return null;
+        if (!boss || boss.atlasPhase > 0) return null;
         if (visual.bossAnnounceId !== boss.id) {
             visual.bossAnnounceId = boss.id;
             visual.bossAnnounceStart = now;

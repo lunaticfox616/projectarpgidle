@@ -10,6 +10,7 @@ import { killFlagHeavyUiAfterKill } from '../combat/kill-refresh.mjs';
 import { coreExplodeCorpse } from '../combat/core-hit-results.mjs';
 import { hitRecordKillProgress } from './kill-progression.mjs';
 import { playerGrantEliteTraitOnKill } from './player-stat-events.mjs';
+import { onHuntDeath } from '../domain/hunt-fields.mjs';
 
 /** A monster's death, once: it leaves the field, the kill is counted, rewards are given, kill effects and content runs advance, and
  * monsters a kill effect brought to 0 die in turn. 2026-10-18 split into the steps below (it was one function of complexity 151);
@@ -19,6 +20,7 @@ export function* killHandleEnemyDeath(env, enemy, pStats) {
     if (!enemy) return;
     env.deps.woodsmanStumps.clear(enemy);
     if (env.deps.woodsmanStumps.retireAdd(enemy)) return;
+    onHuntDeath(env.owner,enemy,env.deps.getCombatTime());
     // Rewards below change build inputs under one settlement memo revision: stats asked for until the end are not kept.
     env.deps.playerStatCache.beginEvent();
     retireKilledEnemy(env, enemy, pStats);
@@ -64,6 +66,7 @@ function retireKilledEnemy(env, enemy, pStats) {
 }
 
 function* announceKilledEnemy(env, enemy) {
+    if (enemy.atlasPhase+1<enemy.atlasPhaseCount) return;
     yield { kind: 'addBattleFx', args: ['enemyDeath', {
         enemyId: enemy.id, name: enemy.name, color: env.deps.getElementColor(enemy.ele),
         // Reviving bosses keep their standing fade until the story animation ends.

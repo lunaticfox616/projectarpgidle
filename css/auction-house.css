@@ -9,7 +9,7 @@
 #market-panel-auction ul { margin: 0; padding: 0; list-style: none; }
 #market-panel-auction p { margin: 0; }
 #market-panel-auction button { border-radius: 0; margin: 0; min-height: var(--ah-tap); font-size: 12px; }
-.ah-root { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 6px; min-width: 0; }
+.ah-root { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 6px; min-width: 0; }
 .ah-view { display: grid; min-width: 0; min-height: 0; }
 
 /* 게임 부품의 이 칸 모양(PSD 테가 없는 화면): 탭 줄은 아래 줄 하나, 고른 탭과 누른 탭은 금빛 테. 단추는 게임의 기본 단추, 주 단추는 금빛 테. */
@@ -22,18 +22,20 @@
 
 /* 맨 위 줄: 칸 단추(내 출품에는 쓰인 칸 수와 수령할 것이 있을 때의 점)와 지갑 */
 .ah-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; min-width: 0; }
-.ah-tabs { flex: 1 1 auto; }
-#market-panel-auction .ah-tabs .psd-tab { flex: 1 1 0; min-height: 40px; }
-.ah-tabs small { color: inherit; font-size: 12px; }
+/* 머리 한 줄: 한 줄 시세와 끝의 지갑. 이 칸의 세 탭(아이템, 재료, 내 출품)은 거래 창의 탭 줄(#market-exchange-tabs)에 가판대, 장비 전당과
+   나란히 서고, PC의 넓은 창에서는 그 탭 줄과 이 머리가 한 줄에 놓인다(아래 overrides의 subgrid). */
+.ah-top > .ah-band { flex: 1 1 260px; }
+#market-exchange-tabs small { color: inherit; font-size: 12px; }
+#market-exchange-tabs button { position: relative; }
 .ah-dot { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: var(--ah-down); }
 .ah-purse .shop-wallet { margin-left: 0; }
 .ah-empty { padding: 14px; color: var(--color-text-secondary); font-size: 12px; }
 
-/* 한 줄 시세: 눈에 덜 띄게 한 줄만 쓴다. 사건 이름(설명은 마우스를 올리면), 오른 것과 내린 것(누르면 그 계열을 검색하거나 그 재료로 간다,
-   넘치면 옆으로 민다), 다음 시세 시각. */
+/* 한 줄 시세: 눈에 덜 띄게 한 줄만 쓴다. 사건 이름(설명은 마우스를 올리면), 오른 것과 내린 것(누르면 그 계열을 검색하거나 그 재료로 간다;
+   오른 것과 내린 것이 번갈아 서고, 자리에 온전히 들어가는 것만 보인다: 밀지 않는다), 다음 시세 시각. */
 .ah-band { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 20px; color: var(--color-text-secondary); font-size: 12px; }
 .ah-event { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; color: #b9ae98; }
-.ah-movers { flex: 1 1 0; display: flex; gap: 10px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.ah-movers { flex: 1 1 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 0 10px; min-width: 0; height: 20px; margin: 0; padding: 0; overflow: hidden; list-style: none; }
 #market-panel-auction .ah-chip { display: inline-flex; align-items: center; gap: 3px; min-height: 20px; padding: 0; border: 0; background: none; color: var(--color-text-secondary); white-space: nowrap; }
 #market-panel-auction .ah-chip:hover { color: var(--color-text); }
 .ah-chip .shop-coin { width: 14px; height: 14px; }
@@ -59,6 +61,12 @@
 :is(.ah-cats, .ah-weapons)[hidden] { display: none; }
 #market-panel-auction :is(.ah-cats, .ah-weapons, .ah-groups) .psd-tab { flex: none; }
 .ah-weapons .psd-tab img { width: 20px; height: 20px; object-fit: contain; image-rendering: pixelated; }
+/* 분류 줄의 탭: 그림만 서고(이름은 마우스를 올리면), 고른 탭만 그림 옆에 이름을 편다. 전체와 최근 거래는 글만. 그래서 한 줄에 다 들어가
+   PC에서는 옆으로 밀 일이 없고, 좁은 화면에서는 전보다 짧게 민다(2026-11-24). */
+#market-panel-auction .ah-cats .psd-tab { justify-content: center; gap: 4px; }
+.ah-cats .psd-tab img { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; }
+.ah-cats .psd-tab:not(.is-on) img { opacity: .78; }
+.ah-cats .psd-tab.is-compact:not(.is-on) > span { display: none; }
 /* 검색 줄: [이름이나 옵션 검색 상자] [등급] [검색] [조건 n] [저장]. 상자 아래에 자동완성이 뜬다. */
 .ah-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .ah-tools[hidden] { display: none; }
@@ -174,6 +182,8 @@
 :is(.ah-lot-sub, .ah-cell-level, .ah-cell-options, .ah-cell-left, .ah-cell-ago) { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
 .ah-cell-key { margin-right: 3px; color: #7f776a; font-size: 12px; }
 .ah-cell-price { grid-area: price; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+/* 판매 중인 매물의 값: 어두운 값 판 위의 재화 그림과 수 */
+.ah-lot .ah-cell-price > .ah-price { justify-content: flex-end; min-width: 58px; padding: 3px 7px; border: 1px solid #0d0b0f; background: #0c0a08; box-shadow: inset 0 0 0 1px #3a2f20; }
 /* 지금 가진 재화로 못 사는 값 */
 .ah-cell-price.is-short .ah-price b { color: #c9837a; }
 .ah-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
@@ -338,8 +348,9 @@
 @container (max-width: 520px) {
     .ah-root { --ah-tap: 44px; }
     #market-panel-auction :is(.psd-tab, .psd-btn, .ah-primary, .ah-lot, .ah-mat, .ah-new-lots, .ah-more, .ah-filter-chip, .ah-variant, .ah-saved-run, .ah-saved-x, .ah-sg, .ah-reset) { min-height: 44px; }
-    /* 최근 거래 단추는 옆으로 미는 분류 줄의 끝에 붙어 선다. */
+    /* 최근 거래 단추는 옆으로 미는 분류 줄의 끝에 붙어 선다. 탭 줄은 한 줄을 다 쓰고, 시세는 지갑 아랫줄로 간다. */
     #market-panel-auction .ah-cats .ah-recent { margin-left: 8px; }
+    .ah-top > .ah-band { order: 3; flex-basis: 100%; }
     #market-panel-auction .ah-opt-chip { min-height: 44px; }
     #market-panel-auction .ah-opt-chip .ah-num { min-height: 40px; }
     #market-panel-auction :is(.ah-opt-x, .ah-detail-x) { min-width: 44px; min-height: 44px; }
@@ -350,7 +361,7 @@
     /* 한 줄 시세는 두 줄로: 사건 이름과 다음 시세 시각, 그 아래에 옆으로 미는 오른 것과 내린 것. */
     .ah-band { flex-wrap: wrap; row-gap: 2px; }
     .ah-event { flex: 1 1 0; max-width: none; }
-    .ah-movers { order: 3; flex-basis: 100%; }
+    .ah-movers { order: 3; flex-basis: 100%; flex-wrap: nowrap; height: auto; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
     /* 재료 목록은 거래표 아래에서 화면의 절반 남짓만 차지한다 */
     .ah-mats { max-height: 52vh; }
     .ah-tag.is-family { display: none; }
@@ -369,9 +380,21 @@
 @layer overrides {
 /* PC의 거래 창에서 경매장 칸이 보일 때: 창 몸통은 밀리지 않고 칸이 창 높이를 채워 목록만 민다(2026-11-24: 창과 목록이 겹쳐 밀리던 것을 없앤다).
    창이 아주 낮으면 칸은 520px 아래로 줄지 않고 그때만 창이 민다. */
-body.desktop-windowed-ui #tab-trade > .ui-window-body:has(#market-panel-auction:not([hidden])) { display: flex; flex-direction: column; }
-body.desktop-windowed-ui #tab-trade > .ui-window-body:has(#market-panel-auction:not([hidden])) > .market-shell { flex: 1 1 0; display: flex; flex-direction: column; min-height: 520px; box-sizing: border-box; }
-body.desktop-windowed-ui #tab-trade #ui-market-panel:has(> #market-panel-auction:not([hidden])) { flex: 1 1 0; min-height: 0; grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
+body.desktop-windowed-ui #tab-trade > .ui-window-body:has(#tab-auction.active #market-panel-auction:not([hidden])) { display: flex; flex-direction: column; }
+body.desktop-windowed-ui #tab-trade > .ui-window-body:has(#tab-auction.active #market-panel-auction:not([hidden])) :is(.merged-tab-shell, .merged-tab-panels, #tab-auction.active) { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; }
+body.desktop-windowed-ui #tab-auction.active:has(#market-panel-auction:not([hidden])) > .market-shell { flex: 1 1 0; display: flex; flex-direction: column; min-height: 520px; box-sizing: border-box; }
+body.desktop-windowed-ui #tab-auction #ui-market-panel:has(> #market-panel-auction:not([hidden])) { flex: 1 1 0; min-height: 0; margin-top: 0; grid-template-rows: auto minmax(0, 1fr); gap: 6px 12px; }
+/* 넓은 창: 탭 줄(제 폭)과 경매장의 머리(시세, 지갑)가 한 줄. 경매장 칸과 그 뿌리는 바깥 격자의 줄과 칸을 물려받아(subgrid) 탭 줄 옆 칸에 머리를,
+   아랫줄 온 폭에 본문을 놓는다. 탭 줄은 그 칸 위에 뜬다. */
+@container (min-width: 700px) {
+    body.desktop-windowed-ui #tab-auction #ui-market-panel:has(> #market-panel-auction:not([hidden])) { grid-template-columns: auto minmax(0, 1fr); }
+    body.desktop-windowed-ui #tab-auction #ui-market-panel:has(> #market-panel-auction:not([hidden])) > .market-tabs { grid-area: 1 / 1; position: relative; z-index: 1; align-self: center; }
+    /* 크기 컨테이너인 상자는 subgrid가 될 수 없다: 이 폭에서는 컨테이너를 풀고, 이 칸 안의 @container는 창 몸통(조금 더 넓다)을 본다. */
+    body.desktop-windowed-ui #tab-auction #market-panel-auction:not([hidden]) { grid-area: 1 / 1 / 3 / 3; grid-template-columns: subgrid; grid-template-rows: subgrid; padding: 0; container-type: normal; }
+    body.desktop-windowed-ui #tab-auction #market-panel-auction .ah-root { grid-area: 1 / 1 / 3 / 3; grid-template-columns: subgrid; grid-template-rows: subgrid; gap: 6px 12px; }
+    body.desktop-windowed-ui #tab-auction #market-panel-auction .ah-top { grid-area: 1 / 2; }
+    body.desktop-windowed-ui #tab-auction #market-panel-auction .ah-view { grid-area: 2 / 1 / 3 / 3; }
+}
 body.desktop-windowed-ui #market-panel-auction:not([hidden]) { display: grid; grid-template-rows: minmax(0, 1fr); min-height: 0; }
 body.desktop-windowed-ui #market-panel-auction .ah-root { min-height: 0; }
 body.desktop-windowed-ui #market-panel-auction .ah-view { grid-template-rows: minmax(0, 1fr); }
@@ -392,7 +415,11 @@ body.desktop-windowed-ui #market-panel-auction :is(.ah-materials, .ah-mine) { mi
 /* PSD 부품의 크기만 이 칸에 맞춘다(테와 빛깔은 css/themes/psd-skin.css 그대로): 분류 줄과 묶음 줄의 탭은 낮고 좁게, 단추는 검색 상자 높이로. */
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-panel-auction :is(.ah-cats, .ah-weapons, .ah-groups) { padding: 2px; gap: 0; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-panel-auction :is(.ah-cats, .ah-weapons, .ah-groups) > .psd-tab { min-height: 32px; border-width: 8px 7px; padding: 0 1px; }
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-panel-auction .ah-tabs > .psd-tab { padding: 0 6px; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-panel-auction .ah-cats > .psd-tab { min-height: 36px; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-panel-auction .ah-search { padding: 0 6px; }
+/* 거래 창 둘째 화면의 탭 줄: 탭은 제 폭만 쓰고 낮다(가운데 줄이 자리를 덜 쓴다, 2026-11-24 사용자). */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-exchange-tabs { display: flex; gap: 0; padding: 2px; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-exchange-tabs > button { flex: none; min-height: 34px; border-width: 8px 10px; padding: 0 8px; white-space: nowrap; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-panel-auction .psd-btn { min-height: 36px; padding: 0 8px; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #market-panel-auction .ah-presets .psd-btn { padding: 0; }
 }

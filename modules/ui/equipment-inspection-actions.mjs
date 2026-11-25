@@ -81,7 +81,7 @@ export function render(runtime, root, item, equippedSlot, html) {
     const worn = equippedSlot ? [] : runtime.deps.equipmentWindowUi.wornSlots(item);
     const panes = [{ tab: '선택한 장비', label: (0, runtime.deps._t)('선택한 장비'), node: tooltipBox(runtime, item, equippedSlot, !!equippedSlot) }];
     worn.forEach(slot => {
-        const name = (0, runtime.deps.getDualSlotDisplayLabel)(slot);
+        const name = (0, runtime.deps._t)((0, runtime.deps.getDualSlotDisplayLabel)(slot));
         panes.push({ tab: worn.length > 1 ? (0, runtime.deps._t)('지금 {name}', { name }) : '지금 장착', label: (0, runtime.deps._t)('지금 장착, {name}', { name }), node: tooltipBox(runtime, runtime.deps.game.equipment[slot], slot, true) });
     });
     // 세 칸(고른 장비, 지금 낀 왼쪽과 오른쪽)도 한 줄에 놓는다(2026-11-08 사용자): 뜨는 창 폭이 칸 수를 따른다(css/equipment-window.css).

@@ -1,5 +1,5 @@
 export function getAilmentDisplayLabel(type) {
-    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패', huntSlow:'서리 감속', huntHex:'쇠약의 저주' };
     return labels[type] || type || '알 수 없음';
 }
 

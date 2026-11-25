@@ -19,23 +19,21 @@ export function* acquireStowBoughtItem(env, owner, item, place = null) {
     return true;
 }
 
-/** Resolve capacity and auto-salvage at pickup time. */
+/** Resolve auto-salvage, then capacity, at pickup time. Gear that would stay but finds the bag full is lost, not salvaged,
+ * and nothing shows it (2026-11-25 사용자: 가득 차서 못 얻은 장비로 재화를 얻지 않게, 없는 아이템이라 보여 주지 않는다). Guaranteed gear goes over the limit instead. */
 export function* acquireStoreEquipmentPickup(env, owner, item, { guaranteedKeep, ignoreAutoSalvage }) {
-    const fits = env.deps.canStoreEquipmentItems([item], owner);
-    if (!fits && !guaranteedKeep) return (yield* acquireSalvageEquipmentPickup(env, owner, item, true));
     if (!ignoreAutoSalvage && owner.settings.autoSalvageEnabled && owner.settings.autoSalvageRarities?.[item.rarity])
-        return (yield* acquireSalvageEquipmentPickup(env, owner, item, false));
+        return (yield* acquireSalvageEquipmentPickup(env, owner, item));
+    const fits = env.deps.canStoreEquipmentItems([item], owner);
+    if (!fits && !guaranteedKeep) return { accepted: false, kind: 'overflow' };
     owner.inventory.push(item);
     return { accepted: true, kind: fits ? 'stored' : 'protected' };
 }
 
-export function* acquireSalvageEquipmentPickup(env, owner, item, overflow) {
-    const rewards = (yield* acquireSalvageItemObject(env, owner, item, true, { noDivine: overflow }));
-    if (overflow && owner.isBackgroundCalculation) acquireCountBackgroundOverflowSalvage(owner);
-    return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !owner.isBackgroundCalculation };
+export function* acquireSalvageEquipmentPickup(env, owner, item) {
+    const rewards = (yield* acquireSalvageItemObject(env, owner, item, true, {}));
+    return { accepted: false, kind: 'salvaged', rewards, log: true };
 }
-
-export function acquireCountBackgroundOverflowSalvage(owner) { owner.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(owner.backgroundOverflowSalvageCount) || 0)) + 1; }
 
 export function* acquireAddItemToInventory(env, owner, item, options) {
     env.deps.normalizeItem(item);
@@ -48,10 +46,8 @@ export function* acquireAddItemToInventory(env, owner, item, options) {
         (yield { kind: 'acquisitionUnlocks', args: [] });
         return true;
     }
-    if (!ignoreFilter && !acquirePassesItemPickupFilter(env, owner, item)) {
-        if (logLoot) (yield { kind: 'acquisitionLog', args: [env.deps._t("🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>", { rarity: item.rarity, name: env.deps._t(item.name) }), 'attack-monster'] });
-        return false;
-    }
+    // Gear the filter turns away shows nothing, like gear lost to a full bag (2026-11-25 사용자: 필터 미습득 로그도 지워줘).
+    if (!ignoreFilter && !acquirePassesItemPickupFilter(env, owner, item)) return false;
     const result = (yield* acquireStoreEquipmentPickup(env, owner, item, { guaranteedKeep, ignoreAutoSalvage }));
     if (result.accepted) { (yield* acquireRecordEquipmentAcquisition(env, owner, item)); (yield { kind: 'acquisitionUnlocks', args: [] }); }
     yield* publishPickupResult(env, item, result, logLoot);
@@ -67,18 +63,16 @@ function pickupAdmission(env, owner, item, options) {
 
 function* publishPickupResult(env, item, result, logLoot) {
     if (result.kind === 'protected') (yield { kind: 'acquisitionLog', args: [env.deps._t('🎒 인벤토리가 가득 찼지만 [{name}]{particle} 유실 방지를 위해 초과 보관됩니다.', { name: env.deps.getItemDisplayName(item), particle: env.deps.pickParticle(item.name, '은', '는') }), 'attack-monster'] });
-    else if (logLoot && result.rewards && result.log) {
-        const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
-        (yield { kind: 'acquisitionLog', args: [`${label}: <span class='loot-${item.rarity}'>[${env.deps._t(item.name)}]</span>, ${(yield { kind: 'acquisitionSalvageText', args: [result.rewards] })}`, 'loot-normal'] });
-    }
+    else if (logLoot && result.rewards && result.log)
+        (yield { kind: 'acquisitionLog', args: [`자동해체: <span class='loot-${item.rarity}'>[${env.deps._t(item.name)}]</span>, ${(yield { kind: 'acquisitionSalvageText', args: [result.rewards] })}`, 'loot-normal'] });
 }
 
 /** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full a rare or unique one waits in the temporary
- * storage and the rest are salvaged into jewel shards. One whose rarity the auto-salvage takes is salvaged instead of kept
+ * storage and the rest are lost. One whose rarity the auto-salvage takes is salvaged instead of kept
  * (bagItems.salvagedOnDrop); the receipt then reads stored: false with the bag not full. */
 export function* acquireReceiveJewelDrop(env, owner, jewel) {
     if(env.deps.bagItems.salvagedOnDrop(jewel, owner))return {jewel,inventoryFull:false,stored:false,protectOverflow:false,shardGain:(yield* acquireSalvageJewelObject(env, owner, jewel,true))};
-    env.deps.combatLootReceipts.item(owner,jewel,'jewel'); // 가방에 들어온 것만 지도 결과에 적는다(장비와 같다)
     const added=env.deps.bagItems.addJewel(jewel, owner);
+    if(added.stored)env.deps.combatLootReceipts.item(owner,jewel,'jewel'); // 가방에 들어온 주얼만 지도 결과에 적는다(장비와 같다)
     return {jewel,inventoryFull:added.protectOverflow||!added.stored,...added};
 }

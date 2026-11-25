@@ -72,7 +72,7 @@ class MemoryDungeonView {
         if (this.deps.game.atlas.run) return this.deps.atlasUi.revealDevice();
         const map = this.deps.game.atlas.stash[0];
         if (map) return this.deps.atlasUi.selectMap(map.uid, true);
-        this.deps.document.querySelector('#ui-atlas .atlas-journey')?.scrollIntoView({ block: 'start' });
+        this.deps.atlasUi.revealDevice();
     }
 
     departBlock() {

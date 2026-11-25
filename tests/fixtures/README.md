@@ -6,6 +6,11 @@ they do not read or overwrite the player's persistent save. The two build JSON f
 are synthetic equipment fixtures, not player exports. `seed.js` also provides explicitly
 synthetic high-power navigation states; those states are not balance evidence.
 
+The two JSON files retain passive layout v22 for migration coverage. To compare
+combat on the current tree, `scripts/audit-main-build-combat.js` loads them in an
+isolated game, spends the refunded level points through normal passive
+activation and checks that the gear can be equipped from empty slots.
+
 Browser tests must not depend on ignored local `artifacts/` previews. The existing
 `artifacts/unlock-ui/test-bridge.js` is tracked and shared with the unlock-lab tests.
 The Android packaging allowlist excludes this directory.

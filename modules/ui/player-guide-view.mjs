@@ -31,7 +31,7 @@ function initialize(runtime) {
         { name: '지하석', unlock: 'underworld', body: '지하계에서 얻는 장착용 돌입니다. 지하계의 지하석 탭에서 끼우거나 강화할 수 있습니다.' },
         { name: '창공의 정수', unlock: 'cosmos', body: '창공의 정수는 우주계 탐사, 은하 보스에서 얻고 룬 강화와 룬 각인에 씁니다.' },
         { name: '응축된 창공의 정수', unlock: 'sky', body: '창공의 탑에서 얻는 재화입니다. 창공석과 공격 룬을 영구 강화하는 데 씁니다.' },
-        { name: '지도석', tab: 'map-explore-worldtree', body: '세계수 아틀라스에서 한 지도를 여는 데 쓰는 입장 재료입니다.' }
+        { name: '지침', tab: 'map-explore-worldtree', body: '세계수 아틀라스에서 한 지도를 여는 데 쓰는 입장 재료입니다.' }
     ];
     runtime.state.replay = null;
 }

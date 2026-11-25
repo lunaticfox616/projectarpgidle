@@ -103,8 +103,8 @@
   :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button) { overflow: visible; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
   /* 휴대폰 창의 누르는 것은 44px 이상. 격자 칸과 아틀라스 지도 표식은 주변 입력 영역과 겹치지 않도록 각 화면에서 크기를 정한다. */
-  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item, .unlock-card, .unlock-pip, .unlock-edge, .unlock-to-now, .wm-atlas-node, .wm-atlas-region) { min-height: 44px; }
-  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item, .unlock-card, .unlock-pip, .unlock-edge, .unlock-to-now, .wm-atlas-node, .wm-atlas-region) { min-width: 44px; }
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item, .unlock-card, .unlock-pip, .unlock-edge, .unlock-to-now, .as-pin, .as-gate, .as-mark) { min-height: 44px; }
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item, .unlock-card, .unlock-pip, .unlock-edge, .unlock-to-now, .as-pin, .as-gate, .as-mark) { min-width: 44px; }
   /* 접는 머리는 대개 목록 항목(▶ 표시)이라 늘린 44px 안에서 글이 위에 붙고 아래가 27 ~ 39px 비었다: 표시 방식은 두고 글만 세로 가운데로 */
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) summary { align-content: center; }
   /* 검색 칸 · 체크 상자 줄(고대비 모드 · 해금 조건 보기)도 같은 높이, 창 밖의 전체 메뉴 닫기 · 전투 기록 접기 · 시작 화면 약관 글줄도
@@ -133,19 +133,22 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'zone actions';
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle),
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button,
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > :is(.ui-context-dock-tab, .combat-log-toggle) {
-    border: 1px solid var(--px-ink);
+    border: 1px solid var(--px-bronze-lo);
     border-radius: 0;
     background: var(--px-board), var(--px-stone-control);
-    box-shadow: var(--px-bevel);
+    box-shadow: none;
     color: var(--px-copy);
     /* 기본 모바일 규칙의 9 ~ 10px 글씨는 도트 글꼴에서 뭉개진다 */
     font-size: 12px;
     text-shadow: var(--px-text-edge);
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, .ui-context-dock-tab, .combat-log-toggle):active {
-    box-shadow: var(--px-bevel-pressed);
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button:is([aria-pressed="true"],[aria-expanded="true"]) {
+    box-shadow: inset 0 -2px var(--px-gold); color: var(--px-gold-bright);
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, .ui-context-dock-tab, .combat-log-toggle):active {
+    border-color: var(--px-gold); box-shadow: inset 0 2px 0 var(--px-bronze-lo);
   }
   /* 전투 기록 막대는 판 자체가 테두리라 안의 펼치기 버튼은 납작하게 */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > #btn-combat-log-toggle { border-color: transparent; background: none; box-shadow: none; }
@@ -155,7 +158,7 @@
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
     border-top: 1px solid var(--px-ink);
     background: var(--px-wood-dark), var(--px-stone);
-    box-shadow: inset 0 1px 0 var(--px-bronze-hi), inset 0 2px 0 var(--px-bronze), inset 0 3px 0 var(--px-ink);
+    box-shadow: inset 0 1px 0 var(--px-bronze-lo);
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) {
     border: 0;
@@ -171,8 +174,11 @@
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more):last-child { border-right: 0; box-shadow: none; }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active {
     background: var(--px-board-hot), var(--px-stone-control);
-    box-shadow: inset 0 4px 0 var(--px-gold), inset 2px 0 0 #000, inset -2px 0 0 #000;
+    box-shadow: inset 0 2px 0 var(--px-gold);
     color: var(--px-gold-bright);
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more):is(:active,:focus-visible) {
+    outline: 1px solid var(--px-gold-bright); outline-offset: -2px;
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) > .noti-dot {
     width: 8px;
@@ -265,6 +271,9 @@
   :root body[data-ui-skin] #tab-map .map-power-estimate { position: relative; padding-block: 12px; margin-block: -12px; }
   /* 거래소 탭 셋은 한 줄로: '나의 가판대'가 두 줄로 꺾여 높이가 들쭉날쭉했다 */
   :root body[data-ui-skin] .market-tabs button { padding-inline: 2px; font-size: 12px; white-space: nowrap; }
+  /* 경매장 화면의 탭 줄은 다섯 칸(아이템, 재료, 내 출품, 가판대, 장비 전당)이라 등분하면 내 출품의 칸 수가 잘렸다: 제 폭으로 서고 옆으로 민다 */
+  :root body[data-ui-skin] #market-exchange-tabs { grid-template-columns: none; grid-auto-columns: max-content; overflow-x: auto; scrollbar-width: none; }
+  :root body[data-ui-skin] #market-exchange-tabs > button { padding-inline: 8px; }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */

@@ -1,7 +1,7 @@
 import { cellHasGridCell, cellGetGridUnitFootprint, cellGridCellKey } from './grid-units.mjs';
 import { cellGetGridBlockedCells, cellGetGridPlacementTerrain, cellCanPlaceGridFootprint } from './grid-terrain.mjs';
-import { cellBeginExplorationGridStep, cellMarkGridStep } from './grid-movement.mjs';
-import { GRID_CARDINAL_STEPS } from './combat-grid-values.mjs';
+import { cellBeginExplorationGridStep, cellSpendGridStep } from './grid-movement.mjs';
+import { GRID_EIGHT_STEPS } from './combat-grid-values.mjs';
 
 export function cellFindNearestSafeGridRoute(env, unit, hazardCells) {
     if (!cellHasGridCell(env, unit)) return null;
@@ -20,16 +20,22 @@ export function cellFindNearestSafeGridRoute(env, unit, hazardCells) {
         if (!danger.has(currentKey)) {
             return { next: current.first, destination: { gx: current.gx, gy: current.gy }, distance: current.distance };
         }
-        GRID_CARDINAL_STEPS.forEach(direction => {
+        GRID_EIGHT_STEPS.forEach(direction => {
             let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
             let key = cellGridCellKey(gx, gy);
             if (visited.has(key) || !cellCanPlaceGridFootprint(blocked, gx, gy, placement)) return;
+            if (!escapeCornerClear(current,{gx,gy},blocked,placement)) return;
             let first = current.first || { gx, gy };
             visited.add(key);
             queue.push({ gx, gy, first, distance: current.distance + 1 });
         });
     }
     return null;
+}
+
+function escapeCornerClear(from,to,blocked,placement) {
+    if (from.gx===to.gx || from.gy===to.gy) return true;
+    return cellCanPlaceGridFootprint(blocked,to.gx,from.gy,placement) && cellCanPlaceGridFootprint(blocked,from.gx,to.gy,placement);
 }
 
 export function cellAdvanceGridHazardEscape(env, unit, hazardCells, dtSec, intervalSec) {
@@ -41,12 +47,8 @@ export function cellAdvanceGridHazardEscape(env, unit, hazardCells, dtSec, inter
         return {moved:cellBeginExplorationGridStep(env, route.next,interval),safe:false,blocked:false,distance:route.distance};
     }
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + Math.max(0, Number(dtSec) || 0);
-    if (unit.gridMoveTimer < interval) return { moved: false, safe: false, blocked: false, distance: route.distance };
     let from = { gx: unit.gx, gy: unit.gy };
-    unit.gx = route.next.gx;
-    unit.gy = route.next.gy;
-    unit.gridMoveTimer = 0;
-    cellMarkGridStep(env, unit, from, true);
+    if (!cellSpendGridStep(env,unit,route.next,interval)) return {moved:false,safe:false,blocked:false,distance:route.distance};
     return {
         moved: true,
         safe: route.distance === 1,

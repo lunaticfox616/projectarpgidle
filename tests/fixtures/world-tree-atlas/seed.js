@@ -57,13 +57,13 @@
             game.season=55;game.currentZoneId=29;game.settings.autoMove=false;game.settings.actExplorationMode='direct';
             const selected=new URL(parent.location.href).searchParams.get('region');
             const fragment=ATLAS.fragments.find(row=>row.encounter===selected && row.id!=='treasure')?.id || 'hive';
-            atlas.sync(game);game.atlas.fragments[fragment]=1;atlas.setLoadout(game,[fragment]);
+            atlas.sync(game);game.atlas.sextant=true;game.atlas.fragments[fragment]=1;atlas.setLoadout(game,[fragment]);
             const reason=atlasRun.open(game.atlas.stash[0].uid);
             if(reason)throw new Error(reason);
         }
         if(mode==='complete') {
-            // Atlas progress: every tier 1-3 node complete (their neighbours open) and this loop's starter maps in the stash.
-            game.atlas.unlocked=true;game.atlas.completed=atlas.nodes.filter(node=>node.tier<=3).map(node=>node.id);atlas.sync(game);
+            // Atlas progress: 시작 육분의 lit, every chart tier 1-3 map complete (their children open) and this loop's starter maps in the stash.
+            game.atlas.unlocked=true;game.atlas.sextant=true;game.atlas.completed=atlas.nodes.filter(node=>node.kind==='map'&&node.tier<=3).map(node=>node.id);atlas.sync(game);
         }
         if(mode==='realms') {
             game.season=50;game.abyssEndlessDepth=30;game.labyrinthUnlockedMaxFloor=100;
@@ -75,9 +75,10 @@
         }
         if(mode==='wheel'){
             game.season=50;game.currentZoneId=29;atlas.sync(game);
-            game.atlas.stash=['roots_0','trunk_0','canopy_0'].map(id=>({...atlasMaps.create(id,1),uid:game.atlas.nextUid++}));
-            for(const key of ATLAS.pinnacle.tickets) game.currencies[key]=1;
-            const reason=atlasRun.openPinnacle();
+            // The rest screen after a finished map (the old pinnacle is closed until the chart's bosses are wired).
+            game.atlas.sextant=true;
+            game.atlas.stash=['sun1','inner1','moon1'].map(id=>({...atlasMaps.create(id,1),uid:game.atlas.nextUid++}));
+            const reason=atlasRun.open(game.atlas.stash[0].uid);
             if(reason)throw new Error(reason);
             atlasRun.finish(getZone(game.currentZoneId));
         }

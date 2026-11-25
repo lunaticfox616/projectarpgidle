@@ -137,8 +137,6 @@ export class AwaySettlementView {
         const gains = summary.rarityGains || {};
         const chips = ['unique', 'rare', 'magic', 'normal'].filter(rarity => gains[rarity] > 0)
             .map(rarity => `<span class="background-result-chip" style="--chip-tone:${this.deps.getRarityColor(rarity)}">${this.deps._t(this.deps.ITEM_RARITY_LABELS[rarity])} <b>${gains[rarity]}</b></span>`);
-        const salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
-        if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" data-tip="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
         const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
         return row + this.deps.equipmentLootUi.renderHighlights(summary.highlights);
     }
@@ -181,7 +179,9 @@ export class AwaySettlementView {
             ['warn', result.capped ? this.deps._t('방치 한도 {recognitionHours}시간을 다 채웠습니다.', { recognitionHours: limits.recognitionHours }) : ''],
             ['info', this.formatBackgroundProjection(result)]
         ].filter(([, text]) => text);
-        return notes.length ? `<ul class="background-result-notes">${notes.map(([tone, text]) => `<li class="${tone}">${text}</li>`).join('')}</ul>` : '';
+        // Each note leads with the tone's pixel icon (lost reward: a crack, a limit reached: an hourglass, how it was computed: an eye).
+        const icon = tone => this.deps.renderPixelIcon({ bad: 'crack', warn: 'hourglass' }[tone] || 'eye', 'background-result-note-icon');
+        return notes.length ? `<ul class="background-result-notes">${notes.map(([tone, text]) => `<li class="${tone}">${icon(tone)}<span>${text}</span></li>`).join('')}</ul>` : '';
     }
     backgroundNoExpReason(summary) {
         if (!((Number(summary.kills) || 0) > 0)) return '';

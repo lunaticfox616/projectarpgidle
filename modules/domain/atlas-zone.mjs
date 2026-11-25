@@ -1,5 +1,6 @@
 import { atlasCoreBonusOf } from './atlas-bonuses.mjs';
 import { atlasCoreActiveFragments } from './atlas-loadout.mjs';
+import { atlasCoreMapGameTier, atlasCoreChartRun } from './atlas-graph.mjs';
 import { atlasChallenges } from '../data/atlas-challenges.mjs';
 import { atlasExpeditions } from '../data/atlas-expeditions.mjs';
 
@@ -10,7 +11,7 @@ export function atlasCoreEquivalentDepth(env, tier) { return env.deps.ATLAS.diff
 export function atlasCoreZone(env, state) {
     const run = state.atlas && state.atlas.run;
     if (!run) return null;
-    if (!env.zones.has(run)) env.zones.set(run, atlasCoreBuildZone(env, run));
+    if (!env.zones.has(run)) env.zones.set(run, atlasCoreBuildZone(env, state, run));
     const base = env.zones.get(run), type = state.actExploration?.source?.pocket;
     if (!type || !Object.hasOwn(atlasExpeditions, type)) return base;
     const scene = state.actExploration;
@@ -50,22 +51,26 @@ function runExplorationSpec(env, run) {
     return run.challengeDoors ? { ...spec, challenges: run.encounters.filter(type => Object.hasOwn(atlasChallenges, type)) } : spec;
 }
 
-export function atlasCoreBuildZone(env, run) {
-    const { map, bonus } = run, node = env.BY_ID.get(map.node), fx = env.deps.atlasMaps.effects(map), depth = atlasCoreEquivalentDepth(env, map.tier);
+/** The fight tier of a run (difficulty, area level, loot): a ring board map carries its own, an ordinary map's follows its chart tier
+ * and the seeds (atlas-graph atlasCoreMapGameTier). The zone's atlasTier is this fight tier; atlasChartTier is the number the map shows. */
+export function atlasCoreRunGameTier(env, state, run) { return run.board ? run.map.tier : atlasCoreMapGameTier(env, state, run.map); }
+
+export function atlasCoreBuildZone(env, state, run) {
+    const { map, bonus } = run, node = env.BY_ID.get(map.node), tier = atlasCoreRunGameTier(env, state, run);
+    const fx = env.deps.atlasMaps.effects({ ...map, tier }), depth = atlasCoreEquivalentDepth(env, tier);
     const more = key => 1 + bonus[key] / 100, boss = atlasCoreRulesOf(env, node), boost = env.deps.atlasEndgame.bossBoost(run), memory = env.deps.memoryDungeon.boost(map);
     return {
         id: env.deps.ATLAS.zoneId, name: env.deps.memoryDungeon.zoneName(map, node), type: 'atlasMap', tier: env.deps.getAbyssZoneTier(depth), maxKills: 1, ele: node.ele,
-        areaLevel: env.deps.ATLAS.areaLevel.base + (map.tier - 1) * env.deps.ATLAS.areaLevel.perTier,
+        areaLevel: env.deps.ATLAS.areaLevel.base + (tier - 1) * env.deps.ATLAS.areaLevel.perTier,
         // 루프 인플레이션 대신 등급이 정한 고정 루프 · 깊이 (combat getLoopDifficultyInputs · state getAbyssMonsterScales).
         fixedSeason: depth - env.deps.ATLAS.difficulty.loopBehindDepth, equivalentDepth: depth, equivalentChaosDepth: depth,
-        mapHpMul: fx.hp * more('monsterLife'), mapDamageMul: fx.damage * more('monsterDamage'),
+        mapHpMul: fx.hp, mapDamageMul: fx.damage,
         bossMods: { hpMul: fx.bossHp * more('bossLife') * boss.hpMul * boost.hp * memory.hp,
             damageMul: fx.bossDamage * more('bossLife') * boss.damageMul * boost.damage * memory.damage },
         // 불타는 땅: 불길 웅덩이(옵션 문구 그대로 불 원소로 터진다).
         ...(fx.hazard ? { trialHazard: { ...env.deps.ATLAS.burningGround, persistent: true }, trapElements: fx.groundElements } : {}),
-        atlasNode: node.id, atlasRegion: node.region, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
-        // 황금 방(data/atlas.js goldenRoom)과 보급 상자 규칙(열매 갈래의 황금 수확, 보급 각인).
-        atlasGolden: run.golden, atlasChest: atlasCoreChestRules(bonus),
+        atlasNode: node.id, atlasRegion: node.region, atlasTier: tier, atlasChartTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
+        ...atlasCoreRewardFields(env, run),
         atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
         packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
         atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, bossVisualId: run.board ? null : node.bossVisualId,
@@ -79,9 +84,14 @@ export function atlasCoreBuildZone(env, run) {
     };
 }
 
-/** What a stash map would be on a node (its own by default) with the current passives and loadout (the device card). */
+/** 황금 방(data/atlas.js goldenRoom), 보급 상자 규칙(보급 각인, 기운), 장비 상자를 여는 런인지(천문도 일반 지도: 그 보스의 보상은 첫 장비 상자다). */
+export function atlasCoreRewardFields(env, run) {
+    return { atlasGolden: run.golden, atlasChest: atlasCoreChestRules(run.bonus), atlasGearBoxes: atlasCoreChartRun(env, run) };
+}
+
+/** What a stash map would be on a node (its own by default) with the current loadout and epoch perks (the device card). */
 export function atlasCorePreview(env, state, map, nodeId = map.node) {
-    return atlasCoreBuildZone(env, { map: { ...map, node: nodeId }, bonus: atlasCoreBonusOf(env, state, atlasCoreActiveFragments(env, state)), encounters: [], golden: [] });
+    return atlasCoreBuildZone(env, state, { map: { ...map, node: nodeId }, bonus: atlasCoreBonusOf(env, state, atlasCoreActiveFragments(env, state)), encounters: [], golden: [] });
 }
 
 /** Equipment base tier from the map tier: T15 at 1~3등급, one more every three tiers, T20 at 16등급. */

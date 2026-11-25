@@ -27,10 +27,10 @@ export function auctionLotZoneId(env, owner) {
     return here === null ? 0 : here;
 }
 
-/** The atlas map tier a share of the gear lots is rolled at (auctionLotZones): the highest atlas node owner completed (atlas.bestTier), 0 while
+/** The atlas map tier a share of the gear lots is rolled at (auctionLotZones): the fight tier of the highest atlas map owner completed (atlas.bestGameTier), 0 while
  * the atlas is closed or nothing is completed. */
 export function auctionLotAtlasTier(env, owner) {
-    return owner.atlas && owner.atlas.unlocked ? Math.max(0, Math.floor(Number(env.deps.atlas.bestTier(owner)) || 0)) : 0;
+    return owner.atlas && owner.atlas.unlocked ? Math.max(0, Math.floor(Number(env.deps.atlas.bestGameTier(owner)) || 0)) : 0;
 }
 
 /** The birth bucket of a merchant lot id ('birthBucket:index'). */

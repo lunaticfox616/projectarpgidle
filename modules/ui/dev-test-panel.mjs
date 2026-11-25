@@ -35,7 +35,7 @@ export class DevTestPanel {
         ['심해 무광층', null, () => this.startTestOcean(800)], ['심해 가디언', null, () => this.startTestOcean(500, true)],
         ['경계 너머', null, this.startTestBoundary], ['군락지', null, this.startTestColony], ['대균열', null, this.startTestBreach],
         ['혼돈 밖', () => this.deps.OUTSIDE_CHAOS_ZONE_ID], ['나무꾼의 잔상', null, this.startTestEcho],
-        ['아틀라스 지도', null, () => this.startTestAtlas('map')], ['아틀라스 수호자', null, () => this.startTestAtlas('guardian')]
+        ['아틀라스 지도', null, () => this.startTestAtlas()]
     ]); }
 
     isEnabled() {
@@ -266,11 +266,13 @@ export class DevTestPanel {
         this.openTestZone(this.deps.WOODSMAN_ECHO_ZONE_ID);
     }
 
-    startTestAtlas(kind) {
+    /** 1등급 지도 하나: 시작 육분의를 켠 것으로 두고 그 지도석으로 연다(천문도의 보스는 C 단계 전까지 닫혀 있다). */
+    startTestAtlas() {
         if (this.deps.game.atlas.run) this.deps.atlasRun.abandon();
-        const node = this.deps.atlas.nodes.find(row => row.kind === kind), map = this.deps.atlasMaps.create(node.id, this.deps.atlas.effectiveTier(this.deps.game, node), 'normal');
+        const node = this.deps.atlas.nodes.find(row => row.kind === 'map'), map = this.deps.atlasMaps.create(node.id, node.tier, 'normal');
         map.uid = this.deps.game.atlas.nextUid++;
         this.deps.game.atlas.unlocked = true;
+        this.deps.game.atlas.sextant = true;
         this.deps.game.loopProgressCurrent.chaos20Cleared = true;
         this.deps.game.atlas.stash.push(map);
         const reason = this.deps.atlasRun.open(map.uid);
@@ -351,8 +353,6 @@ export class DevTestPanel {
         stance.value = this.deps.game.settings.stageStance || 'auto';
         stance.onchange = () => this.setSetting('stageStance', stance.value, `무대 자세: ${stance.selectedOptions[0].textContent}`);
         return this.section('옆에서 보는 무대(시험판)', [
-            this.row([this.el('label', { textContent: '아틀라스' }), this.button('한 장', () => { this.setSetting('atlasSheet', 'on', '아틀라스: 한 장'); this.deps.atlasUi.refresh(); }),
-                this.button('예전 화면', () => { this.setSetting('atlasSheet', 'off', '아틀라스: 예전 화면'); this.deps.atlasUi.refresh(); })]),
             this.row([this.el('label', { textContent: '크기' }), this.button('자동', () => this.setSetting('stageZoom', 0, '무대 크기: 자동')),
                 ...[1, 1.5, 2].map(zoom => this.button(`×${zoom}`, () => this.setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             this.row([this.el('label', { textContent: '자세' }), stance]),

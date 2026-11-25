@@ -1495,9 +1495,9 @@ const ORB_DB = {
     fossilAbyssal: { name: '심연 화석', desc: '카오스/흡혈/재생 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilBulwark: { name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/완갑.' },
     fossilWedge: { name: '쐐기 화석', desc: '투사체/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
-    fossilOld: { name: '오래된 화석', desc: '화석 전용 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    fossilOld: { name: '오래된 화석', desc: '장비를 희귀 등급으로 재련하며 화석 전용 옵션 한 줄을 확정합니다. 기존 일반 옵션 한 줄을 보존하면 결과 옵션 수가 한 줄 줄어듭니다(최대 4~5줄에서 3~4줄).' },
     fossilRift: { name: '균열 화석', desc: '희귀 아이템의 옵션을 다시 굴리고, 제거할 수 없는 균열 표식과 나머지 추가 옵션 50% 증폭 효과를 부여합니다.' },
-    deepWhetstone: { name: '심층 숫돌', desc: '무기와 지도석의 퀄리티 재화. 무기는 퀄리티 1%당 베이스 옵션 효과가 1%, 지도석은 5%씩 올라 아이템 수량이 늘어납니다.' },
+    deepWhetstone: { name: '심층 숫돌', desc: '무기와 지침의 퀄리티 재화. 무기는 퀄리티 1%당 베이스 옵션 효과가 1%, 지침은 5%씩 올라 아이템 수량이 늘어납니다.' },
     rootIron: { name: '뿌리철', desc: '방어구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     jewelPolish: { name: '보석연마제', desc: '장신구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     abyssCatalyst: { name: '심연 촉매', desc: '장비 퀄리티 속성을 순환 변경합니다. 기본 퀄리티는 베이스 옵션을, 속성 퀄리티는 해당 추가 옵션 수치를 증가시킵니다.' },
@@ -1529,8 +1529,8 @@ const ORB_DB = {
     hiveKey: { name: '벌집 열쇠', desc: '벌집 원정 해금 후 혼돈 지역의 적에게서 드물게 발견됩니다. 벌집 원정 입장에 씁니다.' },
     enchantedHoney: { name: '마력 깃든 벌꿀', desc: '장비 옵션 1개를 영구 고정하는 매우 희귀 재화입니다.' },
     venomStinger: { name: '독벌침', desc: '무기에 랜덤 공격 옵션 한 줄을 추가/재설정합니다.' },
-    pollen: { name: '꽃가루', desc: '아틀라스 패시브 ‘여왕의 방’이 있으면 지도에서 10개씩 써서 벌 이벤트를 일으킵니다. 벌집 원정의 불리한 선택지가 가져가기도 합니다.' },
-    beeswax: { name: '밀랍', desc: '벌집 원정을 연 뒤 혼돈 사냥, 벌집 원정과 아틀라스 ‘여왕의 방’의 지도 벌 이벤트에서 얻는 벌 재화입니다. 그루터기 함의 부적에 발라 옵션 한 줄을 일부 복사해 붙입니다(부적마다 한 번).' },
+    pollen: { name: '꽃가루', desc: '벌집에서 모으는 벌 재화입니다. 벌집 원정의 불리한 선택지가 가져가기도 합니다.' },
+    beeswax: { name: '밀랍', desc: '벌집 원정을 연 뒤 혼돈 사냥과 벌집 원정에서 얻는 벌 재화입니다. 그루터기 함의 부적에 발라 옵션 한 줄을 일부 복사해 붙입니다(부적마다 한 번).' },
     awakenedEcho: { name: '각성 잔향', desc: '‘해금’의 룬 각성을 열면 정예, 보스에게서 발견되는 각성 재료입니다. Lv.20 이상의 공격 룬을 각성 룬으로 변환해 룬 자체 보너스를 부여할 때 사용됩니다. 각성 각인은 각성 룬이 아니어도 모든 공격 룬에 부여할 수 있습니다.' },
     voidChisel: { name: '공허의 끌', desc: '반지, 목걸이, 허리띠에 주얼을 끼울 홈을 하나 뚫습니다. 다른 부위에는 잿불가지로 타락시켜 홈을 뚫습니다.' },
     sealShard: { name: '봉인편린', desc: '고대 미궁에서 떨어집니다. 그루터기 함에서 하나로 부적 하나를 풉니다.' },
@@ -1629,8 +1629,7 @@ function getCurrencyTone(key) {
  * currency data so that it exists from load: the floor loot labels (js/battle-ground-loot-ui.js) call it on the first battlefield
  * draw of the boot, before any UI refresh. 2026-10-11: while it was nested in performUpdateStaticUI (js/ui.js) that draw threw,
  * the rest of init (cloud save and login setup) never ran, and a save with currency on the exploration floor could not sign in. */
-function getStyledOrbName(orbKey) {
-    let name = getCurrencyInfo(orbKey).name;
+function getStyledOrbName(orbKey, name = getCurrencyInfo(orbKey).name) {
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
     if (!Object.hasOwn(CURRENCY_NAME_TONES, orbKey)) return name;
     const [tone, extra = ''] = CURRENCY_NAME_TONES[orbKey];

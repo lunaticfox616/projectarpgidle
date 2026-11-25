@@ -1,4 +1,4 @@
-import { frameAt, snapPixel } from './monster-motion.mjs';
+import { frameAt, isMonsterStrikeRelease, snapPixel } from './monster-motion.mjs';
 
 // 속성 위습 그리기: 인계 시트(data/wisp-sprites.js) — 대기 4프레임 반복, 공격 6프레임 1회를 16도트 칸 격자(도트 = 칸/16)로 찍는다.
 // 위습은 원거리라 투사체가 떠나는 순간(combatTravel 효과 시작)에 공격 클립의 타격 프레임(3번)을 맞추고, 그 직전 공격 게이지
@@ -30,16 +30,11 @@ class WispActors {
 
 
 
-    isRelease(fx, enemy) {
-        if (fx.type === 'combatTravel') return fx.owner === 'enemy' && fx.sourceId === enemy.id;
-        return fx.type === 'enemyAttack' && fx.enemyId === enemy.id;
-    }
-
     /** When this wisp last let fly (visual ms), within one attack clip; null otherwise. */
     lastRelease(enemy, now) {
         let found = null;
         for (const fx of this.deps.battleFx) {
-            if (!fx || now - fx.start > this.ATTACK_MS || !this.isRelease(fx, enemy)) continue;
+            if (!fx || now - fx.start > this.ATTACK_MS || !isMonsterStrikeRelease(fx,enemy)) continue;
             if (found === null || fx.start > found) found = fx.start;
         }
         return found;

@@ -4,7 +4,7 @@
  * 명령은 auction-house-actions.mjs. 화면 상태는 저장하지 않는다.
  */
 import { listenView, releaseViewEvents } from './view-events.mjs';
-import { renderAuction, stopWork, frameStep, tickStep, dropGeneratedLots } from './auction-house-render.mjs';
+import { renderAuction, stopWork, frameStep, tickStep, dropGeneratedLots, paintTabs } from './auction-house-render.mjs';
 import { buyLot, trade, typeCount, preset, pickItem, typeAsk, list, cancelDraft, withdraw, claim, claimAll, jumpFamily, jumpMaterial, sortGear, typeSearch, gearMode, gearCategory,
     gearWeapon, pickFilter, pickSort, resetQuery, unpickLot, moreLots, findLots, togglePanel, editCondition, typeCondition, typeOption, saveQuery, runSaved, deleteSaved,
     repaintGear } from './auction-house-actions.mjs';
@@ -32,8 +32,12 @@ export function createAuctionHouseView(deps) {
     runtime.dropLots = () => dropGeneratedLots(runtime);
     runtime.api = Object.freeze({
         render: (force = false) => renderAuction(runtime, force),
-        /** The trade window opens this section on tab (the loop card asks for 내 출품). */
+        /** The trade window opens this section on tab (its tab row holds this section's tabs; the loop card asks for 내 출품). */
         showTab: tab => { if (TABS.includes(tab)) runtime.state.tab = tab; },
+        /** The tab this section shows ('gear', 'materials', 'mine'). A function: the adapter copies this object's values. */
+        shownTab: () => runtime.state.tab,
+        /** Writes the three tabs' names and marks on the trade window's tab row. */
+        paintTabLabels: () => paintTabs(runtime, null),
         dispose: () => {
             stopWork(runtime, true);
             hidePeek(runtime);
@@ -62,7 +66,6 @@ function initialState() {
 /** The click handlers by data attribute: (runtime, value, element).
  * @type {ReadonlyArray<[string, (runtime: any, value: string, el: Element) => void]>} */
 const CLICKS = Object.freeze([
-    ['data-ah-tab', (runtime, value) => { if (TABS.includes(value)) { runtime.state.tab = value; runtime.api.render(true); } }],
     ['data-ah-suggest-pick', (runtime, value, el) => pickSuggestion(runtime, el)],
     ['data-ah-lot', (runtime, value, el) => selectLot(runtime, value, el)],
     ['data-ah-buy', (runtime, value) => buyLot(runtime, value)],

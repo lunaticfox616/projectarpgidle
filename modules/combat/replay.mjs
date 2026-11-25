@@ -28,7 +28,6 @@ export class CombatReplay {
         let state = this.rules.cloneBackgroundCombatState(snapshot);
         state.isBackgroundCalculation = true;
         this.deps.playerStatCache.adopt(state);
-        state.backgroundOverflowSalvageCount = 0;
         state.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
         state.backgroundStopReason = null;
         return {

@@ -13,7 +13,6 @@ export function cellGridBlockedIndexSet(blocked, width, height) {
 
 export function cellCreateGridStepSearch(env, unit, tx, ty, blocked) {
     const footprint = cellGetGridUnitFootprint(env, unit), cols = footprint.columns, rows = footprint.rows;
-    const scoring = cellGetGridUnitFootprint(env, { isBoss: cols > 1 || rows > 1 });
     const terrain = cellGetGridPlacementTerrain(env), map = terrain.map, width = map.columns, height = map.rows;
     const blockedAt = cellGridBlockedIndexSet(blocked, width, height), visited = new Uint8Array(width * height);
     if (terrain.holes) for (const at of cellGridBlockedIndexSet(terrain.holes, width, height)) blockedAt.add(at);
@@ -30,7 +29,9 @@ export function cellCreateGridStepSearch(env, unit, tx, ty, blocked) {
         return true;
     };
     return {
-        cheb: (gx, gy) => Math.max(0, gx - tx, tx - (gx + scoring.columns - 1), gy - ty, ty - (gy + scoring.rows - 1)),
+        cheb: (gx, gy) => Math.max(0, gx - tx, tx - (gx + cols - 1), gy - ty, ty - (gy + rows - 1)),
+        // A one-cell walker cannot do better than the closest cardinal neighbour of an occupied destination.
+        stopDistance: cols===1 && rows===1 && blockedAt.has(ty*width+tx) ? 1 : 0,
         man: (gx, gy) => Math.abs(gx + (cols - 1) / 2 - tx) + Math.abs(gy + (rows - 1) / 2 - ty),
         /** True the first time the footprint can stand with its top-left on (gx, gy): every cell inside the map and free. Marks the cell. */
         enter(gx, gy) {
@@ -59,9 +60,13 @@ export function cellGridStepToward(env, unit, {tx, ty, blocked, diagonal}) {
     if (!cellHasGridCell(env, unit)) return false;
     const search = cellCreateGridStepSearch(env, unit, tx, ty, blocked);
     const directions = cellSortedGridSteps(unit, search, diagonal);
+    return walkSearch(unit,search,directions);
+}
+
+function walkSearch(unit,search,directions) {
     const qx = [unit.gx], qy = [unit.gy], qf = [-1]; // 큐: 칸과, 그 칸에 이르는 첫걸음의 큐 번호(시작 칸은 -1)
     let best = 0, bestCheb = search.cheb(unit.gx, unit.gy), bestMan = search.man(unit.gx, unit.gy);
-    for (let head = 0; head < qx.length; head++) {
+    for (let head = 0; head < qx.length && bestMan>search.stopDistance; head++) {
         for (const direction of directions) {
             const gx = qx[head] + direction.dx, gy = qy[head] + direction.dy;
             if (!search.move(qx[head], qy[head], direction)) continue;

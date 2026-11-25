@@ -44,7 +44,11 @@ export function runPlaceColonyRoomWave(env, enemies) {
         run=runGetColonyRoomRun(env);
     }
     const map=env.deps.actExplorationMap.forRun(run);
-    if(map.colonyDefense){runPlaceColonyDefenseWave(env, map,enemies,env.deps.getZone('colony_run'));return;}
+    if(map.colonyDefense){
+        runPlaceColonyDefenseWave(env, map,enemies,env.deps.getZone('colony_run'));
+        env.deps.actExplorationState.groundLoot.beginBoss(run,run.packs.find(pack=>pack.stage===0),enemies);
+        return;
+    }
     const rooms=env.deps.chainRoomsOf(map);
     const slot=(Math.max(1,Math.floor(env.owner.colony.wave||1))-1)%env.deps.STAGE_BOARD_ROOMS.colonyWaves,room=rooms[Math.min(slot,rooms.length-1)];
     env.deps.fillRoomPack(map,room,run.packs.find(pack=>pack.roomId===room.id),enemies);

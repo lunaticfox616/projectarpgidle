@@ -2,7 +2,8 @@ export function announceJewelReward(runtime, receipt) {
     if(!runtime.deps.game.settings.showLootLog)return;
     const {jewel,inventoryFull,protectOverflow,stored,shardGain}=receipt;
     if(!stored) {
-        if(!runtime.deps.game.isBackgroundCalculation)(0, runtime.deps.addLog)((0, runtime.deps._t)('💠 {how}: [{name}], 주얼 결정 +{gain}', { how: (0, runtime.deps._t)(inventoryFull?'가방이 가득 차 해체':'주얼 자동해체'), name: (0, runtime.deps._t)(jewel.name), gain: shardGain }),inventoryFull?'attack-monster':'loot-normal');
+        // A jewel lost to a full bag shows nothing (2026-11-25 사용자).
+        if(!runtime.deps.game.isBackgroundCalculation && !inventoryFull)(0, runtime.deps.addLog)((0, runtime.deps._t)('💠 {how}: [{name}], 주얼 결정 +{gain}', { how: (0, runtime.deps._t)('주얼 자동해체'), name: (0, runtime.deps._t)(jewel.name), gain: shardGain }),'loot-normal');
         return;
     }
     const lines=(0, runtime.deps.getJewelStats)(jewel).map(stat=>`${(0, runtime.deps.isJewelPetiteStat)(stat)?(0, runtime.deps._t)('쁘띠 '):''}${(0, runtime.deps.getStatName)(stat.id)} +${(0, runtime.deps.formatJewelStatValue)(stat.id,stat.val)}${Number.isFinite(Number(stat.tier))&&!(0, runtime.deps.isJewelPetiteStat)(stat)?` T${Math.floor(stat.tier)}`:''}`).join(' / ');

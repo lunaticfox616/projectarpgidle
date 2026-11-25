@@ -97,6 +97,7 @@ export function holdings(state) {
         const run = state.actExploration;
         if (Array.isArray(run?.loot?.gems)) run.loot.gems = rewards(run.loot.gems);
         renameRows(run, 'groundLoot');
+        renameRows(run?.bossLoot, 'pendingLoot');
         if (state.colony) { state.colony = copy(state.colony); renameRows(state.colony, 'pendingLoot'); }
         if (state.voidRift) { state.voidRift = copy(state.voidRift); renameRows(state.voidRift.grandRun, 'pendingLoot'); }
         if (state.npcShops) {

@@ -206,11 +206,7 @@ export function atlasEntranceHtml(runtime) {
     if (!runtime.state.api.available('map-explore-worldtree')) return '';
     const region = runtime.deps.WORLD_MAP.regions.find(row => row.id === runtime.deps.WORLD_MAP.atlas.entrance);
     const [x, y] = centre(runtime, region.zone);
-    const icon = glyph(runtime, region.symbol, region.color, 2);
-    // 한 장 시험판(js/atlas-sheet-ui.js): 입구가 진행과 준비된 지도석 수를 달고, 따로 있던 아틀라스 지도를 거치지 않고 바로 그 화면으로 간다.
-    if (!runtime.deps.atlasSheetUi.on()) return `<button type="button" class="wm-atlas-entrance" style="left:${pct(runtime, x, runtime.deps.WORLD_MAP.width)};top:${pct(runtime, y, runtime.deps.WORLD_MAP.height)}" onclick="explorationAtlasUi.showAtlasMap(true)">
-            ${(0, runtime.deps._t)('아틀라스')}<i aria-hidden="true" style="background-image:url('${icon}')"></i></button>`;
-    // 한 장 시험판(2026-11-10 사용자): 글과 숫자 없이 표식만. 누르면 색이 뒤집히고 표식에서 아틀라스가 퍼져 나와 그 지도로 바뀐다(turnToAtlas).
+    // 2026-11-10 사용자: 글과 숫자 없이 표식만. 누르면 색이 뒤집히고 표식에서 아틀라스가 퍼져 나와 그 지도로 바뀐다(turnToAtlas).
     return `<button type="button" class="wm-atlas-entrance is-icon" style="left:${pct(runtime, x, runtime.deps.WORLD_MAP.width)};top:${pct(runtime, y, runtime.deps.WORLD_MAP.height)}" aria-label="${(0, runtime.deps._t)('아틀라스')}" data-tip="${(0, runtime.deps._t)('아틀라스')}"
             onclick="worldMapUi.turnToAtlas(this)"><i aria-hidden="true" style="background-image:url('${atlasIcon(runtime, 'pinnacle', region.color, false, true)}')"></i></button>`;
 }
@@ -243,54 +239,9 @@ export function atlasIcon(runtime, name, tint = runtime.state.ATLAS_ICON_TINT, l
     return runtime.state.urls.get(key);
 }
 
-export function atlasNodeHtml(runtime, node, point, { open, lock }) {
-    const status = open && !lock ? runtime.deps.atlas.status(runtime.deps.game, node.id) : 'locked', tier = runtime.deps.atlas.effectiveTier(runtime.deps.game, node);
-    const label = runtime.deps.atlasUi.nodeLabel(node, tier, status);
-    const tone = (Number.isFinite(tier) && runtime.deps.atlas.tierBand(tier)?.tone) || '#ece6d8';
-    const tint = runtime.deps.ATLAS.regions.find(row => row.id === node.region)?.tint || '#6f5a86';
-    const icon = atlasIcon(runtime, runtime.deps.WORLD_MAP.atlas.icons[node.kind] ? node.kind : 'stone', tint, status === 'locked');
-    return `<button type="button" class="wm-atlas-node is-${status} kind-${node.kind}" style="${atlasAnchorStyle(runtime, point)};--wm-tier:${tone}" data-atlas-node="${node.id}"
-            aria-label="${label}" data-tip="${label}" aria-disabled="${!open}" onclick="explorationAtlasUi.enterAtlasNode('${node.id}')"><span aria-hidden="true" style="background-image:url('${icon}')">${node.kind === 'map' ? tier : ''}</span></button>`;
-}
-
-export function atlasRegionRoutes(runtime, points) {
-    return runtime.deps.atlas.links.filter(([from, to]) => points.has(from) && points.has(to)).map(([from, to]) => {
-        const [x1, y1] = points.get(from), [x2, y2] = points.get(to);
-        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" vector-effect="non-scaling-stroke"/>`;
-    }).join('');
-}
-
-export function atlasRegionHtml(runtime, anchor, access) {
-    const region = runtime.deps.ATLAS.regions.find(row => row.id === anchor.id);
-    const lore = runtime.deps.ATLAS.lore.regions[region.id];
-    const nodes = runtime.deps.atlas.nodes.filter(node => node.region === region.id);
-    const points = new Map(nodes.map(node => [node.id, anchor.nodes[node.slot]]));
-    const name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(region.name));
-    return `<div class="wm-atlas-territory" role="group" aria-label="${name}" data-atlas-region="${region.id}" style="--wm-region:${region.tint}">
-            <svg class="wm-atlas-routes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${atlasRegionRoutes(runtime, points)}</svg>
-            <button type="button" class="wm-atlas-region" style="${atlasAnchorStyle(runtime, anchor.label)}"
-                data-tip="${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(lore.note))}" onclick="explorationAtlasUi.enterAtlasRegion('${region.id}')" ${access.open ? '' : 'disabled'}>${name}</button>
-            ${nodes.map(node => atlasNodeHtml(runtime, node, points.get(node.id), access)).join('')}</div>`;
-}
-
-export function atlasOverviewHtml(runtime) {
-    const access = { open: runtime.state.api.available('map-explore-worldtree'), lock: runtime.deps.atlas.lockReason(runtime.deps.game) };
-    return `<div class="world-map wm-atlas-overview"><div class="wm-side-wrap"><div class="wm-side">
-            <div class="wm-side-text"><strong>${(0, runtime.deps._t)('아틀라스')}</strong>
-            <p>${(0, runtime.deps._t)('어머니 나무 이전, 고대 존재들이 남긴 다섯 권역입니다.')}</p>
-            <p class="wm-atlas-legend"><span><i style="background-image:url('${atlasIcon(runtime, 'guardian')}')"></i>${(0, runtime.deps._t)('지역 수호자')}</span><span><i style="background-image:url('${atlasIcon(runtime, 'pinnacle', '#6f5a86')}')"></i>${(0, runtime.deps._t)('정점')}</span></p>
-            ${access.lock ? `<p class="wm-atlas-lock">${(0, runtime.deps.escapeHTML)(access.lock)}</p>` : ''}</div>
-            <div class="wm-side-actions atlas-hunting-action"><button type="button" class="wm-atlas-back" onclick="explorationAtlasUi.showAtlasMap(false)"><span aria-hidden="true">←</span> ${(0, runtime.deps._t)('세계 지도')}</button></div>
-            </div></div><div class="wm-view"><div class="wm-map wm-atlas-map" role="group" aria-label="${(0, runtime.deps._t)('아틀라스')}">
-            <div class="wm-art wm-atlas-art" aria-hidden="true" style="background-image:url('${runtime.deps.WORLD_MAP.atlas.src}')"></div>
-            ${runtime.deps.WORLD_MAP.atlas.regions.map(region => atlasRegionHtml(runtime, region, access)).join('')}
-            ${atlasNodeHtml(runtime, runtime.deps.atlas.node('pinnacle'), runtime.deps.WORLD_MAP.atlas.pinnacle, access)}</div></div></div>`;
-}
-
 /** 전체 탐험 몸통: 왼쪽 설명 칸, 오른쪽 지도, 지도 아래 그 밖의 곳(있을 때만, has-others가 설명 칸을 그 줄까지 늘인다). reader: explorationAtlasUi의 읽기 함수 묶음. */
 export function overviewHtml(runtime, reader) {
     runtime.state.api = reader;
-    if (runtime.state.atlasMap) return atlasOverviewHtml(runtime);
     const all = entries(runtime).filter(e => e.region.id !== runtime.deps.WORLD_MAP.atlas.entrance);
     const open = all.filter(e => e.state.open), others = othersHtml(runtime);
     if (!open.some(e => e.region.id === runtime.state.picked)) runtime.state.picked = null;
@@ -347,4 +298,3 @@ export function turnToWorld(runtime, button) { return spreadFrom(runtime, button
 
 export function resting(runtime, open) { return open.find(e => e.region.id === runtime.state.picked) || open.find(e => e.state.current) || open.filter(e => e.region.type === 'act').pop() || open[0]; }
 
-export function atlasAnchorStyle(runtime, [x, y]) { return `left:${x}%;top:${y}%`; }

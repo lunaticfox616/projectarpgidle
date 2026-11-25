@@ -7,7 +7,7 @@ const floor = createExplorationGroundLoot({
     get maps() { return actExplorationMap; }, get rooms() { return actExplorationRooms; },
     get doors() { return actExplorationDoors; }, get exploration() { return actExplorationState; },
     get receipts() { return combatLootReceipts; }, get loot() { return actExplorationLoot; },
-    get bagItems() { return bagItems; }, get coreItems() { return coreItems; },
+    get restoredPickup() { return restoredPickup; }, get coreItems() { return coreItems; },
     get talismans() { return talismans; }, get stumpBox() { return stumpBox; },
     get memoryLeaves() { return memoryLeaves; }, get knitting() { return knitting; },
     get gems() { return gemDropRewards; }
@@ -21,10 +21,10 @@ actExplorationState.groundLoot = {
     placeYarn: (run, cell, yarn) => floor.placeYarn(game, run, cell, yarn),
     placeRune: (run, cell, gem) => floor.placeRune(game, run, cell, gem),
     placeCurrency: (run, cell, currency, count) => floor.placeCurrency(game, run, cell, currency, count),
-    ...Object.fromEntries(['takeNear', 'takeAt', 'takeAll', 'nearest', 'falling', 'inAir', 'piles', 'reservedItems', 'settleOnLoad', 'validate']
+    ...Object.fromEntries(['beginBoss','finishBoss','takeOnExit','takeNear', 'takeAt', 'takeAll', 'nearest', 'falling', 'inAir', 'piles', 'reservedItems', 'settleOnLoad', 'validate']
         .map(name => [name, floor[name].bind(floor)])),
     encounterOwner: (state = game, zoneId = state.currentZoneId) => floor.encounterOwner(state, zoneId),
-    reserve: (row, state = game) => floor.reserve(state, row),
+    reserve: (row, state = game, source = null) => floor.reserve(state, row, source),
     releaseEncounter: (owner, cell) => {
         const result = floor.releaseEncounter(game, owner, cell);
         collect(result.collect);

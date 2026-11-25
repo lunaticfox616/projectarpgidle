@@ -384,13 +384,19 @@ class ActTitleCard {
         const seen = [...watch.seen.values()].pop(), lore = this.storyClassLore(owner), act = watch.act;
         if (!seen) return;
         this.place = watch.story.place;
-        this.dropStoryLines(entry => entry.key === 'intro' || entry.key === 'half');
+        this.endBattleLines(watch);
         const revive = act && this.deps.STAGE_BOSS_REVIVAL.bosses.includes(act.bossId) && Number.isFinite(seen.gx) ? { gx: seen.gx, gy: seen.gy, name: seen.name } : null;
         this.queueBossLine(owner, 'defeat', seen, watch.story.boss.defeat, { now, revive });
         if (lore && act) this.queueStoryLine(owner, { key: 'class', who: 'hero', speaker: lore.label, text: lore.bossLines[act.order], tone: 'violet' }, now);
         // An account of the completed fight must follow its last words, never precede it in an optional room.
         const stele = watch.story.stele;
         if (stele && stele.afterClear) this.queueStoryLine(owner, { key: 'epilogue', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
+    }
+
+    endBattleLines(watch) {
+        const past = entry => entry && watch.seen.has(entry.bossId) && ['intro', 'half'].includes(entry.key);
+        this.dropStoryLines(past);
+        if (past(this.line)) this.line = null;
     }
 
     /** Uses the encounter's waiting clock, not a second timer. Pausing also pauses the spoken introduction.
@@ -425,6 +431,7 @@ class ActTitleCard {
         this.directStory(scene);
         if (!scene.observerScene && !this.drawWoodsmanIntroduction(owner, ctx, scene)) this.drawQueuedStory(ctx, scene);
         this.npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
+        return this.line?.key === 'defeat' || this.queue.some(row => row.key === 'defeat');
     }
 
     /** The stage camera frames whoever speaks a line the hero stands for (2026-11-19); a line said during a fight gets nothing. */

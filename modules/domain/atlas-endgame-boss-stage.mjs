@@ -57,6 +57,8 @@ export function atlasLateTuneStage(env, enemy, zone, stage) {
     enemy.bossVisualTint = isEcho ? 200 : null;
     enemy.patternMode = 'apex';
     enemy.apexMechanic = body.mechanic;
+    enemy.atlasPhase = stage;
+    enemy.atlasPhaseCount = row.stages.length;
     if (isEcho) { enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * env.E.witness.echoHpMul)); enemy.hp = enemy.maxHp; }
     return enemy;
 }

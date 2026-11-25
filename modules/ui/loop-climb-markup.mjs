@@ -51,9 +51,13 @@ export function render(runtime) {
     if (!open) return;
     ensureClimbState(runtime);
     const ready = (0, runtime.deps.hasCurrentLoopAbyssRequirementClear)(season(runtime)), deepOpen = (0, runtime.deps.hasCurrentLoopChaos20Clear)();
-    (0, runtime.deps.updateGamePanelMarkup)(panel, `<div class="climb-head"><span class="climb-emblem" aria-hidden="true">∞</span><div><small>${(0, runtime.deps._t)('현재 심화층')}</small><b>${Math.floor(runtime.deps.game.abyssEndlessDepth || 20)}</b></div>`
-            + `<div><small>${(0, runtime.deps._t)('심화 루프 포인트')}</small><b class="is-points">${runtime.deps.game.loopDeepPoints || 0}</b></div></div>`
-            + `${gateHtml(runtime)}${buttonsHtml(runtime, ready)}${reentryHtml(runtime, deepOpen)}${gainsHtml(runtime)}${growthHtml(runtime)}`);
+    (0, runtime.deps.updateGamePanelMarkup)(panel, `${sceneHtml(runtime, ready)}${buttonsHtml(runtime, ready)}${reentryHtml(runtime, deepOpen)}${gainsHtml(runtime)}${growthHtml(runtime)}`);
+}
+
+/** The ring scene on top (the loop cinematic's ring: asleep, awake once a loop gate is cleared): the deep floor and the points beside the ring, the loop gates on the plate below it. */
+export function sceneHtml(runtime, ready) {
+    return `<div class="climb-scene${ready ? ' is-ready' : ''}"><div class="climb-head"><div><small>${(0, runtime.deps._t)('현재 심화층')}</small><b>${Math.floor(runtime.deps.game.abyssEndlessDepth || 20)}</b></div>`
+        + `<div><small>${(0, runtime.deps._t)('심화 루프 포인트')}</small><b class="is-points">${runtime.deps.game.loopDeepPoints || 0}</b></div></div>${gateHtml(runtime)}</div>`;
 }
 
 export function esc(runtime, value) { return (0, runtime.deps.escapeHTML)(String(value ?? '')); }

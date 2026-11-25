@@ -3,6 +3,8 @@ import { formatDamageNumberForDisplay } from '../common/damage-number-format.mjs
 import { getDamageTextFillColor, isStrongDamageText, getDamageTextPeakAlpha } from './damage-text-style.mjs';
 
 const MAX_LIFT = 207, GAP = 3;
+// Phones keep the newest incoming sum beside the hero; an older one fades out over RETIRE_MS instead of stacking up.
+const HERO_KEEP = 1, RETIRE_MS = 150;
 
 export class DamageTextRenderer {
     constructor(deps, runtime) {
@@ -28,15 +30,17 @@ export class DamageTextRenderer {
         return label;
     }
 
-    font(text) {
-        return `800 ${text.impactTier === 'annihilate' ? 24 : 12}px "Galmuri11", "Malgun Gothic", sans-serif`;
+    font(text, compact) {
+        const large = !text.finishAt && text.impactTier === 'annihilate';
+        return `800 ${large ? (compact ? 18 : 24) : 12}px "Galmuri11", "Malgun Gothic", sans-serif`;
     }
 
-    appearance(text, t) {
+    appearance(text, t, compact) {
         const align = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
-        const pop = isStrongDamageText(text) ? 1 + 0.38 * (1 - clampNumber(t / 0.16, 0, 1)) : 1;
+        const expansion = !compact ? 0.38 : (compact.reduced ? 0 : 0.18);
+        const pop = isStrongDamageText(text) ? 1 + expansion * (1 - clampNumber(t / 0.16, 0, 1)) : 1;
         const label = text.miss ? String(text.value) : this.getDamageTextLabel(text);
-        return { font: this.font(text), align, pop, label };
+        return { font: this.font(text, compact), align, pop, label };
     }
 
     textSize(ctx, label) {
@@ -55,29 +59,66 @@ export class DamageTextRenderer {
         const { text, pop } = row;
         ctx.font = row.font; ctx.textAlign = row.align;
         const metrics = this.textSize(ctx, row.label);
-        const count = !text.bodyCue && !text.miss && !text.dot && text.hitCount > 1 ? this.deps.translate('{floor}타', { floor: Math.floor(text.hitCount) }) : '';
+        const count = !text.bodyCue && !text.miss && (!text.dot || row.compact) && text.hitCount > 1 ? this.deps.translate('{floor}타', { floor: Math.floor(text.hitCount) }) : '';
         // Korean unit glyphs can overhang their advance width; leave a real gap before the hit-count suffix.
         const countX = metrics.right + GAP * 2;
         ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
         const right = Math.max(metrics.right, count ? countX + this.textSize(ctx, count).width : 0);
-        const box = { x: text.x - (metrics.left + GAP) * pop,
+        const left = metrics.left + (row.accent ? 10 : 0);
+        const box = { x: row.x - (left + GAP) * pop,
             y: row.y - (metrics.ascent + GAP) * pop,
-            w: (metrics.left + right + GAP * 2) * pop,
+            w: (left + right + GAP * 2) * pop,
             h: (metrics.ascent + metrics.descent + GAP * 2) * pop };
-        return { ...row, count, countX, box };
+        return { ...row, count, countX, markX: -metrics.left - 8, box, flightOpacity: 1 };
     }
 
-    frame(ctx, text, now) {
+    frame(ctx, text, now, bounds) {
         const elapsed = now - Number(text.start);
         if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return null;
+        const ending = this.endingAlpha(text);
+        if (!ending) return null;
         const t = clampNumber(elapsed / text.duration, 0, 1);
         const rise = text.bodyCue ? 10 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
-        const y = text.y - rise * (1 - Math.pow(1 - t, 2));
-        return this.measure(ctx, { text, t, now, x: text.x, y, ...this.appearance(text, t) });
+        const y = text.finishAt ? text.y : text.y - rise * (1 - Math.pow(1 - t, 2));
+        const row = { text, t, now, ending, x: text.x, y, ...this.appearance(text, t, bounds) };
+        return bounds ? this.fitCompact(ctx, row, bounds) : this.measure(ctx, row);
     }
 
-    place(row, taken, protectedBoxes) {
-        const limit = Math.min(MAX_LIFT, Math.max(0, row.box.y - GAP));
+    endingAlpha(text) {
+        return text.finishAt ? clampNumber((text.finishAt - this.runtime.scene.lastWallNow) / 170, 0, 1) : 1;
+    }
+
+    fitCompact(ctx, row, bounds) {
+        this.anchorCompact(row, bounds);
+        const measured = this.measure(ctx, row);
+        const left = bounds.left + GAP;
+        const right = measured.text.heroTarget && measured.align === 'right' ? bounds.hero.x - bounds.hero.halfWidth : bounds.right;
+        const x = clampNumber(measured.box.x, left, Math.max(left, right - measured.box.w - GAP));
+        measured.x += x - measured.box.x;
+        measured.box.x = x;
+        return measured;
+    }
+
+    anchorCompact(row, bounds) {
+        const { text } = row, { hero } = bounds;
+        row.compact = true;
+        row.reduced = bounds.reduced;
+        row.viewportTop = bounds.top;
+        if (text.finishAt || text.bodyCue || text.miss) return;
+        row.accent = text.elementColor || (text.dotType && this.deps.damageElementColor(text.dotType));
+        if (text.heroTarget) {
+            const side = hero.x - bounds.left > 66 ? -1 : 1;
+            row.x = hero.x + side * (hero.halfWidth + 10);
+            row.y = Math.min(row.y, hero.top + 13);
+            row.align = side < 0 ? 'right' : 'left';
+        } else {
+            row.y -= 8;
+        }
+    }
+
+    place(row, taken, protectedBoxes, airWarnings) {
+        if (row.text.finishAt) return;
+        const limit = Math.min(MAX_LIFT, Math.max(0, row.box.y - (row.viewportTop || 0) - GAP));
         let lift = Math.min(limit, row.text.readabilityLift || 0);
         row.box.y -= lift;
         // Bottom to top: moving above one box cannot re-enter a box already visited. At most 48x48 checks, no search loop.
@@ -90,13 +131,15 @@ export class DamageTextRenderer {
         row.y -= lift;
         row.text.readabilityLift = lift;
         this.clearBlockedLabel(row, protectedBoxes, taken);
+        this.clearIncomingFlight(row, airWarnings, protectedBoxes, taken);
         taken.push(row.box);
         taken.sort((a, b) => b.y + b.h - a.y - a.h);
     }
 
     clearBlockedLabel(row, boxes, taken) {
-        if (row.box.y >= GAP && !boxes.some(box => this.overlaps(row.box, box)) && !taken.some(box => this.overlaps(row.box, box))) return;
-        const edge = Math.max(0, GAP - row.box.y);
+        const top = (row.viewportTop || 0) + GAP;
+        if (row.box.y >= top && !boxes.some(box => this.overlaps(row.box, box)) && !taken.some(box => this.overlaps(row.box, box))) return;
+        const edge = Math.max(0, top - row.box.y);
         row.y += edge; row.box.y += edge;
         for (const box of [...boxes, ...taken].sort((a, b) => a.y - b.y)) {
             if (!this.overlaps(row.box, box)) continue;
@@ -104,6 +147,25 @@ export class DamageTextRenderer {
             row.y += down; row.box.y += down;
             row.text.readabilityLift = 0;
         }
+    }
+
+    clearIncomingFlight(row, warnings, bars, taken) {
+        if (row.text.enemyHit || row.text.miss || row.text.bodyCue || !warnings?.length) return;
+        const blade = warnings.find(box => this.overlaps(row.box, box));
+        if (!blade) return;
+        const y = blade.y - row.box.h - GAP * 2;
+        const shifted = { ...row.box, y };
+        if (!this.canShiftForFlight(row, shifted, [...bars, ...taken, ...warnings])) {
+            row.flightOpacity = 0.21;
+            return;
+        }
+        row.y += y - row.box.y;
+        row.box.y = y;
+    }
+
+    canShiftForFlight(row, shifted, others) {
+        return shifted.y >= (row.viewportTop || 0) + GAP && row.box.y - shifted.y <= 39
+            && !others.some(box => this.overlaps(shifted, box));
     }
 
     crowdFade(row) {
@@ -121,6 +183,7 @@ export class DamageTextRenderer {
         const { text, t, x, y } = row;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38)) * this.crowdFade(row);
+        ctx.globalAlpha *= row.ending * row.flightOpacity;
         ctx.font = row.font; ctx.textAlign = row.align;
         ctx.translate(x, y); ctx.scale(row.pop, row.pop); ctx.translate(-x, -y);
         const strong = isStrongDamageText(text);
@@ -131,33 +194,65 @@ export class DamageTextRenderer {
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');
         ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (strong ? 4 : 0));
+        ctx.shadowBlur *= Number(!row.reduced);
         this.deps.drawCrispCanvasText(ctx, this.deps.translate(row.label), x, y, 'strokeText');
         // The fill sits inside the stroke, so the stroke pass already casts the whole glow.
         ctx.shadowBlur = 0;
         ctx.fillStyle = getDamageTextFillColor(text);
         this.deps.drawCrispCanvasText(ctx, this.deps.translate(row.label), x, y);
-        if (row.count) {
-            ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
-            ctx.textAlign = 'left';
-            ctx.lineWidth = 2;
-            this.deps.drawCrispCanvasText(ctx, row.count, x + row.countX, y - 3, 'strokeText');
-            ctx.fillStyle = '#c8d9e8';
-            this.deps.drawCrispCanvasText(ctx, row.count, x + row.countX, y - 3);
-        }
+        if (row.accent) this.paintAccent(ctx, row);
+        this.paintCount(ctx, row);
         ctx.restore();
+    }
+
+    paintCount(ctx, row) {
+        if (!row.count) return;
+        const x = row.x + row.countX, y = row.y - 3;
+        ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.lineWidth = 2;
+        this.deps.drawCrispCanvasText(ctx, row.count, x, y, 'strokeText');
+        ctx.fillStyle = '#c8d9e8';
+        this.deps.drawCrispCanvasText(ctx, row.count, x, y);
+    }
+
+    paintAccent(ctx, row) {
+        const x = Math.round(row.x + row.markX), y = Math.round(row.y - 8);
+        ctx.fillStyle = 'rgba(2,5,9,0.92)';
+        ctx.fillRect(x - 1, y - 1, 5, 7);
+        ctx.fillStyle = row.accent;
+        ctx.fillRect(x, y, 3, 5);
+    }
+
+    /** Compact screens: incoming sums past the newest HERO_KEEP fade out; a faded one takes no room beside the hero. */
+    retireOlderHeroRows(rows, now) {
+        const hero = rows.filter(row => row.text.heroTarget && !row.text.bodyCue && !row.text.miss)
+            .sort((a, b) => (b.text.readabilityUpdatedAt ?? b.text.start) - (a.text.readabilityUpdatedAt ?? a.text.start));
+        hero.forEach((row, index) => {
+            if (index < HERO_KEEP) return;
+            row.text.retireAt ??= now;
+            row.ending *= clampNumber(1 - (now - row.text.retireAt) / RETIRE_MS, 0, 1);
+        });
+        for (let i = rows.length - 1; i >= 0; i--) if (rows[i].ending === 0) rows.splice(i, 1);
     }
 
     overlaps(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h + GAP && b.y < a.y + a.h + GAP; }
 
-    render(ctx, now, protectedBoxes = []) {
+    render(ctx, now, protectedBoxes = [], bounds = null) {
         ctx.save();
         try {
-            const rows = (this.runtime.scene.damageTexts || []).map(text => this.frame(ctx, text, now)).filter(Boolean);
+            const rows = (this.runtime.scene.damageTexts || []).map(text => this.frame(ctx, text, now, bounds)).filter(Boolean);
+            if (bounds) this.retireOlderHeroRows(rows, now);
             const taken = [];
-            const bars = [...protectedBoxes].sort((a, b) => a.y - b.y);
+            const bars = [...protectedBoxes];
+            if (bounds) {
+                const { x, top, bottom, halfWidth } = bounds.hero;
+                taken.push({ x: x - halfWidth, y: top, w: halfWidth * 2, h: Math.max(0, bottom - top) });
+            }
+            bars.sort((a, b) => a.y - b.y);
             // Incoming damage keeps its place before other feedback; stable sorting preserves every category's newest-first order.
             const placement = [...rows].sort((a, b) => Number(a.text.enemyHit) - Number(b.text.enemyHit));
-            for (let i = placement.length - 1; i >= 0; i--) this.place(placement[i], taken, bars);
+            for (let i = placement.length - 1; i >= 0; i--) this.place(placement[i], taken, bars, bounds?.airWarnings);
             rows.forEach(row => this.paint(ctx, row));
         } finally { ctx.restore(); }
     }

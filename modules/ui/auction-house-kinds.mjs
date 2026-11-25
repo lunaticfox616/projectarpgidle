@@ -35,7 +35,7 @@ export function optionCount(lot) {
 }
 
 /** The lot's picture: a talisman's stump box icon, otherwise the bag's picture of the item. */
-function lotArtSrc(runtime, lot) {
+export function lotArtSrc(runtime, lot) {
     return lotKind(lot) === 'talisman' ? runtime.deps.stumpBox.iconPath(lot.item) : runtime.deps.getEquipmentGridVisualAsset(lot.item);
 }
 

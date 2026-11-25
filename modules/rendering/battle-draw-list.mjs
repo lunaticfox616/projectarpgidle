@@ -58,9 +58,15 @@ class BattleDrawList {
     drawnEntry(enemy) {
         return this.deps.performance.now() - this.drawn.at > this.DRAWN_LIVE_MS ? null : this.drawn.entries.find(entry => entry.enemy === enemy) || null;
     }
+
+    lowerBodyAt(enemy, point) {
+        const entry = this.drawnEntry(enemy);
+        const height = Math.max(this.drawn.tile * 0.9, this.deps.drawnEnemyHeight(enemy) || 0);
+        return !!entry && point.y >= entry.y - height / 2;
+    }
 }
 
 export function createBattleDrawList(deps) {
     const instance = new BattleDrawList(deps);
-    return Object.freeze({ REACH: instance.REACH, touchesView: instance.touchesView.bind(instance), markDrawn: instance.markDrawn.bind(instance), keepFacing: instance.keepFacing.bind(instance), noteDrawn: instance.noteDrawn.bind(instance), enemyAt: instance.enemyAt.bind(instance), drawnEntry: instance.drawnEntry.bind(instance) });
+    return Object.freeze({ REACH: instance.REACH, touchesView: instance.touchesView.bind(instance), markDrawn: instance.markDrawn.bind(instance), keepFacing: instance.keepFacing.bind(instance), noteDrawn: instance.noteDrawn.bind(instance), enemyAt: instance.enemyAt.bind(instance), drawnEntry: instance.drawnEntry.bind(instance), lowerBodyAt: instance.lowerBodyAt.bind(instance) });
 }

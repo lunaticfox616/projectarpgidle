@@ -14,9 +14,7 @@ const worldMapUi = createWorldMapView({
     get clearTimeout() { return windowClearTimeout; },
     get setTimeout() { return windowSetTimeout; },
     get worldMapBrief() { return worldMapBrief; },
-    get atlasSheetUi() { return atlasSheetUi; },
     get atlas() { return atlas; },
-    get atlasUi() { return atlasUi; },
     get ATLAS() { return ATLAS; },
     get explorationAtlasUi() { return explorationAtlasUi; }
 });

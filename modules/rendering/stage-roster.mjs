@@ -1,5 +1,6 @@
 import { stageCache } from './stage-cache.mjs';
 import { getEnemyOutlineStyle } from './enemy-outline.mjs';
+import { stageActorCastActing, drawActorCastAccent, chorusBloomOrigin, castRimOf, drawCastGround } from './actor-cast-acting.mjs';
 
 /** 옆에서 보는 무대의 몬스터 새 그림 (data/monster-stage-roster.js, docs/stage-view-20261011.md).
  * 몬스터마다 걷기와 공격 두 장을 쓴다. 공격은 앞서와 같은 규칙으로 타격 프레임을 때린 순간에 맞춘다(js/canvas-monster-actors.js).
@@ -26,6 +27,7 @@ const CERBERUS_MOUTHS = [
 class StageRoster {
     constructor(deps) {
         this.deps = deps;
+        this.chorusSockets = new WeakMap();
         this.KEEP = 20;
         this.TINT_PIXELS = 1024 * 1024;
         this.BREATH_MS = 1700;
@@ -38,6 +40,7 @@ class StageRoster {
         this.RIM = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]);
         this.RIM_NONE = Object.freeze([0, 0]);
         this.RIM_OUTER = Object.freeze([[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [1, -1], [-1, 1], [-1, -1]]);
+        this.HALO_INK = Object.freeze([[3, 0], [-3, 0], [0, 3], [0, -3], [2, 2], [2, -2], [-2, 2], [-2, -2]]);
         this.AIRBORNE = Object.freeze(['fly', 'float', 'swim']);
         this.OBSERVER_FORMS = 'pinnacle_observer-forms-v3.png';
         this.OBSERVER_FORM_COLS = 3;
@@ -353,19 +356,63 @@ class StageRoster {
         if (!pair) return false;
         const dot = this.dotFor(enemy, actor, p);
         if (pair === 'loading') { this.shadow(ctx, actor, p, dot, 0); return true; }
-        const pose = this.visiblePose(owner, enemy, actor, p, pair), hop = pose.hop || 0;
+        const visible = this.visiblePose(owner, enemy, actor, p, pair);
+        const acting = stageActorCastActing(this.deps,enemy,actor);
+        const pose = acting?.frame === undefined ? visible : { ...visible, clip: 'attack', index: acting.frame };
+        this.drawRosterPose(ctx,enemy,actor,{p,pair,pose,dot,acting});
+        return true;
+    }
+
+    drawRosterPose(ctx,enemy,actor,{p,pair,pose,dot,acting}) {
+        const hop = pose.hop || 0;
         const art = pose.clip === 'forms' ? pair.formActor : actor;
         const size = this.picture(pair, art, pose, this.lookOf(enemy, p));
         this.shadow(ctx, actor, p, dot, hop);
+        drawCastGround(ctx, acting, p, p.projection);
         this.deps.noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         const west = this.deps.stageView.facing(enemy, p.facing) === 'west';
         this.notePlacement(enemy, actor, p, { dot, west, hop, frame: pose.index, clip: pose.clip, strikeFrame: pose.strikeFrame });
         ctx.save();
         if (west) { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
-        const left = this.deps.monsterMotion.snap(p.x - (size.pad + art.feet[0]) * dot), top = this.deps.monsterMotion.snap(p.y - (size.pad + art.feet[1] + hop) * dot);
+        const position = this.castPosition(p,dot,acting);
+        const left = this.deps.monsterMotion.snap(position.x - (size.pad + art.feet[0]) * dot);
+        const top = this.deps.monsterMotion.snap(position.y - (size.pad + art.feet[1] + hop) * dot);
+        const rim = castRimOf(acting);
+        if (rim) this.castHalo(ctx, { pair, art, pose, rim }, { x: left + size.pad * dot, y: top + size.pad * dot, dot, p: p.projection });
         this.deps.stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
+        if (acting) this.castAccent(ctx, {acting,actor,enemy,west}, {x:position.x,y:position.y-hop*dot,axis:p.x,dot,projection:p.projection});
         ctx.restore();
-        return true;
+    }
+
+    /** A casting actor's rim in screen dots (its art may be drawn below one pixel a dot): a lilac band inside a dark one. */
+    castHalo(ctx, { pair, art, pose, rim }, at) {
+        const px = Math.max(1, Math.round((at.p?.tileH || 26) / 26)), from = { x: 0, y: 0, w: art.w, h: art.h };
+        ctx.save();
+        ctx.globalAlpha *= rim.alpha;
+        for (const [colour, rings] of [[rim.ink, this.HALO_INK], [rim.color, this.RIM_OUTER]]) {
+            const tint = this.tintedFrame(pair, art, pose, colour);
+            const fixed = tint !== this.tintWork; // a kept tint never changes, so its enlarged copy is reused
+            for (const [dx, dy] of rings) this.deps.stageDots.blit(ctx, tint, from, { x: at.x + dx * px, y: at.y + dy * px, scale: at.dot }, fixed);
+        }
+        ctx.restore();
+    }
+
+    castAccent(ctx, {acting,actor,enemy,west}, position) {
+        if (actor.id === 'act9-chorus-bulbs') {
+            const at = chorusBloomOrigin(position,position.dot);
+            this.chorusSockets.set(enemy, {x:west?position.axis*2-at.x:at.x,y:at.y,projection:position.projection});
+        }
+        drawActorCastAccent(ctx,acting,position,position.dot,this.deps.uiDisplay.reducedEffects());
+    }
+
+    chorusMouth(enemy, projection) {
+        const mouth = this.chorusSockets.get(enemy);
+        return mouth?.projection === projection ? mouth : null;
+    }
+
+    castPosition(p,dot,acting) {
+        if (!acting || this.deps.uiDisplay.reducedEffects()) return p;
+        return { x:p.x+Math.round(acting.dx*dot), y:p.y+Math.round(acting.dy*dot) };
     }
 
     /** 스토리 보스가 쓰러지는 그림(data/monster-stage-roster.js 쓰러짐): 쓰러진 뒤 p.deathMs가 흐른 프레임을 마지막 장에 멈춰 그린다.
@@ -427,5 +474,5 @@ class StageRoster {
 
 export function createStageRoster(deps) {
     const instance = new StageRoster(deps);
-    return Object.freeze({ draw: instance.draw.bind(instance), drawDeath: instance.drawDeath.bind(instance), drawClip: instance.drawClip.bind(instance), looks: instance.looks, keepFor: instance.keepFor.bind(instance), placementOf: instance.placementOf.bind(instance), headOrigin: instance.headOrigin.bind(instance), bodySize: instance.bodySize.bind(instance) });
+    return Object.freeze({ draw: instance.draw.bind(instance), drawDeath: instance.drawDeath.bind(instance), drawClip: instance.drawClip.bind(instance), looks: instance.looks, keepFor: instance.keepFor.bind(instance), placementOf: instance.placementOf.bind(instance), headOrigin: instance.headOrigin.bind(instance), chorusMouth: instance.chorusMouth.bind(instance), bodySize: instance.bodySize.bind(instance) });
 }

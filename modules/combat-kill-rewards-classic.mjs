@@ -40,13 +40,13 @@ export const progression = createKillProgression({
 
 export const delivery = createLootDelivery({
     get exploration() { return actExplorationState; }, get floor() { return actExplorationState.groundLoot; },
-    get policy() { return equipmentLootPolicy; }, get moments() { return lootMoments; },
+    get policy() { return equipmentLootPolicy; }, get getUniqueCodexKeyByItem() { return window.getUniqueCodexKeyByItem; },
     get bagItems() { return bagItems; }, get coreItems() { return coreItems; },
     get talismans() { return talismans; }, get stumpBox() { return stumpBox; },
     get gems() { return gemDropRewards; }, get knitting() { return knitting; },
     get receipts() { return combatLootReceipts; }, get statCache() { return playerStatCache; },
     get hasGridCell() { return hasGridCell; }, get getPlayerStats() { return getPlayerStats; },
-    get previewEquipmentPickup() { return previewEquipmentPickup; },
+    get normalizeItem() { return normalizeItem; }, get previewEquipmentPickup() { return previewEquipmentPickup; },
     get isGuaranteedEquipmentPickup() { return isGuaranteedEquipmentPickup; },
     get addItemToInventory() { return addItemToInventory; }, get receiveJewelDrop() { return receiveJewelDrop; },
     get resolveCurrencyAward() { return resolveCurrencyAward; }, get commitCurrencyGain() { return commitCurrencyGain; }
@@ -67,7 +67,7 @@ export const loot = createKillLoot(delivery, drops, {
     get supports() { return window.GameModules.combat.supports; }, get contentMultiplier() { return getContentDropRateMultiplier; },
     get content() { return contentProgression; }, get floor() { return actExplorationState.groundLoot; },
     get chances() { return getEquipmentDropChances; }, get wildTalisman() { return rollWildTalismanDrop; },
-    get atlasPassives() { return atlasPassives; }, get gemMultiplier() { return getEnemyGemDropMul; },
+    get gemMultiplier() { return getEnemyGemDropMul; },
     get runeReward() { return rollEnemyGemReward; }, get gems() { return gemDropRewards; },
     get stats() { return getPlayerStats; }, get cores() { return coreItems; }, get generateJewel() { return generateJewelDrop; },
     get receiveJewel() { return receiveJewelDrop; }, get awardCurrency() { return awardCurrency; }

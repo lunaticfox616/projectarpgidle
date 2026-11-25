@@ -299,7 +299,10 @@ export function fmt(runtime, value) { return Math.floor(Number(value) || 0).toLo
 
 export function pretty(runtime, text) { return /^-?\d{4,}$/.test(text) ? Number(text).toLocaleString(runtime.deps.i18n.locale) : text; }
 
-export function slotName(runtime, slot) { return typeof runtime.deps.getDualSlotDisplayLabel === 'function' ? (0, runtime.deps.getDualSlotDisplayLabel)(slot) : String(slot).replace(/[123]$/, ''); }
+export function slotName(runtime, slot) {
+    const label = typeof runtime.deps.getDualSlotDisplayLabel === 'function' ? (0, runtime.deps.getDualSlotDisplayLabel)(slot) : String(slot).replace(/[123]$/, '');
+    return (0, runtime.deps._t)(label);
+}
 
 export function seenId(runtime) {
     if (!Number.isFinite(Number(runtime.deps.game.bagSeenId)) || runtime.deps.game.bagSeenId === null) runtime.deps.game.bagSeenId = runtime.deps.window.GameModules.state.session.itemIdCounter;
@@ -322,7 +325,7 @@ export function inspectorDock(runtime, inspector) { return (0, runtime.deps.getC
 
 export function wornSlots(runtime, item) { return runtime.deps.bagItems.isSpecial(item) ? [] : compareSlots(runtime, item).filter(slot => (runtime.deps.game.equipment || {})[slot]).slice(0, 3); }
 
-export function deltaTablesHtml(runtime, slots) { return slots.length ? `<div class="eqw-deltas${slots.length > 1 ? ' is-multi' : ''}" data-eqw-slot="${(0, runtime.deps.escapeHTML)(slots.join(','))}" style="--eqw-sides:${slots.length}"><div class="eqw-dl-head">바꾸면</div>
+export function deltaTablesHtml(runtime, slots) { return slots.length ? `<div class="eqw-deltas${slots.length > 1 ? ' is-multi' : ''}" data-eqw-slot="${(0, runtime.deps.escapeHTML)(slots.join(','))}" style="--eqw-sides:${slots.length}"><div class="eqw-dl-head">${(0, runtime.deps._t)('바꾸면')}</div>
         <div class="eqw-dl-body"><p class="eqw-none">${(0, runtime.deps._t)('계산 중')}</p></div></div>` : ''; }
 
 export function emptyHtml(runtime, message) { return `<h4 class="eqw-title">${(0, runtime.deps._t)('선택한 장비')}</h4><div class="equipment-grid-inspector-empty">${message}</div>`; }

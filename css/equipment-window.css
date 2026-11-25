@@ -289,14 +289,30 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-note.is-gain { color: #d8b5ff; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-note.is-loss { color: #c98f9f; }
 /* 두 칸 장비의 바꾸면 카드 하나(js/equipment-window-ui.js multiDeltaHtml): 능력치, 지금, 그리고 칸마다 바꾼 값과 증감 */
-:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl.eqw-dl-multi { grid-template-columns: minmax(44px, 96px) auto repeat(var(--eqw-sides, 2), minmax(0, 1fr)); gap: 10px; }
-:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi > :is(b, .eqw-dl-side) { text-align: right; white-space: nowrap; }
-:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi > .eqw-dl-side { display: flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 6px; overflow: visible; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-deltas.is-multi { container: equipment-deltas / inline-size; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi { display: block; width: 100%; font-size: 12px; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi :is(thead, tbody) { display: block; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi tr {
+  display: grid; grid-template-columns: minmax(72px, 1.1fr) repeat(calc(var(--eqw-sides, 2) + 1), minmax(0, 1fr)); gap: 3px 8px;
+  padding: 4px 0; border-bottom: 1px solid #3a2d1a;
+}
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi :is(th, td) {
+  min-width: 0; padding: 0; font-weight: 400; text-align: right; color: var(--eqw-ink); overflow-wrap: anywhere;
+}
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi th { color: var(--eqw-muted); }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi th[scope="row"] { text-align: left; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi td :is(b, em) { display: block; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi td b { font-weight: 400; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side.up :is(b, em) { color: #8fe08f; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side.down :is(b, em) { color: #ff8a80; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side em { font-style: normal; font-weight: 700; }
-:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-cols { padding-bottom: 3px; border-bottom: 1px solid #3a2d1a; }
-:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-cols > b { color: var(--eqw-muted); }
+@container equipment-deltas (max-width: 325px) {
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi tr {
+    grid-template-columns: repeat(calc(var(--eqw-sides, 2) + 1), minmax(0, 1fr));
+  }
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi th[scope="row"] { grid-column: 1 / -1; }
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi thead th:first-child { position: absolute; clip-path: inset(50%); }
+}
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side-name { margin-top: 4px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-none { margin: 4px 0; color: var(--eqw-muted); font-size: 12px; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-more { display: none; }
@@ -467,7 +483,7 @@
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-compare-tabs { position: sticky; top: 0; z-index: 1; background: #120e0a; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-compare-tabs > button { min-height: 44px; }
   /* 바꾸면 표: 요약에 있는 능력치만 먼저, 나머지는 단추로 편다(js/equipment-window-ui.js restButton). */
-  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-body:not(.is-open) .eqw-dl.is-rest { display: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-body:not(.is-open) :is(.eqw-dl, .eqw-dl-multi tr).is-rest { display: none; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-more { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 3px 8px; border: 1px solid #4a3a22; border-radius: 0;
     background: transparent; color: var(--eqw-muted); font-size: 12px; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-bag-head .eqw-search { flex: 1 1 100px; }

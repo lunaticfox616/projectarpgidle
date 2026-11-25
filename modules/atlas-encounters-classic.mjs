@@ -11,7 +11,7 @@ const atlasEncounters = Object.freeze({ ...rules,
     roll: (bonus, forced, random, capacity = Infinity, ...selection) => rules.roll(bonus, forced, random, capacity, selection[0] ?? false, selection[1] ?? game),
     roomLimit: (bonus, loop) => rules.roomLimit(bonus, loop, game),
     isOpen: (type, loop, owner = game) => rules.isOpen(type, loop, owner),
-    rewards: (zone, type, bonus, random) => rules.rewards(zone, type, bonus, random, game),
+    rewards: (zone, type, random, owner = game) => rules.rewards(zone, type, random, owner),
     chestReward: (zone, random) => rules.chestReward(zone, random, game)
 });
 safeExposeGlobals({ atlasEncounters });

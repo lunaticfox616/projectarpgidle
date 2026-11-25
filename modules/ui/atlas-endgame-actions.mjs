@@ -10,13 +10,14 @@ export function showSource(runtime, item) {
     if (!Object.hasOwn(runtime.state.E.items, item)) return;
     const guardian = Object.entries(runtime.state.E.guardianShears).find(([, material]) => material === item);
     runtime.deps.atlasUi.setView('maps');
-    if (guardian) runtime.deps.atlasUi.selectNode(`${guardian[0]}_g`, true);
+    // 수호자 지도 보기: 그 수호자를 치르는 천문도의 자리(자리가 없는 「나이테 왕」은 그 수호자).
+    if (guardian) runtime.deps.atlasUi.selectNode(runtime.deps.atlas.gateOf(`${guardian[0]}_g`)?.id ?? `${guardian[0]}_g`, true);
     else runtime.deps.atlasUi.revealStash();
 }
 
 export function preparePinnacle(runtime) {
     runtime.deps.atlasUi.setView('maps');
-    runtime.deps.atlasUi.selectNode('pinnacle', true);
+    runtime.deps.atlasUi.selectNode(runtime.deps.atlas.gateOf('pinnacle').id, true);
 }
 
 export function showFight(runtime, id) {
@@ -37,7 +38,9 @@ export function challenge(runtime, id) {
     (0, runtime.deps.switchTab)('tab-battle');
 }
 
+/** The offering as have/need chips; the free first fight of a chart boss has none. */
 export function entryHtml(runtime, entry) {
+    if (!entry.length) return `<span class="is-on">${(0, runtime.deps._t)('입장 시 소모 없음')}</span>`;
     return entry.map(row => `<span class="${row.have >= row.need ? 'is-on' : ''}">${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name))} ${row.have}/${row.need}</span>`).join('');
 }
 

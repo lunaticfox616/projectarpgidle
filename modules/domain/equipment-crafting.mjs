@@ -1,5 +1,5 @@
 // One crafting rule owner: provenance, slot limits, omens, outcome selection and imprints.
-import { finishInspectItem, finishApplyToItem, finishExchangeMaterial, finishLegalMods, restoreTransfers } from './weapon-finishes.mjs';
+import { finishInspectItem, finishApplyToItem, finishExchangeMaterial, finishLegalMods, finishOrdinaryRows, restoreTransfers } from './weapon-finishes.mjs';
 import { finishRules } from '../data/equipment-finishes.mjs';
 import { craftLegalAddPool } from './equipment-craft-rules.mjs';
 // Callers supply item/state; ordinary payment, persistence and UI remain outside this service.
@@ -36,6 +36,7 @@ export function createEquipmentCrafting(deps) {
     return Object.freeze({
         inspectFinish: (...args) => finishInspectItem(env, ...args),
         ordinaryFinishMods: item => finishLegalMods(env,item),
+        inspectFossilRetention: item => collectFossilRetainableLines(env, item),
         restoreFinishSlots: item => restoreTransfers(env,item),
         applyFinish: (...args) => finishApplyToItem(env, ...args),
         exchangeFinish: (...args) => finishExchangeMaterial(env, ...args),
@@ -89,4 +90,15 @@ export function createEquipmentCrafting(deps) {
         restoreImprint: (...args) => craftRestoreImprint(env, ...args),
         buildLockReason: craftBuildLockReason
     });
+}
+
+function collectFossilRetainableLines(env, item) {
+    if (!item || !env.deps.EQUIPMENT_DROP_SLOTS.includes(item.slot) || craftGetFossilBlockReason(env, item, 'fossilOld')) return {rows:[], reason:''};
+    if (item.stats.some(stat => craftKeptOnReroll(item, stat))) {
+        return {rows:[], reason:env.deps._t('잠긴 옵션이 있어 다른 옵션을 보존할 수 없습니다.')};
+    }
+    if (item.stats.some(stat => craftGetSource(env, stat) === 'fossil')) {
+        return {rows:[], reason:env.deps._t('기존 화석 옵션을 제거하면 일반 옵션을 골라 보존할 수 있습니다.')};
+    }
+    return {rows:finishOrdinaryRows(env, item), reason:''};
 }

@@ -47,14 +47,13 @@ function passesPickupCodex(env, owner, item, settings) {
 
 /** guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등)과 목표·보호 장비, 주얼과 코어.
  * 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다. 항상 줍기의 액막이는 필터와 등급 해체만 건너뛰고,
- * 가방이 차면 다른 장비처럼 해체된다(2026-11-03 사용자: 임시 보관함으로 들어오지 않게). */
+ * 가방이 차면 다른 장비처럼 줍지 못한다(2026-11-03 사용자: 임시 보관함으로 들어오지 않게; 2026-11-25부터 해체 재화도 없다). */
 export function acquireIsGuaranteedEquipmentPickup(env, owner, item, options) {
     return !!(options && options.guaranteedKeep) || env.deps.uniqueHuntRuntime.isTargetItem(item, owner) || env.deps.equipmentLootPolicy.matches(item, owner)
         || env.deps.bagItems.ownShape(item);
 }
 
-/** What picking `item` up would do before space is considered: 'kept', 'filtered' (pickup filter) or 'salvaged' (auto-salvage).
- * An exploration drop that would be kept waits on the floor (js/exploration-ground-loot.js); the others resolve at once. */
+/** Preview of pickup admission before capacity. Physical drops use the live rules only at collection. */
 export function acquirePreviewEquipmentPickup(env, owner, item, options) {
     env.deps.normalizeItem(item);
     if (acquireIsGuaranteedEquipmentPickup(env, owner, item, options) || env.deps.bagItems.keptOnPickup(item, owner)) return 'kept';

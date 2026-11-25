@@ -1,3 +1,4 @@
+import { huntExtraChance } from './hunt-traits.mjs';
 /** Roll and deliver a kill's rewards in order. Yielded notices never grant rewards a second time.
  * Resume after each notice so unlocks, observers and receipts keep their original timing.
  * Item/content ports not yet migrated use the active game, matching LootDelivery's owner contract. */
@@ -45,6 +46,12 @@ class KillLoot {
     }
     *roll(state, enemy) {
         const zone = this.deps.zone(state.currentZoneId) || this.deps.zone(0), context = this.context(state, enemy, zone);
+        const chance = huntExtraChance(enemy);
+        const extra = chance > 0 ? Math.floor(chance) + Number(this.deps.random() < chance % 1) : 0;
+        yield* this.rollItems(state,enemy,zone,context);
+        for (let i=0;i<extra;i++) yield* this.rollItems(state,enemy,zone,{...context,extra:true});
+    }
+    *rollItems(state,enemy,zone,context) {
         yield* this.echo(state, enemy, context);
         yield* this.rune(state, enemy, context);
         const chances = this.deps.chances(zone, enemy), { drops, gear } = this.rolls.currencyAndGear(enemy, zone, chances.equipment);
@@ -56,7 +63,6 @@ class KillLoot {
         yield* this.jewel(state, enemy, context.multiplier);
         const mapping = !!zone && zone.type === 'abyss';
         yield* this.beeLoot(state, enemy, mapping, context);
-        if (zone?.type === 'atlasMap' && this.deps.atlasPassives.has(state, 'beeEvents')) yield* this.beeEvent(state, enemy);
         yield* this.hiveKey(state, enemy, mapping, context);
         yield* this.colonyTrace(state, zone, context);
         const yarn = this.delivery.rollYarn(state, enemy, zone);
@@ -130,27 +136,6 @@ class KillLoot {
             this.delivery.awardCurrency(state, key, 1); gains.push({ key, amount: 1 });
         }
         return gains;
-    }
-    *beeEvent(state, enemy) {
-        if (!enemy || enemy.isBoss || (state.currencies.pollen || 0) < 10) return;
-        if (this.deps.random() >= (enemy.isElite ? 0.012 : 0.0025)) return;
-        state.currencies.pollen = Math.max(0, (state.currencies.pollen || 0) - 10);
-        yield* this.beeEventRewards(this.deps.random());
-    }
-    *beeEventRewards(roll) {
-        if (roll < 0.08) {
-            this.deps.awardCurrency('pollen', 25); this.deps.awardCurrency('enchantedHoney', 1); this.deps.awardCurrency('beeswax', 2);
-            yield { action: 'beeEvent', kind: 'queen' };
-        } else if (roll < 0.28) {
-            this.deps.awardCurrency('venomStinger', 1);
-            if (this.deps.random() < 0.35) this.deps.awardCurrency('beeswax', 1);
-            yield { action: 'beeEvent', kind: 'sting' };
-        } else if (roll < 0.55) {
-            this.deps.awardCurrency('pollen', 15); this.deps.awardCurrency('beeswax', 1);
-            yield { action: 'beeEvent', kind: 'bumble' };
-        } else {
-            this.deps.awardCurrency('pollen', 8); yield { action: 'beeEvent', kind: 'worker' };
-        }
     }
     *hiveKey(state, enemy, mapping, context) {
         if (!(mapping && this.deps.content.canDropCurrency('hiveKey', state) && this.deps.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002))) return;

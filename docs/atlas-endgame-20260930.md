@@ -2,8 +2,8 @@
 
 **설계·진행 이력.** 출발점·목표·단계별 미완료 표시는 2026-09-30 당시 상태다.
 현재 지도 명세는 액트 작성 지도 재사용으로 바뀌었다. 현재 설명은 [아틀라스 후반부](atlas-pinnacles-20261002.md),
-보상 소유는 [탐험 보상](act-exploration-integration.md)을 먼저 읽는다. 지도석·씨앗·패시브·세계수 재생은
-`data/atlas.js`, `js/atlas.js`, `js/atlas-passives.js`, `js/atlas-epoch.js`를 대조한다.
+보상 소유는 [탐험 보상](act-exploration-integration.md)을 먼저 읽는다. 지침(예전 이름 지도석), 씨앗, 패시브 별, 시대 재생은
+`modules/data/atlas.mjs`, `modules/data/atlas-chart.mjs`, `modules/domain/atlas*.mjs`를 대조한다(2026-11-24 천문도 개편).
 아래 생성 지도·별가루·임시 전리품·성소 설명을 현재 기능으로 복원하지 않는다.
 
 사용자 목표(요약): 엔드게임을 깊이 있는 아틀라스 지도 순환으로 만들고, 다른 콘텐츠들도 전투 방식에 맞게 맵을 디자인해서

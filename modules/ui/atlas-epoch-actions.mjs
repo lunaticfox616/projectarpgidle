@@ -10,7 +10,7 @@ export async function rebirth(runtime) {
     if (why) return (0, runtime.deps.addLog)(why, 'attack-monster');
     // The confirmation covers the progress being erased, including altar materials held in the wallet.
     const reviewed = rebirthReview(runtime, owner), gained = runtime.deps.atlasEpoch.essenceFor(owner), before = target.epoch.essence;
-    const accepted = await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('아틀라스 완료, 보너스, 패시브, 씨앗, 후반부 진행(깨어남과 재료)과 이번 루프의 지도석, 각인이 사라지고, 세계수 정수 {gained}개를 받습니다. 특전, 해금, 자동 지도 설정은 남습니다.', { gained }),
+    const accepted = await (0, runtime.deps.requestGameConfirmation)((0, runtime.deps._t)('아틀라스 완료, 보너스, 패시브, 씨앗, 후반부 진행(깨어남과 재료)과 이번 루프의 지침, 각인이 사라지고, 세계수 정수 {gained}개를 받습니다. 특전, 해금, 자동 지도 설정은 남습니다.', { gained }),
         { title: (0, runtime.deps._t)('시대 재생'), tone: 'danger', confirmLabel: (0, runtime.deps._t)('재생'), cancelLabel: (0, runtime.deps._t)('그만두기') });
     if (!accepted) return;
     if (runtime.deps.game !== owner || runtime.deps.game.atlas !== target || rebirthReview(runtime, owner) !== reviewed) {
@@ -20,7 +20,7 @@ export async function rebirth(runtime) {
     if (reason) return (0, runtime.deps.addLog)(reason, 'attack-monster');
     runtime.deps.atlas.sync(owner);
     runtime.state.lastRebirth = { owner, target, season: owner.season, epoch: target.epoch.count, gained: target.epoch.essence - before, maps: target.stash.length };
-    (0, runtime.deps.addLog)((0, runtime.deps._t)('🌳 시대 재생 {count}회, 세계수 정수 +{gained}, 새 지도석 {maps}개', { count: target.epoch.count, gained: runtime.state.lastRebirth.gained, maps: runtime.state.lastRebirth.maps }), 'loot-unique');
+    (0, runtime.deps.addLog)((0, runtime.deps._t)('🌳 시대 재생 {count}회, 세계수 정수 +{gained}, 새 지침 {maps}개', { count: target.epoch.count, gained: runtime.state.lastRebirth.gained, maps: runtime.state.lastRebirth.maps }), 'loot-unique');
     (0, runtime.deps.queueImportantSave)(100);
     runtime.deps.atlasUi.refresh();
     runtime.deps.document.querySelector('#ui-atlas .atlas-epoch-restart')?.scrollIntoView({ block: 'start' });
@@ -57,7 +57,7 @@ export function rebirthReceipt(runtime) {
 export function restartState(runtime) {
     const st = runtime.deps.game.atlas;
     if (!st.epoch.count || st.seeds || st.completed.length) return null;
-    const reason = runtime.deps.atlas.runOpenReason(runtime.deps.game) || (!st.stash.length ? '지도석이 없습니다. 이번 루프의 혼돈 20을 클리어하거나 혼돈 20 이상 보스를 처치하세요.' : '');
+    const reason = runtime.deps.atlas.runOpenReason(runtime.deps.game) || (!st.stash.length ? '지침이 없습니다. 이번 루프의 혼돈 20을 클리어하거나 혼돈 20 이상 보스를 처치하세요.' : '');
     return { receipt: rebirthReceipt(runtime), reason };
 }
 
@@ -65,7 +65,7 @@ export function restartHtml(runtime) {
     const next = restartState(runtime);
     if (!next) return '';
     const { receipt, reason } = next;
-    const received = receipt ? `<p>${(0, runtime.deps._t)('세계수 정수')} <b>+${receipt.gained}</b>${(0, runtime.deps._t)(', 새 지도석')} <b>${(0, runtime.deps._t)('{maps}개', { maps: receipt.maps })}</b>${(0, runtime.deps._t)('를 받았습니다.')}</p>` : '';
+    const received = receipt ? `<p>${(0, runtime.deps._t)('세계수 정수')} <b>+${receipt.gained}</b>${(0, runtime.deps._t)(', 새 지침')} <b>${(0, runtime.deps._t)('{maps}개', { maps: receipt.maps })}</b>${(0, runtime.deps._t)('를 받았습니다.')}</p>` : '';
     return `<section class="atlas-epoch-restart" aria-label="${(0, runtime.deps._t)('시대 재생 후 성장')}"><h3>${receipt ? (0, runtime.deps._t)('시대 재생 완료') : (0, runtime.deps._t)('새 시대의 시작')}</h3>${received}
             <p>${(0, runtime.deps._t)('보유 정수')} <b>${(0, runtime.deps._t)('{essence}개', { essence: runtime.deps.game.atlas.epoch.essence })}</b></p>
             <div><button type="button" onclick="atlasEpochUi.chooseMap()" ${reason ? 'disabled' : ''}>${(0, runtime.deps._t)('새 지도 고르기')}</button><span>${(0, runtime.deps._t)('보관함 {length}개', { length: runtime.deps.game.atlas.stash.length })}</span></div>
@@ -76,7 +76,7 @@ export function html(runtime) {
     const epoch = runtime.deps.game.atlas.epoch, why = runtime.deps.atlasEpoch.reason(runtime.deps.game), restart = restartHtml(runtime);
     const head = `<section class="atlas-epoch-head"><div><h3>${(0, runtime.deps._t)('시대 재생')} <span>${(0, runtime.deps._t)('{count}회', { count: epoch.count })}</span></h3>
             <p class="atlas-muted">${(0, runtime.deps._t)('세계수 씨앗 {seeds}/{max}, 현재 진행 기준 예상 정수 {essenceFor}개 (기본 {base}, 지도 노드 완료 {perCompleted}개마다 1, 보너스 {perBonus}개마다 1, 씨앗마다 {perSeed})', { seeds: runtime.deps.game.atlas.seeds, max: runtime.deps.ATLAS.seeds.max, essenceFor: runtime.deps.atlasEpoch.essenceFor(runtime.deps.game), base: runtime.deps.ATLAS.epoch.essence.base, perCompleted: runtime.deps.ATLAS.epoch.essence.perCompleted, perBonus: runtime.deps.ATLAS.epoch.essence.perBonus, perSeed: runtime.deps.ATLAS.epoch.essence.perSeed })}</p>
-            <p class="atlas-muted">${(0, runtime.deps._t)('초기화: 완료, 보너스, 패시브, 씨앗, 후반부 진행, 이번 루프의 지도석과 각인. 유지: 특전, 해금, 자동 지도, 각인 홈 설정.')}</p></div>
+            <p class="atlas-muted">${(0, runtime.deps._t)('초기화: 완료, 보너스, 패시브, 씨앗, 후반부 진행, 이번 루프의 지침과 각인. 유지: 특전, 해금, 자동 지도, 각인 홈 설정.')}</p></div>
             <div class="atlas-epoch-action"><strong>${(0, runtime.deps._t)('세계수 정수 {essence}', { essence: epoch.essence })}</strong>${why ? `<p class="atlas-lock">${why}</p>` : ''}
             <button class="atlas-primary" onclick="atlasEpochUi.rebirth()" ${why ? 'disabled' : ''}>${(0, runtime.deps._t)('시대 재생')}</button></div></section>`;
     const perks = `<div class="atlas-perks">${runtime.deps.ATLAS.epoch.perks.map(runtime.handlers.perkHtml).join('')}</div>`;

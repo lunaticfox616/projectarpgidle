@@ -27,10 +27,8 @@ const atlasUi = createAtlasView({
     get atlasRun() { return atlasRun; },
     get atlasBoard() { return atlasBoard; },
     get escapeHTML() { return escapeHTML; },
-    get atlasChartArt() { return atlasChartArt; },
     get ResizeObserver() { return typeof ResizeObserver === 'undefined' ? undefined : ResizeObserver; },
     get showInfoTooltipHtml() { return typeof showInfoTooltipHtml === 'undefined' ? undefined : showInfoTooltipHtml; },
-    get ATLAS_PASSIVES() { return ATLAS_PASSIVES; },
     get atlasPassives() { return atlasPassives; },
     get atlasEndgame() { return atlasEndgame; },
     get atlasEncounters() { return atlasEncounters; },
@@ -58,6 +56,7 @@ const atlasUi = createAtlasView({
     get atlasPassivesUi() { return atlasPassivesUi; },
     get atlasEpochUi() { return atlasEpochUi; },
     get memoryDungeonUi() { return memoryDungeonUi; },
-    get atlasBoardUi() { return atlasBoardUi; }
+    get atlasBoardUi() { return atlasBoardUi; },
+    get showGameToast() { return typeof showGameToast === 'undefined' ? undefined : showGameToast; }
 });
 safeExposeGlobals({ atlasUi });

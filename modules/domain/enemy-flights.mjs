@@ -21,19 +21,54 @@ function enqueueReleasedAttack(c, enemy, target, bossPattern, delivery) {
         targetId: targetType === 'summon' ? target.id : null,
         targetCell, bossPattern: bossPattern || null, delivery, woodsmanElement: c.deps.woodsmanAttackFxElement(enemy)
     };
-    const flight = c.deps.enemyAttackRules.trajectory(attack,enemy,travelMs);
-    travelMs = flight.duration;
-    c.deps.pendingEnemyCombatAttacks.push(attack);
+    const sideShots = spreadShots(attack);
+    if (sideShots.length) attack.volley = true;
+    const flight = queueFlight(c,attack,travelMs);
     c.deps.bossMoves.begin(attack, now);
     const releaseMs = emitAttackRelease(c, enemy, bossPattern, delivery, target);
-    if (delivery === 'patternArea') return true;
-    c.deps.addBattleFx('combatTravel', {
-        owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
-        targetType, targetId: attack.targetId,
-        delivery, element: c.deps.enemyAttackRules.element(enemy, bossPattern), cerberusHead: bossPattern?.cerberusHead, releaseDelayMs: 0,
-        flightMs: travelMs, duration: Math.max(travelMs + 260, releaseMs)
-    });
+    presentReleasedFlights(c,attack,flight,sideShots,releaseMs);
     return true;
+}
+
+function presentReleasedFlights(c,attack,flight,sideShots,releaseMs) {
+    if (attack.delivery === 'patternArea') return;
+    if (attack.groundCell) releaseGroundCaster(c,attack,releaseMs);
+    else showFlight(c,attack,flight,releaseMs);
+    for (const shot of sideShots) showFlight(c,shot,queueFlight(c,shot,flight.duration),releaseMs);
+}
+
+function releaseGroundCaster(c,attack,duration) {
+    attack.groundElement = c.deps.enemyAttackRules.element(attack.source,attack.bossPattern);
+    if (attack.source.isBoss) return; // The boss release already owns its body motion.
+    c.deps.addBattleFx('enemyCastRelease',{enemyId:attack.enemyId,enemyFlight:attack,element:attack.groundElement,duration});
+}
+
+function spreadShots(attack) {
+    if (!attack.source.huntTraits?.includes('volley')) return [];
+    if (!['projectileTarget','projectileCell','magicCell'].includes(attack.delivery)) return [];
+    const {sourceCell,targetCell}=attack;
+    const dx=targetCell.gx-sourceCell.gx,dy=targetCell.gy-sourceCell.gy;
+    const distance=Math.hypot(dx,dy);
+    if (!distance) return [];
+    const width=Math.max(1,distance*0.4);
+    return [-1,1].map(side=>({...attack,volley:true,secondaryShot:true,delivery:'projectileCell',targetCell:{
+        gx:Math.round(targetCell.gx-side*width*dy/distance),gy:Math.round(targetCell.gy+side*width*dx/distance)
+    }}));
+}
+
+function queueFlight(c,attack,travelMs) {
+    const flight=c.deps.enemyAttackRules.trajectory(attack,attack.source,travelMs);
+    c.deps.pendingEnemyCombatAttacks.push(attack);
+    return flight;
+}
+
+function showFlight(c,attack,flight,releaseMs,contact=null) {
+    const {enemyId,sourceCell,targetCell,targetType,targetId,delivery,bossPattern}=attack;
+    const groundImpact = contact !== null;
+    c.deps.addBattleFx('combatTravel',{owner:'enemy',sourceId:enemyId,sourceCell,targetCells:[targetCell],
+        travelPath:flight.path,enemyFlight:attack,targetType,targetId,delivery,element:attack.groundElement || c.deps.enemyAttackRules.element(attack.source,bossPattern),
+        cerberusHead:bossPattern?.cerberusHead,releaseDelayMs:0,flightMs:flight.duration,groundImpact,groundOccupied:contact?.occupied,
+        duration:groundImpact ? 220 : Math.max(flight.duration+260,releaseMs)});
 }
 
 /** Release pictures start even when the warned area later misses every target. */
@@ -76,7 +111,7 @@ function removeReleasedAttack(c, index, now) {
 }
 
 function takeReleasedAttack(c, enemyId, now) {
-    let index = c.deps.pendingEnemyCombatAttacks.findIndex(row => row && row.enemyId === enemyId);
+    let index = c.deps.pendingEnemyCombatAttacks.findIndex(row => row && row.enemyId === enemyId && flightReady(c,row,now));
     if (index < 0) return null;
     let attack = c.deps.pendingEnemyCombatAttacks[index];
     if (attack.source.isBoss && attack.source.hp <= 0) { removeReleasedAttack(c, index,now); return null; }
@@ -85,12 +120,29 @@ function takeReleasedAttack(c, enemyId, now) {
         removeReleasedAttack(c, index,now);
         return null;
     }
-    if (attack.at > now) return null;
-    if (attack.path && !c.deps.enemyAttackRules.advanceFlight(attack,c.owner,now)) return null;
+    if (attack.source.isBoss && (attack.at>now || (attack.path && !c.deps.enemyAttackRules.advanceFlight(attack,c.owner,now)))) return null;
     c.deps.pendingEnemyCombatAttacks.splice(index, 1);
+    announceReleasedContact(c,attack,now);
+    return attack;
+}
+
+function announceReleasedContact(c,attack,now) {
+    if (attack.groundCell) landGroundFlight(c,attack);
     if (attack.delivery === 'patternArea') landBossPatternArea(c, attack, now);
     announceWoodsmanImpact(c, attack);
-    return attack;
+}
+
+function landGroundFlight(c,attack) {
+    const visual = attack.source.spriteVariantId || attack.source.monsterVisualId;
+    const occupied = visual === 'act9-chorus-bulbs'
+        ? c.deps.enemyAttackRules.impactTargets(attack,c.owner).length > 0 : undefined;
+    showFlight(c,attack,{duration:0},0,{occupied});
+}
+
+function flightReady(c,attack,now) {
+    if (attack.source?.isBoss) return true;
+    if (attack.at>now) return false;
+    return !attack.path || c.deps.enemyAttackRules.advanceFlight(attack,c.owner,now);
 }
 
 /** The released element owns the visual even when the boss changes phase before impact. */
@@ -112,7 +164,9 @@ function landBossPatternArea(c, attack, now) {
     const stage = c.deps.bossMoves.takeStage(attack, c.deps.pendingEnemyCombatAttacks, now);
     if (c.deps.woodsmanStumps.resolve(attack, now)) return;
     if (stage && !stage.burst) return;
-    c.deps.addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
+    // casterId: drawing only (the Rootlet's paw cracks the ground under it as its wave lands).
+    c.deps.addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, wave: attack.bossPattern.move?.next, casterId: attack.source.id,
+        element: c.deps.enemyAttackRules.element(attack.source,attack.bossPattern), duration: 560 });
 }
 
 function releasedAttackTargets(c, pendingAttack) {

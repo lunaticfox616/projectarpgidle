@@ -9,6 +9,7 @@ import * as runPart6 from './combat/colony-run-controls.mjs';
 import * as corePart0 from './combat/core-hit-math.mjs';
 import * as corePart1 from './ui/combat-log-format.mjs';
 import * as corePart2 from './combat/core-hit-results.mjs';
+import { reflectHuntHit } from './domain/hunt-fields.mjs';
 import * as corePart3 from './combat/core-recovery.mjs';
 import * as corePart4 from './combat/core-keystones.mjs';
 import * as corePart5 from './combat/core-socket-bonuses.mjs';
@@ -110,7 +111,7 @@ const deps = {
     get PLAYER_ATTACK_RECOVERY() { return PLAYER_ATTACK_RECOVERY; },
     get PLAYER_WALKING_CHARGE() { return PLAYER_WALKING_CHARGE; }
 };
-const memo = { woodsmanSnapshotPrints: new WeakMap(), colonyLootWaits: new WeakMap(), evasionEntropyByDefender: new WeakMap(), ascendKeystoneOwnerIndex: null };
+const memo = { woodsmanSnapshotPrints: new WeakMap(), evasionEntropyByDefender: new WeakMap(), ascendKeystoneOwnerIndex: null };
 const env = { get owner() { return game; }, runtime, deps, memo };
 const presentation = {
     get runLog() { return addLog; },
@@ -174,7 +175,10 @@ const combatCore = {
     formatNumberKR(value) { return corePart1.coreFormatNumberKR(env, value); },
     addEvasionCombatLog(target, isPlayer) { return runControlCommands(corePart1.coreAddEvasionCombatLog(env, target, isPlayer)); },
     getPlayerHitCombatLog(summary, hit) { return corePart1.coreGetPlayerHitCombatLog(env, summary, hit); },
-    notePlayerHitSummary(summary, enemy, dealt) { return corePart2.coreNotePlayerHitSummary(summary, enemy, dealt); },
+    notePlayerHitSummary(summary, enemy, dealt) {
+        if (enemy?.huntTraits) reflectHuntHit(env.owner,enemy,dealt,env.deps.getCombatTime());
+        return corePart2.coreNotePlayerHitSummary(summary, enemy, dealt);
+    },
     explodeCorpse(enemy, splash, label, onKill, noun) { return runControlCommands(corePart2.coreExplodeCorpse(env, enemy, splash, { label, noun }), { corpseDeath: onKill }); },
     applyLeechSoftcap(rawLeech) { return corePart3.coreApplyLeechSoftcap(env, rawLeech); },
     getPlayerHitLeechTarget(pStats) { return corePart3.coreGetPlayerHitLeechTarget(env, pStats); },
@@ -274,8 +278,7 @@ safeExposeGlobals({
     WARRIOR_RAGE_DURATION_MS: coreValues.WARRIOR_RAGE_DURATION_MS,
     ELEMENTALIST_OVERLOAD_STACK_MAX: coreValues.ELEMENTALIST_OVERLOAD_STACK_MAX,
     WOODSMAN_LOCKED_FIELDS: coreValues.WOODSMAN_LOCKED_FIELDS,
-    WOODSMAN_LOCKED_POINTS: coreValues.WOODSMAN_LOCKED_POINTS,
-    COLONY_MANUAL_LOOT_WAIT_MS: coreValues.COLONY_MANUAL_LOOT_WAIT_MS
+    WOODSMAN_LOCKED_POINTS: coreValues.WOODSMAN_LOCKED_POINTS
 });
 
 const combatRuns = {

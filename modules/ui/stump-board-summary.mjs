@@ -156,6 +156,9 @@ export function stumpMoreTabs(runtime) {
     return runtime.deps.contentProgression.isUnlocked('talisman') ? tabs.concat([['talisman', (0, runtime.deps._t)('부적')]]) : tabs;
 }
 
+/** The pixel icon in front of each tab's name. */
+const MORE_TAB_ICONS = Object.freeze({ harvest: 'leaf', unlocks: 'unlock', wallet: 'gem', talisman: 'orb' });
+
 /** The tab row alone until one is pressed; pressing the open tab folds it again (2026-10-25: no scroll on the first view). */
 export function stumpMoreHtml(runtime) {
     const tabs = stumpMoreTabs(runtime);
@@ -163,7 +166,7 @@ export function stumpMoreHtml(runtime) {
     const buttons = tabs.map(([id, label]) => {
         const on = runtime.state.moreOpen && id === runtime.state.moreTab;
         return `<button type="button" role="tab" class="stump-more-tab${on ? ' is-on' : ''}" data-stump-action="more-tab" data-tab="${id}"`
-            + ` aria-selected="${on}" aria-expanded="${on}">${label}</button>`;
+            + ` aria-selected="${on}" aria-expanded="${on}">${runtime.deps.renderPixelIcon(MORE_TAB_ICONS[id], 'stump-more-icon')}<span>${label}</span></button>`;
     }).join('');
     return `<div class="stump-more-tabs" role="tablist">${buttons}</div>`
         + (runtime.state.moreOpen ? `<div class="stump-more-body" role="tabpanel">${runtime.state.STUMP_MORE_BODIES[runtime.state.moreTab]()}</div>` : '');
