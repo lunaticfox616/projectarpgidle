@@ -29,6 +29,8 @@
   뿌리가 든 탭에는 금빛 점이 붙는다. 칸 왼쪽 위에 가진 수, 다 쓴 재화는 흐린 그림, 아직 얻지 못하거나 해금하지 않은 재화는 빈 칸이다
   (`craftingCatalogUi.visible`). 누르면 제작 재화는 쓸 재화로 고르고, 화석 재료는 수확/화석 정제 칸을 열고, 뿌리는 걸거나 푼다.
   주 재화 칸과 그 편집은 없어졌고, 저장의 `craftingWorkspace.pins`는 불러올 때 버린다.
+  칸에 마우스를 올리면 뜨는 카드(`stashTip`, 이름의 색, 테마 빛 테, 보유 수, 효과 낱말 색)는 전투 화면 지역 이름 아래의 기본 재화 줄
+  (`modules/ui/combat-currency-hud.mjs`)에도 그대로 뜬다(`craftingStashUi.card`, 2026-11-26 사용자: 제작 재료의 색감). 그 줄은 터치로 길게 누르면 이름만 뜬다(`data-touch-tip`).
 - **장비, 인벤토리 고르기 창**(`modules/ui/craft-picker-host-actions.mjs`, 출력 `js/craft-picker-host-ui.js`): 장비 창의 진짜 장착 칸과 가방을 `#craft-equip-host`로 옮겨 와 보여
   주고, 창을 닫으면 돌려놓는다(그루터기 함이 가방을 옮기는 방식과 같다). `css/*.css`의 장비 창 규칙은 `#item-tab-equip`,
   `#stump-equip-host`, `#craft-equip-host`를 같이 본다. 장비를 누르면 제작 대상이 되고 끌기, 두 번 누르기는 막는다. 주얼, 코어,

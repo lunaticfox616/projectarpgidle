@@ -3,6 +3,8 @@ const SHOW_DELAY_MS = 120;
 const HOLD_MS = 450;
 const HOLD_SLOP_PX = 10;
 const HOST = '[data-tip]:not([data-tip=""])';
+// data-touch-tip: the long-press text of an element whose mouse hover opens its own card (the battle screen's currency strip).
+const TOUCH_HOST = `${HOST}, [data-touch-tip]:not([data-touch-tip=""])`;
 class PlainTip {
     host = null;
     timer = 0;
@@ -10,7 +12,7 @@ class PlainTip {
     pressed = false;
     x = 0;
     y = 0;
-    plainTipHost = event => (event.target.closest ? event.target.closest(HOST) : null);
+    plainTipHost = (event, hosts = HOST) => (event.target.closest ? event.target.closest(hosts) : null);
     quiet = { capture: true, passive: true };
     constructor({ window, document }, inputs) {
         this.window = window; this.document = document; this.inputs = inputs;
@@ -29,7 +31,7 @@ class PlainTip {
         this.timer = 0;
         if (!this.host || !this.host.isConnected) return;
         const refused = this.host.matches(':disabled, [aria-disabled="true"]');
-        const html = `<div class="tooltip-line plain-tip${refused ? ' is-refused' : ''}">${escapeHTML(this.inputs.translate(this.host.dataset.tip))}</div>`;
+        const html = `<div class="tooltip-line plain-tip${refused ? ' is-refused' : ''}">${escapeHTML(this.inputs.translate(this.host.dataset.tip || this.host.dataset.touchTip))}</div>`;
         this.inputs.show(this.x, this.y, html, refused ? '#b5654a' : '#a98546');
         this.shown = true;
     }
@@ -76,7 +78,7 @@ class PlainTip {
             this.pressed = true;
             return;
         }
-        const next = this.plainTipHost(event);
+        const next = this.plainTipHost(event, TOUCH_HOST);
         if (next) this.armPlainTip(next, event, HOLD_MS);
         else this.forgetPlainTip();
     }
