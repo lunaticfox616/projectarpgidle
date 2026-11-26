@@ -114,7 +114,7 @@ Object.assign(SKILL_DB, {
     "탄성 플라스크": {"isGem":true,"ele":"chaos","baseSpd":0.5,"desc":"적 사이를 4번 튕기는 카오스 플라스크. 떨어질 때마다 1칸 안에 작은 중독 폭발(30%)이 일고, 둘레에 다른 적이 없으면 같은 적에게 다시 튕깁니다.","tags":["spell","projectile","chaos","potion","dexterity","intelligence"],"combatPattern":{"kind":"bouncingFlask","hits":4},"baseDmg":0.9,"dmgScale":0.049,"spdScale":0.008,"spellFlatBase":20,"spellFlatScale":4.4,"crit":6,"nativeCastId":44,"leech":0,"targets":99,"category":"spell","rangeText":"최대 4회 연쇄"},
     "신성한 기도": {"isGem":true,"category":"attack","ele":"light","baseSpd":0.68,"desc":"기도하면 둘레 3칸 안 가까운 적 셋에게 번개 창이 하늘에서 저마다 다른 각도로, 짧은 시간차를 두고 내리꽂혀 떨어진 자리 둘레 1칸을 칩니다. 대상 수가 늘면 창이, 범위가 늘면 둘레가 함께 늘어납니다.","tags":["attack","lightning","aoe","elemental","shout","strength","intelligence"],"targetMode":"all-enemies-around-caster","combatPattern":{"kind":"radiantLance","hits":1},"baseDmg":2.65,"dmgScale":0.15,"spdScale":0.01,"crit":6,"nativeCastId":45,"leech":0,"targets":99,"rangeText":"주변 3칸 안 가까운 적 3명, 떨어진 자리 둘레 1칸"},
     "시간 가속": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":1,"damageType":"dot","desc":"5초간 자신을 따라오는 카오스 지속 피해","tags":["spell","chaos","aoe","dot","duration","intelligence"],"targetMode":"all-enemies-around-caster","combatPattern":{"kind":"timeAcceleration","durationMs":5000,"intervalMs":1000,"ticks":5,"initialTick":false},"baseDmg":0.7,"dmgScale":0.038,"spdScale":0,"spellFlatBase":24,"spellFlatScale":5,"crit":0,"nativeCastId":46,"leech":0,"targets":99,"rangeText":"원형 반경 3칸, 1초마다 5회"},
-    "폭발 혼합물": {"isGem":true,"category":"attack","ele":"fire","baseSpd":0.78,"desc":"투척 지점 3×3 화염 폭발","tags":["attack","projectile","fire","aoe","elemental","potion","dexterity","intelligence"],"targetMode":"aimed-cell","combatPattern":{"kind":"explosiveMixture","impacts":1,"homing":false},"baseDmg":2.5,"dmgScale":0.15,"spdScale":0.014,"crit":6,"nativeCastId":47,"leech":0,"targets":99,"rangeText":"사거리 4칸, 착지 지점 3×3"},
+    "폭발 혼합물": {"isGem":true,"category":"attack","ele":"fire","baseSpd":0.78,"desc":"투척 지점 3×3 화염 폭발","tags":["attack","projectile","fire","aoe","elemental","potion","dexterity","intelligence"],"targetMode":"aimed-cell","combatPattern":{"kind":"explosiveMixture","impacts":1,"homing":false},"baseDmg":2.5,"dmgScale":0.15,"spdScale":0.014,"crit":6,"nativeCastId":47,"leech":0,"targets":6,"rangeText":"사거리 4칸, 착지 지점 3×3"},
     "과냉각 혼합물": {"isGem":true,"category":"attack","ele":"cold","baseSpd":0.76,"desc":"적에게 직접 투척, 착지 타격과 바깥으로 퍼지는 냉기 고리","tags":["attack","projectile","cold","aoe","elemental","potion","dexterity","intelligence"],"targetMode":"aimed-annuli","combatPattern":{"kind":"supercooledMixture","impacts":3,"radii":[1,2,3],"centerHit":true},"baseDmg":2.65,"dmgScale":0.14,"spdScale":0.012,"crit":6,"nativeCastId":48,"leech":0,"targets":99,"rangeText":"사거리 4칸, 반경 1→2→3 고리"},
     "빈 플라스크": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.78,"desc":"빈 병 적중 후 유리 파편 1~4개 발사, 다른 적이 모자라면 남은 파편이 맞은 적에게 차례로 꽂힘","tags":["attack","projectile","physical","potion","dexterity","intelligence"],"targetMode":"flask-then-shards","combatPattern":{"kind":"emptyFlask","baseShards":[1,4],"extraProjectileChance":true},"baseDmg":0.48,"dmgScale":0.032,"spdScale":0.012,"crit":6,"nativeCastId":49,"leech":0,"targets":99,"rangeText":"사거리 4칸, 파편 사거리 3칸"},
     "신성한 안개": {"isGem":true,"category":"spell","ele":"fire","baseSpd":0.9,"desc":"인접 8칸 화염 주문, 받는 화염 피해 +20%, 4초","tags":["spell","fire","aoe","debuff","elemental","strength","intelligence"],"targetMode":"self-adjacent","combatPattern":{"kind":"holyMist","radius":1,"hits":1},"baseDmg":1.4,"dmgScale":0.072,"spdScale":0.016,"spellFlatBase":22,"spellFlatScale":4.8,"crit":6,"nativeCastId":50,"leech":0,"targets":99,"rangeText":"주변 1칸, 인접 8칸"},
@@ -137,7 +137,7 @@ Object.assign(SKILL_DB, {
         "tags":["attack","projectile","physical","mobility","dexterity"],"baseDmg":1.7,"dmgScale":0.09,"spdScale":0.01,"crit":8,"leech":0,
         "mobilityCooldownMs":4000,"rangeText":"사거리 5칸, 적 앞 칸까지 끌려감"},
     // 2026-10-20 스킬룬 추가본(v44): 사용자가 구상한 플라스크 이동기. 피해 120, 5칸, 둘레 1칸, 돌진 0.26초는 추가본의 제안 값이다.
-    "바위 플라스크": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":77,
+    "바위 플라스크": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":4,"nativeCastId":77,
         "desc":"단단한 바위를 연성한 플라스크에 줄을 매달아 던져 떨어진 자리 둘레에 피해를 주고, 줄을 당겨 그 앞까지 돌진합니다.",
         "tags":["attack","projectile","physical","aoe","mobility","potion","dexterity","intelligence"],"baseDmg":1.2,"dmgScale":0.06,"spdScale":0.01,"crit":6,"leech":0,
         "mobilityCooldownMs":4000,"rangeText":"사거리 5칸, 떨어진 자리 둘레 1칸, 그 앞 칸까지 돌진"}
@@ -166,7 +166,7 @@ Object.assign(SKILL_DB, {
     "특이점 분리": {"isGem":true,"category":"attack","ele":"chaos","baseSpd":0.62,"targetMode":"aimed-cell","targets":99,"nativeCastId":84,"desc":"대검을 내리그어 앞에 세로로 9칸 길이의 혼돈 차원 틈을 엽니다. 틈 위의 적을 베고 양옆의 적을 틈으로 끌어당긴 뒤, 0.52초 뒤 특이점이 붕괴하며 한 번 더 칩니다(60%).","tags":["attack","melee","chaos","aoe","slam","strength"],"baseDmg":1.7,"dmgScale":0.085,"spdScale":0.01,"crit":6,"leech":0,"rangeText":"앞 2칸 줄, 세로 9칸, 양옆 1칸 끌어당김"},
     "일섬": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.55,"targetMode":"aimed-cell","targets":99,"nativeCastId":85,"desc":"대검을 가로로 크게 그어 화면 끝에서 끝까지 한 줄을 벱니다. 번쩍 그은 선이 지나간 뒤 0.22초 후 그 줄과 위아래 한 줄의 모든 적이 한꺼번에 베입니다.","tags":["attack","melee","physical","aoe","strength"],"baseDmg":2,"dmgScale":0.1,"spdScale":0.008,"crit":8,"leech":0,"rangeText":"자기 줄과 위아래 한 줄, 앞뒤 10칸"},
     "공허의 빙의": {"isGem":true,"category":"attack","ele":"chaos","baseSpd":0.85,"targetMode":"all-enemies-around-caster","targets":99,"nativeCastId":86,"desc":"공허를 외쳐 둘레 3칸 안의 적을 끌어당기고, 공허의 혼을 깃들게 해 피해를 준 뒤 4초 동안 받는 피해를 20% 늘립니다.","tags":["attack","chaos","aoe","shout","strength","dexterity"],"baseDmg":0.7,"dmgScale":0.035,"spdScale":0.015,"crit":3,"leech":0,"rangeText":"주변 3칸, 약화 4초"},
-    "병에 담긴 번개": {"isGem":true,"category":"spell","ele":"light","baseSpd":0.7,"targetMode":"aimed-cell","targets":99,"nativeCastId":87,"desc":"정전기가 든 플라스크를 던집니다. 병이 깨진 자리로 정전기가 모였다가, 거대한 낙뢰가 한 번 강하게 내리꽂혀 둘레 2칸의 적에게 큰 피해를 줍니다(200%).","tags":["spell","projectile","lightning","elemental","aoe","potion","dexterity","intelligence"],"baseDmg":1,"dmgScale":0.055,"spdScale":0.012,"crit":8,"spellFlatBase":22,"spellFlatScale":4.6,"leech":0,"rangeText":"사거리 5칸, 떨어진 자리 둘레 2칸"},
+    "병에 담긴 번개": {"isGem":true,"category":"spell","ele":"light","baseSpd":0.7,"targetMode":"aimed-cell","targets":6,"nativeCastId":87,"desc":"정전기가 든 플라스크를 던집니다. 병이 깨진 자리로 정전기가 모였다가, 거대한 낙뢰가 한 번 강하게 내리꽂혀 둘레 2칸의 적에게 큰 피해를 줍니다(200%).","tags":["spell","projectile","lightning","elemental","aoe","potion","dexterity","intelligence"],"baseDmg":1,"dmgScale":0.055,"spdScale":0.012,"crit":8,"spellFlatBase":22,"spellFlatScale":4.6,"leech":0,"rangeText":"사거리 5칸, 떨어진 자리 둘레 2칸"},
     "연금 가마솥": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":0.6,"targetMode":"aimed-cell","targets":99,"nativeCastId":88,"desc":"대상 위에 커다란 고딕 가마솥을 불러냅니다. 기울어진 솥에서 물약이 쏟아져 둘레 2.5칸의 적을 세 번 덮고(80%, 50%, 50%), 바닥에 물약 웅덩이가 잠시 남습니다.","tags":["spell","chaos","aoe","potion","dexterity","intelligence"],"baseDmg":1.1,"dmgScale":0.06,"spdScale":0.012,"crit":6,"spellFlatBase":24,"spellFlatScale":5,"leech":0,"rangeText":"사거리 6칸, 대상 둘레 2.5칸"},
     "거둬 가는 종": {"isGem":true,"category":"spell","ele":"phys","baseSpd":0.75,"targetMode":"aimed-cell","targets":99,"nativeCastId":89,"desc":"대상 위에 성당의 금빛 종을 불러내 두 번 울립니다(120%, 80%). 퍼져 나가는 음파가 둘레 3칸의 적에게 물리 피해를 주며, 종에서 멀어질수록 피해가 약해집니다(끝 35%).","tags":["spell","physical","aoe","strength","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.014,"crit":6,"spellFlatBase":22,"spellFlatScale":4.8,"leech":0,"rangeText":"사거리 6칸, 대상 둘레 3칸"},
     "탐욕 파문": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.7,"targetMode":"aimed-cell","targets":99,"nativeCastId":90,"desc":"향로를 내려찍어 대상 위의 금빛 샹들리에를 떨어뜨립니다. 부딪히는 순간 둘레 2칸의 적에게 물리 100%와 화염 100% 피해를 주고, 금빛 파문과 불길이 퍼집니다.","tags":["attack","physical","fire","elemental","aoe","slam","strength","intelligence"],"baseDmg":1.2,"dmgScale":0.065,"spdScale":0.012,"crit":6,"leech":0,"rangeText":"사거리 5칸, 대상 둘레 2칸"},
@@ -415,6 +415,7 @@ const SKILL_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
 /** 일반 룬보다 드물게 뽑히는 룬의 무게 배율(js/skills.js getSkillRuneRewardWeight). */
 const SKILL_RUNE_DROP_WEIGHTS = Object.freeze({ '탐욕의 광기': 0.02 });
 const SUPPORT_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
+    37: ['원거리 조준', '추가 표적', '연쇄 타격'],
     60: ['갈래 투사체', '연쇄 투사체', '넓은 판정', '터지는 시체', '처형', '유지 시전', '집속', '분쇄의 일격', '비전 증폭', '화염 공명', '냉기 공명', '번개 공명', '혼돈 공명'],
     101: ['이중 발동', '이중 시전', '증원']
 }).flatMap(([level, names]) => names.map(name => [name, Number(level)]))));
@@ -455,6 +456,7 @@ const STAT_TONES = Object.freeze({
 });
 /** 체감형 보조스킬룬은 stat이 아니라 동작으로 색을 고른다. */
 const SUPPORT_RUNE_BEHAVIOR_TONES = Object.freeze({
+    '원거리 조준': 'crit', '추가 표적': 'speed', '연쇄 타격': 'lightning',
     '화염 변환': 'fire', '냉기 변환': 'cold', '번개 변환': 'lightning', '카오스 변환': 'chaos', '이중 발동': 'phys', '이중 시전': 'arcane', '갈래 투사체': 'phys', '연쇄 투사체': 'lightning',
     '휩쓸기': 'phys', '꿰뚫기': 'crit', '넓은 판정': 'arcane', '밀어내기': 'guard', '투척': 'speed', '지뢰 설치': 'arcane', '강타화': 'crit', '잔불': 'fire',
     '유지 시전': 'speed', '분산': 'arcane', '집속': 'crit', '불붙이기': 'life', '터지는 시체': 'chaos', '처형': 'crit', '증원': 'summon',
@@ -807,6 +809,29 @@ const SKILL_GRID_DB = {
 
 
 
+
+// 범위 보조와 적중 상한은 피해 태그(aoe)와 별도로 분류한다. 방향형의 길이는 반경으로 세지 않는다.
+for (const name of ['화염 부패', '빙결 침식', '시간 가속', '과냉각 혼합물', '신성한 안개', '파문심판', '특이점 분리', '일섬',
+    '판결-유죄', '차원찢기', '향로구름', '석화 혼합물', '공허의 빙의', '연금 가마솥', '거둬 가는 종', '탐욕 파문', '신성한 기도']) {
+    SKILL_DB[name].areaKind = 'fixed';
+}
+for (const name of ['회오리', '대지의 함성', '도약 강타', '폭발성 타격', '피뢰침', '신성한 단두대', '얼어붙은 고리', '불씨의 함성',
+    '공허 가르기', '서리 파동', '참격파', '섬머솔트 슬래시', '불사르기', '혹한의 지진', '서리바람 내지르기', '중력 붕괴', '화염 폭풍핵',
+    '유성 낙화', '난타 눈보라', '번개 각인', '화살비', '폭발 혼합물', '바위 플라스크', '병에 담긴 번개']) {
+    const skill = SKILL_DB[name], grid = SKILL_GRID_DB[name];
+    skill.areaKind = 'variable';
+    skill.areaBaseRadius = grid.radius ?? 0;
+}
+
+// Only casts aimed into the field extend their initial reach. Self-centred and movement
+// patterns own their geometry, including Verdict and Rift whose line grid is a hit area.
+Object.entries(SKILL_GRID_DB).forEach(([name, profile]) => {
+    const skill = SKILL_DB[name];
+    if (!skill || profile.range <= 1 || !['blast', 'line', 'fan', 'chain'].includes(profile.kind)) return;
+    if (skill.tags.some(tag => ['mobility', 'summon', 'melee'].includes(tag))) return;
+    if ([51, 84, 85, 91].includes(skill.nativeCastId)) return;
+    skill.firstAimEligible = true;
+});
 
 const CONDITION_PATTERN_TRIGGER_DB = Object.freeze([
   // 기본 조건은 전투 전술(액트 3 클리어)과 함께 열린다. 고급 조건만 추가 진행을 요구한다.

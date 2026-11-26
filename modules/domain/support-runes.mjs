@@ -2,6 +2,7 @@ import { activeSupportTier, getSupportTierMultiplier, getSupportResonanceCostAtT
 import { formatSupportGemEffectValue } from '../common/formatting.mjs';
 import { getGemLevelGrowthSteps } from './gem-growth.mjs';
 import { getRuneLevelNote } from './rune-requirements.mjs';
+import { areaSkillKind } from './skill-effect-expansion.mjs';
 
 // Pure skill-local preparation. Original tags make repeated preparation idempotent.
 const elementTags = { phys: 'physical', fire: 'fire', cold: 'cold', light: 'lightning', chaos: 'chaos' };
@@ -16,12 +17,15 @@ const summonStatMap = Object.freeze({ aspd: 'summonAspd', crit: 'summonCrit', cr
 const supportedCommonStats = Object.freeze(['aspd', 'crit', 'critDmg', 'resPen']);
 
 const behavior = {
+        firstAim: (out, val) => { out.firstAim = val; },
+        additionalTargets: (out, val) => { out.additionalTargets = val; },
+        linkedStrike: (out, val) => { out.linkedStrike = val; },
         repeat: (out, val) => { out.repeat = { count: 1, damagePct: val }; out.speedMultiplier *= 0.9; },
         projectiles: (out, val) => { out.projectiles = { extra: val, damagePct: 80 }; out.damageMultiplier *= 0.8; },
         chain: (out, val) => { out.chain = { count: val, stepDamagePct: -25 }; },
         sweep: (out, val) => { out.sweep = { extra: val, damagePct: 70 }; },
         pierce: (out, val) => { out.pierce = val; out.damageMultiplier *= 0.85; },
-        expansion: (out, val) => { out.expansion = val; out.damageMultiplier *= 0.85; },
+        expansion: (out, val) => { out.expansion = val; },
         range: (out, val) => { out.range = val; },
         push: (out, val) => { out.push = val; out.damageMultiplier *= 0.9; },
         ignite: (out, val) => { out.ignite = { chancePct: val, durationMs: 1000 }; },
@@ -56,6 +60,18 @@ class SupportRunes {
     }
 
     behaviorMatches(def, skill, tags) {
+        if (def.kind === 'firstAim') return !!(skill.firstAimEligible || skill.supportEffects?.throwRange);
+        if (def.kind === 'linkedStrike') return this.linkedStrikeMatches(skill, tags);
+        if (def.kind === 'expansion' || def.kind === 'additionalTargets') return areaSkillKind(skill) === 'variable';
+        return this.legacyBehaviorMatches(def, skill, tags);
+    }
+
+    linkedStrikeMatches(skill, tags) {
+        return tags.has('single') && !['aoe','projectile','summon','mobility'].some(tag => tags.has(tag))
+            && !skill.supportEffects?.sweep && (skill.supportEffects?.focus || !skill.nativeCastId);
+    }
+
+    legacyBehaviorMatches(def, skill, tags) {
         if (this.conversionBlocked(def, skill)) return false;
         if (def.requireRange && !skill.rangeAxis) return false;
         if (def.kind === 'reinforcement' && !tags.has('summon_attack')) return false;
@@ -228,6 +244,9 @@ class SupportRunes {
         return { equippedSupports, removed };
     }
     describeBehavior = {
+        firstAim: (def, val) => this.translate('원거리 스킬의 첫 대상과 투사체가 닿는 거리가 {val}칸 늘어납니다.', { val }),
+        additionalTargets: (def, val) => this.translate('가변 범위 스킬이 범위 안의 다른 적을 {val}기 더 맞힙니다.', { val }),
+        linkedStrike: (def, val) => this.translate('투사체를 쓰지 않는 단일 공격이 첫 대상에 인접한 다른 적 1기를 첫 타격 피해의 {val}%로 동시에 맞힙니다.', { val }),
         conversion: (def, val) => this.translate('피해 {val}% {name}', { val, name: def.name }),
         repeat: (def, val) => this.translate('한 번 더 발동, 두 번째 피해 {val}%', { val }),
         projectiles: (def, val) => this.translate('투사체 +{val}발', { val }), chain: (def, val) => this.translate('추가 연쇄 {val}회', { val }),

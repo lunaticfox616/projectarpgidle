@@ -39,7 +39,7 @@ export function createSkillScreenView(deps) {
 
 function initialize(runtime) {
     runtime.state.lastSkillPanelRenderSignature = '';
-    runtime.state.libraryPages = { skill: { index: 0, query: '' }, support: { index: 0, query: '' }, sealed: { index: 0, query: '' } };
+    runtime.state.libraryPages = { skill: { index: 0, query: '' }, sealed: { index: 0, query: '' } };
     runtime.state.sealConfirmationPending = false;
     runtime.state.PICKER_TABS = Object.freeze([
         { kind: 'active', label: '공격|룬 종류', icon: 'sword' },
@@ -49,9 +49,8 @@ function initialize(runtime) {
         { kind: 'sealed', label: '봉인|룬 종류', icon: 'lock' }
     ]);
     runtime.state.MOBILE_PAGE_SIZE = 8;
-    runtime.state.supportDpsGains = new Map();
 }
 
 function disposeSkillScreen(runtime) {
-    releaseViewEvents(runtime); runtime.state.lastSkillPanelRenderSignature = ''; runtime.state.supportDpsGains.clear();
+    releaseViewEvents(runtime); runtime.state.lastSkillPanelRenderSignature = '';
 }

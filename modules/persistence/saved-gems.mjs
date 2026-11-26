@@ -1,4 +1,5 @@
 import { summon } from './saved-support-runes.mjs';
+import { keepSupportSlotAssignments } from '../common/support-gems.mjs';
 
 /** The main gem and the 이동 스킬 slot (스킬 변경분 2). A summon gem is never the main gem; a mobility gem worn as the main
  * gem moves to its own slot (unless one is already there) and the main gem falls back to 기본 공격; the slot keeps only an
@@ -47,6 +48,7 @@ export function normalizeOwnedGemLibrariesSave(deps, state) {
     state.supports = (0, deps.dedupeList)(Array.isArray(state.supports) ? state.supports.filter(name => !!deps.SUPPORT_GEM_DB[name]) : []);
     state.sealedSupports = (0, deps.dedupeList)(Array.isArray(state.sealedSupports) ? state.sealedSupports.filter(name => !!deps.SUPPORT_GEM_DB[name] && !state.supports.includes(name)) : []);
     state.equippedSupports = Array.isArray(state.equippedSupports) ? (0, deps.dedupeList)(state.equippedSupports.filter(name => state.supports.includes(name))) : [];
+    state.supportSlotByName = keepSupportSlotAssignments(state);
     state.resonancePower = Number.isFinite(state.resonancePower) ? Math.max(0, Math.floor(state.resonancePower)) : deps.defaultGame.resonancePower;
 }
 

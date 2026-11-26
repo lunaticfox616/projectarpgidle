@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>룬 장착 모바일 화면</title>
+<style>
+  html,body{margin:0;height:100%;background:#161318}
+  body{display:grid;place-items:center}
+  iframe{display:block;width:min(390px,100%);height:min(844px,100%);border:0;outline:1px solid #766346;background:#151216}
+</style>
+<iframe title="모바일 화면에서 룬 장착 체험"></iframe>
+<script>
+  const query = new URLSearchParams(location.search), mode = query.get('try');
+  const preset = ['runes','balance','area','aim','link','slots'].includes(mode) ? mode : 'link';
+  document.querySelector('iframe').src = '/?try=' + preset + (preset === 'slots' && query.get('limits') === '1' ? '&limits=1' : '');
+</script>
+</html>

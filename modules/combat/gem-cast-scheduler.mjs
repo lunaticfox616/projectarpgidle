@@ -7,7 +7,7 @@ import { gemLaunchAssassin, gemLaunchFlicker, gemStepAssassin, gemStepFlicker } 
 import { gemLaunchRift, gemLaunchSmoke, gemLaunchHarpoon, gemLaunchRockFlask, gemStepRift, gemStepSmoke, gemStepHarpoon, gemStepRockFlask } from './gem-cast-moves.mjs';
 import { gemLaunchHoming, gemStepHoming } from './gem-cast-homing.mjs';
 import { gemLaunchTimeSlash, gemStepTimeSlash } from './gem-cast-time-slash.mjs';
-import { gemVisual, gemContact, gemFlight } from './gem-cast-common.mjs';
+import { gemVisual, gemContact, gemAreaContact, gemFlight } from './gem-cast-common.mjs';
 import { gemCreateState, gemStart, gemUpdate, gemDefine } from './gem-cast-schedule.mjs';
 import { gemTargets } from './gem-cast-targets.mjs';
 
@@ -47,11 +47,21 @@ function createGemCastRegistry(env) {
     };
 }
 function createGemCastKit(env) {
-    return Object.freeze({cell: gemCell,same: gemSame,distance: gemDistance,area: (enemies, center, shape, radius) => gemArea(env, enemies, center, shape, radius),cells: (center, shape, radius) => gemCells(env, center, shape, radius),visual: (...args) => gemVisual(env, ...args),contact: (cast, targets, at, extra={}) => gemContact(env, cast, targets, at, extra),ms: gemMs,letGo: gemLetGo,grow: gemGrow,reach: gemReach,supportShots: (c) => gemSupportShots(env, c),between: (...args) => gemBetween(env, ...args),free: (destination, enemies) => gemFree(env, destination, enemies),flight: gemFlight,launchFlask: (state, c) => gemLaunchFlask(env, state, c),FLASK_RELEASE});
+    return Object.freeze({
+        cell: gemCell, same: gemSame, distance: gemDistance,
+        area: (enemies, center, shape, radius) => gemArea(env, enemies, center, shape, radius),
+        cells: (center, shape, radius) => gemCells(env, center, shape, radius),
+        visual: (...args) => gemVisual(env, ...args),
+        contact: (cast, targets, at, extra={}) => gemContact(env, cast, targets, at, extra),
+        areaContact: (cast, targets, at, extra={}) => gemAreaContact(env, cast, targets, at, extra),
+        ms: gemMs, letGo: gemLetGo, grow: gemGrow, reach: gemReach, supportShots: c => gemSupportShots(env, c),
+        between: (...args) => gemBetween(env, ...args), free: (destination, enemies) => gemFree(env, destination, enemies),
+        flight: gemFlight, launchFlask: (state, c) => gemLaunchFlask(env, state, c), FLASK_RELEASE
+    });
 }
 export function createGemCastScheduler(deps) {
     const env = { get owner() { return deps.owner; }, deps, memo: { homingBend: 1, timeSlashCasts: 0 }, registry: null };
     env.registry = createGemCastRegistry(env);
     const kit = createGemCastKit(env);
-    return {createState: gemCreateState,start: (state, input) => gemStart(env, state, input),update: (state, input) => gemUpdate(env, state, input),targets: (id, source, enemies, extra=0, reach=0) => gemTargets(env, id, source, enemies, { extra, reach }),facing: (enemy, source) => gemFacing(env, enemy, source),free: (destination, enemies) => gemFree(env, destination, enemies),behind: (enemy, source) => gemBehind(env, enemy, source),blindSpots: (enemy, source) => gemBlindSpots(env, enemy, source),cross: (source, target, radius=1) => gemCross(env, source, target, radius),singleCast:env.registry.SINGLE_CAST,define: (id, def) => gemDefine(env, id, def),kit};
+    return {createState: gemCreateState,start: (state, input) => gemStart(env, state, input),update: (state, input) => gemUpdate(env, state, input),targets: (id, source, enemies, extra=0, skill=undefined) => gemTargets(env, id, source, enemies, {extra, reach: Math.max(0, Number(skill?.supportEffects?.range) || 0), aim: skill?.firstAimBonus}),facing: (enemy, source) => gemFacing(env, enemy, source),free: (destination, enemies) => gemFree(env, destination, enemies),behind: (enemy, source) => gemBehind(env, enemy, source),blindSpots: (enemy, source) => gemBlindSpots(env, enemy, source),cross: (source, target, radius=1) => gemCross(env, source, target, radius),singleCast:env.registry.SINGLE_CAST,define: (id, def) => gemDefine(env, id, def),kit};
 }

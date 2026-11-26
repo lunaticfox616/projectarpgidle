@@ -12,8 +12,15 @@ class PlayerPassiveStats {
         }, null);
     }
 
-    taggedSkill(skill, strongestElement) {
+    taggedSkill(skill, strongestElement, distributed) {
         const tags = this.deps.damageTags(skill);
+        // A random conversion still rolls its damage type on hit. With equal modifiers we
+        // already know its increase, so count one elemental tag in the additive damage pool.
+        if (distributed && skill.randomElementPool?.length) {
+            Object.values(ELEMENT_TAGS).forEach(tag => tags.delete(tag));
+            tags.add(ELEMENT_TAGS[skill.randomElementPool[0]]);
+            return { ...skill, tags: [...tags], randomElementPool: null };
+        }
         if (strongestElement && Object.hasOwn(ELEMENT_TAGS, skill.ele) && !skill.randomElementPool?.length) {
             Object.values(ELEMENT_TAGS).forEach(tag => tags.delete(tag));
             tags.add(strongestElement.tag);

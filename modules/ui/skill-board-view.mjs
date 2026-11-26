@@ -8,17 +8,22 @@ export function createSkillBoardView(deps) {
     for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(undefined, runtime);
     initialize(runtime);
     runtime.handlers.renderSatellite = createRenderSatellite(runtime);
-    runtime.api = Object.freeze({ render: runtime.handlers.render, pick: runtime.handlers.pick, currentKind: runtime.handlers.currentKind, kindOf: runtime.handlers.kindOf, hint: runtime.handlers.wornGemHint, engraveHint: runtime.handlers.boardEngraveHint , dispose: () => disposeSkillBoard(runtime) });
+    runtime.api = Object.freeze({ render: runtime.handlers.render, pick: runtime.handlers.pick, currentKind: runtime.handlers.currentKind, kindOf: runtime.handlers.kindOf, hint: runtime.handlers.wornGemHint, engraveHint: runtime.handlers.boardEngraveHint,
+        refreshSupport: stats => runtime.deps.gemSlotDialog.refreshSupport(stats), dispose: () => disposeSkillBoard(runtime) });
     listenView(runtime, runtime.deps.document, 'click', event => {
         const engrave = event.target.closest('[data-board-engrave]');
         if (engrave) { openEngrave(runtime, Number(engrave.dataset.boardEngrave)); return; }
         const slot = event.target.closest('[data-board-pick]');
         if (!slot) return;
         const kind = slot.dataset.boardPick;
+        if (kind === 'support' && !slot.classList.contains('tutorial-action-target')) {
+            if (kind !== runtime.state.pickerKind) pick(runtime, kind);
+            return;
+        }
         if (kind !== 'support') { runtime.state.focusedSkill = { kind, name: slot.dataset.boardGem || '' }; render(runtime, (0, runtime.deps.getUiPlayerStats)()); }
         // 칸을 누르면 룬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 룬 / 빈 칸: 낄 룬).
         if (kind !== runtime.state.pickerKind) pick(runtime, kind);
-        runtime.deps.gemSlotDialog.open(kind, slot.dataset.boardGem || '');
+        runtime.deps.gemSlotDialog.open(kind, slot.dataset.boardGem || '', '', Number(slot.dataset.boardSupportIndex));
     });
     return runtime.api;
 }

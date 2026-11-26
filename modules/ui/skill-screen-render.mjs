@@ -16,24 +16,30 @@ export function renderSkillGemScreen(runtime, context) {
     if (skillPanelRenderSignature === runtime.state.lastSkillPanelRenderSignature) return;
     runtime.state.lastSkillPanelRenderSignature = skillPanelRenderSignature;
     runtime.deps.skillGemBoardUi.render(pStats);
+    if (pickerKind === 'support') renderSupportGemLibrary(runtime, pStats, sf.support, foldSupportInactive);
+    else if (pickerKind !== 'sealed') renderAttackGemLibrary(runtime, pStats, sf.skill, foldAttackInactive);
+    syncPickerHead(runtime, pickerKind, pStats);
+    runtime.deps.skillGemBoardUi.refreshSupport(pStats);
+    renderSkillEnhancement(runtime, pStats);
+}
+
+function renderSupportGemLibrary(runtime, stats, filter, fold) {
     let sealedSupports = Array.isArray(runtime.deps.game.sealedSupports) ? runtime.deps.game.sealedSupports : [];
-    renderAttackGemLibrary(runtime, pStats, sf.skill, foldAttackInactive);
-    let supportHtml = runtime.handlers.renderGemLibrary('support', runtime.deps.game.supports, sealedSupports, pStats, sf.support);
+    let supportHtml = runtime.handlers.renderGemLibrary('support', runtime.deps.game.supports, sealedSupports, stats, filter);
     let supportListEl = runtime.deps.document.getElementById('ui-support-list');
-    let supportActions = renderLibraryActions(runtime, 'support', foldSupportInactive);
+    let supportActions = renderLibraryActions(runtime, 'support', fold);
     let supportRenderSig = `${supportHtml}::${supportActions}`;
     if (supportListEl && supportListEl.dataset.renderSig !== supportRenderSig) {
         (0, runtime.deps.renderSearchSection)('ui-support-list', 'support', '보조스킬룬 이름/효과 검색', supportHtml, '', supportActions);
         supportListEl = runtime.deps.document.getElementById('ui-support-list');
         supportListEl.dataset.renderSig = supportRenderSig;
     }
-    syncPickerHead(runtime, pickerKind, pStats);
-    renderSkillEnhancement(runtime, pStats);
 }
 function skillLoadoutSignature(runtime) {
     return {skills: runtime.deps.game.skills || [],
         supports: runtime.deps.game.supports || [],
         equippedSupports: runtime.deps.game.equippedSupports || [],
+        supportSlotByName: runtime.deps.game.supportSlotByName || {},
         equippedSummonSkills: runtime.deps.game.equippedSummonSkills || [],
         summonSkillCounts: runtime.deps.game.summonSkillCounts || {},
         sealedSkills: runtime.deps.game.sealedSkills || [],
@@ -70,12 +76,15 @@ function skillScreenSignature(runtime, view) {
         activeSkill: runtime.deps.game.activeSkill || '',
         mobilitySkill: runtime.deps.game.mobilitySkill,
         buildLocked: !!runtime.deps.game.woodsmanBuildLock,
+        equipmentRules: [runtime.deps.getEquippedWeaponStance(), runtime.deps.hasEquippedShield(),
+            runtime.deps.isMobilityRuneAttackWorn(runtime.deps.game), runtime.deps.game.level, pStats.summonCap],
         ...skillLoadoutSignature(runtime), ...skillRecordSignature(runtime), ...skillResourceSignature(runtime, view),
         filters: { skill: sf.skill || '', support: sf.support || '' },
         foldAttackInactive: foldAttackInactive,
         foldSupportInactive: foldSupportInactive,
         suppCap: pStats.suppCap || 0,
         resonanceCap: effectiveResonanceCap,
+        resonanceOverflow: runtime.deps.gemDropRewards.allowsResonanceOverflow(pStats),
         gemEnhanceUnlocked: !!runtime.deps.game.gemEnhanceUnlocked,
         gemAwakening: runtime.deps.contentProgression.isUnlocked('gemAwakening'),
         season: runtime.deps.game.season || 1});

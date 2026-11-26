@@ -8,7 +8,7 @@ export function getPassiveNodeDisplayName(runtime, node) {
 export function getPassiveEffectLabel(runtime, node) {
     if (!node) return '';
     if (node.intentionalNoEffect) return '효과 없음';
-    if (node.effectLabel) return node.effectLabel;
+    if (node.effectLabel) return (0, runtime.deps._t)(node.effectLabel);
     if (node.kind === 'void') return (0, runtime.deps.getVoidPassiveEffectLabel)(node.id);
     if (node.kind === 'keystone') return (0, runtime.deps._t)(node.desc || '키스톤 효과');
     if (Array.isArray(node.effects) && node.effects.length > 0) {

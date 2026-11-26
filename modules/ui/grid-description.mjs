@@ -1,5 +1,6 @@
 import { GRID_PROFILE_KIND_LABELS } from './grid-description-values.mjs';
 import { skillGetSkillGridProfile } from '../combat/grid-skill-profile.mjs';
+import { effectExpansionStageGrid } from '../domain/skill-effect-expansion.mjs';
 
 /** The DPS breakdown's note for a fan: what one target takes, and the most a pack can. */
 export function skillGetFanSpreadDpsLines(fanSpread, singleTargetDps) {
@@ -37,7 +38,8 @@ export function skillDescribeWiderStageAreas(skillDef, base) {
     const pattern = skillDef && skillDef.combatPattern;
     const stages = pattern && pattern.kind === 'authored' ? pattern.stages : [];
     const wider = grid => grid.kind !== base.kind || (grid.radius || 0) > (base.radius || 0) || (grid.range || 0) > (base.range || 0);
-    return stages.filter(stage => stage.grid && stage.grid.kind && wider(stage.grid)).map(stage => {
+    return stages.map(stage => ({ ...stage, grid: effectExpansionStageGrid(stage.grid, skillDef) }))
+        .filter(stage => stage.grid && stage.grid.kind && wider(stage.grid)).map(stage => {
         const grid = stage.grid, round = grid.kind === 'blast' || grid.kind === 'nova';
         const size = `${round ? '반경 ' + Math.max(1, grid.radius || 1) : Math.max(1, grid.range || 1)}칸${grid.band ? `, 위아래 ${grid.band}줄까지` : ''}`;
         return `${stage.label}: ${skillGetSkillGridProfileKindLabel(grid.band ? 'band' : grid.kind)} ${size}`;
@@ -50,8 +52,11 @@ export function skillDescribeGridFanRays(profile) {
     return Number(profile.spreadDeg) > 0 ? `${rays}(${profile.spreadDeg}도 간격)` : rays;
 }
 
-export function skillGetSkillGridDescriptionText(skill,parts) {
-    return skill?.rangeText || parts.join(', ');
+export function skillGetSkillGridDescriptionText(skill, parts, profile) {
+    if (!skill?.rangeText) return parts.join(', ');
+    if (!skill.firstAimBonus) return skill.rangeText;
+    const reach = `사거리 ${profile.range}칸`, displayed = /사거리 \d+칸/u;
+    return displayed.test(skill.rangeText) ? skill.rangeText.replace(displayed, reach) : `${skill.rangeText}, ${reach}`;
 }
 
 export function skillDescribeSkillGridProfile(env, skillName, skillDef) {
@@ -61,9 +66,15 @@ export function skillDescribeSkillGridProfile(env, skillName, skillDef) {
     skillAppendGridAreaDimensions(parts, profile);
     if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || env.deps.COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
     if (profile.kind === 'fan') parts.push(skillDescribeGridFanRays(profile));
-    if (env.deps.supportShapes.playerProjectile({tags})) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
+    if (env.deps.supportShapes.playerProjectile({tags})) parts.push(skillDescribeProjectileMode(skillDef));
     parts.push(...skillDescribeWiderStageAreas(skillDef, profile));
-    return [skillGetSkillGridDescriptionText(skillDef, parts), skillDescribeMobilityRuneCooldown(env, skillName, skillDef)].filter(Boolean).join(', ');
+    const reach = skillGetSkillGridDescriptionText(skillDef, parts, profile);
+    return [reach, skillDescribeMobilityRuneCooldown(env, skillName, skillDef)].filter(Boolean).join(', ');
+}
+
+function skillDescribeProjectileMode(skill) {
+    if (skill.projectilePatternSource) return `적용: ${skill.projectilePatternSource}`;
+    return skill.projectilePattern?.fixed ? '고유 궤적' : '발사 방식 변경 가능';
 }
 
 function skillAppendGridAreaDimensions(parts, profile) {

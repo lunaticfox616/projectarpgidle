@@ -1,6 +1,6 @@
 import { gemMs, gemLetGo, gemGrow, gemReach, gemChainsOf, gemSupportShots } from './gem-cast-math.mjs';
 import { FLASK_RELEASE, BOUNCE_REACH, BOUNCE_POP_PCT, PETRIFY, STAB } from './gem-cast-values.mjs';
-import { gemFlight, gemVisual, gemContact } from './gem-cast-common.mjs';
+import { gemFlight, gemVisual, gemContact, gemAreaContact } from './gem-cast-common.mjs';
 import { gemTargets } from './gem-cast-targets.mjs';
 import { gemDistance, gemArea, gemCell } from './gem-cast-geometry.mjs';
 
@@ -13,7 +13,7 @@ export function gemLaunchFlask(env, state,c) {
 
 export function gemBounceTarget(env, c,enemies) {
     const live=enemies.filter(e=>e.hp>0);
-    if(c.targetId===null)return c.firstFoe || env.deps.findNearestGridEnemy(c.source,gemTargets(env, 44,c.source,live,{ extra: gemGrow(c.stats), reach: gemReach(c.stats) }));
+    if(c.targetId===null)return c.firstFoe || env.deps.findNearestGridEnemy(c.source,gemTargets(env, 44,c.source,live,{ extra: gemGrow(c.stats), reach: gemReach(c.stats), aim: c.stats.sSkill.firstAimBonus }));
     const near=live.filter(e=>e.id!==c.targetId && gemDistance(c.aim,env.deps.getGridUnitCenter(e))<=BOUNCE_REACH);
     const fresh=near.filter(e=>!c.struck.has(e.id));
     if(fresh.length || near.length)return env.deps.findNearestGridEnemy(c.aim,fresh.length?fresh:near);
@@ -43,8 +43,9 @@ export function gemStepBounce(env, state,c,input) {
 }
 
 export function gemStepExplosion(env, state,c,input) {
-    gemVisual(env, state,c,'burst',c.nextAt,Math.round(540/c.speed));c.done=true;
-    return [gemContact(env, c,gemArea(env, input.enemies,c.aim,'square',1+gemGrow(c.stats)),c.nextAt)];
+    const radius = 1 + gemGrow(c.stats);
+    gemVisual(env, state,c,'burst',c.nextAt,Math.round(540/c.speed),{mixtureRadius:radius});c.done=true;
+    return [gemAreaContact(env, c,gemArea(env, input.enemies,c.aim,'square',radius),c.nextAt)];
 }
 
 export function gemStepCold(env, state,c,input) {

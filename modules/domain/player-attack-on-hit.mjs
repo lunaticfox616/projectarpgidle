@@ -152,7 +152,7 @@ function carryPierceOverkill(c, h) {
 }
 
 function scheduleSlamEcho(c, h) {
-    if (c.options.skipSlamEcho || !(c.slamEchoPct > 0) || !(c.pStats.sSkill.tags || []).includes('slam')) return;
+    if (h.linkedFrom || c.options.skipSlamEcho || !(c.slamEchoPct > 0) || !(c.pStats.sSkill.tags || []).includes('slam')) return;
     rollSlamEcho(c, h);
 }
 

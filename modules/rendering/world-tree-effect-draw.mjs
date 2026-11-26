@@ -116,7 +116,7 @@ const sheet=WT_ATLAS.skills[46];
 function gemDraw14Part12(e,t,now,submit){
 const sheet=WT_ATLAS.skills[46];
 
-      const frame=Math.min(8,Math.floor(t*9)),anchor=sheet.blastAnchors?.[frame]||{x:0,y:0},scale=2;
+      const frame=Math.min(8,Math.floor(t*9)),anchor=sheet.blastAnchors?.[frame]||{x:0,y:0},scale=2*(2*(e.mixtureRadius ?? 1)+1)/3;
       submit(e,e._target[0]-anchor.x*scale,e._target[1]-anchor.y*scale,scale,0,0,sheet.frames[frame+1],1,Math.min(1,(1-t)/.24));
       if(now-e.at<100&&e._mixtureContactFrame)for(const p of e._mixtureHitPoints)submit(e,p[0],p[1],1,0,0,e._mixtureContactFrame,1,1-(now-e.at)/100);
 

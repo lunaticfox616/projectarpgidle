@@ -10,7 +10,7 @@ export function gemCreateState() {return {casts:[],events:[],sequence:0,lastSkil
 export function gemStart(env, state,input) {
     const {id,name,stats,source,enemies,now}=input;
     state.visuals=input.visuals;
-    const options=gemTargets(env, id,source,enemies,{ extra: gemGrow(stats), reach: gemReach(stats) });
+    const options=gemTargets(env, id,source,enemies,{ extra: gemGrow(stats), reach: gemReach(stats), aim: stats.sSkill.firstAimBonus });
     if(!options.length)return false;
     if(env.registry.SINGLE_CAST.has(id) && state.casts.some(c=>c.id===id))return false;
     // 잠근 몬스터(js/act-exploration-state.js lockOn)가 닿으면 그 몬스터를, 아니면 가장 가까운 몬스터를 노린다(다른 룬과 같다).

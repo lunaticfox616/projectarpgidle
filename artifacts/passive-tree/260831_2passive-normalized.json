@@ -2,6 +2,110 @@
   "statsSchemaVersion": 8,
   "nodes": [
     {
+      "cat": "spell",
+      "id": "n_range_area_expansion",
+      "x": -287,
+      "y": -435,
+      "type": "major",
+      "name": "넓게 퍼지는 힘",
+      "desc": "가변 범위 스킬의 반경 +1칸 (넓은 판정과 중첩되지 않음)",
+      "useAuthoredEffectDescription": true,
+      "mods": [
+        {
+          "statId": "rangeAreaExpansion",
+          "value": 1
+        }
+      ],
+      "runtimeEffects": [
+        {
+          "statId": "rangeAreaExpansion",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "iconFamily": "spell",
+      "distanceFromClassStart": 23,
+      "powerBand": 3
+    },
+    {
+      "cat": "atk",
+      "id": "n_range_additional_targets",
+      "x": 641,
+      "y": 39,
+      "type": "major",
+      "name": "다음 표적",
+      "desc": "가변 다중 대상 스킬이 서로 다른 적을 1명 더 지정",
+      "useAuthoredEffectDescription": true,
+      "mods": [
+        {
+          "statId": "rangeAdditionalTargets",
+          "value": 1
+        }
+      ],
+      "runtimeEffects": [
+        {
+          "statId": "rangeAdditionalTargets",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "iconFamily": "blade",
+      "distanceFromClassStart": 24,
+      "powerBand": 3
+    },
+    {
+      "cat": "spell",
+      "id": "n_range_far_horizon",
+      "x": -657,
+      "y": -1394,
+      "type": "keystone",
+      "name": "끝없는 지평",
+      "desc": "가변 범위 스킬의 크기 +2칸. 최종 적중 상한 절반 (내림, 최소 1명)",
+      "choiceGroup": "rangeKeystone",
+      "mods": [
+        {
+          "statId": "rangeFarHorizon",
+          "value": 2
+        }
+      ],
+      "runtimeEffects": [
+        {
+          "statId": "rangeFarHorizon",
+          "value": 2
+        }
+      ],
+      "statAutoName": false,
+      "iconFamily": "spell",
+      "distanceFromClassStart": 11,
+      "powerBand": 1
+    },
+    {
+      "cat": "fire",
+      "id": "n_range_close_calamity",
+      "x": 101,
+      "y": 1122,
+      "type": "keystone",
+      "name": "발밑의 재앙",
+      "desc": "기본 크기가 2칸 이상인 가변 범위 스킬의 크기 -1칸. 범위 안의 모든 적에게 적중",
+      "choiceGroup": "rangeKeystone",
+      "mods": [
+        {
+          "statId": "rangeCloseCalamity",
+          "value": 1
+        }
+      ],
+      "runtimeEffects": [
+        {
+          "statId": "rangeCloseCalamity",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "iconFamily": "fire",
+      "distanceFromClassStart": 17,
+      "powerBand": 2
+    },
+    {
       "cat": "str",
       "id": "n39ip40yc3d",
       "x": -1347.63,
@@ -34692,8 +34796,8 @@
     {
       "cat": "def",
       "id": "nmvxdnc3uj",
-      "x": -443.21,
-      "y": 508.93,
+      "x": -509.85,
+      "y": 517.83,
       "type": "minor",
       "name": "번개 피해",
       "mods": [
@@ -34717,8 +34821,8 @@
     {
       "cat": "def",
       "id": "nmvxdneqek",
-      "x": -378.21,
-      "y": 543.93,
+      "x": -465.77,
+      "y": 507.48,
       "type": "minor",
       "name": "화염 피해",
       "mods": [
@@ -34742,8 +34846,8 @@
     {
       "cat": "atk",
       "id": "nmvxdnfzml",
-      "x": -423.21,
-      "y": 548.93,
+      "x": -449.27,
+      "y": 590.91,
       "type": "minor",
       "name": "냉기 피해",
       "mods": [
@@ -34767,8 +34871,8 @@
     {
       "cat": "def",
       "id": "nmvxdnh5sm",
-      "x": -363.71,
-      "y": 444.8,
+      "x": -421.4,
+      "y": 432.64,
       "type": "minor",
       "name": "번개 피해",
       "mods": [
@@ -34792,8 +34896,8 @@
     {
       "cat": "def",
       "id": "nmvxdnij7n",
-      "x": -201.1,
-      "y": 536.3,
+      "x": -213.08,
+      "y": 529.82,
       "type": "minor",
       "name": "화염 피해",
       "mods": [
@@ -34817,8 +34921,8 @@
     {
       "cat": "def",
       "id": "nmvxdnjoco",
-      "x": -216.84,
-      "y": 638.56,
+      "x": -194.36,
+      "y": 643.39,
       "type": "minor",
       "name": "화염 피해",
       "mods": [
@@ -34842,8 +34946,8 @@
     {
       "cat": "def",
       "id": "nmvxdnkx6p",
-      "x": -263.71,
-      "y": 644.8,
+      "x": -269.67,
+      "y": 673.82,
       "type": "minor",
       "name": "냉기 피해",
       "mods": [
@@ -34867,8 +34971,8 @@
     {
       "cat": "def",
       "id": "nmvxdnlpdq",
-      "x": -281.21,
-      "y": 600.45,
+      "x": -322.13,
+      "y": 644.68,
       "type": "minor",
       "name": "냉기 피해",
       "mods": [
@@ -34917,8 +35021,8 @@
     {
       "cat": "def",
       "id": "pt_keystone_three_lights",
-      "x": -329.97,
-      "y": 572.32,
+      "x": -409.37,
+      "y": 526.19,
       "type": "keystone",
       "mods": [],
       "statAutoName": false,
@@ -34929,6 +35033,46 @@
       "iconFamily": "constellation",
       "distanceFromClassStart": 23,
       "powerBand": 3
+    },
+    {
+      "cat": "atk",
+      "id": "pt_notable_elemental_balance",
+      "x": -329,
+      "y": 572.59,
+      "type": "major",
+      "mods": [
+        {
+          "statId": "elementalPctDmg",
+          "value": 30
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "elementalPctDmg",
+          "value": 30
+        }
+      ],
+      "desc": "원소 피해 +30%",
+      "name": "균형의 빛",
+      "iconFamily": "elemental",
+      "distanceFromClassStart": 21,
+      "powerBand": 3
+    },
+    {
+      "cat": "atk",
+      "id": "pt_keystone_elemental_distribution",
+      "x": -248.63,
+      "y": 618.99,
+      "type": "keystone",
+      "mods": [],
+      "statAutoName": false,
+      "runtimeEffects": [],
+      "desc": "모든 원소 피해 증가 및 감소를 화염, 번개, 냉기 피해에 동일하게 나누어 적용 (소수점 내림)\n스킬이 모든 원소 상태 이상을 유발할 수 있음 (세 갈래 불빛과 함께 할당해도 적용)",
+      "name": "원소 천칭",
+      "iconFamily": "elemental",
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -39132,6 +39276,22 @@
     }
   ],
   "edges": [
+    {
+      "a": "nmvxcpnnm45",
+      "b": "n_range_area_expansion"
+    },
+    {
+      "a": "nmvxdi4n8g",
+      "b": "n_range_additional_targets"
+    },
+    {
+      "a": "nmvsecktd3a",
+      "b": "n_range_far_horizon"
+    },
+    {
+      "a": "nmvwfa3jw2o",
+      "b": "n_range_close_calamity"
+    },
     {
       "a": "nnd8y8scawv",
       "b": "n3p74atcawv"
@@ -45373,6 +45533,14 @@
       "b": "nmvxdnq40r"
     },
     {
+      "a": "nmvxdnq40r",
+      "b": "pt_notable_elemental_balance"
+    },
+    {
+      "a": "nmvxdnlpdq",
+      "b": "pt_keystone_elemental_distribution"
+    },
+    {
       "a": "nmvxdneqek",
       "b": "pt_keystone_three_lights"
     },
@@ -47280,6 +47448,8 @@
         "nmvxdnlpdq",
         "nmvxdnq40r",
         "pt_keystone_three_lights",
+        "pt_notable_elemental_balance",
+        "pt_keystone_elemental_distribution",
         "nmvxdnx76t",
         "nmvxdnzkfu",
         "nmvxdo1bav",

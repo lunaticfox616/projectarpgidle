@@ -10,7 +10,7 @@ export function projectileGapOf(shot, foes, thrown) {
     return thrown ? PROJECTILE_REPEAT_MS * (shot + round) : PROJECTILE_REPEAT_MS * round;
 }
 
-const projectileSingleSkill = skill => ({ ...skill, targets: Math.max(1, (skill.targets || 1) - projectileSupportExtra(skill)),
+const projectileSingleSkill = skill => ({ ...skill, targets: skill.areaKind === 'variable' ? skill.targets : Math.max(1, (skill.targets || 1) - projectileSupportExtra(skill)),
     supportEffects: { ...skill.supportEffects, projectiles: null, aimedShots: true } });
 
 function projectileMoreShots(env, pStats) {

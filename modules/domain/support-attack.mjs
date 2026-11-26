@@ -9,7 +9,6 @@ class SupportAttack {
         out.dmg = (out.dmg ?? out.baseDmg ?? 1) * fx.damageMultiplier;
         out.spd = (out.spd ?? out.baseSpd ?? 1) * fx.speedMultiplier;
         out.pushAwayCells = Math.max(out.pushAwayCells || 0, fx.push || 0);
-        out.supportExpansion = Number(Boolean(fx.expansion));
         if (fx.conversion?.pct === 100) out.ele = fx.conversion.element;
         this.reshapeSkill(out, fx);
         this.reachSkill(out, fx);
@@ -20,7 +19,7 @@ class SupportAttack {
         const transforms=['throwRange','mineDelayMs','channeling','spreadRadius','focus','slam'];
         if (transforms.some(key=>fx[key])) delete out.combatPattern;
         if (transforms.some(key=>fx[key])) delete out.nativeCastId;
-        if (transforms.concat(['chain','pierce','projectiles','sweep','expansion','range']).some(key=>fx[key])) delete out.rangeText;
+        if (transforms.concat(['chain','pierce','projectiles','sweep','range']).some(key=>fx[key])) delete out.rangeText;
         out.targets=Math.max(1,out.targets || 1)+this.extraTargets(fx);
         if(fx.spreadRadius)out.targets=Math.max(9,out.targets);
         if(fx.focus)Object.assign(out,{targets:1,multiHit:1,targetMode:'single'});
@@ -41,7 +40,7 @@ class SupportAttack {
         if (!fx) return profile;
         const out = { ...profile };
         this.projectileGrid(out,fx,!!skill.combatPattern);
-        if (fx.spreadRadius) Object.assign(out, {kind:'blast', radius:fx.spreadRadius+(skill.effectExpansion || 0)});
+        if (fx.spreadRadius) Object.assign(out, {kind:'blast', radius:fx.spreadRadius, band:0});
         if (fx.focus) Object.assign(out, {kind:'single', radius:0, band:0});
         if (fx.range) out.range=(out.range || 0)+fx.range;   // 사거리 증가: 대상을 고르는 거리, 곧은 투사체와 파동의 길이
         return out;

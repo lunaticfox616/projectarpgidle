@@ -118,6 +118,11 @@ function assembleSkill(input) {
         suppCap: input.suppCap,
         expGain: input.season.expGain + input.reward.expGain + input.uniqueXpGainPct,
         sSkill: input.skill,
+        rangeFirstAim: input.reward.rangeFirstAim,
+        rangeAreaExpansion: input.passive.rangeAreaExpansion,
+        rangeAdditionalTargets: input.passive.rangeAdditionalTargets,
+        rangeFarHorizon: input.passive.rangeFarHorizon,
+        rangeCloseCalamity: input.passive.rangeCloseCalamity,
         resPen: input.finalResPen
     };
 }

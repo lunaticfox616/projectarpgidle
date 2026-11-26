@@ -47,6 +47,7 @@ window.GameModules.combat.supports = Object.freeze({
     resolve(skill) { return part0.liveSupportResolve(env, skill); },
     grid: shapes.grid,
     stages(rows, skill) { return part0.liveSupportStages(env, rows, skill); },
+    linkedTarget: contacts.linkedTarget,
     targetMultiplier: shapes.targetMultiplier,
     conversionContacts(stats, options) { return part0.liveSupportConversionContacts(env, stats, options); },
     afterHit(enemy, stats, damage) { return part0.liveSupportAfterHit(env, enemy, stats, damage); },

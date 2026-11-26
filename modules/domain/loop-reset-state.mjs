@@ -42,6 +42,7 @@ export function loopFlowResetLoopBuild(env, owner) {
     owner.skyGemEnhancements = {};
     owner.supports = [];
     owner.equippedSupports = [];
+    owner.supportSlotByName = {};
     owner.supportGemData = {};
     // 전술 규칙은 영구 빌드 설정이다. 루프는 적에게 걸린 저주만 비운다.
     owner.enemyConditionDebuffs = {};

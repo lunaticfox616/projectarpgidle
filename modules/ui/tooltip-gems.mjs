@@ -1,14 +1,24 @@
 import { reuseInfoTooltip } from './tooltip-core.mjs';
 import { keepKoreanUnitParticles } from '../common/text.mjs';
+import { areaSkillKind, effectAreaTargetLimit } from '../domain/skill-effect-expansion.mjs';
 
-/** 타겟 방식과 최대 타겟 수: 수는 전투와 같은 상한(js/player-stats.js getPlayerStats: 6, 투사체 12)으로. 데이터가 99인 룬은 제 방식으로
-* 치는 네이티브 룬이라 수를 적지 않는다(2026-10-20 검토: 99, 8, 7로 보였지만 전투는 6이었고, 광역은 4인데 6으로 보였다). */
+/** 범위 스킬에는 실제 범위 유형과 적중 상한을 표시한다. 일반 스킬의 기본 상한은 6, 투사체는 12다. */
 export function getGemTargetSummaryHtml(runtime, skill) {
+    const area = areaSkillKind(skill);
+    if (area) return getAreaTargetSummaryHtml(runtime, skill, area);
     const label = { all: '광역', whirl: '광역 회전', cleave: '전방 다중', chain: '연쇄', pierce: '관통' }[skill.targetMode] || '단일';
     const kind = `<div class="tooltip-line">${(0, runtime.deps._t)('타겟 방식: {label}', { label })}</div>`;
     if ((skill.targets || 0) >= 99) return kind;
     const cap = (skill.tags || []).includes('projectile') ? 12 : 6;
     return `${kind}<div class="tooltip-line">${(0, runtime.deps._t)('최대 타겟 수: {min}', { min: Math.min(cap, Math.max(1, skill.targets || 1)) })}</div>`;
+}
+
+function getAreaTargetSummaryHtml(runtime, skill, area) {
+    const limit = effectAreaTargetLimit(skill);
+    const min = skill.effectExpansion === undefined && area === 'variable' ? Math.min(6, limit) : limit;
+    const label = min === Infinity ? (0, runtime.deps._t)('범위 안의 모든 적') : (0, runtime.deps._t)('최대 타겟 수: {min}', { min });
+    const kind = area === 'fixed' ? (0, runtime.deps._t)('고정 범위') : (0, runtime.deps._t)('가변 범위');
+    return `<div class="tooltip-line">${kind} · ${label}</div>`;
 }
 
 /** The rune's awakened effect line (GEM_AWAKENED_PERKS) once awakened, or from rune level 15 marked as waiting for the awakening (a new

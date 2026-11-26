@@ -4,7 +4,9 @@ import { effectExpansionGrid } from '../domain/skill-effect-expansion.mjs';
  * The resolved active skill's 효과 확장 grows it (js/skill-effect-expansion.js); at +0 the table row itself comes back. */
 export function skillGetSkillGridProfile(env, skillName, skillDef) {
     let profile = skillGetAuthoredSkillGridProfile(env, skillName, skillDef) || skillGetDefaultSkillGridProfile(env, skillDef);
-    return env.deps.supportShapes.grid(effectExpansionGrid(profile, skillDef), skillDef);
+    const grid = effectExpansionGrid(env.deps.supportShapes.grid(profile, skillDef), skillDef);
+    const aim = skillDef?.firstAimBonus || 0;
+    return aim ? { ...grid, range: grid.range + aim } : grid;
 }
 
 /** The SKILL_GRID_DB row, reshaped when an engraved projectile pattern changes its kind. */

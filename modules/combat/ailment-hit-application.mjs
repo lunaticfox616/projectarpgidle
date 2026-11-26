@@ -2,6 +2,7 @@ import { hitPassHitAilmentGates } from '../combat/ailment-hit-gates.mjs';
 import { hitIsDamageAilmentType, hitGetEnemyDamageAilmentDps } from '../domain/ailment-dot-damage.mjs';
 import { hitGetHitAilmentPower, hitGetAilmentDurationMultiplier, hitFillDamageAilmentPayload, hitRefreshAilmentRow } from '../combat/ailment-hit-payload.mjs';
 import { effectGetAilmentTypeFromElement } from '../domain/ailment-probabilities.mjs';
+import { ELEMENTAL_HIT_AILMENTS } from '../data/skill-combat-values.mjs';
 import { hitGetEnemyDamageAilmentMaxStacks } from '../combat/ailment-spread.mjs';
 
 /** One ailment from a hit (hit: the target, the hero's stats, crit, options, the hit's ratio and power, its ailment source damage
@@ -68,16 +69,29 @@ function applyHitAilmentTypes(env, hit, primaryType) {
     const { pStats, opts, element: ele } = hit;
     const applyAilmentType = (type, forceChance, manifestation) => hitApplyHitAilment(env, hit, type, forceChance, manifestation);
     applyAilmentType(primaryType, opts.primaryAilmentChance);
-    if (ele === 'cold' && !(typeof env.deps.shouldTalentSkipColdFreeze === 'function' && env.deps.shouldTalentSkipColdFreeze())) applyAilmentType('freeze');
+    const distributed = pStats.passiveKeystoneFlags?.elementalDistribution;
+    if (distributed) applyDistributedAilments(env, hit, primaryType);
+    else if (ele === 'cold' && !env.deps.shouldTalentSkipColdFreeze?.()) applyAilmentType('freeze');
     hitApplyGroveColdPoison(env, hit, ele);
     if (pStats.passiveForbiddenManifestation) {
         ['ignite', 'chill', 'shock', 'poison', 'bleed'].forEach(type => {
-            if (type !== primaryType) applyAilmentType(type, undefined, true);
+            if (type !== primaryType && !(distributed && ELEMENTAL_HIT_AILMENTS.includes(type))) applyAilmentType(type, undefined, true);
         });
     }
     Object.entries(opts.additionalAilmentChances || {}).forEach(([type, chance]) => {
-        if (type !== primaryType) applyAilmentType(type, chance);
+        if (type !== primaryType && !(distributed && ELEMENTAL_HIT_AILMENTS.includes(type))) applyAilmentType(type, chance);
     });
+}
+
+// Extra eligibility uses the same resistance, freeze-strength and critical rolls as a native hit.
+// An explicit on-hit affix and this keystone grant a single attempt at the better chance.
+function applyDistributedAilments(env, hit, primaryType) {
+    for (const type of ELEMENTAL_HIT_AILMENTS) {
+        if (type === primaryType || (type === 'freeze' && env.deps.shouldTalentSkipColdFreeze?.())) continue;
+        const extra = hit.opts.additionalAilmentChances?.[type];
+        const chance = Number.isFinite(extra) ? Math.max(extra, (hit.pStats[type + 'Chance'] || 0) / 100) : undefined;
+        hitApplyHitAilment(env, hit, type, chance);
+    }
 }
 
 function activeDamageAilment(ail) {

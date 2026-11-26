@@ -20,7 +20,8 @@ function resolvePlayerAttack(owner, pStats, attackOptions, deps) {
         const hitEntries = c.pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : c.targets;
         hitEntries.forEach((hit, targetIndex) => {
             const h = { hitIdx, hitEntries, hit, targetIndex };
-            resolvePlayerContact(c, h);
+            const link = resolvePlayerContact(c, h);
+            if (link) resolvePlayerContact(c, link);
         });
     }
     finishAttackRecovery(c);
@@ -36,5 +37,20 @@ function resolvePlayerContact(c, h) {
     rollPlayerContact(c, h);
     if (mitigatePlayerContact(c, h) === false) return;
     applyPlayerContact(c, h);
+    const link = linkedStrikeContact(c, h);
     finishPlayerContact(c, h);
+    return link;
+}
+
+// Only the first successful contact of the marked stage can link. Repeats have no marker.
+function linkedStrikeContact(c, h) {
+    const pct = c.options.linkedStrikePct;
+    if (!pct || c.linkedStrikeResolved || h.dealtToEnemy <= 0) return null;
+    c.linkedStrikeResolved = true;
+    const from = h.targetEnemy;
+    const enemy = c.deps.supports.linkedTarget(from, c.targets, c.owner);
+    if (!enemy) return null;
+    const hit = { enemy, mult: h.hit.mult * pct / 100 };
+    return { hitIdx: h.hitIdx, hitEntries: [hit], hit, targetIndex: 0, rollPct: h.rollPct, linkedDistanceMul: h.directHitDistanceMul,
+        linkedFrom: { id: from.id, gx: from.gx, gy: from.gy } };
 }

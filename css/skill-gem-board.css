@@ -54,20 +54,26 @@
   display: grid; place-items: center;
   width: 96px; height: 96px; min-width: 0; min-height: 0; padding: 0;
   border: 0; border-radius: 0;
-  background: linear-gradient(160deg, #f3d99d, var(--board-gold) 38%, #6e4c33 70%, #c69f5e);
-  clip-path: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%);
+  --core-rim: linear-gradient(160deg, #f3d99d, var(--board-gold) 38%, #6e4c33 70%, #c69f5e);
+  background: none;
   transform: translate(-50%, -50%);
   cursor: pointer;
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--gem-accent) 45%, transparent));
   transition: filter .15s ease;
 }
-.skill-board-core::before {
-  content: ''; position: absolute; inset: 3px;
-  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gem-accent) 34%, #241b1c), #0d0a0e 72%);
-  clip-path: inherit;
+.skill-board-core::after, .skill-board-core::before {
+  content: ''; position: absolute; pointer-events: none;
+  clip-path: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%);
 }
+.skill-board-core::after { inset: 0; background: var(--core-rim); }
+.skill-board-core::before {
+  inset: 3px; z-index: 1;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gem-accent) 34%, #241b1c), #0d0a0e 72%);
+}
+.skill-board-core.is-rune-drop-target { --core-rim: linear-gradient(160deg, #f3efbc, #97d7a0 38%, #4f825d 72%, #cfb175); }
+.skill-board-core:focus-visible { --core-rim: linear-gradient(160deg, #fff0bf, #e7bc62 50%, #80502b 88%); outline: 0; }
 .skill-board-core:hover, .skill-board-core:focus-visible { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--gem-accent) 70%, transparent)) brightness(1.08); }
-.skill-board-core-art { position: relative; z-index: 1; width: 64px; height: 64px; }
+.skill-board-core-art { position: relative; z-index: 2; width: 64px; height: 64px; }
 .skill-board-core-art img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 /* 끊어서 빛난다(steps): 부드러운 무한 애니메이션은 창이 열린 동안 화면을 주사율대로 다시 그리게 해 240Hz 화면에서 CPU를 많이 쓴다
    (2026-10-21 측정, 프레임 제한 없이 렌더러 1.18코어 + GPU 0.58코어에서 0.15 + 0.10). */
@@ -141,9 +147,6 @@
 .skill-board-satellite > b { max-width: 100%; overflow: hidden; color: var(--board-copy); font: 400 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
 .skill-board-satellite.is-empty > b { color: color-mix(in srgb, var(--board-copy) 82%, var(--board-muted)); }
 .skill-board-satellite:hover > :is(.skill-board-satellite-art, i) { filter: brightness(1.2); }
-#skill-tab-equip:is([data-picking="mobility"], [data-picking="summon"]) .skill-board-satellite[data-board-pick] > :is(.skill-board-satellite-art, i) { opacity: .55; }
-#skill-tab-equip[data-picking="mobility"] .skill-board-satellite[data-board-pick="mobility"] > :is(.skill-board-satellite-art, i),
-#skill-tab-equip[data-picking="summon"] .skill-board-satellite[data-board-pick="summon"] > :is(.skill-board-satellite-art, i) { opacity: 1; outline: 2px solid var(--board-gold-hi); outline-offset: 2px; }
 
 /* ── 보조스킬룬 칸 줄 ─────────────────────────────────────────────────────────────── */
 /* 칸 줄의 칸 폭 계산(100cqw)이 이 칸의 내용 폭을 쓰도록 크기 기준으로 둔다. */
@@ -190,7 +193,7 @@
   box-shadow: 0 -6px 0 -2px #141116, 0 -6px 0 0 #4a414c;
 }
 .support-slot:not(.is-lock):hover > i { filter: brightness(1.2); }
-.support-slot.is-linked > .support-sigil { outline: 2px solid var(--board-gold-hi); outline-offset: 2px; }
+.support-slot.is-linked > .support-sigil { filter: brightness(1.12) drop-shadow(0 0 4px #b5975c); }
 .support-slot.is-linked > b { color: var(--board-gold-hi); }
 #skill-tab-equip[data-picking="support"] .support-slots { box-shadow: inset 0 0 0 1px var(--board-gold), inset 0 1px 0 rgba(236, 196, 118, .12); }
 
@@ -231,9 +234,11 @@
     grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--gem-cols) - 1) * 6px) / var(--gem-cols)), 1px)); }
 }
 #tab-skills .skill-picker .skill-gem-library[hidden] { display: none; }
-#tab-skills .skill-picker #ui-support-list { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
-.support-library-unmatched { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
-#tab-skills .support-library-effect { color: var(--board-copy); font: 15px/24px var(--board-read); text-align: center; }
+#tab-skills .skill-picker .support-library { --search-results-display: grid; }
+#tab-skills .support-library > .search-result-list {
+  grid-column: 1 / -1; grid-template-columns: subgrid; align-content: start; gap: inherit;
+  max-height: min(50dvh, 340px); overflow-y: auto;
+}
 /* 너비 100%(inline)에 여백과 테두리를 넣어 잰다: 그렇지 않으면 룬 목록보다 14px 넓어 오른쪽으로 삐져나왔다 */
 #tab-skills .skill-picker .search-filter-panel { box-sizing: border-box; margin-bottom: 4px; padding: 6px; border: 1px solid #2c2532; border-radius: 0; background: #120f14; }
 #tab-skills .skill-picker .search-filter-input { min-height: 30px; border: 1px solid var(--board-ink); border-radius: 0; background: #0d0b0f; color: var(--board-copy); font: 12px var(--board-label); }
@@ -246,16 +251,15 @@
 #tab-skills .gem-tile {
   --gem-accent: #a7b1bc;
   position: relative; display: grid; justify-items: center; align-content: start; gap: 3px;
-  min-width: 0; min-height: 0; padding: 12px 6px 8px; overflow: hidden;
+  min-width: 0; min-height: 0; padding: 16px 4px 6px; overflow: hidden;
   border: 1px solid #2c2532; border-top: 2px solid color-mix(in srgb, var(--gem-accent) 75%, #2c2532); border-radius: 0;
   background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--gem-accent) 16%, transparent), transparent 46px), linear-gradient(180deg, #211c25, #141117);
   box-shadow: none; color: var(--board-copy); cursor: pointer; text-align: center;
-  transition: border-color .14s ease, transform .14s ease, filter .14s ease;
+  transition: border-color .14s ease, filter .14s ease;
   animation: none;
 }
-#tab-skills .gem-tile:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--gem-accent) 70%, #2c2532); }
-#tab-skills .gem-tile:focus-visible { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; }
-#tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
+#tab-skills .gem-tile:hover { border-color: color-mix(in srgb, var(--gem-accent) 70%, #2c2532); }
+#tab-skills .gem-tile .gem-tile-art { width: 46px; height: 46px; border-radius: 0; background: none; }
 /* 카드 안의 그림과 글(가운데 맞춤)은 카드 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
 #tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn, .gem-tile-copies, .gem-tile-seal) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 #tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
@@ -263,14 +267,25 @@
 /* 쓰임("전방 부채꼴, 1칸")은 휴대폰 카드에서 한 줄이면 잘렸다: 단어째 두 줄까지 쓴다. */
 #tab-skills .gem-tile .gem-usage-state { display: -webkit-box; max-width: 100%; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--board-muted);
   font: 12px var(--board-label); line-height: 1.2; text-align: center; white-space: normal; word-break: keep-all; }
-#tab-skills .gem-tile .gem-tile-level { position: absolute; right: 4px; top: 3px; color: var(--board-gold-hi); font: 12px var(--board-label); }
+#tab-skills .gem-tile .gem-tile-level { position: absolute; right: 3px; top: 2px; color: var(--board-gold-hi); font: 11px var(--board-label); pointer-events: none; }
 #tab-skills .gem-tile .gem-tile-level.effective { color: #8fe0a8; }
 #tab-skills .gem-tile .gem-tile-copies { position: absolute; left: 4px; bottom: 3px; color: var(--board-gold-hi); font: 12px var(--board-label); text-shadow: 1px 1px 0 #000; }
-#tab-skills .gem-tile .gem-tile-worn { position: absolute; left: 0; top: 0; padding: 1px 5px; background: #3a2c22; box-shadow: inset 0 -1px 0 var(--board-gold); color: var(--board-gold-hi); font: 12px var(--board-label); }
-#tab-skills .gem-tile.active { border-color: var(--board-gold); border-top-color: var(--board-gold-hi); background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--gem-accent) 24%, transparent), transparent 48px), linear-gradient(180deg, #2a2219, #16120f); }
-#tab-skills .gem-tile.equipment-blocked { filter: saturate(.35) brightness(.85); }
-#tab-skills .gem-tile.equipment-blocked .gem-usage-state { color: #ff9b92; }
-#tab-skills .gem-tile.is-gem-selected { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; box-shadow: 0 0 14px rgba(224, 194, 131, .3); }
+#tab-skills .gem-tile .gem-tile-worn { position: absolute; right: 3px; top: 15px; color: #b9c899; font: 10px var(--board-label); pointer-events: none; }
+#tab-skills .gem-tile.active { background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--gem-accent) 24%, transparent), transparent 48px), linear-gradient(180deg, #2a2219, #16120f); }
+#tab-skills .gem-tile.equipment-blocked .gem-tile-art { filter: saturate(.35) brightness(.75); }
+#tab-skills .gem-tile .rune-card-restriction {
+  max-width: 100%; color: #ffb2a4; font: 12px/1.35 var(--board-label);
+  overflow-wrap: anywhere; text-wrap: balance;
+}
+#tab-skills .gem-tile :is(.rune-card-pick, .rune-card-detail) { display: block; min-width: 0; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+#tab-skills .gem-tile[draggable] { min-height: 112px; align-content: center; padding: 20px 4px 8px; touch-action: manipulation; user-select: none; }
+#tab-skills .gem-tile[draggable] .gem-tile-level { top: 5px; right: 7px; }
+#tab-skills .gem-tile[draggable] .gem-tile-worn { top: 18px; right: 7px; }
+#tab-skills .gem-tile[draggable="true"], #tab-skills .gem-tile[draggable="true"] .rune-card-pick { cursor: grab; }
+#tab-skills .rune-card-pick img { pointer-events: none; }
+@media (pointer: coarse) {
+  #tab-skills .gem-tile .rune-card-pick { min-width: 44px; min-height: 44px; }
+}
 #tab-skills .gem-tile.support-gem { --gem-accent: var(--board-support); }
 #tab-skills .gem-tile .gem-tile-support-art {
   position: relative; display: grid; place-items: center;
@@ -279,47 +294,15 @@
 }
 #tab-skills .gem-tile .gem-tile-support-art > em { position: absolute; right: 2px; bottom: 0; color: var(--board-gold-hi); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; }
 
-/* 타일의 봉인 단추(2026-11-09 사용자: 룬마다 봉인할 길이 없었다): 왼쪽 위 모서리, 장착 꼬리표 자리(장착한 룬에는 단추가 없다). */
-#tab-skills .gem-tile .gem-tile-seal {
-  position: absolute; left: 0; top: 0; z-index: 1; display: flex; align-items: center; gap: 3px; min-height: 22px; padding: 1px 6px 1px 4px;
-  border: 0; border-radius: 0; background: rgba(13, 11, 15, .78); box-shadow: inset -1px -1px 0 #3a3140;
-  color: var(--board-muted); font: 12px var(--board-label); cursor: pointer;
-}
-#tab-skills .gem-tile .gem-tile-seal .m { fill: #8a7da6; }
-#tab-skills .gem-tile .gem-tile-seal .f { fill: #2c2538; }
-#tab-skills .gem-tile .gem-tile-seal:is(:hover, :focus-visible) { background: #2a2236; box-shadow: inset 0 0 0 1px #9a86c8; color: #e6dcff; }
-#tab-skills .gem-tile .gem-tile-seal:is(:hover, :focus-visible) .m { fill: #d8ccff; }
-.gem-tile-seal-icon { flex: none; width: 11px; height: 11px; }
-/* 휴대폰 타일(폭 70px대)에서는 글을 빼고 자물쇠 칩만: 글까지 쓰면 오른쪽 위 레벨을 덮었다. 터치 단추는 44px로 커지므로(css/mobile.css)
-   단추 바탕은 비워 그림을 가리지 않는다. 이름은 aria-label에 있다. */
-@container (max-width: 420px) {
-  #tab-skills .gem-tile .gem-tile-seal { align-items: flex-start; padding: 3px; background: none; box-shadow: none; }
-  #tab-skills .gem-tile .gem-tile-seal > span { display: none; }
-  #tab-skills .gem-tile .gem-tile-seal > .gem-tile-seal-icon { padding: 3px; background: rgba(13, 11, 15, .82); box-shadow: inset -1px -1px 0 #3a3140; }
-}
-/* 봉인한 룬: 점선 테, 흐린 그림 위 자물쇠, 이름, 봉인 해제 단추(아랫줄은 공명력이 어떻게 되는지). */
+/* 봉인한 룬: 흐린 그림, 이름과 봉인 해제 단추. */
 #tab-skills .gem-tile.sealed-gem-card {
-  --gem-accent: #6d6280; padding-top: 26px; border-style: dashed; border-top-style: solid; cursor: default; /* 위 여백: 해제 단추(22px) 밑으로 그림이 오게 */
+  --gem-accent: #6d6280; border-style: dashed; border-top-style: solid; cursor: default;
   background: radial-gradient(circle at 50% 34%, rgba(150, 128, 200, .12), transparent 46px), linear-gradient(180deg, #1b1721, #111015);
 }
 #tab-skills .gem-tile .gem-tile-sealed-art { display: grid; place-items: center; }
 #tab-skills .gem-tile .gem-tile-sealed-art > .gem-tile-art { grid-area: 1 / 1; filter: grayscale(1) brightness(.55); }
-/* 자물쇠는 그림 오른쪽 아래 모서리에 겹친다(그림이 position: relative라 z-index 없이는 그 밑에 깔렸다). */
-#tab-skills .gem-tile .gem-tile-sealed-lock { position: relative; z-index: 1; grid-area: 1 / 1; align-self: end; justify-self: end; width: 22px; height: 22px; margin: 0 -9px -3px 0; }
-#tab-skills .gem-tile .gem-tile-sealed-lock .m { fill: #c7b8f0; }
-#tab-skills .gem-tile .gem-tile-sealed-lock .f { fill: #3b3150; }
 #tab-skills .gem-tile.sealed-gem-card .gem-tile-name { color: #b3abc0; }
-/* 해제 단추는 봉인 단추 자리에 같은 모양으로, 밝은 보라로 눈에 띄게. */
-#tab-skills .gem-tile .gem-tile-seal.is-unseal { background: #2a2236; box-shadow: inset -1px -1px 0 #6f5c9a; color: #ebe3ff; }
-#tab-skills .gem-tile .gem-tile-seal.is-unseal .m { fill: #c7b8f0; }
-#tab-skills .gem-tile .gem-tile-seal.is-unseal .f { fill: #3b3150; }
-#tab-skills .gem-tile .gem-tile-seal.is-unseal:is(:hover, :focus-visible) { background: #3a2f4c; box-shadow: inset 0 0 0 1px #c7b8f0; }
 #tab-skills .gem-tile.sealed-gem-card .gem-usage-state { color: #a99fc0; }
-/* 휴대폰 타일: 해제 단추도 봉인 단추처럼 바탕을 비우고 열린 자물쇠 칩만(이 규칙이 위의 해제 색보다 뒤에 와야 한다). */
-@container (max-width: 420px) {
-  #tab-skills .gem-tile .gem-tile-seal.is-unseal { background: none; box-shadow: none; }
-  #tab-skills .gem-tile .gem-tile-seal.is-unseal > .gem-tile-seal-icon { background: #2a2236; box-shadow: inset -1px -1px 0 #6f5c9a; }
-}
 /* 봉인 탭: 머리(자물쇠, 봉인 수, 공명력과 다음 1까지 두 칸, 일괄 봉인), 그 아래 공격 룬과 보조스킬룬 묶음. */
 .sealed-library { display: grid; gap: 12px; }
 .sealed-library[hidden] { display: none; }
@@ -382,8 +365,12 @@
 @media (max-width: 1080px) {
   .skill-board-layout { grid-template-columns: minmax(0, 1fr); }
   #tab-skills .skill-picker .skill-gem-library { grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 4), 1px)); }
-  #tab-skills .gem-tile { padding: 11px 3px 6px; }
-  #tab-skills .gem-tile .gem-tile-art { width: 40px; height: 40px; }
+  #tab-skills .gem-tile { padding: 15px 2px 6px; }
+  #tab-skills .gem-tile .gem-tile-art { width: 42px; height: 42px; }
+  #tab-skills .gem-tile[draggable] .gem-tile-name {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    white-space: normal; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.2;
+  }
 }
 @media (max-width: 700px) {
   .skill-board-linked-row { grid-template-columns: minmax(52px, 1fr) minmax(156px, 2fr) minmax(52px, 1fr); gap: 3px; }
@@ -402,6 +389,5 @@
   .skill-board-mobility { padding: 0; }
   .skill-board-summons { max-height: 240px; padding: 0; }
   .support-resonance { margin-left: 0; }
-  #tab-skills .skill-picker #ui-support-list, .support-library-unmatched { grid-template-columns: minmax(0, 1fr); }
 }
 }
