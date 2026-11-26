@@ -31,6 +31,7 @@ function createEmptyStatBucket() {
         fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0, physFlatDmg: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellPctDmg: 0, shieldPctDmg: 0, minePctDmg: 0, potionPctDmg: 0, mobilityPctDmg: 0, channelingPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0, projectileExtraChance: 0, projectileChain: 0,
+        rangeFirstAim: 0, rangeAreaExpansion: 0, rangeAdditionalTargets: 0, rangeFarHorizon: 0, rangeCloseCalamity: 0,
         igniteDurationPct: 0, chillDurationPct: 0, freezeDurationPct: 0, shockDurationPct: 0, poisonDurationPct: 0, bleedDurationPct: 0, skillDelayReduce: 0,
         attackPctDmg: 0, spellLeech: 0, spellCritDmg: 0, spellRepeatChance: 0,
         strength: 0, dexterity: 0, intelligence: 0, accuracy: 0,

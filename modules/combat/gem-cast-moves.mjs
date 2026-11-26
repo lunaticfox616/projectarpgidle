@@ -1,6 +1,6 @@
 import { gemMoveStart, gemLandNear, gemMoveReach, gemCell, gemMoveRadius, gemBesideTarget, gemPullLanding, gemDistance, gemLandingNow, gemSame, gemArea } from './gem-cast-geometry.mjs';
 import { gemGrow, gemMs } from './gem-cast-math.mjs';
-import { gemVisual, gemContact } from './gem-cast-common.mjs';
+import { gemVisual, gemContact, gemAreaContact } from './gem-cast-common.mjs';
 import { SMOKE_RADIUS } from './gem-cast-values.mjs';
 
 export function gemLaunchRift(env, state,c,enemies) {                   // 54: a tear before the caster, out of a second one
@@ -76,7 +76,7 @@ export function gemStepHarpoon(env, state,c,input) {                    // the s
 export function gemStepRockFlask(env, state,c,input) {                  // the flask breaks around where it lands, then (if it moved) the dash
     if(!c.index) {
         c.index=1;c.nextAt=c.move.pull1;c.done=!c.move.moved;
-        return [gemContact(env, c,gemArea(env, input.enemies,c.move.foe,'square',gemMoveRadius(c)),c.move.hitAt)];
+        return [gemAreaContact(env, c,gemArea(env, input.enemies,c.move.foe,'square',gemMoveRadius(c)),c.move.hitAt)];
     }
     c.done=true;
     return gemLandingNow(env, c,input) ? [gemMoveTo(c,'pull')] : [];

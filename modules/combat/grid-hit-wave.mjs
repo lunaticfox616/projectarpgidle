@@ -2,6 +2,7 @@ import { skillGetSkillGridProfile } from './grid-skill-profile.mjs';
 import { cellGetClosestGridUnitCell, cellGridCellKey, cellGetGridUnitCells } from './grid-units.mjs';
 import { cellGetGridUnitStepSec } from './grid-movement.mjs';
 import { linearStepLag } from '../common/step-interpolation.mjs';
+import { effectAreaTargetLimit } from '../domain/skill-effect-expansion.mjs';
 
 /** 대지의 함성 · 서리바람 내지르기: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
  * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
@@ -13,7 +14,7 @@ export function skillBuildRadialBurstHitSequence(env, skillName, skill, targets,
     let gridProfile = skillGetSkillGridProfile(env, skillName, skill), { center, reach, cells } = skillGetRadialWaveShape(env, gridProfile, area);
     let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90)), waveDurationMs = Math.round(reach * msPerCell);
     let wave = { center, shape: gridProfile.shape, reach, msPerCell, struck: [], checkedAt: null, cells,
-        limit: Math.max(1, Number(skill.targets) || targets.length), mults: Object.fromEntries(targets.map(entry => [entry.enemy.id, entry.mult])) };
+        limit: effectAreaTargetLimit(skill), mults: Object.fromEntries(targets.map(entry => [entry.enemy.id, entry.mult])) };
     let checks = Array.from({ length: Math.round(reach * 2) + 1 }, (_, step) => step / 2);
     return checks.map((front, index) => ({
         kind: 'radialBurstWave', label: `서리 파동 ${index + 1}단계`, delayMs: Math.round(front * msPerCell), damageMultiplier: 1,

@@ -23,6 +23,7 @@ const gemSelectionUi = createGemSelectionView({
     get skillGemBoardUi() { return skillGemBoardUi; },
     get mobilitySkill() { return mobilitySkill; },
     get getSkillGemSealRefusal() { return getSkillGemSealRefusal; },
+    get getSkillRuneWeaponNote() { return getSkillRuneWeaponNote; },
     get previewBuildStats() { return previewBuildStats; },
     get COMPARE_STAT_META() { return COMPARE_STAT_META; },
     get hideInfoTooltip() { return hideInfoTooltip; },

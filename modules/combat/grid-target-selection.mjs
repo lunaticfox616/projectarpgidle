@@ -4,6 +4,7 @@ import { cellGridLineCells } from './grid-lines.mjs';
 import { skillGetGridAttackAreaCells, skillIsGridPrimaryInReach } from './grid-attack-area.mjs';
 import { skillGetSkillGridProfile, skillGetGridSkillTargetMult } from './grid-skill-profile.mjs';
 import { skillNoteGridBandSide } from './grid-bands.mjs';
+import { effectAreaTargetLimit } from '../domain/skill-effect-expansion.mjs';
 
 /** A fan's hits: an aimed fan (spreadDeg) per selectGridAimedFanHits; a grid-direction fan, per ray, the first candidate standing
  * exactly on that direction's line within range. */
@@ -120,11 +121,11 @@ export function skillSelectGridSkillTargets(env, skillName, skill, attackerCell,
     if (!primary) return [];
     skillNoteGridBandSide(env, skillName, skill, attackerCell, {primaryEnemy:primary.enemy, candidates:candidates});
     let orderedCandidates = [primary].concat(candidates.filter(row => row !== primary));
-    let targetCount = Math.max(1, Math.floor(skill.targets || 1));
+    let targetCount = effectAreaTargetLimit(skill);
     let mode = skill.targetMode || 'single';
     const attack = { profile, attackerCell, targetCount };
     let hits = skillSelectGridDirectHits(env, attack, primary, orderedCandidates);
-    skillExtendGridMeleeHits(env, hits, attack, primary, orderedCandidates);
+    if (!skill.areaKind) skillExtendGridMeleeHits(env, hits, attack, primary, orderedCandidates);
     let fanDamage = skill.projectilePattern && skill.projectilePattern.kind === 'fan'
         ? Math.max(0, Number(skill.extraProjectileDamagePct) || env.deps.PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100 : null;
     let directHits = hits.length;

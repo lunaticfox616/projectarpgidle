@@ -84,14 +84,18 @@ export function present(ctx, node, tooltip, position) {
     const owned = ctx.deps.game.passives.includes(node.id);
     const path = (0, ctx.deps.getPassiveActivationPath)(node.id);
     const cost = path.length;
-    const enabled = canAct(ctx, node, cost);
-    const label = confirmLabel(ctx, node, owned, cost);
     panel.dataset.nodeId = node.id;
-    panel.innerHTML = `<header><strong>${(0, ctx.deps._t)('선택한 노드')}</strong><button type="button" data-passive-close aria-label="${(0, ctx.deps._t)('노드 설명 닫기')}">${(0, ctx.deps._t)('닫기')}</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div><footer><p id="passive-mobile-action-hint" role="status">${actionHint(ctx, node, owned, cost)}</p><button type="button" data-passive-confirm aria-describedby="passive-mobile-action-hint" ${enabled ? '' : 'disabled'}>${label}</button></footer>`;
+    panel.innerHTML = `<header><strong>${(0, ctx.deps._t)('선택한 노드')}</strong><button type="button" data-passive-close aria-label="${(0, ctx.deps._t)('노드 설명 닫기')}">${(0, ctx.deps._t)('닫기')}</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div>${renderSelectionFooter(ctx, node, owned, cost, position.conflict)}`;
     panel.hidden = false;
     panel.querySelector('[data-passive-close]').onclick = ctx.handlers.hide;
     panel.querySelector('[data-passive-confirm]').onclick = ctx.handlers.confirmSelection;
     refreshGuide(ctx);
+}
+
+function renderSelectionFooter(ctx, node, owned, cost, conflict) {
+    if (conflict) return `<footer><button type="button" data-passive-confirm disabled>${(0, ctx.deps._t)('사용 불가')}</button></footer>`;
+    const label = confirmLabel(ctx, node, owned, cost);
+    return `<footer><p id="passive-mobile-action-hint" role="status">${actionHint(ctx, node, owned, cost)}</p><button type="button" data-passive-confirm aria-describedby="passive-mobile-action-hint" ${canAct(ctx, node, cost) ? '' : 'disabled'}>${label}</button></footer>`;
 }
 
 export async function confirmSelection(ctx) {

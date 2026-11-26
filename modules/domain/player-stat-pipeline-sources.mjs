@@ -39,9 +39,11 @@ export function prepareTargetBudget(c, s, deps) {
 }
 
 export function prepareTaggedDamage(c, s, deps) {
+    const flags = c.authoredPassiveRules.flags;
+    if (flags.elementalDistribution) distributeElementalDamage(c, deps.keystone('cr2'));
     c.taggedSkill = c.authoredPassiveRules.flags.duel ? { ...c.skill, tags: [...c.skill.tags, 'spell'] } : c.skill;
-    c.strongestElement = c.authoredPassiveRules.flags.threeBranchLight ? s.passive.strongestElement(c.sumStatAcrossBuckets) : null;
-    c.damageSkill = s.passive.taggedSkill(c.taggedSkill, c.strongestElement);
+    c.strongestElement = flags.threeBranchLight && !flags.elementalDistribution ? s.passive.strongestElement(c.sumStatAcrossBuckets) : null;
+    c.damageSkill = s.passive.taggedSkill(c.taggedSkill, c.strongestElement, flags.elementalDistribution);
     c.gearTagged = getTaggedDamageBreakdown(c.gearBase, c.damageSkill);
     c.gearExplicitTagged = getTaggedDamageBreakdown(c.gearExplicit, c.damageSkill);
     c.passiveTagged = getTaggedDamageBreakdown(c.passive, c.damageSkill);
@@ -62,10 +64,25 @@ export function prepareTaggedDamage(c, s, deps) {
     c.baseTaggedTotal = c.taggedTotal;
 }
 
+// The correction belongs to this evaluation's passive bucket. Damage, random conversions,
+// added elemental hits and the character sheet then read the same totals. Common elemental
+// damage already applies to each element; round once, after all sources have been added.
+function distributeElementalDamage(c, thunderDoctrine) {
+    const common = c.sumStatAcrossBuckets('elementalPctDmg');
+    const fire = c.sumStatAcrossBuckets('firePctDmg');
+    const cold = c.sumStatAcrossBuckets('coldPctDmg');
+    const light = c.sumStatAcrossBuckets('lightPctDmg');
+    const extraLightning = thunderDoctrine ? Math.max(0, fire + cold) : 0;
+    const share = Math.floor(common + (fire + cold + light + extraLightning) / 3) - common;
+    c.passive.firePctDmg += share - fire;
+    c.passive.coldPctDmg += share - cold;
+    c.passive.lightPctDmg += share - light;
+}
+
 export function applyElementalDoctrine(c, s, deps) {
     ({ coreCubeAddedDamagePct: c.coreCubeAddedDamagePct, coreCubeFlatElementDamage: c.coreCubeFlatElementDamage, coreCubeTakenFlatReduce: c.coreCubeTakenFlatReduce, coreCubePhysTakenAs: c.coreCubePhysTakenAs, coreCubeDoubleDamageChance: c.coreCubeDoubleDamageChance, coreCubeSlamEchoDamagePct: c.coreCubeSlamEchoDamagePct } = s.math.coreModifiers(c));
     c.crusaderThunderDoctrinePct = 0;
-    if (deps.keystone('cr2') && c.skill.ele === 'light') {
+    if (!c.authoredPassiveRules.flags.elementalDistribution && deps.keystone('cr2') && c.skill.ele === 'light') {
         let firePct = c.sumStatAcrossBuckets('firePctDmg');
         let coldPct = c.sumStatAcrossBuckets('coldPctDmg');
         c.crusaderThunderDoctrinePct = Math.max(0, firePct + coldPct);
@@ -79,12 +96,18 @@ export function applyElementalDoctrine(c, s, deps) {
 export function prepareRandomElementDamage(c, deps) {
     c.hasRandomElementConversion = Array.isArray(c.skill.randomElementPool) && c.skill.randomElementPool.length > 0;
     c.skillHasElementalConversion = c.hasRandomElementConversion || ['fire','cold','light','chaos'].includes(c.skill.ele);
-    c.randomElementDamagePct = c.hasRandomElementConversion ? {
-        fire: c.strongestElement?.bonus ?? c.sumStatAcrossBuckets('firePctDmg'),
-        cold: c.strongestElement?.bonus ?? c.sumStatAcrossBuckets('coldPctDmg'),
-        light: c.strongestElement?.bonus ?? c.sumStatAcrossBuckets('lightPctDmg')
-    } : null;
+    c.randomElementDamagePct = c.hasRandomElementConversion && !c.authoredPassiveRules.flags.elementalDistribution
+        ? randomConversionModifiers(c) : null;
     appendRandomElementSummary(c, deps);
+}
+
+function randomConversionModifiers(c) {
+    const bonus = c.strongestElement?.bonus;
+    return {
+        fire: bonus ?? c.sumStatAcrossBuckets('firePctDmg'),
+        cold: bonus ?? c.sumStatAcrossBuckets('coldPctDmg'),
+        light: bonus ?? c.sumStatAcrossBuckets('lightPctDmg')
+    };
 }
 
 function appendRandomElementSummary(c, deps) {

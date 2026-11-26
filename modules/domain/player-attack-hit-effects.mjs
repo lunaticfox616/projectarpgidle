@@ -70,8 +70,11 @@ function recordContactSummary(c, h) {
     if (h.hitElement === 'chaos') c.totalChaosDamage += h.dealtToEnemy;
     c.hits.push(h.dealtToEnemy);
     c.deps.notePlayerHitSummary(c.hitSummary, h.targetEnemy, h.dealtToEnemy);
-    c.deps.addPlayerHitVisualFx(c.pStats, c.options, h.targetEnemy, {
-        stageKind: c.stageKind, stageLabel: c.stageLabel, stageCount: c.stageCount, skillName: c.skillName, hitCrit: h.hitCrit, hitIdx: h.hitIdx,
+    const from = h.linkedFrom;
+    const options = from ? { ...c.options, chainFromEnemyId: from.id, sourceCell: from } : c.options;
+    c.deps.addPlayerHitVisualFx(c.pStats, options, h.targetEnemy, {
+        stageKind: from ? 'supportLinkedStrike' : c.stageKind, stageLabel: from ? c.deps._t('연쇄 타격') : c.stageLabel,
+        stageCount: c.stageCount, skillName: c.skillName, hitCrit: h.hitCrit, hitIdx: h.hitIdx,
         hitElement: h.hitElement, dealtToEnemy: h.dealtToEnemy, dmg: h.dmg, isStageReplay: c.isStageReplay
     });
 }
@@ -105,7 +108,7 @@ function applyContactAilments(c, h) {
     });
     c.deps.spreadSkillAilmentOnHit(h.targetEnemy, c.pStats.sSkill, c.pStats);
     c.deps.applySkillPeriodicOnHit(h.targetEnemy, c.pStats.sSkill, h.dealtToEnemy, c.pStats.sSkill.visualName || c.skillName);
-    c.deps.applySkillGridControlOnHit(h.targetEnemy, c.pStats.sSkill, c.options);
+    if (!h.linkedFrom) c.deps.applySkillGridControlOnHit(h.targetEnemy, c.pStats.sSkill, c.options);
     c.deps.applySupportEchoOnHit(h.targetEnemy, c.pStats, h.dealtToEnemy);
     c.deps.applySupportChaosErosionOnHit(h.targetEnemy, c.pStats, h.hitElement);
     c.deps.applyCosmosJudgmentOnHit(h.targetEnemy, c.pStats, h.hitElement);

@@ -7,7 +7,9 @@ export function runeLive(enemies) { return enemies.filter(e => e.hp > 0); }
 /** 그 적의 칸 가운데 하나라도 둘레(유클리드, 칸) 안에 드는가. */
 export function runeWithin(env, e, center, radius) { return env.deps.getGridUnitCells(e).some(p => env.kit.distance(center, p) <= radius); }
 
-export function runeReachOf(env, range) { return (id, source, foes) => foes.filter(e => runeWithin(env, e, source, range)); }
+export function runeReachOf(env, range) {
+    return (id, source, foes, areaExpansion, firstAim = 0) => foes.filter(e => runeWithin(env, e, source, range + firstAim));
+}
 
 export function runeFaceTo(env, c, foe) { return Math.sign(env.deps.getGridUnitCenter(foe).gx - c.source.gx) || 1; }
 

@@ -1,3 +1,5 @@
+import { supportSlotNames } from '../common/support-gems.mjs';
+
 /** @param {string} name skill gem name @returns {'active'|'mobility'|'summon'} the slot kind the gem is worn in (js/ui.js changeSkill) */
 export function kindOf(runtime, name) {
     if ((runtime.deps.SKILL_DB[name]?.tags || []).includes('summon')) return 'summon';
@@ -91,11 +93,11 @@ export function shortTarget(runtime, text) {
     return (0, runtime.deps._t)('맞는 스킬 없음');
 }
 
-export function renderSupportSlot(runtime, name, stats) {
+export function renderSupportSlot(runtime, name, stats, index) {
     const target = shortTarget(runtime, runtime.deps.gemSelectionUi.application(name, stats));
     const role = runtime.state.focusedSkill.kind === 'active' ? 'main' : runtime.state.focusedSkill.kind;
     const lit = runtime.deps.gemSelectionUi.targetRows(name).some(row => row.role === role && row.name === focusedName(runtime) && row.status === 'on');
-    return `<button type="button" class="support-slot active${lit ? ' is-linked' : ''}" data-board-pick="support" data-board-gem="${(0, runtime.deps.escapeHTML)(name)}" ${hoverHint(runtime, 'support', name)} aria-label="${(0, runtime.deps._t)('보조스킬룬')}: ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(name))}, ${(0, runtime.deps.escapeHTML)(target)}">${runtime.deps.supportGemSigil.html(name, 'support-slot-sigil', (0, runtime.deps.getSupportActiveTier)(name))}<b>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(name))}</b>${runtime.deps.gemSelectionUi.indicators(name)}<small>${(0, runtime.deps.escapeHTML)(target)}</small></button>`;
+    return `<button type="button" class="support-slot active${lit ? ' is-linked' : ''}" draggable="${!runtime.deps.game.woodsmanBuildLock}" data-board-support-index="${index}" data-board-pick="support" data-board-gem="${(0, runtime.deps.escapeHTML)(name)}" ${hoverHint(runtime, 'support', name)} aria-label="${(0, runtime.deps._t)('보조스킬룬')}: ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(name))}, ${(0, runtime.deps.escapeHTML)(target)}">${runtime.deps.supportGemSigil.html(name, 'support-slot-sigil', (0, runtime.deps.getSupportActiveTier)(name))}<b>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(name))}</b>${runtime.deps.gemSelectionUi.indicators(name)}<small>${(0, runtime.deps.escapeHTML)(target)}</small><span class="support-placement-note" hidden></span></button>`;
 }
 
 export function focusedName(runtime) {
@@ -106,15 +108,15 @@ export function focusedName(runtime) {
 
 export function renderSupports(runtime, stats) {
     const cap = Math.max(0, Math.floor(stats.suppCap || 0));
-    const worn = (runtime.deps.game.equippedSupports || []).slice(0, cap);
+    const worn = runtime.deps.game.equippedSupports || [];
     const resonanceCap = (0, runtime.deps.getEffectiveResonanceCap)(stats);
     const used = (runtime.deps.game.equippedSupports || []).reduce((sum, name) => sum + (0, runtime.deps.getSupportTierResonanceCost)(name), 0);
     const fill = resonanceCap > 0 ? Math.round(Math.min(1, used / resonanceCap) * 100) : 0;
     const resonanceTip = stats.supportResonanceOverflow
         ? (0, runtime.deps._t)('공명력 {value} 초과: 모든 저항 -{value}%p', { value: stats.supportResonanceOverflow })
         : (0, runtime.deps._t)('장착 보조스킬룬이 쓰는 공명력');
-    const slots = worn.map(name => renderSupportSlot(runtime, name, stats));
-    for (let i = worn.length; i < cap; i++) slots.push(`<button type="button" class="support-slot is-empty" data-board-pick="support" aria-label="${(0, runtime.deps._t)('빈 보조스킬룬 칸, 룬 고르기')}"><i>+</i><b>${(0, runtime.deps._t)('빈 칸')}</b><small>&nbsp;</small></button>`);
+    const slots = supportSlotNames(runtime.deps.game, cap).map((name, index) => name ? renderSupportSlot(runtime, name, stats, index)
+        : `<button type="button" class="support-slot is-empty" data-board-support-index="${index}" data-board-pick="support" aria-label="${(0, runtime.deps._t)('보조스킬룬 {index}번 칸', { index: index + 1 })}, ${(0, runtime.deps._t)('빈 칸')}"><i>+</i><b>${(0, runtime.deps._t)('빈 칸')}</b><span class="support-placement-note" hidden></span></button>`);
     slots.push(`<div class="support-slot is-lock" aria-label="${(0, runtime.deps._t)('다음 보조스킬룬 칸은 장비, 패시브로 늘어납니다')}"><i></i><b>${(0, runtime.deps._t)('다음 칸')}</b><small>${(0, runtime.deps._t)('장비, 패시브')}</small></div>`);
     return `<div class="support-slots-head"><span>${(0, runtime.deps._t)('보조스킬룬')}</span><em>${(0, runtime.deps._t)('칸')} ${worn.length} / ${cap}</em>
                 <div class="support-resonance" data-tip="${(0, runtime.deps.escapeHTML)(resonanceTip)}"><small>${(0, runtime.deps._t)('공명력')}</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${used}</b><small>/ ${resonanceCap}</small></div></div>

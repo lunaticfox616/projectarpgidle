@@ -30,6 +30,8 @@ const STAT_META = Object.freeze({
     slamPctDmg: ['강타 피해', '%'], projectilePctDmg: ['투사체 피해', '%'], physPctDmg: ['물리 피해', '%'],
     elementalPctDmg: ['원소 피해', '%'], firePctDmg: ['화염 피해', '%'], coldPctDmg: ['냉기 피해', '%'],
     lightPctDmg: ['번개 피해', '%'], chaosPctDmg: ['카오스 피해', '%'], aoePctDmg: ['범위 피해', '%'],
+    rangeAreaExpansion: ['가변 범위 반경', ''], rangeAdditionalTargets: ['추가 지정 대상', ''],
+    rangeFarHorizon: ['가변 범위 크기 및 적중 상한', ''], rangeCloseCalamity: ['근접 범위 적중', ''],
     dotPctDmg: ['지속 피해 배율', '%'], spellPctDmg: ['주문 피해', '%'], shieldPctDmg: ['완갑 착용 근접 피해', '%'],
     potionPctDmg: ['포션 스킬 피해', '%'], minePctDmg: ['지뢰 피해', '%'],
     mobilityPctDmg: ['기동 스킬 피해', '%'], channelingPctDmg: ['채널링 피해', '%'],

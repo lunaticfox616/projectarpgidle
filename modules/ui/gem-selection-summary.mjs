@@ -36,7 +36,7 @@ export function effectText(runtime, name, tier, stats) {
 export function targetDetails(runtime, name, stats, replaced) {
     const effect = effectText(runtime, name, (0, runtime.deps.getSupportActiveTier)(name), stats);
     return `<div class="support-target-details">${targetRows(runtime, name, replaced).map(row =>
-        `<p class="is-${row.status}"><b>${(0, runtime.deps._t)(runtime.state.TARGET_LABELS[row.role])}${row.name ? ` · ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name))}` : ''}</b><span>${(0, runtime.deps.escapeHTML)(row.status === 'on' ? effect : (row.reason || runtime.state.TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
+        `<p class="is-${row.status}"><b>${(0, runtime.deps._t)(runtime.state.TARGET_LABELS[row.role])}${row.name ? ` / ${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(row.name))}` : ''}</b><span>${(0, runtime.deps.escapeHTML)(row.status === 'on' ? effect : (row.reason || runtime.state.TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
 }
 
 export function summonEffect(runtime, name, stats) {
@@ -62,6 +62,11 @@ export function skillSummary(runtime, role, name, stats) {
 }
 
 export function migrationNotice(runtime) {
+    const meta = runtime.deps.game.saveMeta;
+    if (meta?.wideSupportNotice === true) {
+        meta.wideSupportNotice = false;
+        runtime.deps.addLog(runtime.deps._t('넓은 판정은 가변 범위 스킬에 적용됩니다. 현재 장착한 스킬에 맞지 않아 보관함으로 돌려보냈습니다.'), 'loot-unique', {toast:true});
+    }
     const migration = runtime.deps.game.saveMeta?.supportRuneMigration;
     if (!migration?.noticePending) return;
     (0, runtime.deps.addLog)((0, runtime.deps._t)('보조룬 개편: {map} 이전, 창공의 정수 {refund}개 환급. 소환 칸에서 사역룬을 확인하세요.', { map: migration.moved.map(runtime.deps.escapeHTML).join(', '), refund: migration.refund }), 'loot-unique', { toast: true });

@@ -16,7 +16,17 @@ class SupportContactPlanner {
                 singleRepeat: true, delayMs: (row.delayMs || 0) + delay, damageMultiplier: row.damageMultiplier * fx.repeat.damagePct / 100 })));
         }
         if (fx.mineDelayMs) result = result.map(row => ({ ...row, delayMs: (row.delayMs || 0) + fx.mineDelayMs, delivery: 'instantTarget' }));
+        if (fx.linkedStrike && !fx.sweep) this.markLinkedStrike(result, fx.linkedStrike);
         return result;
+    }
+    markLinkedStrike(rows, percent) {
+        const first = rows.find(row => row.targets.length);
+        if (first) first.linkedStrikePct = percent;
+    }
+    linkedTarget(primary, targets, world) {
+        const seen = new Set(targets.map(entry => entry.enemy.id));
+        seen.add(primary.id);
+        return this.nativeCandidates(primary, seen, 1, world)[0];
     }
     stageTargetMultiplier(entry, index, skill) {
         const fx = skill.supportEffects;
@@ -109,5 +119,6 @@ class SupportContactPlanner {
 }
 export function createSupportContactPlanner(inputs) {
     const planner = new SupportContactPlanner(inputs);
-    return Object.freeze({ stages: planner.stages.bind(planner), repeat: planner.repeat.bind(planner), augment: planner.augment.bind(planner) });
+    return Object.freeze({ stages: planner.stages.bind(planner), repeat: planner.repeat.bind(planner), augment: planner.augment.bind(planner),
+        linkedTarget: planner.linkedTarget.bind(planner) });
 }

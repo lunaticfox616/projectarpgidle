@@ -1,7 +1,7 @@
 import { cellGetClosestGridUnitCell, cellGetGridUnitCells } from './grid-units.mjs';
 import { skillGetSkillGridProfile } from './grid-skill-profile.mjs';
 import { skillGetGridAttackAreaCells } from './grid-attack-area.mjs';
-import { effectExpansionStageGrid } from '../domain/skill-effect-expansion.mjs';
+import { effectAreaTargetLimit, effectExpansionStageGrid } from '../domain/skill-effect-expansion.mjs';
 
 /** Targeted impact followed by a fixed ground eruption, even if the first victim dies or moves. */
 export function skillBuildEarthSpikeHitSequence(env, skill, targets, primary, impactCells) {
@@ -30,7 +30,7 @@ export function skillBuildAuthoredSkillHitSequence(env, skillName, skill, target
         let gridProfile = { ...base, ...(phase.grid && { band: 0 }), ...effectExpansionStageGrid(phase.grid, skill) };
         return { kind: 'authored', label: phase.label, delayMs: phase.delayMs,
             damageMultiplier: phase.damagePct / 100, singleRepeat: true, delivery: 'magicCell',
-            targetLimit: skill.targets, targets, aimCell: { ...aimCell }, gridProfile,
+            targetLimit: effectAreaTargetLimit(skill), targets, aimCell: { ...aimCell }, gridProfile,
             impactCells: skillGetGridAttackAreaCells(env, gridProfile, source, aimCell),
             element: phase.element, skipGridControl: phase.skipGridControl };
     });

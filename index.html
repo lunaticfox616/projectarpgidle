@@ -1127,9 +1127,7 @@
             <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><span class="px-center" data-i18n>전술</span></button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active">
-            <!-- 룬 보드(js/skill-gem-board-ui.js): 가운데 주 공격 룬, 둘레 각인, 이동/소환 칸, 보조스킬룬 칸 줄.
-                 칸을 누르면 룬 칸 창(js/gem-slot-dialog-ui.js)이 뜨고 옆 목록도 그 칸에 낄 수 있는 룬만 보여 준다.
-                 목록의 룬을 누르면 상세가 뜬다(js/gem-selection-ui.js). -->
+            <!-- 주 공격·이동·소환 칸 창과 보조스킬룬 장착 보드가 같은 룬 보관함을 사용한다. -->
             <div class="skill-board-layout">
                 <div class="skill-board-column" id="rune-equipped">
                     <section id="ui-skill-board" class="skill-board" aria-label="장착한 공격 룬과 각인" data-i18n-attr="aria-label"></section>
@@ -1142,8 +1140,10 @@
                         <h3 id="ui-skill-picker-title" data-i18n>공격스킬룬</h3>
                     </div>
                     <div id="ui-skills-list" class="skill-gem-library attack-library"></div>
+                    <p id="attack-board-status" role="status" hidden></p>
                     <div id="ui-support-list" class="skill-gem-library support-library" hidden></div>
                     <div id="ui-sealed-list" class="sealed-library" hidden></div>
+                    <section id="support-board-detail" hidden></section>
                 </section>
             </div>
         </div>

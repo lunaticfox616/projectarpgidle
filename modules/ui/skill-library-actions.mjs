@@ -1,3 +1,5 @@
+import { supportLibraryRestriction } from './support-placement-feedback.mjs';
+
 /** @param {{title: string, action: string, done: boolean, ready: boolean, details: string, gain?: number}} upgrade
 * @param {number} currentLevel Displayed total gem level, including equipment and passives. */
 export function renderGemUpgradeButton(runtime, upgrade, currentLevel) {
@@ -19,12 +21,14 @@ export function createRenderGemLibrary(runtime) {
                     : [runtime.deps.game.activeSkill, runtime.deps.game.mobilitySkill].includes(record.name) || (runtime.deps.game.equippedSummonSkills || []).includes(record.name));
             return runtime.deps.window.isGemLibraryMatchVisible(runtime.deps.window.getGemSearchText(record.name, definitions[record.name] || {}), filter, fold, active);
         });
-        if (support) return renderSupportLibrary(runtime, records, stats, filter);
         const query = JSON.stringify([filter || '', !!fold, slotKind]);
-        const page = libraryPage(runtime, kind, records, query);
+        const page = support ? { rows: records, nav: '' } : libraryPage(runtime, kind, records, query);
+        const restrictionFor = support && supportLibraryRestriction(runtime.deps, stats);
+        const renderCard = support ? (name, label) => runtime.deps.renderSupportGemCard(name, label, stats, restrictionFor(name))
+            : (name, label) => runtime.deps.renderAttackGemCard(name, label, stats);
         const cards = page.rows.map(record => {
             const label = runtime.deps.window.highlightSearchText((0, runtime.deps._t)(record.name), filter);
-            return record.sealed ? renderSealedRuneTile(runtime, record.name, label, false, stats) : withTileSeal(runtime, (0, runtime.deps.renderAttackGemCard)(record.name, label, stats), false, record.name);
+            return record.sealed ? renderSealedRuneTile(runtime, record.name, label, support, stats) : withTileSeal(runtime, renderCard(record.name, label), support, record.name);
         }).join('');
         return page.nav + cards;
     };
@@ -32,41 +36,13 @@ export function createRenderGemLibrary(runtime) {
 
 function libraryPage(runtime, kind, rows, query) {
     if (!runtime.deps.uiDisplay.matches('(max-width: 1080px)')) return { rows, nav: '' };
-    const size = kind === 'support' ? 3 : runtime.state.MOBILE_PAGE_SIZE;
+    const size = runtime.state.MOBILE_PAGE_SIZE;
     const count = Math.max(1, Math.ceil(rows.length / size));
     const state = runtime.state.libraryPages[kind];
     state.index = state.query === query ? Math.min(state.index, count - 1) : 0;
     state.query = query;
     return { rows: rows.slice(state.index * size, (state.index + 1) * size),
         nav: count > 1 ? renderLibraryPager(runtime, kind, state.index, count, rows.length) : '' };
-}
-
-export function renderSupportLibrary(runtime, records, stats, filter) {
-    const full = runtime.deps.game.equippedSupports.length >= Math.floor(stats.suppCap || 0);
-    const rows = records.map(record => supportLibraryRow(runtime, record, full, stats));
-    rows.sort((a, b) => b.targets - a.targets || b.dps - a.dps);
-    const card = row => row.sealed ? renderSealedRuneTile(runtime, row.name, runtime.deps.window.highlightSearchText((0, runtime.deps._t)(row.name), filter), true, stats)
-        : withTileSeal(runtime, (0, runtime.deps.renderSupportGemCard)(row.name, runtime.deps.window.highlightSearchText((0, runtime.deps._t)(row.name), filter), stats), true, row.name);
-    const page = libraryPage(runtime, 'support', rows, JSON.stringify([filter, !!runtime.deps.game.gemFoldInactiveSupport]));
-    const matched = page.rows.filter(row => row.targets > 0), unmatched = page.rows.filter(row => row.targets === 0);
-    const banner = full ? '<p class="support-full-banner">보조 칸이 차서 룬을 고르면 바꿀 칸을 고릅니다.</p>' : '';
-    return page.nav + banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"${page.nav && !matched.length ? ' open' : ''}><summary>${(0, runtime.deps._t)('지금 장착한 스킬에 안 맞음 ({length})', { length: unmatched.length })}</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');
-}
-
-export function supportLibraryRow(runtime, record, full, stats) {
-    const targets = runtime.deps.gemSelectionUi.targetCount(record.name);
-    const compare = !full && !record.sealed && !runtime.deps.game.equippedSupports.includes(record.name) && targets > 0;
-    return { ...record, targets, dps: compare ? supportDpsGain(runtime, record.name, stats) : 0 };
-}
-
-export function supportDpsGain(runtime, name, stats) {
-    const key = [name, stats.totalDps, runtime.deps.game.activeSkill, runtime.deps.game.mobilitySkill, ...runtime.deps.game.equippedSupports, '|', ...(runtime.deps.game.equippedSummonSkills || [])].join(',');
-    if (!runtime.state.supportDpsGains.has(key)) {
-        if (runtime.state.supportDpsGains.size > 500) runtime.state.supportDpsGains.clear();
-        const preview = runtime.deps.gemSelectionUi.preview('support', name);
-        runtime.state.supportDpsGains.set(key, preview.after.totalDps - preview.before.totalDps);
-    }
-    return runtime.state.supportDpsGains.get(key);
 }
 
 export function renderLibraryPager(runtime, kind, index, count, total) {
@@ -127,29 +103,30 @@ export function renderLibraryActions(runtime, kind, fold) {
     return toggle + (fold ? '' : bulkSealButton(runtime, kind));
 }
 
-/** A library tile's own seal button (2026-11-09 사용자: 룬마다 봉인할 길이 없었다). Only where sealing is allowed now: not on a worn
-* rune, 기본 공격, the first-rune guide's rune or during the woodsman fight (getSkillGemSealRefusal). The tile shows the rune tooltip,
-* so the button carries visible words and no data-tip. */
+/** A dim lock keeps blocked sealing actions visible alongside available ones. */
 export function withTileSeal(runtime, cardHtml, support, name) {
-    if ((0, runtime.deps.getSkillGemSealRefusal)(name, support)) return cardHtml;
+    const refusal = runtime.deps.getSkillGemSealRefusal(name, support);
     const end = cardHtml.lastIndexOf('</article>');
-    const button = `<button type="button" class="gem-tile-seal" data-tile-seal="${support ? 'support' : 'skill'}" data-gem-name="${(0, runtime.deps.escapeHTML)(name)}" aria-label="${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)('{name} 봉인', { name: (0, runtime.deps._t)(name) }))}">`
-        + `${(0, runtime.deps.renderPixelIcon)('lock', 'gem-tile-seal-icon')}<span>${(0, runtime.deps._t)('봉인')}</span></button>`;
+    const button = runeSealButton(runtime, name, support, false, refusal);
     return cardHtml.slice(0, end) + button + cardHtml.slice(end);
 }
 
-/** A sealed rune: its level, the 해제 button where a tile's 봉인 button sits (2026-11-09 사용자: 같은 자리), dim art under a lock and
-* the name. Under it 공명력 -1 when this restore takes one away (봉인 2개당 1, so every other one does). No button during the woodsman
-* fight, as with 봉인. Hovering shows the rune tooltip. */
+const runeSealButton = (runtime, name, support, sealed, refusal) => {
+    const { deps } = runtime;
+    const label = deps._t(sealed ? '{name} 봉인 해제' : '{name} 봉인', { name: deps._t(name) });
+    return `<button type="button" draggable="false" class="gem-tile-seal${sealed ? ' is-unseal' : ''}" data-tile-${sealed ? 'unseal' : 'seal'}="${support ? 'support' : 'skill'}" data-gem-name="${deps.escapeHTML(name)}" aria-label="${deps.escapeHTML(refusal ? label + ', ' + deps._t(refusal) : label)}"${refusal ? ' disabled' : ''}>${deps.renderPixelIcon(sealed ? 'unlock' : 'lock', 'gem-tile-seal-icon')}</button>`;
+};
+
+/** A sealed rune: its level, the 해제 button where a tile's 봉인 button sits (2026-11-09 사용자: 같은 자리), dim art and
+ * the name. Under it 공명력 -1 when this restore takes one away (봉인 2개당 1, so every other one does). Hovering shows the rune tooltip. */
 export function renderSealedRuneTile(runtime, name, label, support, stats) {
     const type = support ? 'support' : 'active';
     const art = support ? runtime.deps.supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', 0) : (0, runtime.deps.renderSkillGemArt)(name, 'gem-card-sigil gem-card-art gem-tile-art');
     const sealedCount = (runtime.deps.game.sealedSkills || []).length + (runtime.deps.game.sealedSupports || []).length;
     const note = sealedCount % 2 === 0 ? `<small class="gem-usage-state">${(0, runtime.deps._t)('공명력 -1')}</small>` : '';
-    const button = runtime.deps.game.woodsmanBuildLock ? '' : `<button type="button" class="gem-tile-seal is-unseal" data-tile-unseal="${support ? 'support' : 'skill'}" data-gem-name="${(0, runtime.deps.escapeHTML)(name)}" aria-label="${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)('{name} 봉인 해제', { name: (0, runtime.deps._t)(name) }))}">`
-        + `${(0, runtime.deps.renderPixelIcon)('unlock', 'gem-tile-seal-icon')}<span>${(0, runtime.deps._t)('해제')}</span></button>`;
+    const button = runeSealButton(runtime, name, support, true, runtime.deps.game.woodsmanBuildLock ? '세팅 변경 잠김' : '');
     return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card${support ? ' support-gem' : ''}" data-info-tooltip-anchor="1" onpointerenter="showGemCardHint(event,'${type}','${name}')" onpointerleave="hideInfoTooltip()" aria-label="${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)('{name}, 봉인됨', { name: (0, runtime.deps._t)(name) }))}">`
-        + `${(0, runtime.deps.renderGemTileLevel)((0, runtime.deps.getUiGemPresentation)(name, support, stats))}${button}<span class="gem-tile-sealed-art">${art}${(0, runtime.deps.renderPixelIcon)('lock', 'gem-tile-sealed-lock')}</span><strong class="gem-tile-name">${label}</strong>${note}</article>`;
+        + `${(0, runtime.deps.renderGemTileLevel)((0, runtime.deps.getUiGemPresentation)(name, support, stats))}${button}<span class="gem-tile-sealed-art">${art}</span><strong class="gem-tile-name">${label}</strong>${note}</article>`;
 }
 
 /** The 봉인 tab: how many runes are sealed, the resonance they give with a two-step meter toward the next point, the two bulk seal

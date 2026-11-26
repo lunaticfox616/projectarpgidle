@@ -8,7 +8,7 @@ export function sigilPips(runtime, tier) {
 * @returns {string} the rune's picture from the atlas (a rune with none yet shows a star) with the tier pips in the corner */
 export function sigilHtml(runtime, name, className, tier) {
     const cell = (0, runtime.deps.getSupportRuneArtCell)(name);
-    const art = cell ? `<span class="support-rune-art" style="--col:${cell.col};--row:${cell.row}"></span>` : (0, runtime.deps.renderPixelIcon)('star', 'support-sigil-icon');
+    const art = cell ? `<span class="support-rune-art" style="--col:${cell.col};--row:${cell.row}"></span>` : (0, runtime.deps.renderPixelIcon)(runtime.deps.SUPPORT_GEM_DB[name]?.glyph || 'star', 'support-sigil-icon');
     return `<span class="support-sigil${cell ? ' is-art' : ''} is-tone-${(0, runtime.deps.getSupportRuneTone)(name)} ${className || ''}" aria-hidden="true">${art}${sigilPips(runtime, tier)}</span>`;
 }
 

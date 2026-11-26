@@ -1,3 +1,5 @@
+import { supportSlotNames } from '../common/support-gems.mjs';
+
 /** Every tier of a support gem: its value (the worn tier's value scaled by the tier multipliers), resonance cost and state.
 * @param {string} name support gem @param {object} stats player stats
 * @returns {{tier: number, label: string, value: number, cost: number, open: boolean, active: boolean}[]} */
@@ -47,7 +49,7 @@ export function slotSupportFailure(runtime, name, stats) {
     const worn = supportsInOtherSlots(runtime);
     const free = Math.max(0, (0, runtime.deps.getEffectiveResonanceCap)(stats) - worn.reduce((sum, gem) => sum + (0, runtime.deps.getSupportTierResonanceCost)(gem), 0));
     const cost = (0, runtime.deps.getSupportTierResonanceCost)(name);
-    return free < cost ? (0, runtime.deps._t)('공명력 {value} 모자람', { value: cost - free }) : '';
+    return free < cost ? (0, runtime.deps._t)('공명력 {value} 부족', { value: cost - free }) : '';
 }
 
 /** A candidate's state line. rank sorts the list: can go on now (0), cannot (1), worn in another slot (2). */
@@ -192,7 +194,7 @@ export function resonancePreview(runtime, stats) {
     const width = value => cap ? Math.min(100, value / cap * 100) : 0;
     const overflow = Math.max(0, used + cost - cap);
     const budgetNote = overflow ? (0, runtime.deps._t)(runtime.deps.gemDropRewards.allowsResonanceOverflow(stats)
-            ? ', 모든 저항 -{value}%p' : ', 공명력 {value} 모자람', { value: overflow }) : '';
+            ? ', 모든 저항 -{value}%p' : ', 공명력 {value} 부족', { value: overflow }) : '';
     const caption = runtime.state.slot.preview ? `${(0, runtime.deps._t)('{name} 선택', { name: (0, runtime.deps._t)(runtime.state.slot.preview) })}, ${used + cost}/${cap}${budgetNote}` : (0, runtime.deps._t)('후보 이름을 누르면 공명 비용을 미리 봅니다.');
     return `<div class="support-budget-preview"><div class="support-budget-track"><i style="width:${width(used)}%"></i><em style="left:${width(used)}%;width:${Math.min(100 - width(used), width(cost))}%"></em></div><small>${(0, runtime.deps.escapeHTML)(caption)}</small></div>`;
 }
@@ -215,33 +217,28 @@ export function renderSlotDialog(runtime) {
 }
 
 /** @param {'active'|'mobility'|'summon'|'support'} kind the board slot @param {string} name the gem in it, '' for an empty slot */
-export function openSlotDialog(runtime, kind, name, preview) {
+export function openSlotDialog(runtime, kind, name, preview, index) {
     if (!runtime.active) return;
     (0, runtime.deps.normalizeSupportLoadout)(false);
     (0, runtime.deps.normalizeEquippedSummonAttackSkills)();
-    runtime.state.slot = { owner: runtime.deps.game, kind, name: name || '', query: '', before: null, preview: preview || '', pending: '' };
+    runtime.state.slot = { owner: runtime.deps.game, kind, name: name || '', query: '', before: null, preview: preview || '', pending: '', index };
     (0, runtime.deps.hideInfoTooltip)();
     renderSlotDialog(runtime);
 }
 
-/** Puts a support gem into this slot: the old one comes off first, and goes back on when the new one is refused. */
+/** Commit a replacement in one operation after checking the slot still holds the expected rune. */
 export function swapSlotSupport(runtime, name) {
-    const old = runtime.state.slot.name, place = runtime.deps.game.equippedSupports.indexOf(old);
-    if (old) (0, runtime.deps.toggleSupport)(old);
-    if (runtime.deps.game.equippedSupports.includes(old)) return;
-    (0, runtime.deps.toggleSupport)(name);
-    if (!runtime.deps.game.equippedSupports.includes(name)) { if (old) (0, runtime.deps.toggleSupport)(old); return; }
-    // 누른 칸에 새 룬이 놓이도록 자리를 옮긴다(장착 순서는 보드의 칸 순서일 뿐이다).
-    if (place >= 0) runtime.deps.game.equippedSupports.splice(place, 0, runtime.deps.game.equippedSupports.pop());
-    runtime.state.slot.name = name;
+    const old = runtime.state.slot.name;
+    const cap = Math.max(0, Math.floor(runtime.deps.getUiPlayerStats().suppCap || 0));
+    const index = runtime.state.slot.index ?? supportSlotNames(runtime.deps.game, cap).indexOf(old);
+    if (runtime.deps.toggleSupport(name, { index, expected: old })) runtime.state.slot.name = name;
 }
 
 /** Puts a summon gem into this slot and gives it the count the old one had, as far as the summon cap allows. */
 export function swapSlotSummon(runtime, name) {
-    const old = runtime.state.slot.name, count = old ? (0, runtime.deps.getSummonSkillCount)(old) : 1;
-    if (old) (0, runtime.deps.changeSkill)(old);
-    if (runtime.deps.game.equippedSummonSkills.includes(old)) return;
-    for (let i = 0; i < count; i++) (0, runtime.deps.changeSummonSkillCount)(name, 1);
+    const old = runtime.state.slot.name;
+    if (old) (0, runtime.deps.changeSkill)(name, 'summon', old);
+    else (0, runtime.deps.changeSummonSkillCount)(name, 1);
     if (runtime.deps.game.equippedSummonSkills.includes(name)) runtime.state.slot.name = name;
 }
 
@@ -252,11 +249,7 @@ export function chooseSlotGem(runtime, name) {
         swapSlotSupport(runtime, name);
     }
     else if (runtime.state.slot.kind === 'summon') swapSlotSummon(runtime, name);
-    else {
-        // 칼이 된 발걸음: 이동 칸에 있던 룬을 공격 칸으로 고르면 이동 칸을 먼저 비운다(js/ui.js wearMobilityRune).
-        if (runtime.state.slot.kind === 'active' && runtime.deps.game.mobilitySkill === name) (0, runtime.deps.wearMobilityGem)('');
-        (0, runtime.deps.changeSkill)(name, runtime.state.slot.kind);
-    }
+    else (0, runtime.deps.changeSkill)(name, runtime.state.slot.kind);
 }
 
 /** After a change the slot shows what is really worn: the main attack always holds a gem, the others may be empty. */

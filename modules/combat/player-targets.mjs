@@ -2,9 +2,9 @@ import { COMBAT_TACTIC_TARGET_LOCK_MS } from '../combat/core-values.mjs';
 
 /** Targets that go past the cap of 6 (projectiles 12): a target engraving (js/skills.js engraveTargets, 파동 분산 +2) and effect
  * expansion (js/skill-effect-expansion.js applyToSkill). The cap took the engraving away (2026-10-20 hunt: 6 → 6, only its -5% damage). */
-export function buildAddUncappedSkillTargets(env, skill, name) {
+export function buildAddUncappedSkillTargets(env, skill, name, stats) {
     skill.targets = Math.max(1, (skill.targets || 1) + Math.max(0, Math.floor(Number(skill.engraveTargets) || 0)));
-    env.deps.skillEffectExpansion.applyToSkill(skill, name);
+    env.deps.skillEffectExpansion.applyToSkill(skill, name, stats);
 }
 
 /** Who the gem aims at first: the monster the player locked on (js/act-exploration-state.js lockOn), else the target the tactics
@@ -18,7 +18,7 @@ export function buildGetSkillTargetPreference(env, tactics, now) {
 
 /** options.dormant: monsters that have not noticed the hero, which the area may catch but the gem never aims at. */
 export function buildSelectCombatGemTargets(env, name, skill, source, { enemies, options }) {
-    if (skill.nativeCastId) return env.deps.skillGemCasts.targets(skill.nativeCastId,source,enemies,env.deps.skillEffectExpansion.extra(skill)).map(enemy=>({enemy,mult:1}));
+    if (skill.nativeCastId) return env.deps.skillGemCasts.targets(skill.nativeCastId,source,enemies,env.deps.skillEffectExpansion.extra(skill),skill).map(enemy=>({enemy,mult:1}));
     const dormant=options && options.dormant;
     if (!dormant || !dormant.length) return env.deps.selectGridSkillTargets(name,skill,source,enemies,options);
     return env.deps.selectGridSkillTargets(name,skill,source,enemies.concat(dormant),{...options,splashOnly:new Set(dormant)});

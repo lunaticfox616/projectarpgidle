@@ -125,7 +125,7 @@ function tickQueuedStageOptions(sourceCell, stage, stageOffset, attackContext, s
         talentAttackMultiplier: tickStageAttackMultiplier(attackContext.talentAttackMultiplier),
         stageKind: stage.kind, stageLabel: stage.label, stageIndex: tickGetStageIndexInShot(stage, stageOffset), stageDelayMs: stageDelay, targetLimit: stage.targetLimit,
         stageCount: attackContext.stageCount, chainFromEnemyId: stage.chainFromEnemyId || null,
-        stageRepeatOnce: !!stage.singleRepeat, skipGridControl: stage.skipGridControl,
+        stageRepeatOnce: !!stage.singleRepeat, skipGridControl: stage.skipGridControl, linkedStrikePct: stage.linkedStrikePct,
         restrictRandomTargets: !!stage.singleRepeat,
         primaryAilmentChance: tickStageAilmentChance(stage.primaryAilmentChance),
         talentMoonReturn: attackContext.talentMoonReturn || null,

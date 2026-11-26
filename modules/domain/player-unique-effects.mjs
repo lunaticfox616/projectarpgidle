@@ -143,6 +143,7 @@ const EFFECTS = Object.freeze({
     "projectileTargetBonus": (result, context, ep, effect, deps) => { if (deps.deferredTarget(effect)) return;
             addStatToBucket(context.reward, 'targetProjectile', Number(ep.target || 1)); },
     "projectileExtraShotBonus": (result, context, ep) => { addStatToBucket(context.reward, 'projectileExtraShots', Number(ep.shots || 1)); },
+    "rangeFirstAim": (result, context) => { context.reward.rangeFirstAim = 1; },
     "igniteDamageMorePct": (result, context, ep) => { addStatToBucket(context.reward, 'igniteDamageMultiplierPct', Number(ep.pct || 25)); },
     "cosmosFinalDmg": (result, context, ep) => { addStatToBucket(context.reward, 'pctDmg', Number(ep.pct || 12)); },
     "cosmosTakenLess": (result, context, ep) => { addStatToBucket(context.reward, 'dr', Number(ep.dr || 8)); },

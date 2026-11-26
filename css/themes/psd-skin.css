@@ -174,7 +174,6 @@
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-main { grid-area: main; width: 100%; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-mobility { grid-area: mob; width: auto; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-summons { grid-area: sum; width: auto; }
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-satellite i { width: 52px; height: 62px; border: 0; background: url("../../assets/ui/psd/side-slot.png") center / 100% 100% no-repeat; box-shadow: none; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-support-slots { border: 12px solid transparent; border-image: var(--psd-popup-frame); background: none; box-shadow: none; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .support-slots-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .support-slot { width: auto; }
@@ -183,7 +182,5 @@
 /* 검색 줄의 장착 중 단추가 켜지면 주 단추의 금빛 테(2026-11-09). */
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .search-action-row button[aria-pressed="true"] { border-image: var(--psd-button-on); color: #ffe8a8; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .search-filter-panel { border: 10px solid transparent; border-image: url("../../assets/ui/psd/search.png") 10 fill / 10px stretch; background: none; box-shadow: none; }
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile:not(.sealed-gem-card) { border: 12px solid transparent; border-image: url("../../assets/ui/psd/slot.png") 14 fill / 12px stretch; background: none; box-shadow: none; }
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile.active { border-image: url("../../assets/ui/psd/slot-on.png") 14 fill / 12px stretch; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui .psd-panel { border: 18px solid transparent; border-image: var(--psd-panel-frame); background: none; }
 }

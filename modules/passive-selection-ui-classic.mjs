@@ -36,6 +36,7 @@ const passiveScene = createPassiveScene({
     get getPassiveNodeDisplayStat() { return window.getPassiveNodeDisplayStat; },
     get getHoverAllocationNodeIds() { return getHoverAllocationNodeIds; },
     get getPassiveApexNodeIds() { return getPassiveApexNodeIds; },
+    get getPassiveKeystoneConflict() { return getPassiveKeystoneConflict; },
     get describeReachablePassiveNode() { return describeReachablePassiveNode; },
     get getPassiveNodeActivationState() { return getPassiveNodeActivationState; },
     get getPassiveTooltipDescription() { return getPassiveTooltipDescription; },

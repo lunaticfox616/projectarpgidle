@@ -22,7 +22,7 @@ export function gemHomingTurnLimit(arrow,turn,dist,at) {
 export function gemLaunchHoming(env, state,c,enemies) {
     const release=c.at+gemMs(c,HOMING.release),shots=1+gemSupportShots(env, c)+env.deps.rollProjectileExtraShots(c.stats.projectileExtraShots);
     const first=enemies.find(e=>e.id===c.targetId),near=(a,b)=>env.deps.getGridUnitDistance(c.source,a)-env.deps.getGridUnitDistance(c.source,b);
-    const aimed=[first,...gemTargets(env, 78,c.source,enemies,gemGrow(c.stats)).filter(e=>e!==first).sort(near)].slice(0,shots);
+    const aimed=[first,...gemTargets(env, 78,c.source,enemies,{ extra:gemGrow(c.stats), aim:c.stats.sSkill.firstAimBonus }).filter(e=>e!==first).sort(near)].slice(0,shots);
     gemLetGo(c,release,release+gemMs(c,160));
     c.nextAt=release;c.flownTo=release;c.claimed=new Set(aimed.map(e=>e.id));
     env.memo.homingBend=-env.memo.homingBend;
@@ -62,7 +62,7 @@ export function gemHomingEnd(arrow,at) {
 
 /** 화살 하나를 지금까지 날린다: 닿으면 그때의 타격 명령을 돌려준다. */
 export function gemHomingFly(env, c,arrow,live,at) {
-    const reach=(HOMING.cells+gemGrow(c.stats))*HOMING.wide;
+    const reach=(HOMING.cells+gemGrow(c.stats)+(c.stats.sSkill.firstAimBonus || 0))*HOMING.wide;
     if(arrow.dead || at<=arrow.startAt)return null;
     const hit=gemHomingStep(env, c,arrow,live,at);
     arrow.path.push({at,gx:arrow.gx,gy:arrow.gy,angle:arrow.angle});

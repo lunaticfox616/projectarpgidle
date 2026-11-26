@@ -1,4 +1,5 @@
 import { runePresetLoadoutShapeReason } from './rune-loadout-record.mjs';
+import { keepSupportSlotAssignments } from '../common/support-gems.mjs';
 
 export function runePresetSavedSupportTier(env, name, state) {
     const gem = env.deps.normalizeGemRecord(state.supportGemData?.[name]);
@@ -10,7 +11,8 @@ export function runePresetCaptureRuneLoadout(env, state) {
     return { version: 1, activeSkill: state.activeSkill, mobilitySkill: state.mobilitySkill || '',
         equippedSummonSkills: summons,
         summonSkillCounts: Object.fromEntries(summons.map(name => [name, state.summonSkillCounts?.[name] ?? 1])),
-        equippedSupports: supports, supportTiers: Object.fromEntries(supports.map(name => [name, runePresetSavedSupportTier(env, name, state)])) };
+        equippedSupports: supports, supportSlotByName: keepSupportSlotAssignments(state),
+        supportTiers: Object.fromEntries(supports.map(name => [name, runePresetSavedSupportTier(env, name, state)])) };
 }
 
 export function runePresetApplyRuneLoadout(config, state) {
@@ -21,6 +23,7 @@ export function runePresetApplyRuneLoadout(config, state) {
     state.equippedSummonSkills = config.equippedSummonSkills.slice();
     state.summonSkillCounts = { ...config.summonSkillCounts };
     state.equippedSupports = config.equippedSupports.slice();
+    state.supportSlotByName = keepSupportSlotAssignments(config);
     state.supportGemData = { ...state.supportGemData };
     for (const name of config.equippedSupports) {
         state.supportGemData[name] = { ...state.supportGemData[name], activeTier: config.supportTiers[name] };
@@ -34,7 +37,8 @@ export function runePresetSameRuneLoadout(env, config, state) {
     const current = runePresetCaptureRuneLoadout(env, state);
     return config.activeSkill === current.activeSkill && config.mobilitySkill === current.mobilitySkill
         && runePresetSameRuneRows(config.equippedSummonSkills, current.equippedSummonSkills, config.summonSkillCounts, current.summonSkillCounts)
-        && runePresetSameRuneRows(config.equippedSupports, current.equippedSupports, config.supportTiers, current.supportTiers);
+        && runePresetSameRuneRows(config.equippedSupports, current.equippedSupports, config.supportTiers, current.supportTiers)
+        && config.equippedSupports.every(name => config.supportSlotByName?.[name] === current.supportSlotByName[name]);
 }
 
 export function runePresetSameRuneRows(wanted, current, values, currentValues) {

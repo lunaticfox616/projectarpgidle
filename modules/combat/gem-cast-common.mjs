@@ -1,4 +1,5 @@
 import { gemCell, gemDistance } from './gem-cast-geometry.mjs';
+import { effectAreaTargetLimit } from '../domain/skill-effect-expansion.mjs';
 
 export function gemEvent(env, cast, [phase, at, duration, extra = {}]) {
     const travel=['flight','flask','shard','fall'].includes(phase);
@@ -18,6 +19,13 @@ export function gemVisual(env, state,cast,...args) {
 export function gemContact(env, cast,targets,at,extra={}) {
     return {type:'hit',name:cast.name,stats:cast.stats,attackOptions:cast.attackOptions,sourceCell:gemCell(cast.source),
         targets:targets.map(e=>e.id),at,key:cast.key,splashCells:gemContactCells(env, cast),...extra};
+}
+
+export function gemAreaContact(env, cast, targets, at, extra={}) {
+    const limit = effectAreaTargetLimit(cast.stats.sSkill);
+    const hits = targets.length <= limit ? targets : targets.slice().sort((a, b) => Number(b.id === cast.targetId) - Number(a.id === cast.targetId)
+        || env.deps.getGridUnitDistance(cast.aim, a) - env.deps.getGridUnitDistance(cast.aim, b)).slice(0, limit);
+    return gemContact(env, cast, hits, at, extra);
 }
 
 /** Damaging geometry, independent of victims and visual events. Props never enter the targeting/bounce pool. */

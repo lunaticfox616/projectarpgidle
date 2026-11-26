@@ -122,6 +122,7 @@ const deps = {
     get knitting() { return knitting; },
     get mergeOceanState() { return mergeOceanState; },
     get legacySummons() { return window.GameModules.legacySummons; },
+    supportTargets: (name, owner) => window.GameModules.skills.supports.targets(name, owner),
     get migratePassiveNodeIdList() { return typeof migratePassiveNodeIdList === 'undefined' ? undefined : migratePassiveNodeIdList; },
     get migratePassiveNodeIdRecord() { return typeof migratePassiveNodeIdRecord === 'undefined' ? undefined : migratePassiveNodeIdRecord; },
     get mobilitySkill() { return mobilitySkill; },

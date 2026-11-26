@@ -283,6 +283,7 @@ const DEFAULT_GAME_BLUEPRINT = {
     sealedSupports: [],
     resonancePower: 10,
     equippedSupports: [],
+    supportSlotByName: {},
     supportGemData: {},
     itemSubtab: 'item-tab-equip',
     skillSubtab: 'skill-tab-equip',

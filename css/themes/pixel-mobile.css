@@ -368,8 +368,10 @@
 @media (max-width: 1080px) {
   :root body #tab-skills .rune-phone-label { display: inline; }
   :root body #tab-skills .rune-wide-label,
-  :root body #tab-skills[data-rune-pane="library"] #rune-equipped,
-  :root body #tab-skills[data-rune-pane="board"] #rune-library { display: none; }
+  :root body #tab-skills[data-rune-pane="library"] #skill-tab-equip:not([data-picking="support"], [data-attack-rune-selecting]) #rune-equipped,
+  :root body #tab-skills[data-rune-pane="library"] #skill-tab-equip[data-picking="support"] #ui-skill-board,
+  :root body #tab-skills[data-rune-pane="board"] #skill-tab-equip:not([data-picking="support"]) #rune-library { display: none; }
+  :root body #tab-skills[data-rune-pane="library"] #skill-tab-equip[data-attack-rune-selecting] #rune-equipped { order: 1; }
   :root body #tab-skills #rune-library :is(.skill-picker-tab,.search-action-row button,.search-filter-input) { min-height: 44px; }
   :root body #tab-items .gear-route-bar:not([hidden]) {
     display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); align-items: stretch;
@@ -411,9 +413,8 @@
   :root body #tab-skills #rune-library .skill-gem-library:not([hidden]) {
     grid-template-columns: minmax(180px,30%) minmax(0,1fr); align-items: start;
     --search-filter-column: 1; --search-results-display: grid;
-    & > .search-result-list { grid-template-columns: repeat(auto-fill,minmax(94px,1fr)); gap: 6px; }
+    & > .search-result-list { grid-column: auto; grid-template-columns: repeat(auto-fill,minmax(94px,1fr)); gap: 6px; }
   }
-  :root body #tab-skills #rune-library #ui-support-list .search-result-list { grid-template-columns: minmax(0,1fr); }
 }
 @media (max-width: 374px) {
   :root body #tab-items .gear-route-bar:not([hidden]) .subtab-btn { gap: 4px; }

@@ -26,9 +26,7 @@ export function renderPassiveTooltip(runtime, node, clientX, clientY) {
     let displayStat = typeof runtime.deps.getPassiveNodeDisplayStat === 'function' ? (0, runtime.deps.getPassiveNodeDisplayStat)(node) : node.stat;
     let passiveAccent = (0, runtime.nodes.getPassiveStatAccent)(displayStat);
     let state = (0, runtime.deps.getPassiveVisibility)(node.id);
-    let route = (0, runtime.deps.getHoverAllocationNodeIds)(node.id);
-    let routeCost = Array.from(route).filter(id => !(runtime.deps.game.passives || []).includes(id)
-            && runtime.deps.PASSIVE_TREE.nodes[id] && runtime.deps.PASSIVE_TREE.nodes[id].kind !== 'start').length;
+    const { conflict, routeHtml } = nodeRouteMarkup(runtime, node);
     let ownedApexCount = (0, runtime.deps.getPassiveApexNodeIds)().filter(id => (runtime.deps.game.passives || []).includes(id)).length;
     let msg = initialNodeMessage(runtime, node);
 
@@ -48,11 +46,19 @@ export function renderPassiveTooltip(runtime, node, clientX, clientY) {
              ${effectHtml}
              ${tooltipDescription ? `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">${runtime.deps.statToneText.markup(tooltipDescription)}</div>` : ''}
              ${voidCraftHtml}
-             ${renderPassiveRouteHint(runtime, routeCost)}
-             ${renderPassiveStatPreview(runtime, route)}
-             <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
+             ${routeHtml}
+             <div class="tooltip-line" style="margin-top:6px;">${conflict || msg}</div>`;
 
-    runtime.deps.passiveSelectionUi.present(node, runtime.state.canvasTooltip, { x: clientX, y: clientY });
+    runtime.deps.passiveSelectionUi.present(node, runtime.state.canvasTooltip, { x: clientX, y: clientY, conflict });
+}
+
+function nodeRouteMarkup(runtime, node) {
+    const route = (0, runtime.deps.getHoverAllocationNodeIds)(node.id);
+    const conflict = node.choiceGroup ? (0, runtime.deps.getPassiveKeystoneConflict)(route) : '';
+    if (conflict) return { conflict, routeHtml: '' };
+    const routeCost = Array.from(route).filter(id => !(runtime.deps.game.passives || []).includes(id)
+        && runtime.deps.PASSIVE_TREE.nodes[id] && runtime.deps.PASSIVE_TREE.nodes[id].kind !== 'start').length;
+    return { conflict: '', routeHtml: renderPassiveRouteHint(runtime, routeCost) + renderPassiveStatPreview(runtime, route) };
 }
 
 function initialNodeMessage(runtime, node) {
