@@ -3,9 +3,10 @@
 // the hit: ice shards pushing up, crackling arcs under a ball of static, flame tongues, a small violet rift, or glowing cracks with trembling
 // stones. In the last stretch light is drawn into the middle. At the hit the cell flashes for a frame or two and the element's
 // particles fly (ice shards, sparks, embers, violet shards, soil). Lava keeps a molten crust that bubbles and flares on every
-// burn tick; the erosion ring keeps corroded violet ground around its bearer, gathers light before its tick and flares on it. Cores
+// burn tick; the erosion ring is a real violet band two cells round its bearer that corrodes the hero standing in it. Cores
 // snap to whole dots, light stays smooth. Reduced effects keep the shade, the glow and a still mark, without particles or motion.
 // Paint only: cells, times and ticks come from the combat state (js/domain/hunt-fields.mjs).
+import { RING_TICK_MS } from '../domain/hunt-fields.mjs';
 import { emitter, fillDots, paintConverge, paintDebris, paintDust, paintEmbers, paintGlow, paintMotes, paintSparks, seededRandom } from './fx-particles.mjs';
 
 /** Per element: tint (laid over the floor), shade (multiplied into the floor), glow (light added from below), flash, tones [hot, mid,
@@ -24,7 +25,6 @@ const LOOKS = /* @__PURE__ */ Object.freeze({
 });
 const BURST_MS = 350;
 const LAVA_TICK_MS = 750;
-const RING_TICK_MS = 850;
 const snap = (value, p) => Math.round(value / p) * p;
 const clamp01 = value => Math.max(0, Math.min(1, value));
 
@@ -394,39 +394,82 @@ function paintTickFlare(ctx, at, look, v, { since, key }) {
     if (!v.reduced) burstSparks(ctx, at, look, v, { t: since / 1000, key, count: 5, speed: 0.7 });
 }
 
-/** Slow drifting blotches of decay on a corroded cell. */
-function paintDecay(ctx, at, look, v, seed) {
-    const random = seededRandom(Math.round(seed * 1e6), 7, 19), deep = [], lit = [];
-    for (let i = 0; i < 7; i++) {
-        const angle = random() * 6.283, r = 0.1 + 0.3 * random(), drift = v.reduced ? 0 : v.time * (0.4 + 0.4 * random());
-        const x = at.x + Math.cos(angle) * r * v.tileW + Math.cos(drift + i) * v.p, y = at.y + Math.sin(angle) * r * v.tileH + Math.sin(drift + i) * v.p;
-        (i % 3 === 0 ? lit : deep).push([snap(x, v.p), snap(y, v.p), random() < 0.3 ? 2 : 1]);
+/** #rrggbb at alpha a, for gradient stops. */
+function rgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/** A soft round band on the floor around `at` from `inner` to `outer` cells out, brightest in its middle, squashed to the floor's
+ * perspective (one gradient, one fill). */
+function paintBand(ctx, at, v, { colour, alpha, mode, inner, outer }) {
+    if (!(alpha > 0.004)) return;
+    const r0 = inner * v.tileW, r1 = outer * v.tileW, gradient = ctx.createRadialGradient(0, 0, r0, 0, 0, r1);
+    gradient.addColorStop(0, rgba(colour, 0));
+    gradient.addColorStop(0.5, rgba(colour, 1));
+    gradient.addColorStop(1, rgba(colour, 0));
+    ctx.save();
+    ctx.translate(at.x, at.y);
+    ctx.scale(1, v.tileH / v.tileW);
+    ctx.globalCompositeOperation = mode;
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, r1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+/** Decay specks turning slowly along the ring, and three brighter runs chasing round it, in whole dots. */
+function paintRingDecay(ctx, at, look, v, seed) {
+    const random = seededRandom(seed, 28, 23), turn = v.reduced ? 0 : v.time * 0.22, deep = [], mid = [], lit = [];
+    const put = (list, angle, r, size) => list.push([snap(at.x + Math.cos(angle) * r * v.tileW, v.p), snap(at.y + Math.sin(angle) * r * v.tileH, v.p), size]);
+    for (let i = 0; i < 28; i++) {
+        const angle = random() * 6.283 + turn * (i % 2 ? 1 : -0.6), r = 2 + (random() - 0.5) * 0.7;
+        put(i % 4 === 0 ? mid : deep, angle, r, random() < 0.3 ? 2 : 1);
     }
-    ctx.globalAlpha = 0.8;
-    fillDots(ctx, deep, look.tones[2], v.p);
+    for (let run = 0; run < 3 && !v.reduced; run++) {
+        const head = v.time * 0.9 + run * 2.094;
+        for (let j = 0; j < 7; j++) put(j < 2 ? lit : mid, head - j * 0.07, 2 + Math.sin(head * 3 + j) * 0.08, 1);
+    }
+    ctx.globalAlpha = 0.85;
+    fillDots(ctx, deep, look.deep, v.p);
+    fillDots(ctx, mid, look.tones[2], v.p);
     ctx.globalAlpha = 1;
     fillDots(ctx, lit, look.tones[1], v.p);
 }
 
+/** The hero standing in the ring: violet light pooling under the feet that pulses on every corrosion tick, and motes rising off them. */
+function paintCorrosion(ctx, hero, look, v, bearer) {
+    const tick = Number.isFinite(bearer.huntRingAt) ? clamp01(1 - (bearer.huntRingAt - v.now) / RING_TICK_MS) : 0;
+    const beat = v.reduced ? 0.5 : (1 - tick) ** 2;
+    paintGlow(ctx, { x: hero.x, y: hero.y, rx: v.tileW * 0.5, ry: v.tileH * 0.5, colour: look.shade, alpha: 0.5, mode: 'multiply' });
+    paintGlow(ctx, { x: hero.x, y: hero.y, rx: v.tileW * 0.42, ry: v.tileH * 0.46, colour: look.glow, alpha: 0.35 + 0.45 * beat });
+    if (!v.reduced) paintMotes(ctx, risingMotes(`ring-hero:${bearer.id}`, v), { x: hero.x, y: hero.y, time: v.time, p: v.p, strength: 0.9,
+        tones: [look.tones[0], look.tones[1]] });
+}
+
 /**
- * 침식 고리 around a living bearer: every ring cell is corroded violet ground with drifting decay and rising motes. Before each erosion
- * tick (bearer.huntRingAt, set by the combat tick) light gathers into the cells; on the tick they flare. Without a tick clock (the
- * season before living fields hit) the ring only smoulders.
- * @param {(dx:number,dy:number)=>{x:number,y:number}} cellAt floor point of a ring offset
+ * 침식 고리 around a living bearer: a real ring two cells out with a safe core (js/domain/hunt-fields.mjs patterns.ring). The floor
+ * under it corrodes in a soft violet band with a thin light in its middle, decay specks turn slowly round it and three brighter runs
+ * chase along it, and motes rise from it. While the hero stands in it the corrosion shows on them, pulsing on each damage tick.
+ * Reduced effects keep the still band and specks.
+ * @param {{x:number,y:number}} at the bearer's floor point
+ * @param {{bearer:Object, hero:{x:number,y:number}|null}} parts hero: the hero's floor point while they stand in the ring
  */
-export function paintErosionRing(ctx, cellAt, v, { offsets, bearer }) {
-    const look = LOOKS.chaos, cycle = Number.isFinite(bearer.huntRingAt) ? clamp01(1 - (bearer.huntRingAt - v.now) / RING_TICK_MS) : null;
-    const gather = cycle === null ? 0 : clamp01((cycle - 0.6) / 0.4), since = cycle === null ? Infinity : cycle * RING_TICK_MS;
+export function paintErosionRing(ctx, at, v, parts) {
+    const { bearer, hero } = parts;
+    const look = LOOKS.chaos, pulse = pulseOf(v, 0.35);
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    for (const [dx, dy] of offsets) {
-        const at = cellAt(dx, dy), seed = cellSeed(bearer.gx + dx, bearer.gy + dy, 7), key = `ring:${bearer.id}:${dx}:${dy}`;
-        paintBed(ctx, at, look, v, { strength: 0.9, glow: (0.26 + 0.4 * gather) * pulseOf(v, gather) });
-        paintDecay(ctx, at, look, v, seed);
-        if (!v.reduced) paintMotes(ctx, risingMotes(key, v), { x: at.x, y: at.y, time: v.time, p: v.p, strength: 0.45 + 0.4 * gather,
-            tones: [look.tones[1], look.tones[2]] });
-        paintGather(ctx, at, look, v, { strength: gather, key: 'chaos' });
-        if (since < 170) paintTickFlare(ctx, at, look, v, { since, key: `${key}:${Math.round(bearer.huntRingAt)}` });
+    paintBand(ctx, at, v, { colour: look.shade, alpha: 0.6, mode: 'multiply', inner: 1.45, outer: 2.55 });
+    paintBand(ctx, at, v, { colour: look.tint, alpha: 0.32, mode: 'source-over', inner: 1.6, outer: 2.4 });
+    paintBand(ctx, at, v, { colour: look.glow, alpha: 0.3 + 0.18 * pulse, mode: 'lighter', inner: 1.82, outer: 2.18 });
+    paintRingDecay(ctx, at, look, v, Math.round(cellSeed(bearer.gx, bearer.gy, 7) * 1e6));
+    if (!v.reduced) for (let i = 0; i < 8; i++) {
+        const angle = i * 0.785 + v.time * 0.22, spot = { x: at.x + Math.cos(angle) * 2 * v.tileW, y: at.y + Math.sin(angle) * 2 * v.tileH };
+        paintMotes(ctx, risingMotes(`ring:${bearer.id}:${i}`, v), { x: spot.x, y: spot.y, time: v.time, p: v.p, strength: 0.5, tones: [look.tones[1], look.tones[2]] });
     }
+    if (hero) paintCorrosion(ctx, hero, look, v, bearer);
     ctx.restore();
 }

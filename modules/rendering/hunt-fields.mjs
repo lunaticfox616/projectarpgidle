@@ -1,4 +1,4 @@
-import { huntShapes, huntFieldLimit, validHuntShape } from '../domain/hunt-fields.mjs';
+import { huntShapes, huntFieldLimit, inHuntRing, validHuntShape } from '../domain/hunt-fields.mjs';
 import { huntMarkView, paintErosionRing, paintLavaField, paintNovaCell } from './hunt-field-marks.mjs';
 
 const accents={frost:'#85d9ff',leech:'#e46284',nova:'#ffc875',volley:'#d1eca8',thorns:'#d4ac77',hex:'#ba8efa',
@@ -32,16 +32,19 @@ function drawBond(ctx,proj,enemy,enemies) {
     ctx.beginPath();ctx.moveTo(a.x,a.y-6);ctx.quadraticCurveTo((a.x+b.x)/2,(a.y+b.y)/2-proj.tileH*0.72,b.x,b.y-6);ctx.stroke();
 }
 
-function drawBearer(ctx,proj,enemy,enemies,view) {
+function drawBearer(ctx,proj,enemy,owner,view) {
     const at=floor(proj,enemy.gx,enemy.gy);
     const traits=enemy.huntTraits;
-    if (traits.includes('ring')) paintErosionRing(ctx,(dx,dy)=>floor(proj,enemy.gx+dx,enemy.gy+dy),view,{offsets:huntShapes.ring,bearer:enemy});
+    if (traits.includes('ring')) {
+        const hero=inHuntRing(enemy,owner.gridPlayer) ? floor(proj,owner.gridPlayer.gx,owner.gridPlayer.gy) : null;
+        paintErosionRing(ctx,at,view,{bearer:enemy,hero});
+    }
     traits.forEach((id,i)=>{
         ctx.fillStyle=accents[id];ctx.globalAlpha=0.95;
         const x=at.x+(i-(traits.length-1)/2)*5;
         ctx.fillRect(Math.round(x)-1,Math.round(at.y)+2,3,4);
     });
-    if (enemy.huntPartner!=null) drawBond(ctx,proj,enemy,enemies);
+    if (enemy.huntPartner!=null) drawBond(ctx,proj,enemy,owner.enemies);
 }
 
 /** @param {{now:number,visualNow:number,reduced:boolean}} clock now: the smoothed combat clock (ms); visualNow: the presentation clock */
@@ -51,7 +54,7 @@ export function drawHuntFields(ctx,proj,owner,clock,inSight) {
     ctx.save();
     drawStored(ctx,proj,owner,view,inSight);
     for (const enemy of owner.enemies) {
-        if (enemy.hp>0 && Array.isArray(enemy.huntTraits) && inSight(enemy)) drawBearer(ctx,proj,enemy,owner.enemies,view);
+        if (enemy.hp>0 && Array.isArray(enemy.huntTraits) && inSight(enemy)) drawBearer(ctx,proj,enemy,owner,view);
     }
     ctx.restore();
 }

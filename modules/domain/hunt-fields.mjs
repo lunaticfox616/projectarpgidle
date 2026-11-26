@@ -1,8 +1,9 @@
 import { huntTraits } from '../data/hunt-traits.mjs';
 
-// Offsets are shared by the simulation and the floor renderer. A ring has a safe core.
+// Offsets are shared by the simulation and the floor renderer. 침식 고리 is a round ring two cells out by straight-line distance, with a
+// safe core (2026-11-26 사용자: 진짜 고리 형태로 지속 피해).
 const patterns = {
-    ring:(x,y) => Math.abs(x)+Math.abs(y) === 2,
+    ring:(x,y) => { const d=Math.hypot(x,y); return d>=1.5 && d<2.5; },
     lava:(x,y) => x === 0 && y === 0,
     cold:(x,y) => Math.max(Math.abs(x),Math.abs(y)) === 2,
     light:(x,y) => x === 0 || y === 0,
@@ -63,16 +64,29 @@ function seedLivingFields(owner,enemy,now) {
     }
 }
 
+/** 침식 고리 corrodes over time: a small hit every RING_TICK_MS while the hero stands in the ring, the same damage per second as the old
+ * single hit (850 ms, so every 900 ms on the 100 ms combat step). One persistent hazard row per bearer, kept out of the save, sums the log lines. */
+export const RING_TICK_MS = 300;
+const ringHazards = new WeakMap();
+function ringHazard(enemy) {
+    let row=ringHazards.get(enemy);
+    if (!row) { row={kind:'ring',element:'chaos',persistent:true,scale:RING_TICK_MS/900}; ringHazards.set(enemy,row); }
+    row.level=enemy.level;
+    return row;
+}
+
 function tickLiving(owner,enemy,now,hit) {
     if (enemy.hp<=0 || !Array.isArray(enemy.huntTraits)) return;
     seedLivingFields(owner,enemy,now);
     if (!enemy.huntTraits.includes('ring')) return;
     if (enemy.huntRingAt == null) enemy.huntRingAt=now+800;
     if (now<enemy.huntRingAt) return;
-    enemy.huntRingAt=now+850;
-    if (patterns.ring(owner.gridPlayer.gx-enemy.gx,owner.gridPlayer.gy-enemy.gy))
-        hit({kind:'ring',element:'chaos',level:enemy.level});
+    enemy.huntRingAt=now+RING_TICK_MS;
+    if (patterns.ring(owner.gridPlayer.gx-enemy.gx,owner.gridPlayer.gy-enemy.gy)) hit(ringHazard(enemy));
 }
+
+/** Whether the hero stands in this bearer's ring now (the painter shows the corrosion on them). */
+export const inHuntRing = (enemy,cell) => !!cell && patterns.ring(cell.gx-enemy.gx,cell.gy-enemy.gy);
 
 function tickField(owner,f,now,hit) {
     if (f.spent || now<f.at) return;
@@ -110,7 +124,7 @@ export function validHuntShape(f) {
 }
 
 export function huntFieldDamage(field,stats) {
-    const raw=field.kind==='thorns' ? 2+Math.floor(field.level*0.18) : (7+field.level*1.4)*(field.kind==='nova'?2.7:1);
+    const raw=(field.kind==='thorns' ? 2+Math.floor(field.level*0.18) : (7+field.level*1.4)*(field.kind==='nova'?2.7:1))*(field.scale ?? 1);
     const resist={cold:'resC',fire:'resF',light:'resL',chaos:'resChaos',phys:'dr'}[field.element];
     return Math.max(1,Math.floor(raw*(1-Math.min(85,Number(stats[resist]) || 0)/100)));
 }
