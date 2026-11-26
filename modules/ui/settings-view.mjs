@@ -11,6 +11,7 @@ class SettingsView {
         'chk-bgm': ['bgm'],
         'chk-ui-sounds': ['uiSounds'],
         'chk-camera-shake': ['cameraShake'],
+        'chk-floor-loot-names': ['showFloorLootNames'],
         'chk-death-notice': ['showDeathNotice'],
         'chk-mobile-battle-pip': ['showMobileBattlePip'],
         'chk-pause-overlay': ['pauseGameOnOverlay'],
@@ -103,6 +104,20 @@ class SettingsView {
         });
         if (category === 'layout') this.deps.renderTabOrderSettings();
         if (category === 'items') this.deps.equipmentLootUi.renderSettings();
+    }
+
+    /** A switch flipped from outside the screen (a hotkey): saves it and keeps its row in step. Returns the new value. */
+    flip(key) {
+        if (!this.active) return null;
+        this.currentControls();
+        const id = Object.keys(this.checks).find(name => this.checks[name].length === 1 && this.checks[name][0] === key);
+        if (!id) throw new Error(`settings: no switch for ${key}`);
+        const on = this.offByDefault.has(key) ? this.settings[key] !== true : this.settings[key] === false;
+        this.settings[key] = on;
+        this.syncCheck(id, [key]);
+        this.applyEffects(key);
+        this.deps.queueImportantSave(180);
+        return on;
     }
 
     applySoundEffects(key) {
@@ -291,7 +306,7 @@ class SettingsView {
     }
 
     api() {
-        return { sync: this.sync, select: this.select, syncStartupSound: this.syncStartupSound, closeStartupSettings: this.closeStartupSettings,
+        return { sync: this.sync, select: this.select, flip: this.flip.bind(this), syncStartupSound: this.syncStartupSound, closeStartupSettings: this.closeStartupSettings,
             syncMapCompleteActionQuickControl: this.syncMapCompleteActionQuickControl.bind(this),
             openMapCompleteActionPicker: this.openMapCompleteActionPicker.bind(this) };
     }

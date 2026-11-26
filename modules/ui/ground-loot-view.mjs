@@ -1,5 +1,5 @@
 import { GroundLootPresentation } from './ground-loot-presentation.mjs';
-import { place, projectEntries, yieldCrowdedArms, originFor, packClearedPiles } from './ground-loot-layout.mjs';
+import { place, projectEntries, originFor, packClearedPiles } from './ground-loot-layout.mjs';
 import { fly, landingPop } from './ground-loot-motion.mjs';
 import { listenView, releaseViewEvents } from './view-events.mjs';
 
@@ -32,6 +32,9 @@ class GroundLootView {
         this.reveals = new Map();
         this.stateIdentity = undefined;
         this.runIdentity = undefined;
+        this.namesShown = true;
+        this.hero = null;
+        this.heroKey = '';
         for (const name of ["reduced","narrow","displayLimit","later","remove","clear","mount","canvasBox","resize","room","spawn","launch","land","absorb","absorbMote","receive","pendingDrops","consume","revealUnique","floorRowKey","pickFloor","drawPile","floorMarker","launchFlyer","syncFlyers","addFloorPile","syncFloor","visible","prepare","hasPresentation","prepared","actorContext","onIncident","onAtlasFind","onFloorCollected","landingMarks","glint","noteCell"]) this[name] = this[name].bind(this);
     }
 
@@ -117,6 +120,7 @@ class GroundLootView {
     mount(source) {
         this.canvas = source;
         this.ground = this.deps.document.createElement('div'); this.ground.className = 'battle-loot-layer';
+        this.namesShown = true; // a new layer starts with its names shown (syncNames)
         this.air = this.deps.document.createElement('div'); this.air.className = 'battle-loot-air';
         this.foreground = this.deps.document.createElement('canvas'); this.foreground.className = 'battle-loot-foreground';
         // The edge glint hugs the screen's edges: its layer is never moved by the stage camera (the air layer is, 2026-11-19).
@@ -141,6 +145,27 @@ class GroundLootView {
         this.ground.style.setProperty('--loot-width', box.width + 'px');
     }
 
+    /** The floor item name switch (settings.showFloorLootNames, its hotkey Z): off hides every name and keeps the piles, which a walk
+     * or a tap on the picture still picks up. Shown again, the names are measured anew (a hidden name measured zero). */
+    syncNames() {
+        const shown = this.deps.viewSettings().showFloorLootNames !== false;
+        if (this.namesShown === shown) return;
+        this.namesShown = shown;
+        this.ground.classList.toggle('hides-names', !shown);
+        this.entries.forEach(entry => { delete entry.marker.dataset.labelRow; });
+        this.floorChanged = true;
+    }
+
+    /** The hero's drawn body on screen (overhead bar to feet), which names keep off (2026-11-26). Null while the hero is not drawn. */
+    heroBox(now, projection) {
+        const feet = this.deps.battleVisualState.playerPos, head = this.deps.heroHeadY(now);
+        if (!feet) return null;
+        const half = Math.max(14, projection.tileW * 0.32);
+        const top = this.deps.director.project({ x: feet.x - half, y: head === null ? feet.y - 96 : head - 16 });
+        const bottom = this.deps.director.project({ x: feet.x + half, y: feet.y });
+        return { x: top.x, y: top.y, w: bottom.x - top.x, h: bottom.y - top.y };
+    }
+
     room(important) {
         if (this.entries.size < this.displayLimit()) return true;
         const oldest = [...this.entries.values()].find(entry => !entry.floor && entry.marker.dataset.beam !== 'true');
@@ -157,7 +182,7 @@ class GroundLootView {
         const point = originFor(cell, projection);
         marker.dataset.gx = String(cell.gx); marker.dataset.gy = String(cell.gy);
         marker.style.setProperty('--rest-angle', (receipts[0].item?.slot === '무기' ? 54 : -16) + 'deg');
-        const flight = this.presentation.appearance(marker, receipts, this.narrow()); this.presentation.beam(marker, receipts[0], this.canvasBox(this.canvas).height); this.ground.append(marker); place(marker, point, this.canvasBox(this.canvas), this.entries); yieldCrowdedArms(marker, this.entries);
+        const flight = this.presentation.appearance(marker, receipts, this.narrow()); this.presentation.beam(marker, receipts[0], this.canvasBox(this.canvas).height); this.ground.append(marker); place(marker, point, this.canvasBox(this.canvas), this.entries, this.hero);
         const entry = { marker, cell: { gx: cell.gx, gy: cell.gy }, timers: new Set() }; this.entries.set(marker, entry);
         this.launch(entry, flight, point);
         this.later(entry, () => this.absorb(entry), important ? 3300 : 2400);
@@ -290,8 +315,6 @@ class GroundLootView {
     }
 
     pickFloor(event, entry) {
-        const details = event.target.closest('.battle-loot-materials');
-        if (details && !event.target.closest('.battle-loot-pick')) { event.stopPropagation(); return; }
         event.preventDefault(); event.stopPropagation();
         if (!this.active || !entry.floor || !entry.marker.isConnected) return;
         if (entry.run !== this.deps.viewRun() || entry.state !== this.deps.stateIdentity()) return;
@@ -301,8 +324,8 @@ class GroundLootView {
     drawPile(entry, receipts) {
         const marker = entry.marker, lead = this.floorRowKey(receipts[0].row);
         if (entry.lead === lead) {
-            marker.querySelectorAll(':scope > .battle-loot-labels').forEach(arm => arm.remove());
-            marker.append(...this.presentation.labelArms(receipts, this.narrow(), true));
+            marker.querySelector(':scope > .battle-loot-labels')?.remove();
+            marker.append(this.presentation.labelBlock(receipts, this.narrow(), true));
             return;
         }
         entry.lead = lead;
@@ -315,17 +338,14 @@ class GroundLootView {
         const marker = entry.marker, receipts = this.presentation.floorReceipts(pile, fresh);
         this.floorChanged = true;
         marker.classList.toggle('in-cleared-room', entry.run.status === 'cleared');
-        const expanded = marker.querySelector('details')?.open;
         delete marker.dataset.labelRow; // Changed contents need their new width, even on the same floor cell.
         this.drawPile(entry, receipts);
-        const details = marker.querySelector('details');
-        if (details && expanded) details.open = true;
         const names = receipts.map(receipt => (receipt.currency ? `${this.deps.getCurrencyInfo(receipt.currency).name} ×${receipt.count}` : this.presentation.leadName(receipt)));
         const pickup = marker.querySelector('.battle-loot-flight');
         pickup.setAttribute('role', 'button'); pickup.tabIndex = 0;
         const rest = names.length > 3 ? this.deps._t(' 외 {value}개', { value: names.length - 3 }) : '';
         pickup.setAttribute('aria-label', this.deps._t('이 칸 줍기') + ' · ' + names.slice(0, 3).join(', ') + rest);
-        place(marker, originFor(entry.cell, projection), this.canvasBox(this.canvas), this.entries); yieldCrowdedArms(marker, this.entries);
+        place(marker, originFor(entry.cell, projection), this.canvasBox(this.canvas), this.entries, this.hero);
         // The permanent marker shows the best item in the pile, but only newly landed rows choose the landing sound/pop.
         if (fresh.length) {
             const lead = this.presentation.floorReceipts({ rows: fresh }, fresh)[0];
@@ -344,7 +364,7 @@ class GroundLootView {
         marker.dataset.labelRow = '0'; // no names to measure (needsPlacement)
         this.ground.append(marker);
         const point = originFor(row, projection);
-        place(marker, point, this.canvasBox(this.canvas), this.entries);
+        place(marker, point, this.canvasBox(this.canvas), this.entries, this.hero);
         const entry = { marker, cell: { gx: row.gx, gy: row.gy }, timers: new Set(), floor: true };
         this.entries.set(marker, entry); this.flyers.set(key, entry);
         fly(flight, marker, point, { reduced: this.reduced(), drop: this.deps.GROUND_LOOT_DROP, getComputedStyle: this.deps.getComputedStyle });
@@ -366,13 +386,6 @@ class GroundLootView {
         marker.addEventListener('keydown', event => {
             if (event.target.matches('.battle-loot-flight') && (event.key === 'Enter' || event.key === ' ')) this.pickFloor(event, entry);
         });
-        marker.addEventListener('toggle', event => {
-            if (!event.target.matches('details')) return;
-            delete marker.dataset.labelRow;
-            if (event.target.open) this.ground.querySelectorAll('details[open]').forEach(other => {
-                if (other !== event.target) other.open = false;
-            });
-        }, true);
         this.ground.append(marker); this.entries.set(marker, entry); this.floorPiles.set(key, entry);
         return entry;
     }
@@ -434,11 +447,15 @@ class GroundLootView {
         // the highest priority name behind the actor canvas and scales mobile text during the kill shot.
         const projected = this.deps.director.projection(projection);
         const floor = projected === projection ? projection : { ...projected, actorGroundOffsetY: projection.actorGroundOffsetY * this.deps.director.camera().zoom };
-        this.resize(); this.noteCell(floor);
-        const view = this.canvasBox(this.canvas);
-        const moved = projectEntries(this.entries, floor, view);
+        this.resize(); this.noteCell(floor); this.syncNames();
+        const view = this.canvasBox(this.canvas), hero = this.heroBox(now, floor);
+        // Names step aside again once the hero's feet have moved a few pixels: not every frame of a step or of a swing's head bob.
+        const heroKey = hero ? [hero.x, hero.y + hero.h].map(value => Math.round(value / 8)).join(':') : '';
+        const heroMoved = heroKey !== this.heroKey;
+        this.hero = hero; this.heroKey = heroKey;
+        const moved = projectEntries(this.entries, floor, view, hero, heroMoved);
         this.consume(now, floor); this.syncFloor(floor);
-        if (moved || this.floorChanged) packClearedPiles(this.floorPiles, view);
+        if (moved || this.floorChanged) packClearedPiles(this.floorPiles, view, hero);
         this.floorChanged = false;
     }
 

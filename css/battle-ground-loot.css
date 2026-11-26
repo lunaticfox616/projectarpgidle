@@ -15,22 +15,19 @@
 .battle-loot-item.weapon{width:38px;height:38px;left:-19px;top:-19px;transform:rotate(var(--rest-angle,58deg)) scaleY(.8)}
 .battle-loot-drop::after{content:'';position:absolute;left:-1px;bottom:30px;width:2px;height:var(--label-lift,0px);background:linear-gradient(color-mix(in srgb,var(--loot-color) 85%,transparent),color-mix(in srgb,var(--loot-color) 35%,transparent));box-shadow:0 0 0 1px rgba(0,0,0,.45);opacity:0;transition:opacity 220ms 90ms}
 .battle-loot-drop.landed::after{opacity:.9}
-/* 한 더미의 이름표 십자: 위 팔이 그림 바로 위(가장 중요한 이름이 가장 가깝다), 많으면 오른쪽, 왼쪽, 아래로 더 펼친다.
+/* 한 더미의 이름표 묶음(2026-11-26 사용자 "재료 4종으로 묶지 말고 모두 표시"): 아이템마다 이름 하나, 가장 중요한 이름이 그림에
+   가장 가깝다. 한 줄기에 넓은 화면 6개, 좁은 화면 4개까지 쌓고 더 많으면 줄기를 옆에 더한다(ground-loot-presentation.mjs labelBlock).
    z-index 14라 모든 더미의 그림(12)과 캐릭터 판(13)보다 위에 그려진다(날아가는 알갱이 층 battle-loot-air 14가 그 위).
-   가장자리에서는 위·아래 팔을 안쪽으로 밀되 더미 지점은 이름표 아래에 남긴다. */
-.battle-loot-labels{position:absolute;left:0;bottom:calc(30px + var(--label-lift,0px));transform:translateX(calc(-50% + var(--label-shift,0px)));display:flex;flex-direction:column-reverse;align-items:center;gap:2px;z-index:14}
-.battle-loot-labels.is-right,.battle-loot-labels.is-left{bottom:auto;top:-3px;transform:translateY(-50%);flex-direction:column}
-.battle-loot-labels.is-right{left:26px;align-items:flex-start}
-.battle-loot-labels.is-left{left:auto;right:26px;align-items:flex-end}
-.battle-loot-labels.is-down{bottom:auto;top:24px;flex-direction:column;transform:translateX(calc(-50% + var(--down-shift,0px)))}
-/* 위쪽 공간이 부족하면 주요 이름을 그림 아래로; 기존 아래 팔은 그 밑으로 이어진다. */
-.battle-loot-drop.is-under .battle-loot-labels:not(.is-right,.is-left,.is-down){bottom:auto;top:calc(24px + var(--label-lift,0px));flex-direction:column}
-.battle-loot-drop.is-under .battle-loot-labels.is-down{top:calc(26px + var(--label-lift,0px) + var(--up-height,0px))}
+   가장자리에서는 묶음을 안쪽으로 밀되 더미 지점은 이름표 아래에 남긴다. */
+.battle-loot-labels{position:absolute;left:0;bottom:calc(30px + var(--label-lift,0px));transform:translateX(calc(-50% + var(--label-shift,0px)));display:flex;align-items:flex-end;gap:4px;z-index:14}
+.battle-loot-column{display:flex;flex-direction:column-reverse;align-items:center;gap:2px}
+/* 위쪽 공간이 부족하면 이름을 그림 아래로 뒤집는다(첫 이름이 여전히 그림에 가장 가깝다). */
+.battle-loot-drop.is-under .battle-loot-labels{bottom:auto;top:calc(24px + var(--label-lift,0px));align-items:flex-start}
+.battle-loot-drop.is-under .battle-loot-column{flex-direction:column}
 .battle-loot-drop.is-under::after{bottom:auto;top:24px;transform:scaleY(-1)}
-.battle-loot-labels[hidden]{display:none}
-/* 옆 이름표는 밀 수 없어 전장 가장자리에 걸리면 숨는다(js/battle-ground-loot-ui.js place): 잘린 조각만 보였다. */
-.battle-loot-drop.cuts-left .battle-loot-labels.is-left,.battle-loot-drop.cuts-right .battle-loot-labels.is-right{display:none}
-.battle-loot-name{position:relative;white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--loot-color) 58%,#26231d);background:rgba(6,7,9,.94);box-shadow:0 0 0 1px rgba(0,0,0,.88),0 2px 4px rgba(0,0,0,.55);padding:2px 7px;color:var(--loot-color);font:600 12px/1.4 sans-serif;text-shadow:0 1px 1px #000;opacity:0}
+/* 바닥 아이템 이름 보기 끔(settings.showFloorLootNames, 단축키 Z): 이름표와 이름표로 이어지는 줄만 숨기고 더미 그림과 줍기는 그대로다. */
+.battle-loot-layer.hides-names .battle-loot-labels,.battle-loot-layer.hides-names .battle-loot-drop::after{display:none}
+.battle-loot-name{position:relative;white-space:nowrap;max-width:min(220px,calc((var(--loot-width) - 16px) / var(--loot-columns,1) - 4px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--loot-color) 58%,#26231d);background:rgba(6,7,9,.94);box-shadow:0 0 0 1px rgba(0,0,0,.88),0 2px 4px rgba(0,0,0,.55);padding:2px 7px;color:var(--loot-color);font:600 12px/1.4 sans-serif;text-shadow:0 1px 1px #000;opacity:0}
 .battle-loot-drop.landed .battle-loot-name{opacity:1;animation:loot-name-in 120ms cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(var(--row,0) * 20ms)}
 /* 차례로 쌓이는 드랍: 새 이름만 튀어 오르고 이미 떠 있던 이름은 가만히 있다(js/battle-ground-loot-ui.js nameRow). */
 .battle-loot-drop.landed .battle-loot-name.is-settled,.battle-loot-drop.landed .battle-loot-name.is-settled.is-major::after{animation:none}
@@ -79,17 +76,11 @@
 /* Floor piles on an exploration map wait to be picked up: the picture and the names take a click or a tap (the layer itself stays
    click-through so the battlefield keeps its move commands). */
 .battle-loot-drop.is-floor :is(.battle-loot-item,.battle-loot-name){pointer-events:auto;cursor:pointer}
-.battle-loot-flight:focus-visible .battle-loot-item,.battle-loot-materials :is(summary,button):focus-visible{outline:2px solid #f2d27a;outline-offset:2px}
-.battle-loot-name.is-priority{white-space:normal;overflow-wrap:anywhere;text-overflow:clip;text-align:center;width:max-content;max-width:min(290px,calc(var(--loot-width) - 24px));border-inline-start:3px solid var(--loot-color)}
-.battle-loot-drop.is-floor.in-cleared-room .battle-loot-labels.is-packed{left:var(--floor-stack-x);top:var(--floor-stack-y);bottom:auto;transform:none;flex-direction:column}
+.battle-loot-flight:focus-visible .battle-loot-item{outline:2px solid #f2d27a;outline-offset:2px}
+.battle-loot-name.is-priority{white-space:normal;overflow-wrap:anywhere;text-overflow:clip;text-align:center;width:max-content;max-width:min(290px,calc((var(--loot-width) - 24px) / var(--loot-columns,1) - 4px));border-inline-start:3px solid var(--loot-color)}
+.battle-loot-drop.is-floor.in-cleared-room .battle-loot-labels.is-packed{left:var(--floor-stack-x);top:var(--floor-stack-y);bottom:auto;transform:none;align-items:flex-start}
+.battle-loot-drop.is-floor.in-cleared-room .battle-loot-labels.is-packed .battle-loot-column{flex-direction:column}
 .battle-loot-labels:has(.is-priority){z-index:15}
-.battle-loot-labels:has(details[open]){z-index:16}
-.battle-loot-materials{pointer-events:auto;color:#dbc69d;background:#171512;border:1px solid #817351;font:inherit;font-size:12px;width:max-content;max-width:calc(var(--loot-width) - 16px)}
-.battle-loot-materials summary,.battle-loot-materials button{cursor:pointer;text-align:center;padding:4px 9px;line-height:1.4}
-.battle-loot-material-list{display:grid;gap:2px;max-height:min(112px,18dvh);overflow-y:auto;overscroll-behavior:contain}
-.battle-loot-drop.is-floor .battle-loot-material-list .battle-loot-name{cursor:default;opacity:1;animation:none;border:0;box-shadow:none;text-align:start}
-.battle-loot-materials button{width:100%;color:#fae1a3;background:#29241b;border:0;border-top:1px solid #766447;font:inherit}
-@media(pointer:coarse){.battle-loot-materials summary,.battle-loot-materials button{min-height:30px}}
 .battle-loot-drop.is-floor:hover .battle-loot-name{filter:brightness(1.18)}
 .battle-loot-mote{position:absolute;z-index:5;width:25px;height:4px;margin:-2px 0 0 -12.5px;border-radius:50%;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--loot-color) 70%,transparent) 55%,#fff 91%,transparent);filter:drop-shadow(0 0 3px var(--loot-color));pointer-events:none}
 .battle-loot-mote::after{content:'';position:absolute;right:2px;top:0;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 5px var(--loot-color)}

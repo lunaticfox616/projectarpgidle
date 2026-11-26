@@ -9,6 +9,8 @@ class HotkeysView {
         for (const name of ["overrides","isBlocked","flashHudButton","announceDenied","useMobility","useCombatAction","moveDirection","isMoveBlocked","keepsOwnTab","leaveField","routeTabToChat","onKeydown","captureKey","commit","startCapture","resetDefaults","rowHtml","render","labelRail","refresh","sync","cancelCaptureOutside","onSettingsClick","onKeyup","init"]) this[name] = this[name].bind(this);
         this.DENIED_TOAST_GAP_MS = 1200;
         this.ARROW_MOVES = Object.freeze({ ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right' });
+        // What a view switch's key says when it turns the switch on and off (data/hotkeys.js kind 'view').
+        this.VIEW_NOTICES = Object.freeze({ floorLootNames: Object.freeze({ on: '바닥 아이템 이름을 켰습니다.', off: '바닥 아이템 이름을 껐습니다.' }) });
         this.capturing = null;
         this.notice = '';
         this.lastDenied = { reason: '', at: 0 };
@@ -121,7 +123,16 @@ class HotkeysView {
             return;
         }
         event.preventDefault();
-        this.useCombatAction(action.target);
+        if (action.kind === 'view') this.flipView(action);
+        else this.useCombatAction(action.target);
+    }
+
+    /** A view switch (the floor item names): the settings screen flips and saves it, a short notice says which way. */
+    flipView(action) {
+        const on = this.deps.settingsUi.flip(action.setting);
+        if (on === null) return;
+        const notice = this.VIEW_NOTICES[action.target];
+        this.deps.showGameToast(this.deps._t(on ? notice.on : notice.off), { duration: 1400 });
     }
 
     captureKey(event) {
@@ -190,6 +201,7 @@ class HotkeysView {
         host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">${this.deps._t('창 열고 닫기')}</div>${group('window')}</div>`
             + `<div class="hotkey-section"><div class="hotkey-section-title">${this.deps._t('전투와 이동')}</div>${group('combat')}</div>`
             + `<div class="hotkey-section"><div class="hotkey-section-title">${this.deps._t('탐험 지도 걷기(방향키도 됨)')}</div>${group('move')}</div>`
+            + `<div class="hotkey-section"><div class="hotkey-section-title">${this.deps._t('전장 표시')}</div>${group('view')}</div>`
             + `<div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${this.deps.escapeHTML(this.notice)}</span>`
             + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>${this.deps._t('기본값으로')}</button></div>`;
     }

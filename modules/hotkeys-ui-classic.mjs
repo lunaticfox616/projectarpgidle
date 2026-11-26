@@ -16,6 +16,7 @@ const hotkeysUi = createHotkeysView({
     get performance() { return performance; },
     get queueImportantSave() { return queueImportantSave; },
     get renderCombatSkillHud() { return renderCombatSkillHud; },
+    get settingsUi() { return settingsUi; },
     get showGameToast() { return showGameToast; },
     get toggleWindowFromHotkey() { return toggleWindowFromHotkey; },
     get window() { return window; }
