@@ -18,7 +18,7 @@ function getAreaTargetSummaryHtml(runtime, skill, area) {
     const min = skill.effectExpansion === undefined && area === 'variable' ? Math.min(6, limit) : limit;
     const label = min === Infinity ? (0, runtime.deps._t)('범위 안의 모든 적') : (0, runtime.deps._t)('최대 타겟 수: {min}', { min });
     const kind = area === 'fixed' ? (0, runtime.deps._t)('고정 범위') : (0, runtime.deps._t)('가변 범위');
-    return `<div class="tooltip-line">${kind} · ${label}</div>`;
+    return `<div class="tooltip-line">${kind}, ${label}</div>`;
 }
 
 /** The rune's awakened effect line (GEM_AWAKENED_PERKS) once awakened, or from rune level 15 marked as waiting for the awakening (a new

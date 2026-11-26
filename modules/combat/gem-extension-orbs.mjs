@@ -18,7 +18,8 @@ export function runeOrbAim(env, c, foe, index, missing) {
 export function runeLaunchFrozenOrb(env, state, c, enemies) {
     const release = c.at + env.kit.ms(c, ORB.release), first = runeFoeOf(c, enemies);
     const count = 1 + env.kit.grow(c.stats) + env.kit.supportShots(c) + env.deps.rollProjectileExtraShots(c.stats.projectileExtraShots);
-    const aimed = [first, ...runeReachOf(env, runeOrbRange(env, c) + (c.stats.sSkill.firstAimBonus || 0))(82, c.source, runeLive(enemies)).filter(e => e !== first).sort(runeByNear(env, c.source))].slice(0, count);
+    const more = runeOrbRange(env, c) - ORB.range + (c.stats.sSkill.firstAimBonus || 0);
+    const aimed = [first, ...runeReachOf(env, ORB.range)(82, c.source, runeLive(enemies), 0, more).filter(e => e !== first).sort(runeByNear(env, c.source))].slice(0, count);
     c.face = runeFaceTo(env, c, first);
     env.kit.letGo(c, release, release + env.kit.ms(c, 160));
     c.flownTo = release; c.nextAt = release; c.bolted = 0;

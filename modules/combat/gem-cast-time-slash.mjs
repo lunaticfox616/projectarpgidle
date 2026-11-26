@@ -13,11 +13,11 @@ export function gemLaunchTimeSlash(env, state,c) {
 
 /** 찌르기가 나가는 때: 둔화할 적과 치는 차례(strikes)를 정한다. 대상이 없으면 둔화만 남는다(시뮬레이터의 빈 시간장). */
 export function gemTimeSlashRelease(env, state,c,input) {
-    const baseReach = TIME_SLASH.range + gemGrow(c.stats) + gemReach(c.stats), aim = c.stats.sSkill.firstAimBonus || 0;
+    const baseReach = TIME_SLASH.range + gemGrow(c.stats), more = gemReach(c.stats) + (c.stats.sSkill.firstAimBonus || 0);
     const within = (enemy, reach) => env.deps.getGridUnitCells(enemy).some(p => gemDistance(input.source,p) <= reach);
-    const near = input.enemies.filter(e=>e.hp>0 && within(e,baseReach+aim)).sort((a,b)=>env.deps.getGridUnitDistance(input.source,a)-env.deps.getGridUnitDistance(input.source,b));
-    const visible = aim ? near.filter(e => env.deps.actExplorationState.inSight(e)) : near;
-    const shots=1+gemSupportShots(env, c)+env.deps.rollProjectileExtraShots(c.stats.projectileExtraShots),aimed=visible.slice(0,shots),at=c.at+c.hitDelay;
+    const found = e => within(e, baseReach) || (more > 0 && within(e, baseReach + more) && env.deps.actExplorationState.inSight(e));
+    const near = input.enemies.filter(e=>e.hp>0 && found(e)).sort((a,b)=>env.deps.getGridUnitDistance(input.source,a)-env.deps.getGridUnitDistance(input.source,b));
+    const shots=1+gemSupportShots(env, c)+env.deps.rollProjectileExtraShots(c.stats.projectileExtraShots),aimed=near.slice(0,shots),at=c.at+c.hitDelay;
     c.index=1;c.source=gemCell(input.source);c.cast=++env.memo.timeSlashCasts;
     aimed.forEach(e=>c.primary.add(e.id));
     gemVisual(env, state,c,'field',c.nextAt,gemMs(c,TIME_SLASH.cycle-TIME_SLASH.slowStart)+TIME_SLASH.slow,{timeSlowUntil:c.nextAt+TIME_SLASH.slow,timeActorEnd:c.at+gemMs(c,TIME_SLASH.cycle),timeSpeed:c.speed,sourceCell:c.source});

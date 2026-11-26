@@ -112,7 +112,7 @@ const SKILL_DB = {
 // v3.38 gem balance: coefficients are per confirmed contact.
 Object.assign(SKILL_DB, {
     "탄성 플라스크": {"isGem":true,"ele":"chaos","baseSpd":0.5,"desc":"적 사이를 4번 튕기는 카오스 플라스크. 떨어질 때마다 1칸 안에 작은 중독 폭발(30%)이 일고, 둘레에 다른 적이 없으면 같은 적에게 다시 튕깁니다.","tags":["spell","projectile","chaos","potion","dexterity","intelligence"],"combatPattern":{"kind":"bouncingFlask","hits":4},"baseDmg":0.9,"dmgScale":0.049,"spdScale":0.008,"spellFlatBase":20,"spellFlatScale":4.4,"crit":6,"nativeCastId":44,"leech":0,"targets":99,"category":"spell","rangeText":"최대 4회 연쇄"},
-    "신성한 기도": {"isGem":true,"category":"attack","ele":"light","baseSpd":0.68,"desc":"기도하면 둘레 3칸 안 가까운 적 셋에게 번개 창이 하늘에서 저마다 다른 각도로, 짧은 시간차를 두고 내리꽂혀 떨어진 자리 둘레 1칸을 칩니다. 대상 수가 늘면 창이, 범위가 늘면 둘레가 함께 늘어납니다.","tags":["attack","lightning","aoe","elemental","shout","strength","intelligence"],"targetMode":"all-enemies-around-caster","combatPattern":{"kind":"radiantLance","hits":1},"baseDmg":2.65,"dmgScale":0.15,"spdScale":0.01,"crit":6,"nativeCastId":45,"leech":0,"targets":99,"rangeText":"주변 3칸 안 가까운 적 3명, 떨어진 자리 둘레 1칸"},
+    "신성한 기도": {"isGem":true,"category":"attack","ele":"light","baseSpd":0.68,"desc":"기도하면 둘레 3칸 안 가까운 적 셋에게 번개 창이 하늘에서 저마다 다른 각도로, 짧은 시간차를 두고 내리꽂혀 떨어진 자리 둘레 1칸을 칩니다.","tags":["attack","lightning","aoe","elemental","shout","strength","intelligence"],"targetMode":"all-enemies-around-caster","combatPattern":{"kind":"radiantLance","hits":1},"baseDmg":2.65,"dmgScale":0.15,"spdScale":0.01,"crit":6,"nativeCastId":45,"leech":0,"targets":99,"rangeText":"주변 3칸 안 가까운 적 3명, 떨어진 자리 둘레 1칸"},
     "시간 가속": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":1,"damageType":"dot","desc":"5초간 자신을 따라오는 카오스 지속 피해","tags":["spell","chaos","aoe","dot","duration","intelligence"],"targetMode":"all-enemies-around-caster","combatPattern":{"kind":"timeAcceleration","durationMs":5000,"intervalMs":1000,"ticks":5,"initialTick":false},"baseDmg":0.7,"dmgScale":0.038,"spdScale":0,"spellFlatBase":24,"spellFlatScale":5,"crit":0,"nativeCastId":46,"leech":0,"targets":99,"rangeText":"원형 반경 3칸, 1초마다 5회"},
     "폭발 혼합물": {"isGem":true,"category":"attack","ele":"fire","baseSpd":0.78,"desc":"투척 지점 3×3 화염 폭발","tags":["attack","projectile","fire","aoe","elemental","potion","dexterity","intelligence"],"targetMode":"aimed-cell","combatPattern":{"kind":"explosiveMixture","impacts":1,"homing":false},"baseDmg":2.5,"dmgScale":0.15,"spdScale":0.014,"crit":6,"nativeCastId":47,"leech":0,"targets":6,"rangeText":"사거리 4칸, 착지 지점 3×3"},
     "과냉각 혼합물": {"isGem":true,"category":"attack","ele":"cold","baseSpd":0.76,"desc":"적에게 직접 투척, 착지 타격과 바깥으로 퍼지는 냉기 고리","tags":["attack","projectile","cold","aoe","elemental","potion","dexterity","intelligence"],"targetMode":"aimed-annuli","combatPattern":{"kind":"supercooledMixture","impacts":3,"radii":[1,2,3],"centerHit":true},"baseDmg":2.65,"dmgScale":0.14,"spdScale":0.012,"crit":6,"nativeCastId":48,"leech":0,"targets":99,"rangeText":"사거리 4칸, 반경 1→2→3 고리"},
@@ -812,7 +812,8 @@ const SKILL_GRID_DB = {
 
 // 범위 보조와 적중 상한은 피해 태그(aoe)와 별도로 분류한다. 방향형의 길이는 반경으로 세지 않는다.
 for (const name of ['화염 부패', '빙결 침식', '시간 가속', '과냉각 혼합물', '신성한 안개', '파문심판', '특이점 분리', '일섬',
-    '판결-유죄', '차원찢기', '향로구름', '석화 혼합물', '공허의 빙의', '연금 가마솥', '거둬 가는 종', '탐욕 파문', '신성한 기도']) {
+    '판결-유죄', '차원찢기', '향로구름', '석화 혼합물', '공허의 빙의', '연금 가마솥', '거둬 가는 종', '탐욕 파문', '신성한 기도', '계약',
+    '야만스러운 난격']) {
     SKILL_DB[name].areaKind = 'fixed';
 }
 for (const name of ['회오리', '대지의 함성', '도약 강타', '폭발성 타격', '피뢰침', '신성한 단두대', '얼어붙은 고리', '불씨의 함성',

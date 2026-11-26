@@ -45,7 +45,6 @@ function applyVariableArea(skill, stats, inherent) {
     if (half) skill.targets = Math.max(1, Math.floor(skill.targets / 2));
     skill.areaHitsAll = Boolean(all);
     skill.effectExpansion = delta;
-    skill.effectExpansionFromSupport = Boolean(fromSupport);
     if (fromSupport) skill.dmg = (skill.dmg ?? skill.baseDmg ?? 1) * 0.85;
     if (delta) delete skill.rangeText;
 }

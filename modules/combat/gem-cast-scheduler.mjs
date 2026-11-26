@@ -54,7 +54,7 @@ function createGemCastKit(env) {
         visual: (...args) => gemVisual(env, ...args),
         contact: (cast, targets, at, extra={}) => gemContact(env, cast, targets, at, extra),
         areaContact: (cast, targets, at, extra={}) => gemAreaContact(env, cast, targets, at, extra),
-        ms: gemMs, letGo: gemLetGo, grow: gemGrow, reach: gemReach, supportShots: c => gemSupportShots(env, c),
+        ms: gemMs, letGo: gemLetGo, grow: gemGrow, reach: gemReach, seen: e => env.deps.actExplorationState.inSight(e), supportShots: c => gemSupportShots(env, c),
         between: (...args) => gemBetween(env, ...args), free: (destination, enemies) => gemFree(env, destination, enemies),
         flight: gemFlight, launchFlask: (state, c) => gemLaunchFlask(env, state, c), FLASK_RELEASE
     });
