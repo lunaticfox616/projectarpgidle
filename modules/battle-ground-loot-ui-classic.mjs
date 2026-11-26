@@ -29,6 +29,7 @@ const battleGroundLoot = createGroundLootView({
     get getRarityRank() { return typeof getRarityRank === 'undefined' ? undefined : getRarityRank; },
     get getSkillGemArtPath() { return typeof getSkillGemArtPath === 'undefined' ? undefined : getSkillGemArtPath; },
     get hasGridCell() { return typeof hasGridCell === 'undefined' ? undefined : hasGridCell; },
+    get heroHeadY() { return getHeroHeadY; },
     get itemInfluencesUi() { return typeof itemInfluencesUi === 'undefined' ? undefined : itemInfluencesUi; },
     get knitting() { return typeof knitting === 'undefined' ? undefined : knitting; },
     get lootMoments() { return typeof lootMoments === 'undefined' ? undefined : lootMoments; },

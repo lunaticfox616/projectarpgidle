@@ -11359,7 +11359,10 @@ const LANGUAGE_PACK_EN = Object.freeze({
         // ── 2026-11-24 아틀라스 개편 D2: 지침 이름과 T 등급 ──
         ", T{tier} 이상": ", T{tier} or above",
         "뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.": "Requires one of each of the four Shadow Root Tickets (Fire, Cold, Lightning, Chaos). Regional guardians drop them.",
-        '재료 {count}종': '{count} materials',
+        '바닥 아이템 이름 보기': 'Show floor item names',
+        '바닥 아이템 이름을 켰습니다.': 'Floor item names shown.',
+        '바닥 아이템 이름을 껐습니다.': 'Floor item names hidden.',
+        '전장 표시': 'Battlefield display',
         '이 칸 줍기': 'Collect this pile',
         // ── 2026-11-25 표에서 넣음(listings-i18n.json) ──
         '나무꾼 전투 중에는 출품을 정리할 수 없습니다. 판매 대금 수령은 됩니다.': "You can't manage listings during the Woodsman fight. Collecting proceeds still works.",
