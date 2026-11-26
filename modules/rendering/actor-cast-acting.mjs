@@ -1,5 +1,4 @@
-import { paintChorusCasterGlow } from './chorus-burst.mjs';
-import { steppedOval } from './danger-tiles.mjs';
+import { paintChorusBud, paintChorusCasterGlow } from './chorus-burst.mjs';
 
 const ROOTLET = { x: 105, y: -70, color: '#f6b46c' };
 const CHORUS = { x: -15, y: -58, color: '#f1bcff', load: 10, release: -15 };
@@ -11,11 +10,6 @@ const CHORUS_RIM = /* @__PURE__ */ Object.freeze({ color: '#e9adff', ink: '#2a12
 const CHORUS_AFTER_MS = 420;
 const CHORUS_AFTER_HOLD_MS = 220;
 const chorusLandings = new WeakMap();
-// The chaos light gathering in the casting bulb's open bud, in dots from its middle: V violet, L lilac, W white. It sits on the
-// bulb's own picture, so it cannot be read as a mark on another enemy.
-const CHORUS_BUD = /* @__PURE__ */ Object.freeze([' V ', 'VLV', ' V ']);
-const CHORUS_BUD_FULL = /* @__PURE__ */ Object.freeze(['  V  ', ' VLV ', 'VLWLV', ' VLV ', '  V  ']);
-const BUD_TONES = /* @__PURE__ */ Object.freeze({ V: '#b45cf2', L: '#f3d6ff', W: '#fff6ff' });
 const ROOTLET_DRIVE_MS = 175;
 const RING_STRENGTH = /* @__PURE__ */ Object.freeze({ wind: share => 0.75 + 0.25 * share, release: () => 1, spent: () => 0.9, after: share => 1 - share });
 const ROOTLET_SETTLE_MS = 225;
@@ -113,7 +107,8 @@ export function castRimOf(acting) {
 /** The floor glow under a casting chorus bulb, drawn just before its body (feet at `feet`). */
 export function drawCastGround(ctx, acting, feet, projection) {
     if (acting?.style !== CHORUS || !projection) return;
-    paintChorusCasterGlow(ctx, { x: feet.x, y: feet.y, tileW: projection.tileW, tileH: projection.tileH }, RING_STRENGTH[acting.phase](acting.share || 0) * (flaring(acting) ? 1.35 : 1));
+    paintChorusCasterGlow(ctx, { x: feet.x, y: feet.y, tileW: projection.tileW, tileH: projection.tileH },
+        RING_STRENGTH[acting.phase](acting.share || 0) * (flaring(acting) ? 1.35 : 1), acting.time);
 }
 
 // The bud and the floor glow flare up as the seed leaves the bud, the moment the caster gives itself away.
@@ -122,8 +117,10 @@ const flaring = acting => acting.phase === 'release' && acting.share < 0.85;
 /** These two authored attacks get local acting. Other roster actors use their existing pose unchanged. */
 export function stageActorCastActing(deps, enemy, actor) {
     if (actor.id === 'bossAct1') return rootletActing(deps, enemy);
-    if (actor.id === 'act9-chorus-bulbs') return chorusActing(deps, enemy);
-    return null;
+    if (actor.id !== 'act9-chorus-bulbs') return null;
+    const acting = chorusActing(deps, enemy);
+    // The clock (seconds) its light and motes move on.
+    return acting && { ...acting, time: deps.getCombatTime() / 1000 };
 }
 
 /** A few pixels at the actual mouth or bud, inside the actor's facing transform. */
@@ -141,31 +138,12 @@ export function drawActorCastAccent(ctx, acting, position, dot, reduced) {
     ctx.restore();
 }
 
-function budRows(rows, x, top, p, ctx) {
-    for (const [symbol, colour] of Object.entries(BUD_TONES)) {
-        ctx.fillStyle = colour;
-        rows.forEach((row, dy) => {
-            for (let dx = 0; dx < row.length; dx++) if (row[dx] === symbol) ctx.fillRect(x + dx * p, top + dy * p, p, p);
-        });
-    }
-}
-
-/** Chaos light in the bulb's open bud while it winds up (it grows at the halfway mark) and as it lets go; a soft violet glow
- * added onto the bud, a small lilac core in screen dots. */
+/** The bud's light while the bulb casts and just after (js/rendering/chorus-burst.mjs paintChorusBud), in screen dots. */
 function drawChorusBud(ctx, acting, { x, y, tile }, reduced) {
     const p = Math.max(2, Math.round((tile || 26) / 13)), { phase, share } = acting;
-    const rows = reduced || phase !== 'wind' || share >= 0.45 ? CHORUS_BUD_FULL : CHORUS_BUD;
-    const half = Math.floor(rows.length / 2), cx = Math.round(x / p) * p, cy = Math.round(y / p) * p, flare = flaring(acting) ? 2 : 0;
     const strength = phase === 'after' ? 1 - share : phase === 'spent' ? 0.75 : 1;
-    const base = ctx.globalAlpha;
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = '#7a2cc0';
-    ctx.globalAlpha = base * (flare ? 0.8 : 0.55) * strength;
-    steppedOval(ctx, { cx: cx + p / 2, cy: cy + p / 2, rx: (half + 2 + flare) * p, ry: (half + 2 + flare) * p }, p);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = base * strength;
-    budRows(rows, cx - half * p, cy - half * p, p, ctx);
+    paintChorusBud(ctx, { x, y, p, tile: tile || 26 }, { phase, share: share || 0, time: acting.time || 0, strength, reduced });
     ctx.restore();
 }
 

@@ -51,16 +51,16 @@ run(`game.inventory[0].instanceId='stall-protected';
 assert.strictEqual(list(), false, 'presets protect stable instance identity even after numeric ID migration');
 run('game.equipmentLoadouts.presets=[]');
 assert(list());
-assert.deepStrictEqual(json('[game.inventory.length, game.playerStall.listings.length]'), [0,1], 'one exclusive escrow owner');
+assert.deepStrictEqual(json('[game.inventory.length, game.listings.rows.length]'), [0,1], 'one exclusive escrow owner');
 assert.strictEqual(run(`playerStall.reprice(game,1,1,NaN)`), false);
 // A clock behind the stall still manages it, dated at the watermark (js/player-stall.js stallClock): nothing is backdated.
 assert.strictEqual(run(`playerStall.reprice(game,1,2,${start-1})`), true, 'a clock behind the stall still reprices');
-assert.strictEqual(run('game.playerStall.listings[0].priceChangedAt'), start, 'clock rollback cannot reset aging');
+assert.strictEqual(run('game.listings.rows[0].priceChangedAt'), start, 'clock rollback cannot reset aging');
 assert.strictEqual(run(`playerStall.reprice(game,1,1,${start})`), true);
 run(`playerStall.advance(game,${start + 59999})`);
-assert.strictEqual(run('game.playerStall.proceeds'), 0, 'a minimum wait is mandatory');
+assert.strictEqual(run('game.listings.proceeds.formlessDew'), 0, 'a minimum wait is mandatory');
 run(`playerStall.advance(game,${start + 4*hour})`);
-assert.strictEqual(run('game.playerStall.proceeds'), 1, 'an affordable item eventually sells for this saved random sequence');
+assert.strictEqual(run('game.listings.proceeds.formlessDew'), 1, 'an affordable item eventually sells for this saved random sequence');
 assert.strictEqual(run('playerStall.withdraw(game,1).ok'), false, 'a sold item cannot be reclaimed');
 run('game.expertCurrencyGainPct=900; game.currencies.formlessDew=7');
 assert.strictEqual(run('playerStall.collect(game)'), 1);
@@ -74,75 +74,75 @@ const chances = json(`(() => { const item=game.inventory[0], value=itemAppraisal
 assert(chances[0] > chances[1] && chances[1] >= chances[2] && chances[3] === 0, 'price changes sale chance with a hard ceiling');
 assert(list(1000000));
 run(`playerStall.advance(game,${start + 10*hour})`);
-assert.deepStrictEqual(json('[game.playerStall.listings.length,game.playerStall.proceeds]'), [1,0], 'waiting cannot turn a fantasy price into money');
+assert.deepStrictEqual(json('[game.listings.rows.length,game.listings.proceeds.formlessDew]'), [1,0], 'waiting cannot turn a fantasy price into money');
 assert.strictEqual(run('playerStall.withdraw(game,1).ok'), true);
-assert.deepStrictEqual(json('[game.inventory.length,game.playerStall.listings.length]'), [1,0]);
+assert.deepStrictEqual(json('[game.inventory.length,game.listings.rows.length]'), [1,0]);
 
 fresh(); list();
 const saved = json('game');
 run(`playerStall.advance(game,${start + 12*hour})`);
-const offline = json('game.playerStall');
+const offline = json('game.listings');
 run(`game=mergeDefaults(${JSON.stringify(saved)})`);
 for (let minutes=1; minutes<=720; minutes++) run(`playerStall.advance(game,${start+minutes*60000})`);
-assert.deepStrictEqual(json('game.playerStall'), offline, 'one offline settlement equals many online settlements including sellout');
+assert.deepStrictEqual(json('game.listings'), offline, 'one offline settlement equals many online settlements including sellout');
 run(`game=mergeDefaults(${JSON.stringify(saved)});playerStall.advance(game,${start + 30*hour})`);
-assert.strictEqual(run('game.playerStall.proceeds'), offline.proceeds);
-const capped = json('game.playerStall');
+assert.strictEqual(run('game.listings.proceeds.formlessDew'), offline.proceeds.formlessDew);
+const capped = json('game.listings');
 run(`game=mergeDefaults(JSON.parse(JSON.stringify(game)));playerStall.advance(game,${start + 30*hour})`);
-assert.deepStrictEqual(json('game.playerStall'), capped, 'reload cannot replay the discarded offline tail');
+assert.deepStrictEqual(json('game.listings'), capped, 'reload cannot replay the discarded offline tail');
 run(`playerStall.advance(game,${start-1})`);
-assert.deepStrictEqual(json('game.playerStall'), capped, 'clock rollback cannot regenerate budget');
+assert.deepStrictEqual(json('game.listings'), capped, 'clock rollback cannot regenerate budget');
 
 fresh(); list();
 run('game.isBackgroundCalculation=true');
-const simulated = json('game.playerStall');
+const simulated = json('game.listings');
 run(`playerStall.advance(game,${start + 12*hour})`);
-assert.deepStrictEqual(json('game.playerStall'), simulated, 'combat simulation clocks cannot settle visits');
+assert.deepStrictEqual(json('game.listings'), simulated, 'combat simulation clocks cannot settle visits');
 assert.strictEqual(run('playerStall.collect(game)'), 0);
 run('game.isBackgroundCalculation=false');
-const beforeBlocked = json('game.playerStall');
+const beforeBlocked = json('game.listings');
 for (const key of ['processing','failed','snapshot']) {
     run(`backgroundCombatRuntime.${key}=true;settlePlayerStall();playerStallUi.collect();backgroundCombatRuntime.${key}=false`);
-    assert.deepStrictEqual(json('game.playerStall'), beforeBlocked, 'background lifecycle must not lose real transactions: '+key);
+    assert.deepStrictEqual(json('game.listings'), beforeBlocked, 'background lifecycle must not lose real transactions: '+key);
 }
 run('document.hidden=true;settlePlayerStall();document.hidden=false');
-assert.deepStrictEqual(json('game.playerStall'), beforeBlocked);
+assert.deepStrictEqual(json('game.listings'), beforeBlocked);
 
 // Restore owns escrow identities; invalid listing metadata recovers the actual item once.
 fresh(); list();
-const identity = run('game.playerStall.listings[0].item.id');
+const identity = run('game.listings.rows[0].item.id');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));refreshItemIdCounter()');
 assert(run(`createItemFromBase(BASE_ITEM_DB[0],'normal',1).id>${identity}`), 'future drops cannot reuse an escrow ID');
-run('game.playerStall.listings[0].price=-7;game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
-assert.deepStrictEqual(json('[game.inventory.length,game.playerStall.listings.length]'), [1,0]);
+run('game.listings.rows[0].price=-7;game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.deepStrictEqual(json('[game.inventory.length,game.listings.rows.length]'), [1,0]);
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.strictEqual(run('game.inventory.length'), 1);
 fresh(); list();
-run('game.offlineProgress={stash:[JSON.parse(JSON.stringify(game.playerStall.listings[0].item))]};game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
-assert.strictEqual(run('game.playerStall.listings.length'), 0, 'an item in the offline storage of an old save cannot also be sold');
+run('game.offlineProgress={stash:[JSON.parse(JSON.stringify(game.listings.rows[0].item))]};game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.strictEqual(run('game.listings.rows.length'), 0, 'an item in the offline storage of an old save cannot also be sold');
 assert.strictEqual(run('game.inventory.length'), 1, 'the old offline storage item comes back to the bag once');
 fresh(); list();
 run(`game.inventory=Array.from({length:250},()=>createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='갑옷'),'normal',1))`);
 assert.strictEqual(run('playerStall.withdraw(game,1).ok'), false);
-assert.strictEqual(run('game.playerStall.listings.length'), 1, 'full inventory preserves the escrow item');
+assert.strictEqual(run('game.listings.rows.length'), 1, 'full inventory preserves the escrow item');
 
 // Reject loop reset before either deleting escrow equipment or carrying sold currency across the reset.
 fresh(); list();
 const beforeLoop = json('game');
 assert.strictEqual(run('triggerSeasonReset({})'), false);
-assert.deepStrictEqual(json('[game.inventory,game.playerStall,game.season]'), [beforeLoop.inventory,beforeLoop.playerStall,beforeLoop.season]);
-run('game.playerStall.listings=[];game.playerStall.proceeds=5');
+assert.deepStrictEqual(json('[game.inventory,game.listings,game.season]'), [beforeLoop.inventory,beforeLoop.listings,beforeLoop.season]);
+run('game.listings.rows=[];game.listings.proceeds.formlessDew=5');
 assert.strictEqual(run('triggerSeasonReset({})'), false);
 // triggerSeasonReset and the loop screens share one reason, naming what is still on the stall.
 assert.strictEqual(run('playerStall.loopBlockReason(game)'),
-    '가판대에 판매 대금 이슬 5개가 남아 있습니다. 거래 → 가판대에서 회수한 뒤 루프를 진행하세요.');
+    '판매 대금 이슬 5개가 남아 있습니다. 거래 → 출품에서 회수하거나 수령한 뒤 루프를 진행하세요.');
 fresh(); list();
-assert.match(run('playerStall.loopBlockReason(game)'), /^가판대에 진열품 1개가 남아 있습니다/);
-run('game.playerStall.proceeds=2');
-assert.match(run('playerStall.loopBlockReason(game)'), /^가판대에 진열품 1개와 판매 대금 이슬 2개가 남아 있습니다/);
+assert.match(run('playerStall.loopBlockReason(game)'), /^출품 1개가 남아 있습니다/);
+run('game.listings.proceeds.formlessDew=2');
+assert.match(run('playerStall.loopBlockReason(game)'), /^출품 1개, 판매 대금 이슬 2개가 남아 있습니다/);
 assert.match(run('loopSettlementUi.summaryHtml()'), /class="loop-settlement-warning"/, 'the loop screen says why it waits');
 assert.strictEqual(run('loopSettlementUi.resetButtonAttr(true)'), 'disabled', 'loop-10 panel buttons wait for the stall too');
-run('game.playerStall.listings=[];game.playerStall.proceeds=0');
+run('game.listings.rows=[];game.listings.proceeds.formlessDew=0');
 assert.strictEqual(run('playerStall.loopBlockReason(game)'), '');
 assert.doesNotMatch(run('loopSettlementUi.summaryHtml()'), /loop-settlement-warning/);
 assert.strictEqual(run('loopSettlementUi.resetButtonAttr(true)'), '');
@@ -152,38 +152,69 @@ fresh(); list();
 run('var stallToasts=[]; showGameToast=text=>stallToasts.push(text); game.noti.items=false');
 assert.strictEqual(run(`playerStallUi.settleSales(${start + 4*hour})`), 1);
 assert.strictEqual(run('game.noti.items'), true, 'the 장비 menu shows a dot until opened');
-assert.match(run('stallToasts.join("|")'), /^가판대 판매: \[[^\]]+\], 형체 없는 이슬 1개\. 거래 → 가판대에서 수령하세요\.$/);
+assert.match(run('stallToasts.join("|")'), /^가판대 판매: \[[^\]]+\], 형체 없는 이슬 1개\. 거래 → 출품에서 수령하세요\.$/);
 assert.strictEqual(run(`playerStallUi.settleSales(${start + 4*hour + 60000})`), 0);
 assert.strictEqual(run('stallToasts.length'), 1, 'no sale, no news');
 
 // The woodsman fight refuses arranging the stall with its own reason (an answered offer used to read as expired, after a settlement
 // it should not have run) and keeps the offer; collecting proceeds only moves currency and stays open.
 fresh(); assert(list(1000000));
-run(`(() => { const row=game.playerStall.listings[0]; row.negotiate=true;
+run(`(() => { const row=game.listings.rows[0]; row.negotiate=true;
     row.offer={id:1,amount:10,customerId:0,createdAt:${start + 60000},expiresAt:${start + 60000}+PLAYER_STALL_RULES.offerLifetimeMs,buyerLimit:10,negotiated:false};
-    game.playerStall.offerSequence=1; game.woodsmanBuildLock=true; })()`);
-const lockedStall = json('game.playerStall');
-run('playerStallUi.respond(game.playerStall.listings[0].id,1,true)');
+    game.listings.offerSequence=1; game.woodsmanBuildLock=true; })()`);
+const lockedStall = json('game.listings');
+run('playerStallUi.respond(game.listings.rows[0].id,1,true)');
 assert.match(run('playerStallUi.message'), /나무꾼/);
-assert.deepStrictEqual(json('game.playerStall'), lockedStall, 'a refused answer leaves the stall and its offer as they were');
+assert.deepStrictEqual(json('game.listings'), lockedStall, 'a refused answer leaves the stall and its offer as they were');
 assert.strictEqual(run('playerStallUi.busy(false)'), '', 'collecting stays open during the woodsman fight');
 run('game.woodsmanBuildLock=false; playerStallUi.message=""');
 
 // DOM boundary: ordinary battle refreshes preserve the actual input/button nodes.
 fresh();
 let writes = 0, markup = '';
-const host = { contains: element => Boolean(element), querySelectorAll: () => [], get innerHTML() { return markup; },
+const host = { hidden: false, contains: element => Boolean(element), querySelectorAll: () => [], get innerHTML() { return markup; },
     set innerHTML(value) { writes++; markup=value; } };
-ctx.document.getElementById = id => id === 'market-panel-stall' ? host : null;
+ctx.document.getElementById = id => id === 'market-panel-listings' ? host : null;
+ctx.document.querySelector = () => null;
 ctx.document.activeElement = null;
 run('playerStallUi.render(); playerStallUi.render()');
 assert.strictEqual(writes, 1, 'unchanged refresh does not detach buttons under the pointer');
 ctx.document.activeElement = { tagName:'INPUT' };
-run('game.playerStall.proceeds=8;playerStallUi.render()');
+run('game.listings.proceeds.formlessDew=8;playerStallUi.render()');
 assert.strictEqual(writes, 1, 'editing an asking price keeps the same input');
 ctx.document.activeElement = { tagName:'BUTTON' };
 run('playerStallUi.render()');
 assert.strictEqual(writes, 2, 'a previously clicked button must not freeze incoming sale updates');
 assert(markup.includes('class="stall-coin" data-tip="형체 없는 이슬">') && markup.includes('<b>8</b>'), 'the payout shows the dew coin and its amount');
 
-console.log('player stall: appraisal, ownership, prices, timing, offline parity, payout, saves, loop protection passed');
+// Save move (saveVersion 23, modules/persistence/saved-listings.mjs): an old save with stall listings, stall proceeds and auction lots of every
+// state keeps every item exactly once and every unclaimed coin; loading the result again changes nothing.
+fresh();
+run(`(() => {
+    const make = () => { const item = createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='apocalypse_greatblade'), 'rare', 20, {affixTierCap:20});
+        item.stats=['flatDmg','aspd','crit'].map(id=>rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id===id&&mod.slots.includes('무기')),20,20)); return normalizeItem(item); };
+    const stallItem = make(), openItem = make(), endedItem = make(), old = JSON.parse(JSON.stringify(game));
+    const t0 = game.listings.lastAt;
+    delete old.listings; old.saveVersion = 22; old.inventory = [];
+    old.playerStall = { version: 8, sequence: 4, offerSequence: 0, eventSequence: 0, saleSequence: 0, nextOfferAt: 0, lastAt: t0, nextVisitAt: t0 + 30000, rng: 77,
+        proceeds: 3, budProceeds: 4, goldProceeds: 1, history: [], sales: [],
+        listings: [{ id: 4, item: stallItem, price: 9, currency: 'formlessDew', listedAt: t0, priceChangedAt: t0, slot: 2, negotiate: false, offer: null }] };
+    old.auction = { ...old.auction, sequence: 3, lots: [
+        { id: 1, name: openItem.name, item: openItem, ask: 2, currency: 'magicBud', listedBucket: old.auction.bucket, rolls: 1, status: 'open', gross: 0, fee: 0, net: 0, buyer: null },
+        { id: 2, name: endedItem.name, item: endedItem, ask: 2, currency: 'magicBud', listedBucket: old.auction.bucket, rolls: 3, status: 'expired', gross: 0, fee: 0, net: 0, buyer: null },
+        { id: 3, name: '희귀한 대검', item: null, ask: 50, currency: 'formlessDew', listedBucket: old.auction.bucket, rolls: 2, status: 'sold', gross: 50, fee: 4, net: 46, buyer: [1, 2] }] };
+    globalThis.oldListingSave = old; globalThis.oldListingIds = [stallItem.id, openItem.id, endedItem.id].sort((a, b) => a - b);
+})()`);
+run('game=mergeDefaults(JSON.parse(JSON.stringify(oldListingSave)))');
+const moved = json('[game.listings.rows.map(row=>[row.kind,row.item.id,row.status||""]), game.listings.proceeds, game.listings.sales.map(sale=>[sale.kind,sale.price]), game.playerStall, game.auction.lots, game.inventory.length]');
+assert.deepStrictEqual(moved[0].map(row => row[1]).sort((a, b) => a - b), json('oldListingIds'), 'every listed item moves once, none is lost or doubled');
+assert.deepStrictEqual(moved[0].map(row => row[0] + row[2]).sort(), ['auctionexpired', 'auctionopen', 'stall']);
+assert.deepStrictEqual(moved[1], { magicBud: 4, formlessDew: 49, goldenRule: 1 }, 'stall proceeds and the sold lot\'s net wait in the one settlement box');
+assert.deepStrictEqual(moved[2], [['auction', 46]], 'the sold lot leaves a sale record');
+assert.deepStrictEqual([moved[3], moved[4], moved[5]], [null, null, 0], 'the old keys are gone (JSON null) and nothing went to the bag');
+const once = json('game.listings');
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.deepStrictEqual(json('game.listings'), once, 'loading the moved save again changes nothing');
+assert.match(run('playerStall.loopBlockReason(game)'), /^출품 3개, 판매 대금/, 'the moved listings still hold the loop');
+
+console.log('player stall: appraisal, ownership, prices, timing, offline parity, payout, saves, save move, loop protection passed');

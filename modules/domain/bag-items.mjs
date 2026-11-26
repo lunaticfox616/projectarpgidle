@@ -54,12 +54,12 @@ class BagItems {
     /** Takes this item out of the bag. @returns {boolean} false when it is no longer there */
     take(item, state) { return takeBagItem(item, state); }
 
-    /** A dropped jewel into the bag. With the bag full a rare or unique jewel waits in the temporary storage and the rest are lost,
-     * with no jewel shards (2026-11-25 사용자: 가득 차서 못 얻은 것으로 재화를 얻지 않게). @returns {{ stored, protectOverflow, shardGain }} */
+    /** A dropped jewel into the bag. With the bag full it is lost at any rarity, with no jewel shards and no temporary storage
+     * (2026-11-25 사용자: 가득 차서 못 얻은 것으로 재화를 얻지 않게; 2026-11-26: 주얼이 자꾸 임시 보관함으로 들어온다).
+     * @returns {{ stored, protectOverflow, shardGain }} */
     addJewel(jewel, state) {
         asJewel(jewel);
         if (this.put(jewel, state)) return this.noted(state, { stored: true, protectOverflow: false, shardGain: 0 });
-        if (['rare', 'unique'].includes(jewel.rarity)) return this.noted(state, { stored: this.put(jewel, state, true), protectOverflow: true, shardGain: 0 });
         return { stored: false, protectOverflow: false, shardGain: 0 };
     }
     /** A new core into the bag; a full bag sends it to the temporary storage (cores are always kept). */

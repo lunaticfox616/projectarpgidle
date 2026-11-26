@@ -1,7 +1,7 @@
 // What the loop cinematic shows, read from the real game. A snapshot is taken when 'loop-rewrite-started' fires: the loop record is
 // closed by then (records.loops[0]) and the level, zone, class and kept things are still those of the ending loop.
 
-const CHIP_ICONS = Object.freeze({
+const CHIP_ICONS = /* @__PURE__ */ Object.freeze({
     unlock: 'assets/ui/pixel/buttons/loop.png', loopPoint: 'assets/ui/loop-passive-ouroboros-v3.png', sealed: 'assets/items/root-sword-v3.png',
     stump: 'assets/ui/pixel/buttons/stump.png', loopTree: 'assets/ui/currency/ouroboros.png', journal: 'assets/ui/pixel/buttons/journal.png'
 });

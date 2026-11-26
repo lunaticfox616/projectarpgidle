@@ -1,7 +1,8 @@
 import { createBossAttackTiming } from './boss-attack-timing.mjs';
 import { drawEnemyWarningMark } from './enemy-warning-mark.mjs';
 import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
-import { paintRootletContact, paintRootletDebris, paintRootletScar, paintRootletStomp, ROOTLET_CONTACT_MS, ROOTLET_SCAR_MS } from './rootlet-fault.mjs';
+import { paintRootletContact, paintRootletDebris, paintRootletFootGlow, paintRootletParticles, paintRootletScar, paintRootletStomp, ROOTLET_CONTACT_MS,
+    ROOTLET_SCAR_MS } from './rootlet-fault.mjs';
 
 const SLAM_STEPS = [[-8,-1,6,1],[-3,-1,1,3],[-3,1,7,1],[3,-2,1,4],[3,-2,6,1]];
 const RAY_STEPS = [[-8,-3,5,1],[-4,-2,5,1],[0,-1,6,1],[4,0,5,1]];
@@ -270,6 +271,16 @@ class BossAttacks {
             if (rootlet) this.drawRootletContact(ctx, fx, projection, { age: ms, reduced, outer: fx.wave > 1 });
             else this.drawScars(ctx, fx, projection, ms / this.IMPACT_FLASH_MS, reduced);
         }
+        this.drawRootletParticles(ctx, projection, now, reduced);
+    }
+
+    /** Over the cracks, under the actors: the debris, sparks, dust and embers every Rootlet hit throws out (its scars list holds the hits). */
+    drawRootletParticles(ctx, projection, now, reduced) {
+        for (const scar of this.rootletScars) {
+            const footprint = this.deps.projectSkillFootprint(scar.area, projection);
+            if (!footprint) continue;
+            paintRootletParticles(ctx, footprint, { age: now - scar.start, outer: scar.wave > 1, reduced, key: String(scar.start) });
+        }
     }
 
     drawScars(ctx, fx, projection, progress, reduced) {
@@ -292,7 +303,7 @@ class BossAttacks {
     drawRootletContact(ctx, fx, projection, look) {
         const footprint = this.deps.projectSkillFootprint(fx.footprint, projection);
         if (!footprint) return;
-        if (!this.rootletScars.some(scar => scar.fx === fx)) this.rootletScars.push({ fx, area: fx.footprint, start: fx.start });
+        if (!this.rootletScars.some(scar => scar.fx === fx)) this.rootletScars.push({ fx, area: fx.footprint, start: fx.start, wave: fx.wave });
         ctx.save();
         this.deps.clipSkillFootprintTerrain(ctx, footprint);
         this.deps.clipSkillFootprint(ctx, footprint);
@@ -301,6 +312,7 @@ class BossAttacks {
         const earth = this.deps.getSkillGemVfxImage('skillFxEnemyEarthContact');
         paintRootletDebris(ctx, footprint, look, earth);
         const placed = fx.casterId != null && this.deps.stageRoster?.placementOf(fx.casterId);
+        paintRootletFootGlow(ctx, footprint, { hero: this.deps.battleVisualState.playerPos, placed }, look);
         if (placed) paintRootletStomp(ctx, { placed, footprint, wave: fx.wave }, look, earth);
     }
 

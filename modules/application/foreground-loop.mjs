@@ -79,11 +79,11 @@ export class ForegroundLoop {
     settlePlayerStall() {
         this.deps.playerStallUi.tickVisitors(Date.now());
         if (this.deps.document.hidden || this.deps.backgroundCombatRuntime.appInactive || this.deps.backgroundCombatRuntime.snapshot
-            || this.deps.backgroundCombatRuntime.processing || this.deps.backgroundCombatRuntime.failed || Date.now() - this.deps.game.playerStall.lastAt < 15000) return;
-        const stall = this.deps.game.playerStall, sequence = stall.offerSequence;
-        const pending = stall.listings.filter(row => row.offer).length;
+            || this.deps.backgroundCombatRuntime.processing || this.deps.backgroundCombatRuntime.failed || Date.now() - this.deps.game.listings.lastAt < 15000) return;
+        const store = this.deps.game.listings, sequence = store.offerSequence, offers = () => store.rows.filter(row => row.offer).length;
+        const pending = offers();
         const paid = this.deps.playerStallUi.settleSales(Date.now());
-        if (paid > 0 || sequence !== stall.offerSequence || pending !== stall.listings.filter(row => row.offer).length) this.deps.pendingHeavyUiRefresh = true;
+        if (paid > 0 || sequence !== store.offerSequence || pending !== offers()) this.deps.pendingHeavyUiRefresh = true;
     }
 
     /** The auction settles only when its 15-minute bucket turns (one integer compare otherwise), with the stall's visibility guards. */

@@ -166,11 +166,11 @@
         });
         item.baseStats.forEach(stat => { stat.val = stat.valMax; });
         game.inventory = [normalizeItem(item)];
-        game.playerStall.rng = 1;
+        game.listings.rng = 1;
         const listed = playerStall.list(game,item.id,1000000,start,{currency:'goldenRule',negotiate:true});
         if (!listed.ok) throw new Error('Negotiation fixture could not list its item');
         playerStall.advance(game,Date.now());
-        closeAllWindows();marketUi.open('stall');
+        closeAllWindows();marketUi.open('listings');
         updateStaticUI();
         parent.postMessage({type:'worldtree-lab-status',message:'거래 UI 표본 · T20 최상급 장비 · 실제 거래 규칙으로 4시간 처리 · 검토 저장 초기화됨'},origin);
     }

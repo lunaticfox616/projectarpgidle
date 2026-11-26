@@ -4,7 +4,8 @@ import { createObserverArena } from './observer-arena.mjs';
 import { createBossMoveTiming } from './boss-move-timing.mjs';
 import { WOODSMAN_BLADE, WOODSMAN_SHAPES } from './boss-move-clips.mjs';
 import { ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE } from './rootlet-next-wave.mjs';
-import { paintSafeTicks } from './danger-tiles.mjs';
+import { paintFootGlow, paintSafeTicks } from './danger-tiles.mjs';
+import { rootletPaws } from './rootlet-fault.mjs';
 
 // A Rootlet wave stays in its cool preview this long after the wave before it lands, so the hit reads before the next warning.
 const ROOTLET_HANDOFF_MS = 150;
@@ -25,6 +26,7 @@ class BossMoveView {
         this.STREAM_EVERY_MS = 120;
         this.FALL_MS = 320;
         this.FALL_TILES = 3.2;
+        this.LANE_LIFT = 0.55;
         this.sheets = new Map();
         this.fx = () => (typeof this.deps.BOSS_FX === 'object' ? this.deps.BOSS_FX : null);
         this.sum = list => list.reduce((total, ms) => total + ms, 0);
@@ -109,7 +111,8 @@ class BossMoveView {
         if (!active) return this.drawLaterStage(ctx, footprint, stage.rootlet);
         this.deps.drawSkillFootprintGround(ctx, footprint, stage.rootlet ? '#ffc29a' : '#ffae72',
             { fill: 0.34 + charge * 0.15, edge: 0.78 + charge * 0.21, rootlet: stage.rootlet, outer: !stage.first,
-                marks: 0.87 + charge * 0.13, cracks: this.stageFaultCharge(stage, charge), dye: 0.19 + charge * 0.18 });
+                marks: 0.87 + charge * 0.13, cracks: this.stageFaultCharge(stage, charge), dye: 0.19 + charge * 0.18, time: now,
+                reduced: this.deps.uiDisplay.reducedEffects() });
     }
 
     drawLaterStage(ctx, footprint, rootlet) {
@@ -215,7 +218,7 @@ class BossMoveView {
         }
         if (move.kind === 'observer') { this.arena.drawObserverMove(owner, ctx, entry, projection, now); return; }
         if (move.kind !== 'signature') this.drawStageWarnings(ctx,entry,projection,now);
-        if (move.kind === 'rings') this.drawRootletSafeCells(owner, ctx, entry, projection, now);
+        if (move.kind === 'rings') this.drawRootletGround(owner, ctx, entry, projection, now);
         this.drawPhysicalLead(ctx, entry, projection, now);
         if (move.kind === 'grind') this.drawGrindGround(ctx, move, now, projection);
         if (found && this.fx()) this.drawBursts(ctx, entry, found.row, now, projection);
@@ -380,9 +383,15 @@ class BossMoveView {
         this.drawFrame(ctx, clip, frame, body.hand, { scale: body.dot * found.row.scale });
     }
 
-    /** A lane's path through time: the hand at release, then cell k at hand height when its stage lands. [{ at, x, y }] */
+    /** How high a shot or a beam runs over its warned cells: the hand's height, at most LANE_LIFT tiles, so it stays tied to the marks
+     * on the floor (a tall caster's hand could otherwise carry it a head above them). Screen px, negative = up. */
+    laneLift(body, projection) {
+        return Math.max(body.hand.y - body.feet.y, -projection.tileH * this.LANE_LIFT);
+    }
+
+    /** A lane's path through time: the hand at release, then cell k just above the floor when its stage lands. [{ at, x, y }] */
     lanePath(entry, row, lane, projection) {
-        const move = entry.move, body = this.bodyOf(entry.source, row, projection), lift = body.hand.y - body.feet.y;
+        const move = entry.move, body = this.bodyOf(entry.source, row, projection), lift = this.laneLift(body, projection);
         const points = [{ at: move.releasedAt, x: body.hand.x, y: body.hand.y }];
         for (const stage of move.stages) {
             const cell = stage.cells.find(row2 => row2.lane === lane);
@@ -419,7 +428,7 @@ class BossMoveView {
         const start = move.releasedAt + first.ms, end = Math.min(move.releasedAt + last.ms + this.deps.BOSS_MOVE_RULES.beam.tickMs, move.cutAt ?? Infinity);
         if (now < start - 90 || now > end + 200) return;
         const body = this.bodyOf(entry.source, row, projection), far = first.cells[first.cells.length - 1], floor = this.floorOf(far, projection);
-        const tip = { x: floor.x, y: floor.y + body.hand.y - body.feet.y }, scale = body.dot * row.scale;
+        const tip = { x: floor.x, y: floor.y + this.laneLift(body, projection) }, scale = body.dot * row.scale;
         if (row.kind === 'beam') this.drawBeamBody(ctx, { clip: row.clips.action, frame: this.beamFrame(row.clips.action, now, start, end), from: body.hand, to: tip, scale });
         else this.drawStream(ctx, row, { now, start, end, from: body.hand, to: tip, scale });
         const tick = move.stages.find(stage => now >= move.releasedAt + stage.ms && now < move.releasedAt + stage.ms + 370);
@@ -462,6 +471,12 @@ class BossMoveView {
         }
     }
 
+    /** The Rootlet's ring under the actors: the safe cells around the hero and the glow at the feet on the next wave. */
+    drawRootletGround(owner, ctx, entry, projection, now) {
+        this.drawRootletSafeCells(owner, ctx, entry, projection, now);
+        this.drawRootletFootGlow(owner, ctx, entry, projection, now);
+    }
+
     /** Ground pass: quiet ticks on the open cells next to the hero while the struck wave nears (not on cells it or the boss covers). */
     drawRootletSafeCells(owner, ctx, entry, projection, now) {
         const wave = this.deps.rootletZone() && owner.gridPlayer ? this.rootletNextWave(entry, now) : null;
@@ -473,6 +488,16 @@ class BossMoveView {
         this.deps.clipSkillFootprintTerrain(ctx, footprint);
         paintSafeTicks(ctx, footprint, Math.min(1, (wave.charge - 0.3) * 4));
         ctx.restore();
+    }
+
+    /** Ground pass: the next wave's light around the hero's feet and the boss's paws standing on its cells as it nears. */
+    drawRootletFootGlow(owner, ctx, entry, projection, now) {
+        const wave = this.deps.rootletZone() ? this.rootletNextWave(entry, now) : null;
+        if (!wave || wave.charge < 0.3) return;
+        const footprint = this.deps.projectSkillFootprint({ cells: wave.cells, kind: 'blast', center: wave.cells[0] }, projection);
+        const placed = this.deps.stageRoster?.placementOf(entry.source.id);
+        const feet = [owner.gridPlayer && this.floorOf(owner.gridPlayer, projection), ...(placed ? rootletPaws(placed, false) : [])];
+        if (footprint) paintFootGlow(ctx, footprint, feet, { strength: (wave.charge - 0.3) / 0.7 });
     }
 
     bodyCells(enemy) { return this.deps.getGridFootprintCells(enemy.gx, enemy.gy, this.deps.getGridUnitFootprint(enemy)); }

@@ -22,10 +22,10 @@ export function outdatedBuildRefusal(message) {
 }
 
 export function cloudSavePrintSource(saveData) {
-    const stall = saveData.playerStall && typeof saveData.playerStall === 'object' ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
-    // The auction's watermark moves with every command, like the stall's.
+    // The listings' visitor watermark and the auction's move with every command.
+    const listings = saveData.listings && typeof saveData.listings === 'object' ? { ...saveData.listings, lastAt: 0 } : saveData.listings;
     const auction = saveData.auction && typeof saveData.auction === 'object' ? { ...saveData.auction, lastAt: 0 } : saveData.auction;
-    return { ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall, auction };
+    return { ...saveData, saveMeta: null, talentCardRuntime: undefined, listings, auction };
 }
 
 export function printOfSaveText(text) {

@@ -474,5 +474,5 @@ class StageRoster {
 
 export function createStageRoster(deps) {
     const instance = new StageRoster(deps);
-    return Object.freeze({ draw: instance.draw.bind(instance), drawDeath: instance.drawDeath.bind(instance), drawClip: instance.drawClip.bind(instance), looks: instance.looks, keepFor: instance.keepFor.bind(instance), placementOf: instance.placementOf.bind(instance), headOrigin: instance.headOrigin.bind(instance), chorusMouth: instance.chorusMouth.bind(instance), bodySize: instance.bodySize.bind(instance) });
+    return Object.freeze({ draw: instance.draw.bind(instance), drawDeath: instance.drawDeath.bind(instance), drawClip: instance.drawClip.bind(instance), looks: instance.looks, keepFor: instance.keepFor.bind(instance), placementOf: instance.placementOf.bind(instance), headOrigin: instance.headOrigin.bind(instance), chorusMouth: instance.chorusMouth.bind(instance), bodySize: instance.bodySize.bind(instance), actorFor: instance.actorFor.bind(instance) });
 }

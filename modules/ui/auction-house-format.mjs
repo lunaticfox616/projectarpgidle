@@ -61,10 +61,6 @@ export function itemName(runtime, item) { return runtime.deps.getItemDisplayName
 
 export function slotLabel(runtime, item) { return runtime.deps.getItemSlotDisplayLabel(item, tr(runtime, item.slot || '')); }
 
-/** The item's picture with its rarity colour as --item-rarity. */
-export function itemArtHtml(runtime, item) {
-    return `<span class="ah-art" style="--item-rarity:${esc(runtime, runtime.deps.getRarityColor(item.rarity))}"><img src="${esc(runtime, runtime.deps.getEquipmentGridVisualAsset(item))}" alt="" draggable="false"></span>`;
-}
 
 /** Sets el's markup only when it changed (kept on the element). Returns whether it painted. */
 export function paint(el, html) {

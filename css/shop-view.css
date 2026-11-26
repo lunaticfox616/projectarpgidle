@@ -1,5 +1,5 @@
 @layer features {
-/* 상점 화면(js/shop-view-ui.js): NPC 상점, 암거래상, 나의 가판대가 같이 쓴다(2026-10-23 2차 배치).
+/* 상점 화면(js/shop-view-ui.js): NPC 상점, 암거래상, 출품 탭이 같이 쓴다(2026-10-23 2차 배치).
    좁은 자리: 진열대 아래 가방, 고른 물건의 시트(.shop-info)는 창 아래에 붙는다(가방 위에 겹쳐 보이고, 끝까지 밀면 제자리).
    넓은 자리(708px 이상, 진열대 344px와 가방 344px가 나란히 든다): 진열대 옆에 가방(끌어 놓기가 옆으로), 시트는 진열대 아래.
    시트는 고른 동안만 나타나고 거래 줄이 위, 물건 카드가 아래이며 긴 옵션은 카드 안에서 민다. 마우스로 가리킨 것의 옵션과 값은
@@ -36,9 +36,9 @@
 .shop-cell.is-drop-ok { background: rgba(68, 171, 103, .36); }
 .shop-cell.is-drop-bad { background: rgba(188, 62, 62, .34); }
 .shop-item, .shop-bag-item { --item-rarity: #7d8996; position: relative; z-index: 1; display: block; box-sizing: border-box; min-width: 0; min-height: 0; margin: 0; padding: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--item-rarity) 70%, #182637); border-radius: 3px; background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--item-rarity) 13%, transparent), rgba(12, 20, 30, .94) 72%); }
-:is(.shop-item, .shop-bag-item, .shop-stand).rarity-magic { --item-rarity: #5fb4ec; }
-:is(.shop-item, .shop-bag-item, .shop-stand).rarity-rare { --item-rarity: #e9c355; }
-:is(.shop-item, .shop-bag-item, .shop-stand).rarity-unique { --item-rarity: #ff9f43; }
+:is(.shop-item, .shop-bag-item).rarity-magic { --item-rarity: #5fb4ec; }
+:is(.shop-item, .shop-bag-item).rarity-rare { --item-rarity: #e9c355; }
+:is(.shop-item, .shop-bag-item).rarity-unique { --item-rarity: #ff9f43; }
 /* 가방 장비는 가리키면 떠 있는 카드로 옵션을 보인다(누르거나 끌지는 않는다: 가판대의 것만 is-pick). */
 .shop-bag-item { opacity: .82; }
 /* 가판대의 가방: 올릴 수 있는 장비는 끌 수 있고, 올릴 수 없는 장비는 흐리게(마우스를 올리면 이유). */
@@ -60,7 +60,6 @@
 .shop-item.is-dear .shop-price { color: #e58a7f; }
 /* 단추와 진열대 값표 안의 값은 제자리에 쓴다(물건 칸의 값만 오른쪽 아래에 얹힌다). 단추 안은 단추 글(12px), 값표 안은 값표 글(10px). */
 :is(.shop-tools button, .shop-more) .shop-price { position: static; padding: 0; background: none; font-size: 12px; line-height: inherit; }
-.shop-stand-tag .shop-price { position: static; padding: 0; background: none; font-size: inherit; line-height: inherit; }
 .shop-ware-coin { display: block; box-sizing: border-box; width: 100%; height: 100%; padding: 3px; object-fit: contain; image-rendering: pixelated; }
 .shop-count { position: absolute; top: 0; left: 2px; color: #efe6d2; font-size: var(--font-size-meta); line-height: 12px; text-shadow: 0 1px 0 #000; pointer-events: none; }
 /* 잠근 물건: 오른쪽 위의 작은 자물쇠. */
@@ -131,22 +130,6 @@
 .shop-tools-note { margin: 0 0 8px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
 .shop-tools-note strong { color: var(--color-accent-gold); font-weight: var(--font-weight-regular); }
 
-/* 나의 가판대(js/player-stall-ui.js): 네 칸의 진열대. 물건은 가방에서와 같은 크기로 서고, 아래에 값표. */
-.shop-stands { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: calc(var(--cell) * 10 + 2px); margin-top: 8px; }
-.shop-stand { --item-rarity: #7d8996; position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; gap: 4px; min-width: 0; height: calc(var(--cell) * 3 + 40px); margin: 0; padding: 14px 3px 5px; border: 1px solid color-mix(in srgb, var(--item-rarity) 55%, #2a3442); border-radius: 3px; background: #07101a; box-shadow: inset 0 0 18px rgba(0, 0, 0, .5); color: var(--color-text-secondary); font-size: var(--font-size-meta); }
-.shop-stand.is-filled { cursor: grab; touch-action: none; user-select: none; }
-.shop-stand.is-empty { border-style: dashed; border-color: #3d4b5c; }
-.shop-stand.is-preview { border-style: dashed; border-color: var(--color-accent-gold); }
-.shop-stand.is-chosen, .shop-stand:hover { box-shadow: 0 0 0 1px var(--item-rarity), 0 0 10px color-mix(in srgb, var(--item-rarity) 40%, transparent); }
-.shop-stand.is-drop-ok { border-color: #44ab67; background: rgba(68, 171, 103, .2); }
-.shop-stand.is-drop-bad { border-color: #bc3e3e; background: rgba(188, 62, 62, .2); }
-.shop-stand > small { position: absolute; top: 2px; left: 5px; color: #7d8996; font-size: var(--font-size-meta); }
-.shop-stand > em { position: absolute; top: 2px; right: 3px; padding: 0 4px; border: 1px solid #af9155; background: #4e3c1f; color: #f0d899; font-size: 10px; font-style: normal; }
-.shop-stand-art { display: block; width: calc(var(--cols) * var(--cell)); max-width: 100%; height: calc(var(--rows) * var(--cell)); pointer-events: none; }
-.shop-stand-art img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
-.shop-stand-art.is-empty { width: 30px; height: 40px; border: 1px dashed #3d4b5c; opacity: .7; }
-.shop-stand-tag { display: inline-flex; align-items: center; gap: 2px; color: #d4bf8b; white-space: nowrap; }
-.shop-stand.is-empty .shop-stand-tag { color: #7d8996; }
 .stall-terms-box { margin: 0 0 8px; }
 
 /* 넓은 상점 자리: 진열대 옆에 가방, 시트는 진열대 아래에 제자리로 선다(창 아래에 붙지 않는다: 진열대가 긴 암거래상에서 붙으면

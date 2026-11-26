@@ -1,10 +1,14 @@
 export function savedItemsOf(merged) {
     const offline = merged.offlineProgress || {}, rift = merged.timeRift || {};
     const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
-    const listings = ((merged.playerStall || {}).listings || []).map(row => row && row.item);
-    const auctionLots = Array.isArray(merged.auction?.lots) ? merged.auction.lots.map(row => row && row.item) : [];
+    const listings = listedItemsOf(merged);
     return [merged.inventory, Object.values(merged.equipment || {}), merged.equipmentTemporaryStorage, offline.stash, offline.protectedOverflow,
-        rift.altarUnique, rift.altarRare, presets, listings, auctionLots].flat().filter(item => item && typeof item === 'object');
+        rift.altarUnique, rift.altarRare, presets, listings].flat().filter(item => item && typeof item === 'object');
+}
+
+/** The items of the saved listings (game.listings rows of any kind; the old stall and auction lots were moved there first, modules/persistence/saved-listings.mjs). */
+export function listedItemsOf(merged) {
+    return (Array.isArray(merged.listings?.rows) ? merged.listings.rows : []).map(row => row && row.item);
 }
 
 // Only already-equipped pre-level-system items receive grace, until their next removal.
@@ -57,10 +61,8 @@ export function keepLegacyAccessorySockets(deps, merged, save) {
 export function legacySocketStores(merged) {
     const rift = merged.timeRift || {}, offline = merged.offlineProgress || {};
     const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
-    const stall = ((merged.playerStall || {}).listings || []).map(row => row && row.item);
-    const auctionLots = Array.isArray(merged.auction?.lots) ? merged.auction.lots.map(row => row && row.item) : [];
     return [merged.inventory, Object.values(merged.equipment || {}), rift.altarUnique, rift.altarRare, offline.stash,
-        offline.protectedOverflow, merged.equipmentTemporaryStorage, presets, stall, auctionLots];
+        offline.protectedOverflow, merged.equipmentTemporaryStorage, presets, listedItemsOf(merged)];
 }
 
 /** Codex, hunt targets and new-entry marks are keyed '부위|이름': a unique whose old name left the code (2026-11-12 renames) is found by

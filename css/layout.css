@@ -135,13 +135,23 @@
         .deathlog-bar { position: relative; height: 10px; border-radius: 999px; overflow: hidden; background: #0b1118; border: 1px solid #22384a; }
         .deathlog-bar-fill { height: 100%; border-radius: inherit; box-shadow: 0 0 14px rgba(255,255,255,0.08); }
         .deathlog-empty { padding: 10px 12px; border-radius: 8px; background: #131b26; border: 1px dashed #2e455c; color: #eef2f6; text-align: center; }
-        .deathlog-hints { flex: 0 0 auto; display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #1a1712; border: 1px solid #5c4a2b; }
-        .deathlog-hints[hidden] { display: none; }
-        .deathlog-hints .deathlog-subtitle { margin-bottom: 2px; }
+        /* 할 수 있는 일(조언 보기, popover): 확인 줄과 같은 폭으로 그 바로 위에 뜬다. 앵커를 모르는 브라우저는 화면 가운데에 뜬다. */
+        .deathlog-actions { anchor-name: --deathlog-actions; }
+        .deathlog-advice-open[hidden] { display: none; }
+        .deathlog-advice:popover-open { box-sizing: border-box; display: grid; gap: 6px; width: min(512px, calc(100vw - 48px)); max-height: min(60vh, 420px); overflow-y: auto; padding: 10px 12px; border-radius: 8px; background: #1a1712; border: 1px solid #5c4a2b; color: var(--copy-bright); box-shadow: 0 10px 28px rgba(0,0,0,.6); }
+        @supports (top: anchor(top)) {
+            .deathlog-advice:popover-open { position-anchor: --deathlog-actions; inset: auto; left: anchor(left); right: anchor(right); bottom: anchor(top); width: auto; margin: 0 0 8px; }
+        }
+        .deathlog-advice .deathlog-subtitle { margin-bottom: 2px; }
         .deathlog-hint { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--copy-bright); line-height: 1.5; }
-        .deathlog-hints .deathlog-hint-action { flex: 0 0 auto; min-height: 28px; padding: 2px 14px; }
-        .deathlog-setting { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--copy-bright); }
+        .deathlog-advice .deathlog-hint-action { flex: 0 0 auto; min-height: 28px; padding: 2px 14px; }
+        /* 알림 설정은 확인과 한 줄: 왼쪽에 설정, 오른쪽에 조언 보기와 확인(휴대폰도 줄을 세로로 쌓지 않는다) */
         .deathlog-card .tutorial-actions { flex: 0 0 auto; margin-top: 12px; padding-top: 10px; border-top: 1px solid #25384a; }
+        .deathlog-card .deathlog-actions { flex-direction: row; align-items: center; gap: 8px; }
+        .deathlog-setting { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--copy-bright); }
+        @media (max-width: 720px) {
+            .deathlog-card .deathlog-actions button { min-width: 64px; padding: 0 12px; }
+        }
         @media (max-height: 560px) {
             .deathlog-card { overflow-y: auto; }
             .deathlog-card .tutorial-body { max-height: none; overflow: visible; }

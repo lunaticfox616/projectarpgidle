@@ -89,7 +89,7 @@ function sampleItem(tier, rarity) {
 function trial(item, price, seed, currency = 'formlessDew', options = {}) {
     const owner = JSON.parse(templateJson);
     const slots = options.slots || rules.slots;
-    owner.playerStall.rng = seed;
+    owner.listings.rng = seed;
     owner.inventory = Array.from({ length: slots }, (_, index) => ({ ...clone(item), id: 10000 + index }));
     for (const held of owner.inventory.slice()) {
         assert.equal(runtime.playerStall.list(owner, held.id, price, startAt, { currency, negotiate: options.negotiate === true }).ok, true);
@@ -98,17 +98,17 @@ function trial(item, price, seed, currency = 'formlessDew', options = {}) {
     const savedOwner = clone(owner);
     runtime.playerStall.restore(savedOwner);
     const soldAt = [];
-    while (savedOwner.playerStall.listings.length && savedOwner.playerStall.nextVisitAt <= startAt + rules.offlineLimitMs) {
-        const at = savedOwner.playerStall.nextVisitAt, before = savedOwner.playerStall.listings.length;
+    while (savedOwner.listings.rows.length && savedOwner.listings.nextVisitAt <= startAt + rules.offlineLimitMs) {
+        const at = savedOwner.listings.nextVisitAt, before = savedOwner.listings.rows.length;
         runtime.playerStall.advance(savedOwner, at);
-        const sold = before - savedOwner.playerStall.listings.length;
+        const sold = before - savedOwner.listings.rows.length;
         for (let index = 0; index < sold; index++) soldAt.push(at - startAt);
     }
-    const revenue = savedOwner.playerStall[rules.proceedsKeys[currency]];
+    const revenue = savedOwner.listings.proceeds[currency];
     assert.equal(revenue, soldAt.length * price, 'Every sale credits the chosen currency exactly once');
     assert(soldAt.every(time => time >= rules.minimumAgeMs), 'No sale bypasses the minimum viewing time');
     assert(soldAt.length <= slots, 'Concurrent visitors cannot sell the same escrow item twice');
-    return { soldAt, revenue, offers: savedOwner.playerStall.offerSequence };
+    return { soldAt, revenue, offers: savedOwner.listings.offerSequence };
 }
 
 function percentileMinutes(values, percentile) {
@@ -297,7 +297,7 @@ function auditGoldTrades() {
     for (let seed = 1; seed <= 100; seed++) {
         const online = JSON.parse(templateJson);
         online.inventory = [{ ...clone(gear), id: 98765 }];
-        online.playerStall.rng = Math.imul(seed, 2654435761) >>> 0;
+        online.listings.rng = Math.imul(seed, 2654435761) >>> 0;
         assert(runtime.playerStall.list(online, 98765, price, startAt, { currency: 'goldenRule', negotiate: true }).ok);
         const offline = clone(online);
         let firstSaleAt = null;
@@ -308,8 +308,8 @@ function auditGoldTrades() {
             runtime.playerStall.advance(offline, startAt + elapsed);
             runtime.playerStall.restore(offline);
         }
-        assert.deepEqual(clone(offline.playerStall), clone(online.playerStall), 'Capped offline windows preserve premium-trade parity');
-        assert.equal(online.playerStall.goldProceeds, firstSaleAt === null ? 0 : price);
+        assert.deepEqual(clone(offline.listings), clone(online.listings), 'Capped offline windows preserve premium-trade parity');
+        assert.equal(online.listings.proceeds.goldenRule, firstSaleAt === null ? 0 : price);
         results.push(firstSaleAt === null ? Infinity : firstSaleAt);
     }
     assert(Math.min(...results) >= rules.minimumAgeMs,'No premium sale happens before the first eligible visit');

@@ -3,8 +3,8 @@ import { drawEnemyWarningMark } from './enemy-warning-mark.mjs';
 import { drawGroundDangerSign, drawGroundDangerDye } from './enemy-ground-danger.mjs';
 import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
 import { realmLiquid, REALM_LIQUID_ASSET, paintRealmFlight, paintRealmContact } from './enemy-realm-liquids.mjs';
-import { paintDangerTiles, paintTileStrike } from './danger-tiles.mjs';
-import { chorusDot, paintChorusBurst, paintChorusHit, paintChorusPath } from './chorus-burst.mjs';
+import { paintDangerLife, paintDangerTiles, paintFootGlow, paintTileStrike } from './danger-tiles.mjs';
+import { chorusDot, paintChorusBurst, paintChorusFloor, paintChorusPath } from './chorus-burst.mjs';
 
 const CHAOS_FALLBACK = { asset: 'skillFxSignatureVoidSlash', color: '#e2a7ff', height: 2.15,
     ground: 0.54, angle: -0.31, frames: [5, 6, 8, 10, 12, 14] };
@@ -13,6 +13,8 @@ const CHORUS_FRONT = 0.18;
 const CHORUS_WINDUP_SHARE = 0.35;
 const outlinedSeeds = new Map();
 const ARC = 5.4;
+/** One landing's particle seed: its start and aimed cell. */
+const chorusKey = fx => [Math.round(fx.start), fx.enemyFlight?.targetCell?.gx, fx.enemyFlight?.targetCell?.gy].join(':');
 const isChorusShot = attack => (attack.source?.spriteVariantId || attack.source?.monsterVisualId) === 'act9-chorus-bulbs';
 const CONTACT = Object.freeze({
     phys:  { asset: 'skillFxSlamPrimary', color: '#f4b575', height: 1.35, ground: 0.52, angle: 0 },
@@ -166,10 +168,10 @@ class EnemyProjectiles {
     drawGround(ctx, fx, footprint, view) {
         const elapsed = view.now - fx.start;
         if (fx.groundImpact && (elapsed < 0 || elapsed >= 220)) return;
-        this.paintGround(ctx,fx,footprint,{elapsed,reduced:view.reduced});
+        this.paintGround(ctx,fx,footprint,{elapsed,reduced:view.reduced,feet:view.playerPoint});
     }
 
-    paintGround(ctx, fx, footprint, {elapsed,reduced}) {
+    paintGround(ctx, fx, footprint, {elapsed,reduced,feet}) {
         const fullContact = fx.groundImpact && !reduced;
         const look = CONTACT[vfxElement(fx.element)] || CONTACT.phys;
         const liquid = !reduced && realmLiquid(fx.enemyFlight);
@@ -179,6 +181,22 @@ class EnemyProjectiles {
         const drawn = this.paintGroundFootprint(ctx, fx, footprint, look, {elapsed, reduced, liquid});
         if (fullContact && !drawn && !isChorusShot(fx.enemyFlight)) this.contact(ctx, footprint, look, elapsed / 220);
         ctx.restore();
+        if (isChorusShot(fx.enemyFlight)) this.drawChorusFloor(ctx, fx, footprint, {elapsed, reduced, feet});
+    }
+
+    /** Outside the cell clip, under the actors: while it is warned the aimed cell glows from below with drifting motes and lights the
+     * feet of a hero standing on it; on contact its crack opens (light an oval on the stone, not a lit square), then the landing flash,
+     * ring, crystals and shards (js/rendering/chorus-burst.mjs). */
+    drawChorusFloor(ctx, fx, footprint, {elapsed, reduced, feet}) {
+        if (!fx.groundImpact) {
+            const charge = this.targetProgress(fx);
+            paintDangerLife(ctx, footprint, { charge, chaos: true, time: this.deps.getCombatTime(), reduced });
+            return paintFootGlow(ctx, footprint, [feet], { strength: (charge - 0.3) / 0.7, chaos: true });
+        }
+        paintTileStrike(ctx, footprint, { age: elapsed, heavy: true, reduced, chaos: true, boost: 1.4 });
+        paintFootGlow(ctx, footprint, [feet], { strength: 1 - elapsed / 230, chaos: true });
+        if (!reduced) paintChorusFloor(ctx, footprint, elapsed, { image: this.deps.getSkillGemVfxImage(CONTACT.chaos.asset),
+            empty: fx.groundOccupied === false, key: chorusKey(fx) });
     }
 
     paintGroundFootprint(ctx, fx, footprint, look, {elapsed, reduced, liquid}) {
@@ -195,8 +213,6 @@ class EnemyProjectiles {
             ctx.globalAlpha = Math.max(0, 1 - elapsed / 110);
             paintDangerTiles(ctx, footprint, { charge: 1, chaos: true });
             ctx.restore();
-            // Outside the cell clip, so the light around the opening crack stays an oval on the stone instead of a lit square.
-            paintTileStrike(ctx, footprint, { age: elapsed, heavy: true, reduced, chaos: true });
             return true;
         } else {
             paintContactRim(ctx, footprint, look, elapsed / 220, reduced);
@@ -226,8 +242,7 @@ class EnemyProjectiles {
             ctx.restore();
         }
         ctx.restore();
-        paintChorusBurst(ctx, footprint, age, { reduced: view.reduced, empty: !fx.groundOccupied });
-        if (fx.groundOccupied) paintChorusHit(ctx, footprint, age);
+        paintChorusBurst(ctx, footprint, age, { reduced: view.reduced, empty: !fx.groundOccupied, key: chorusKey(fx) });
     }
 
     /** 0 when the caster starts its wind-up, 1 when the seed lands (a wind-up's stand-in carries windupStartAt). */
@@ -284,7 +299,7 @@ class EnemyProjectiles {
         const p = chorusDot(arc), length = Math.hypot(arc.to.x - arc.from.x, arc.to.y - arc.from.y) * 1.35, step = 1.5 * p / Math.max(1, length);
         const points = [];
         for (let t = span.end; t > span.start && points.length < 24; t -= step) points.push(queuedArc(ctx, { ...arc, t }));
-        paintChorusPath(ctx, points, { p });
+        paintChorusPath(ctx, points, { p, seed: Math.floor(arc.t * 40) });
     }
 
     chorusSource(attack, source, projection) {
@@ -365,7 +380,8 @@ class EnemyProjectiles {
 function queuedArc(ctx, { from,to,t,tileW,tileH,chorus }) {
     const dx = to.x - from.x, dy = to.y - from.y + (chorus ? tileH * CHORUS_FRONT : 0);
     const start = chorus ? from.y : from.y - 0.62*tileW;
-    const curve = chorus ? Math.min(tileW * 7.6, 420) : tileW * ARC;
+    // The chorus lob peaks about a tile above its bud, so the seed never climbs out of the scene away from its aimed cell.
+    const curve = chorus ? Math.min(tileW * 5, 260) : tileW * ARC;
     const trend = dy + from.y - start - curve;
     const lift = chorus ? chorusArcLimit(ctx, {from:{x:from.x,y:start},dx,trend,curve,tileW}) : 0;
     const arch = 4 * t * (1 - t);

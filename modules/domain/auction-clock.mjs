@@ -1,6 +1,6 @@
 /**
  * 경매장 시계와 이용 조건. 시계는 Math.max(now, lastAt)이고(기기 시계를 되돌려도 지난 구간이 다시 오지 않는다), 시세 구간 번호는 그 시계를
- * bucketMs로 나눈 몫이다. 구간이 오를 때만 정산한다: 지난 구간마다 내 출품을 굴리고(최대 offlineBuckets 구간), 이번 구간의 거래량을 비우고,
+ * bucketMs로 나눈 몫이다. 구간이 오를 때만 정산한다: 지난 구간마다 경매장 출품을 굴리고(최대 offlineBuckets 구간), 이번 구간의 거래량을 비우고,
  * 아직 지역이 적히지 않은 구간(지난 lookback 구간까지)에 상인 매물을 굴릴 지금의 지역을 적고, 목록에서 벗어난 구간의 지역과 산 매물을 지우고,
  * 거래 흐름(trend)을 반으로 줄인다. 타이머는 없다: 부르는 쪽이 시각을 넘긴다.
  */
@@ -110,7 +110,7 @@ export function auctionUseBlock(env, owner) {
     return auctionManageBlock(env, owner);
 }
 
-/** Why owner cannot take back or claim its own lots now, or '' (allowed even when the unlock is gone, so nothing is stranded). */
+/** Why owner cannot take back its own lots now, or '' (allowed even when the unlock is gone, so nothing is stranded). */
 export function auctionManageBlock(env, owner) {
     if (owner.woodsmanBuildLock) return env.deps._t('나무꾼 전투 중에는 경매장을 이용할 수 없습니다.');
     return owner.isBackgroundCalculation ? env.deps._t('지금은 경매장을 이용할 수 없습니다.') : '';
@@ -137,8 +137,3 @@ export function auctionNoticeText(env, row) {
     return env.deps._t('경매장: [{name}] 출품 기간이 끝났습니다', { name });
 }
 
-/** Why a loop reset must wait, or '': any lot (open, sold or expired) would lose gear or money across the loop. */
-export function auctionLoopBlockReason(env, owner) {
-    const count = Array.isArray(owner.auction?.lots) ? owner.auction.lots.length : 0;
-    return count ? env.deps._t('경매장에 출품 {count}개가 남아 있습니다. 거래 → 경매장에서 회수하거나 수령한 뒤 루프를 진행하세요.', { count }) : '';
-}

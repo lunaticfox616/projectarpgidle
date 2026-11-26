@@ -22,10 +22,13 @@ function getPlayerHurtProfile(fx) {
         duration: feel.duration };
 }
 
+/** A later wave of a ring slam (diamond ring, radius 2 or more). */
+const heavyRing = fx => fx.wave > 1 && fx.footprint?.shape === 'diamond' && fx.footprint.radius >= 2;
+
 export function getBattleFeedbackProfile(fx) {
     if (!fx || fx.dot) return BATTLE_FEEDBACK_PROFILES.normal;
     if (fx.type === 'playerHit') return getPlayerHurtProfile(fx);
-    if (fx.type === 'bossAreaImpact') return BATTLE_FEEDBACK_PROFILES.bossSlam;
+    if (fx.type === 'bossAreaImpact') return heavyRing(fx) ? BATTLE_FEEDBACK_PROFILES.bossSlamHeavy : BATTLE_FEEDBACK_PROFILES.bossSlam;
     if (fx.impactTier === 'annihilate') return BATTLE_FEEDBACK_PROFILES.annihilate;
     if (fx.impactTier === 'heavy') return BATTLE_FEEDBACK_PROFILES.heavy;
     if (fx.crit) return BATTLE_FEEDBACK_PROFILES.crit;
