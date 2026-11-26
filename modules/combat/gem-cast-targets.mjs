@@ -1,7 +1,7 @@
 import { gemCross, gemLanding, gemFlickerLanding, gemCell, gemInArea } from './gem-cast-geometry.mjs';
 import { FLICKER, LANCE, HOMING, TIME_SLASH } from './gem-cast-values.mjs';
 
-/** grow: { extra 효과 확장, reach 사거리 증가 보조룬(받는 룬만 0이 아니다), aim 첫 조준 거리(원거리 조준, 천리안) }. The two add when both are worn.
+/** grow: { extra 효과 확장, reach 사거리 증가 보조룬(받는 룬만 0이 아니다), aim 첫 조준 거리(천리안) }. The two add when both are worn.
  * A target inside the skill's own range is found as before; one reachable only through the extra range must be in sight. */
 export function gemTargets(env, id,source,enemies,{ extra = 0, reach = 0, aim = 0 } = {}) {
     const live = enemies.filter(e => e.hp > 0), more = reach + (aim || 0);

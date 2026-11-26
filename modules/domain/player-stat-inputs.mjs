@@ -132,7 +132,7 @@ function applyTargetInputCap(skill, bonus) {
 
 function firstAimBonus(skill, equipmentBonus) {
     if (!skill.firstAimEligible && !skill.supportEffects?.throwRange) return 0;
-    return equipmentBonus + (skill.supportEffects?.firstAim || 0);
+    return equipmentBonus;
 }
 
 function prepareTargetInputs(input, deps) {

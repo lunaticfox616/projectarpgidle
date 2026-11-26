@@ -415,7 +415,7 @@ const SKILL_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
 /** 일반 룬보다 드물게 뽑히는 룬의 무게 배율(js/skills.js getSkillRuneRewardWeight). */
 const SKILL_RUNE_DROP_WEIGHTS = Object.freeze({ '탐욕의 광기': 0.02 });
 const SUPPORT_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
-    37: ['원거리 조준', '추가 표적', '연쇄 타격'],
+    37: ['추가 표적', '연쇄 타격'],
     60: ['갈래 투사체', '연쇄 투사체', '넓은 판정', '터지는 시체', '처형', '유지 시전', '집속', '분쇄의 일격', '비전 증폭', '화염 공명', '냉기 공명', '번개 공명', '혼돈 공명'],
     101: ['이중 발동', '이중 시전', '증원']
 }).flatMap(([level, names]) => names.map(name => [name, Number(level)]))));
@@ -456,7 +456,7 @@ const STAT_TONES = Object.freeze({
 });
 /** 체감형 보조스킬룬은 stat이 아니라 동작으로 색을 고른다. */
 const SUPPORT_RUNE_BEHAVIOR_TONES = Object.freeze({
-    '원거리 조준': 'crit', '추가 표적': 'speed', '연쇄 타격': 'lightning',
+    '추가 표적': 'speed', '연쇄 타격': 'lightning',
     '화염 변환': 'fire', '냉기 변환': 'cold', '번개 변환': 'lightning', '카오스 변환': 'chaos', '이중 발동': 'phys', '이중 시전': 'arcane', '갈래 투사체': 'phys', '연쇄 투사체': 'lightning',
     '휩쓸기': 'phys', '꿰뚫기': 'crit', '넓은 판정': 'arcane', '밀어내기': 'guard', '투척': 'speed', '지뢰 설치': 'arcane', '강타화': 'crit', '잔불': 'fire',
     '유지 시전': 'speed', '분산': 'arcane', '집속': 'crit', '불붙이기': 'life', '터지는 시체': 'chaos', '처형': 'crit', '증원': 'summon',

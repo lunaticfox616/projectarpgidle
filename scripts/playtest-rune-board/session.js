@@ -31,7 +31,7 @@
         };
     }
     function seed() {
-        const support = ['가속','정밀 하한','넓은 판정','원거리 조준','추가 표적','연쇄 타격','분산','집속'];
+        const support = ['가속','정밀 하한','넓은 판정','사거리 증가','추가 표적','연쇄 타격','분산','집속'];
         const equippedSupports = mode === 'slots' ? ['가속'] : [];
         if (mode === 'slots' && !testLimits) equippedSupports.push('추가 표적');
         if (mode === 'slots') support.push('날카로움','범위 피해','무자비','생명력 흡수','연속타격','갑주 파쇄','저항 침식','재생 억제','과충전 상한','밀어내기','휩쓸기','처형','터지는 시체');

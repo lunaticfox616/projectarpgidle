@@ -16,8 +16,10 @@ const summonStatMap = Object.freeze({ aspd: 'summonAspd', crit: 'summonCrit', cr
 
 const supportedCommonStats = Object.freeze(['aspd', 'crit', 'critDmg', 'resPen']);
 
+/** A variable area's base size, as skill-effect-expansion.mjs variableAreaGeometry reads it for 발밑의 재앙. */
+const areaBaseSize = skill => skill.supportEffects?.spreadRadius || skill.areaBaseRadius || 0;
+
 const behavior = {
-        firstAim: (out, val) => { out.firstAim = val; },
         additionalTargets: (out, val) => { out.additionalTargets = val; },
         linkedStrike: (out, val) => { out.linkedStrike = val; },
         repeat: (out, val) => { out.repeat = { count: 1, damagePct: val }; out.speedMultiplier *= 0.9; },
@@ -60,7 +62,6 @@ class SupportRunes {
     }
 
     behaviorMatches(def, skill, tags) {
-        if (def.kind === 'firstAim') return !!(skill.firstAimEligible || skill.supportEffects?.throwRange);
         if (def.kind === 'linkedStrike') return this.linkedStrikeMatches(skill, tags);
         if (def.kind === 'expansion' || def.kind === 'additionalTargets') return areaSkillKind(skill) === 'variable';
         return this.legacyBehaviorMatches(def, skill, tags);
@@ -188,9 +189,28 @@ class SupportRunes {
         if (this.overriddenConversion(def, skill)) return { name: entry.name, status: 'off', reason: this.translate('{supportElementOverride} 속성 변환 우선', { supportElementOverride: skill.supportElementOverride }) };
         if (!def || !this.tagMatches(def, skill)) return { name: entry.name, status: 'off', reason: this.translate('요구 태그가 맞지 않음') };
         if (entry.role === 'summon' && this.unavailableForSummon(def, skill)) return { name: entry.name, status: 'na', reason: this.translate('소환수에는 대응 효과 없음') };
+        const idle = this.expansionIdleRow(def, skill, entry, state);
+        if (idle) return idle;
         const on = this.matches(name, skill, entry.role);
         return { name: entry.name, status: on ? 'on' : 'off', reason: on ? '적용 중' : '소환수 전용 효과' };
     }
+
+    /** 넓은 판정 grows the main skill's variable area only when nothing else sets or widens its size (skill-effect-expansion.mjs variableAreaGeometry). */
+    expansionIdleRow(def, skill, entry, state) {
+        if (def?.kind !== 'expansion' || entry.role !== 'main') return null;
+        const reason = this.areaSizeOwner(skill, state);
+        return reason ? { name: entry.name, status: 'off', reason } : null;
+    }
+
+    areaSizeOwner(skill, state) {
+        const passives = new Set(state.passives || []);
+        if (passives.has('n_range_far_horizon')) return this.translate('끝없는 지평이 범위 크기를 정함');
+        if (passives.has('n_range_close_calamity') && areaBaseSize(skill) >= 2) return this.translate('발밑의 재앙이 범위 크기를 정함');
+        if (passives.has('n_range_area_expansion') || this.potionWidened(skill, state)) return this.translate('다른 효과가 이미 범위를 넓힘');
+        return '';
+    }
+
+    potionWidened(skill, state) { return this.keystoneOn('bm1', state) && (skill.tags || []).includes('potion'); }
 
     overriddenConversion(def, skill) { return def?.kind === 'conversion' && skill.supportElementOverride; }
 
@@ -244,7 +264,6 @@ class SupportRunes {
         return { equippedSupports, removed };
     }
     describeBehavior = {
-        firstAim: (def, val) => this.translate('원거리 스킬의 첫 대상과 투사체가 닿는 거리가 {val}칸 늘어납니다.', { val }),
         additionalTargets: (def, val) => this.translate('가변 범위 스킬이 범위 안의 다른 적을 {val}기 더 맞힙니다.', { val }),
         linkedStrike: (def, val) => this.translate('투사체를 쓰지 않는 단일 공격이 첫 대상에 인접한 다른 적 1기를 첫 타격 피해의 {val}%로 동시에 맞힙니다.', { val }),
         conversion: (def, val) => this.translate('피해 {val}% {name}', { val, name: def.name }),

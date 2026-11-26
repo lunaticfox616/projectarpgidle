@@ -36,7 +36,6 @@ const SUPPORT_GEM_DB = {
     '연금 촉매': { kind: 'tag', requireTags: ['potion'], baseVal: 7, scale: 2.3, stat: 'potionPctDmg', name: '포션 투척 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '포션 태그 스킬의 피해를 높입니다.' },
     '기동 타격': { kind: 'tag', requireTags: ['mobility'], baseVal: 6, scale: 2.0, stat: 'mobilityPctDmg', name: '기동 스킬 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '기동 태그 스킬의 피해를 높입니다.' },
     '집중 유지': { kind: 'tag', requireTags: ['channeling'], baseVal: 9, scale: 2.8, stat: 'channelingPctDmg', name: '채널링 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '이동을 포기하고 유지하는 채널링 스킬의 피해를 높입니다.' },
-    '원거리 조준': { kind: 'firstAim', requireTags: [], tierValues: [1, 2, 3], baseVal: 1, scale: 0, stat: 'supportFirstAim', name: '첫 조준 사거리', isPct: false, resonanceCosts: [9, 21, 33], nonDps: true, glyph: 'reticle', desc: '원거리 스킬의 첫 대상과 투사체가 닿는 거리가 1/2/3칸 늘어납니다.' },
     '추가 표적': { kind: 'additionalTargets', requireTags: ['aoe'], tierValues: [1, 2, 3], baseVal: 1, scale: 0, stat: 'supportAdditionalTargets', name: '추가 표적', isPct: false, resonanceCosts: [12, 24, 36], nonDps: true, glyph: 'split', desc: '가변 범위 스킬이 범위 안의 다른 적을 1/2/3기 더 맞힙니다.' },
     '연쇄 타격': { kind: 'linkedStrike', requireTags: ['single'], tierValues: [60, 75, 90], baseVal: 60, scale: 0, stat: 'supportLinkedStrike', name: '연쇄 타격', isPct: true, resonanceCosts: [12, 24, 36], nonDps: true, glyph: 'twin', desc: '투사체를 쓰지 않는 단일 공격이 첫 대상에 인접한 다른 적 1기를 첫 타격 피해의 60/75/90%로 동시에 맞힙니다.' },
     // 행동형은 레벨 배율 대신 아래 등급별 수치를 쓴다. 전투와 미리보기는 skills.supports가 함께 판정한다.

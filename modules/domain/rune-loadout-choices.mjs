@@ -23,7 +23,7 @@ export function runePresetApplyRuneLoadout(config, state) {
     state.equippedSummonSkills = config.equippedSummonSkills.slice();
     state.summonSkillCounts = { ...config.summonSkillCounts };
     state.equippedSupports = config.equippedSupports.slice();
-    state.supportSlotByName = keepSupportSlotAssignments(config);
+    state.supportSlotByName = runePresetSlotPlaces(config, state);
     state.supportGemData = { ...state.supportGemData };
     for (const name of config.equippedSupports) {
         state.supportGemData[name] = { ...state.supportGemData[name], activeTier: config.supportTiers[name] };
@@ -38,8 +38,19 @@ export function runePresetSameRuneLoadout(env, config, state) {
     return config.activeSkill === current.activeSkill && config.mobilitySkill === current.mobilitySkill
         && runePresetSameRuneRows(config.equippedSummonSkills, current.equippedSummonSkills, config.summonSkillCounts, current.summonSkillCounts)
         && runePresetSameRuneRows(config.equippedSupports, current.equippedSupports, config.supportTiers, current.supportTiers)
-        && config.equippedSupports.every(name => config.supportSlotByName?.[name] === current.supportSlotByName[name]);
+        && config.equippedSupports.every(name => !Object.hasOwn(config.supportSlotByName || {}, name) || config.supportSlotByName[name] === current.supportSlotByName[name]);
 }
+
+/** The set's saved places first; a rune the set saved no place for keeps the place it holds now when that place is free. */
+const runePresetSlotPlaces = (config, state) => {
+    const saved = keepSupportSlotAssignments(config), taken = new Set(Object.values(saved)), now = keepSupportSlotAssignments(state);
+    const kept = config.equippedSupports.flatMap(name => {
+        if (Object.hasOwn(saved, name) || !Object.hasOwn(now, name) || taken.has(now[name])) return [];
+        taken.add(now[name]);
+        return [[name, now[name]]];
+    });
+    return { ...saved, ...Object.fromEntries(kept) };
+};
 
 export function runePresetSameRuneRows(wanted, current, values, currentValues) {
     return wanted.length === current.length && wanted.every((name, index) => name === current[index] && values[name] === currentValues[name]);
