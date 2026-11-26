@@ -43,6 +43,8 @@ const labels = new BattlefieldLabels({
     get translate() {return _t;},
     get locale() {return document.documentElement.lang;},
     get mechanics() { return COSMOS_MECHANIC_DB; },
+    get eliteTraits() { return ENEMY_TRAIT_POOL; },
+    get chaosAffixes() { return CHAOS_REALM_AFFIX_POOL; },
     get habitats() { return COSMOS_ROUTE_G1.habitats; },
     get tones() { return statToneText; }
 }, text);

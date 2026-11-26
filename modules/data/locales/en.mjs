@@ -11363,6 +11363,11 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '바닥 아이템 이름을 켰습니다.': 'Floor item names shown.',
         '바닥 아이템 이름을 껐습니다.': 'Floor item names hidden.',
         '전장 표시': 'Battlefield display',
+        '치명저항': 'Crit Resist',
+        '치명피해저항': 'Crit Damage Resist',
+        '연타저항': 'Multistrike Resist',
+        '속공': 'Swift',
+        '정예': 'Elite',
         '이 칸 줍기': 'Collect this pile',
         // ── 2026-11-25 표에서 넣음(listings-i18n.json) ──
         '나무꾼 전투 중에는 출품을 정리할 수 없습니다. 판매 대금 수령은 됩니다.': "You can't manage listings during the Woodsman fight. Collecting proceeds still works.",
