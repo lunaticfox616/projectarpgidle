@@ -138,6 +138,7 @@ const DEFAULT_GAME_BLUEPRINT = {
             mobile: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] }
         },
         cameraShake: true,
+        showFloorLootNames: true, // 바닥 전리품의 이름표(modules/ui/ground-loot-view.mjs syncNames, 단축키 Z): 끄면 더미 그림만 남는다
         runeTimingOff: false,   // 룬 강화의 담금질을 건너뛴다
         hitEmphasis: 'normal', // normal | mild; presentation only
         bgm: true,        // 배경음(js/bgm-ui.js)

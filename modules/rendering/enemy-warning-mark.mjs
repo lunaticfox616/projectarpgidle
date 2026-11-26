@@ -12,8 +12,9 @@ const MARKS = {
 export function drawEnemyWarningMark(ctx, element, x, y, size) {
     const rows = MARKS[vfxElement(element)] || MARKS.phys;
     ctx.save();
-    ctx.globalAlpha = 0.94;
-    ctx.fillStyle = '#282033';
+    // A soft deep-warm shadow under a pale mark, not a black outline (2026-11-26: the warnings' heavy edges looked odd).
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#4a2a28';
     ctx.beginPath();
     rows.forEach((row, dy) => {
         for (let dx = 0; dx < row.length; dx++) {
@@ -21,6 +22,7 @@ export function drawEnemyWarningMark(ctx, element, x, y, size) {
         }
     });
     ctx.fill();
+    ctx.globalAlpha = 0.92;
     ctx.fillStyle = '#ffe8c9';
     rows.forEach((row, dy) => {
         for (let dx = 0; dx < row.length; dx++) {

@@ -1,5 +1,6 @@
 import { drawHuntFields } from './hunt-fields.mjs';
 import { drawNextStrike } from './atlas-signature.mjs';
+import { hitShot, paintShotGround } from './enemy-shot.mjs';
 const CELL_TONES = {
     enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
     summon: { fill: 'rgba(110, 200, 140, 0.18)', line: 'rgba(150, 230, 176, 0.5)' },
@@ -145,13 +146,15 @@ export class BattlefieldGround {
         this.playerRing(ctx, view.gridProj, view.playerPos);
         this.deps.sideEncounters.portals(ctx, view.gridProj, this.deps.combatTime());
         this.deps.traps.drawGround(ctx, effects, view.now, view.gridProj);
-        drawHuntFields(ctx,view.gridProj,this.deps.game(),this.deps.combatTime(),cell=>this.deps.explorationView.inSight(cell));
+        drawHuntFields(ctx,view.gridProj,this.deps.game(),{now:this.deps.smoothCombatTime(),visualNow:view.now,reduced:this.deps.tree.feedback.reduced()},
+            cell=>this.deps.explorationView.inSight(cell));
         this.deps.remake.begin(ctx, view.gridProj);
         if (typeof this.deps.stageEffects === 'object') this.deps.stageEffects.tick(view.now);
         if (typeof this.deps.blessing === 'object') this.deps.blessing.frame(view.now);
         this.deps.tree.castFrame(ctx, view.gridProj, 'ground');
         this.deps.tree.drawQueued(ctx, this.deps.visual().skillEffects || [], view.now, 'ground');
         this.drawGroundAttacks(ctx,effects,view);
+        this.drawShotFlashes(ctx,effects,view);
         this.deps.redrawn.drawLayer('ground', view.now);
         this.deps.summons.drawLayer('ground', view.now);
         this.deps.remake.end();
@@ -172,6 +175,21 @@ export class BattlefieldGround {
             if (fx.groundImpact && !this.markGroundContact(fx, drawnContacts ??= new Set())) continue;
             this.travel.draw(ctx,fx,scene ??= groundAttackScene(view));
             this.placeChorusContact(ctx,view,fx);
+        }
+    }
+
+    /** Under the hero: the floor and backlight flash of an always-hit shot's hit (js/rendering/enemy-shot.mjs). */
+    drawShotFlashes(ctx, effects, view) {
+        const hero = view.playerPos, projection = view.gridProj;
+        if (!hero || !projection) return;
+        for (const fx of effects) {
+            if (fx?.type !== 'playerHit' || view.now < fx.start || view.now - fx.start >= 120) continue;
+            const shot = hitShot(effects, fx);
+            if (!shot) continue;
+            ctx.save();
+            paintShotGround(ctx, { feet: hero, chest: { x: hero.x, y: hero.y - projection.tileH * 1.45 }, age: view.now - fx.start, element: shot.element,
+                tileW: projection.tileW, tileH: projection.tileH, reduced: this.deps.tree.feedback.reduced() });
+            ctx.restore();
         }
     }
 

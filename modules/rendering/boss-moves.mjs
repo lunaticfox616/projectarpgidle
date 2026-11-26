@@ -110,7 +110,7 @@ class BossMoveView {
         const active = stage.next && (stage.ring || stage.first || left <= 220) && !stage.settling;
         if (!active) return this.drawLaterStage(ctx, footprint, stage.rootlet);
         this.deps.drawSkillFootprintGround(ctx, footprint, stage.rootlet ? '#ffc29a' : '#ffae72',
-            { fill: 0.34 + charge * 0.15, edge: 0.78 + charge * 0.21, rootlet: stage.rootlet, outer: !stage.first,
+            { fill: 0.28 + charge * 0.14, edge: 0.78 + charge * 0.21, rootlet: stage.rootlet, outer: !stage.first, charge,
                 marks: 0.87 + charge * 0.13, cracks: this.stageFaultCharge(stage, charge), dye: 0.19 + charge * 0.18, time: now,
                 reduced: this.deps.uiDisplay.reducedEffects() });
     }

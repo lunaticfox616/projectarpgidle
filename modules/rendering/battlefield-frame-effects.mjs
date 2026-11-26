@@ -1,6 +1,7 @@
 import { clampNumber } from '../common/numbers.mjs';
 import { bodyCueFromFx, damageBodyY } from './battlefield-body.mjs';
 import { combatScreenPoint } from './combat-effect-geometry.mjs';
+import { hitShot, paintShotImpact } from './enemy-shot.mjs';
 
 /** Consume each existing effect once for sounds/numbers; paint it until its existing visual expiry. */
 export class BattlefieldFrameEffects {
@@ -12,8 +13,10 @@ export class BattlefieldFrameEffects {
             playerMobility: (ctx, fx, t, v) => events.mobility(ctx, fx, t, v.gridProj),
             combatTravel: (ctx, fx, t, v) => travel.draw(ctx, fx, { now: v.now, projection: v.gridProj, playerPos: v.playerPos, enemyPosMap: v.enemyPosMap }),
             hit: (ctx, fx, t, v) => events.legacyHit(ctx, fx, t, v.playerPos, v.enemyPosMap),
-            playerHit: (ctx, fx, t, v) => events.meleeContact(ctx, fx, t, { hero: v.playerPos,
-                source: v.enemyPosMap[fx.enemyId], tileW: v.gridProj.tileW, tileH: v.gridProj.tileH }),
+            playerHit: (ctx, fx, t, v) => {
+                events.meleeContact(ctx, fx, t, { hero: v.playerPos, source: v.enemyPosMap[fx.enemyId], tileW: v.gridProj.tileW, tileH: v.gridProj.tileH });
+                this.shotContact(ctx, fx, v);
+            },
             levelUp: (ctx, fx, t, v) => events.levelUp(ctx, fx, t, v.playerPos, v.now),
             objectReward: (ctx, fx, t, v) => deps.tree.feedback.object(ctx, fx, t, v.gridProj),
             ambushBlink: (ctx, fx, t, v) => deps.ambush.draw(ctx, fx, v.now, v.gridProj),
@@ -26,6 +29,16 @@ export class BattlefieldFrameEffects {
             lootPickup: (ctx, fx, t, v) => events.pickup(ctx, fx, t, { from: v.enemyPosMap[fx.enemyId], to: v.playerPos, width: v.width, height: v.height }),
             lootCelebration: (ctx, fx, t, v) => events.celebrate(ctx, fx, t, v.enemyPosMap[fx.enemyId], v)
         };
+    }
+
+    /** The hit of an always-hit shot lands with the damage: the spark and spray at the hero's body (js/rendering/enemy-shot.mjs). */
+    shotContact(ctx, fx, view) {
+        const shot = hitShot(this.deps.effects(), fx), hero = view.playerPos;
+        if (!shot?.screenShot || !hero) return;
+        const { from, to } = shot.screenShot, length = Math.hypot(to.x - from.x, to.y - from.y) || 1, { tileW, tileH } = view.gridProj;
+        paintShotImpact(ctx, { at: { x: hero.x, y: hero.y - tileH * 1.45 }, dir: { x: (to.x - from.x) / length, y: (to.y - from.y) / length },
+            age: view.now - fx.start, element: shot.element, p: Math.max(1, Math.round(tileH / 13)), tileW, tileH,
+            reduced: this.deps.tree.feedback.reduced(), scale: shot.screenShotScale ? 1.5 : 1, key: fx.id, deflected: fx.deflected });
     }
 
     autoSwing(player, view) {

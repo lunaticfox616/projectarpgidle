@@ -1,6 +1,7 @@
 import { clampNumber } from '../common/numbers.mjs';
 import { bossWarningFirstWaveCells } from '../combat/boss-move-stages.mjs';
 import { ROOTLET_NEXT_COLOR, ROOTLET_NEXT_WAVE } from './rootlet-next-wave.mjs';
+import { fillDots, paintGlow } from './fx-particles.mjs';
 
 function attackElement(enemy) {
     return String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
@@ -43,25 +44,24 @@ function trapCell(ctx, fx, cell, projection, phase) {
     if (!warning) trapCross(ctx, pos, halfW, halfH);
 }
 
+/** An elite about to strike: the floor under it darkens and glows in its element, and a ring of dots closes in and turns with the charge
+ * (no stroked outline, 2026-11-26). Under the actors. */
 function eliteRing(ctx, entry, scale) {
     const charge = Number(entry.enemy.attackTimer) || 0, threshold = 0.84;
     if (charge < threshold) return;
     const progress = clampNumber((charge - threshold) / Math.max(0.001, 1 - threshold), 0, 1);
-    const palette = enemyTelegraphColor(entry.enemy), rx = 29 * scale, ry = rx * 0.43;
+    const palette = enemyTelegraphColor(entry.enemy), rx = 29 * scale, ry = rx * 0.43, y = entry.y + 8, p = Math.max(1, Math.round(2 * scale));
     ctx.save();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = palette.fill;
-    ctx.strokeStyle = palette.edge;
-    ctx.lineWidth = 1.35;
-    ctx.globalAlpha = 0.18 + progress * 0.28;
-    ctx.beginPath();
-    ctx.ellipse(entry.x, entry.y + 8, rx * (0.84 + progress * 0.16), ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 0.08 + progress * 0.18;
-    ctx.setLineDash([3, 5]);
-    ctx.beginPath();
-    ctx.ellipse(entry.x, entry.y + 8, rx * 0.68, ry * 0.68, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    paintGlow(ctx, { x: entry.x, y, rx: rx * 1.1, ry: ry * 1.25, colour: '#3a2430', alpha: 0.3 + 0.25 * progress, mode: 'multiply' });
+    paintGlow(ctx, { x: entry.x, y, rx, ry: ry * 1.1, colour: palette.edge, alpha: 0.18 + 0.32 * progress, mode: 'source-over' });
+    const reach = 1.15 - 0.3 * progress, spin = progress * 1.4, dots = [], bright = [];
+    for (let i = 0; i < 12; i++) {
+        const angle = spin + i * Math.PI / 6, dot = [Math.round((entry.x + Math.cos(angle) * rx * reach) / p) * p, Math.round((y + Math.sin(angle) * ry * reach) / p) * p, 1];
+        (i % 3 === 0 ? bright : dots).push(dot);
+    }
+    ctx.globalAlpha = 0.5 + 0.45 * progress;
+    fillDots(ctx, dots, palette.edge, p);
+    fillDots(ctx, bright, '#fff0dc', p);
     ctx.restore();
 }
 
@@ -121,7 +121,7 @@ export class EnemyTelegraphs {
             else this.deps.drawFootprint(ctx, later, '#79a5b9', { fill: 0.19, edge: 0.75, marks: 0 }, outlineOnly);
         }
         this.deps.drawFootprint(ctx, focus || footprint, rootlet ? '#ffc29a' : '#ffae72',
-            { fill: 0.34 + charge * 0.15, edge: 0.78 + charge * 0.21, rootlet,
+            { fill: 0.28 + charge * 0.14, edge: 0.78 + charge * 0.21, rootlet, charge,
                 marks: 0.87 + charge * 0.13, cracks: fault, dye: 0.19 + charge * 0.18, time: this.deps.bossAttacks.now?.(), reduced: this.deps.reduced?.() },
             outlineOnly);
     }

@@ -1,11 +1,12 @@
-const ARM_ROWS = Object.freeze({ wide: { up: 6, right: 2, left: 2, down: 3 }, narrow: { up: 3, right: 1, left: 1, down: 2 } });
+// Names one column holds before a pile's names open another column beside it.
+const COLUMN_ROWS = Object.freeze({ wide: 6, narrow: 4 });
 const LEAF_ART = 'pixel:leaf';
 const YARN_ART = 'assets/ui/currency/yarn.png';
 
 export class GroundLootPresentation {
     constructor(deps) {
         this.deps = deps;
-        for (const name of ['isMajor', 'importance']) this[name] = this[name].bind(this);
+        for (const name of ['isMajor', 'importance', 'priorityName']) this[name] = this[name].bind(this);
         this.floorReceipt = {
             currency: row => ({ currency: row.currency, count: row.count }),
             equipment: row => ({ item: row.item, itemKind: 'equipment', highlight: row.highlight, unidentified: row.item.rarity === 'unique' }),
@@ -69,45 +70,23 @@ export class GroundLootPresentation {
 
     priorityName(receipt) { return !!receipt.highlight || receipt.item?.rarity === 'unique'; }
 
-    materialList(materials) {
-        const doc = this.deps.document;
-        const details = doc.createElement('details');
-        details.className = 'battle-loot-materials';
-        const toggle = doc.createElement('summary');
-        toggle.textContent = this.deps._t('재료 {count}종', { count: materials.length });
-        const list = doc.createElement('div');
-        list.className = 'battle-loot-material-list';
-        for (const row of materials) list.append(this.nameRow(row, 0));
-        const pick = doc.createElement('button');
-        pick.type = 'button'; pick.className = 'battle-loot-pick';
-        pick.textContent = this.deps._t('이 칸 줍기');
-        details.append(toggle, list, pick);
-        return details;
-    }
-
-    labelArms(receipts, narrow, floor = false) {
-        const limits = narrow ? ARM_ROWS.narrow : ARM_ROWS.wide;
-        const arms = { up: [], right: [], left: [], down: [] };
-        const materials = floor ? receipts.filter(r => r.currency && !this.isMajor(r)) : [];
-        const grouped = new Set(materials.length >= 2 ? materials : []);
-        for (const receipt of receipts.filter(r => floor && this.priorityName(r))) {
-            const row = this.nameRow(receipt, 0);
-            row.classList.add('is-priority');
-            arms.up.push(row);
-        }
-        if (grouped.size) arms.up.push(this.materialList(materials));
-        receipts.forEach((receipt, index) => {
-            if (grouped.has(receipt) || (floor && this.priorityName(receipt))) return;
-            const sides = arms.right.length <= arms.left.length ? ['right', 'left'] : ['left', 'right'];
-            const side = ['up', ...sides, 'down'].find(name => arms[name].length < limits[name]);
-            if (side) arms[side].push(this.nameRow(receipt, index));
+    /** Every item on the pile gets its own name (2026-11-26 user: no grouped "재료 N종" label). Uniques and filter highlights come
+     * first, then the rest by importance. Up to COLUMN_ROWS names stand in one column with the first nearest the picture; more names
+     * open more columns, filled row by row, so a pile's names stay one box the layout moves as a whole (ground-loot-layout.mjs). */
+    labelBlock(receipts, narrow, floor = false) {
+        const doc = this.deps.document, first = floor ? receipts.filter(this.priorityName) : [];
+        const ordered = first.concat(receipts.filter(receipt => !first.includes(receipt)));
+        const count = Math.ceil(ordered.length / (narrow ? COLUMN_ROWS.narrow : COLUMN_ROWS.wide));
+        const columns = Array.from({ length: count }, () => Object.assign(doc.createElement('div'), { className: 'battle-loot-column' }));
+        ordered.forEach((receipt, index) => {
+            const row = this.nameRow(receipt, index);
+            if (first.includes(receipt)) row.classList.add('is-priority');
+            columns[index % count].append(row);
         });
-        return ['up', 'right', 'left', 'down'].filter(side => arms[side].length).map(side => {
-            const arm = this.deps.document.createElement('div');
-            arm.className = side === 'up' ? 'battle-loot-labels' : `battle-loot-labels is-${side}`;
-            arms[side].forEach(row => arm.append(row));
-            return arm;
-        });
+        const block = doc.createElement('div'); block.className = 'battle-loot-labels';
+        block.style.setProperty('--loot-columns', String(count));
+        block.append(...columns);
+        return block;
     }
 
     appearance(marker, receipts, narrow) {
@@ -118,12 +97,12 @@ export class GroundLootPresentation {
         marker.dataset.lead = currency ? currency.name : this.leadName(lead);
         marker.classList.toggle('is-unidentified', !!lead.unidentified);
         if (currency) marker.dataset.currency = lead.currency;
-        const arms = this.labelArms(receipts, narrow, marker.classList.contains('is-floor'));
-        const tone = arms[0].firstElementChild.style.getPropertyValue('--loot-color') || '#c8b384';
+        const names = this.labelBlock(receipts, narrow, marker.classList.contains('is-floor'));
+        const tone = names.querySelector('.battle-loot-name').style.getPropertyValue('--loot-color') || '#c8b384';
         marker.style.setProperty('--loot-color', tone);
         const flight = this.deps.document.createElement('div'); flight.className = 'battle-loot-flight';
         flight.append(this.lootArt(currency ? currency.icon : this.leadArt(lead), item));
-        marker.append(flight, ...arms);
+        marker.append(flight, names);
         return flight;
     }
 

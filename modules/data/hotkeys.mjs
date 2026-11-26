@@ -23,7 +23,9 @@ const HOTKEY_ACTIONS = Object.freeze([
     { id: 'window:tab-settings', kind: 'window', target: 'tab-settings', label: '설정', code: 'KeyO' },
     { id: 'window:tab-season', kind: 'window', target: 'tab-season', label: '루프', code: 'KeyL' },
     // 2026-11-06: 거래 창(장비 창의 칸에서 제 창이 됐다). R은 비어 있던 키다.
-    { id: 'window:tab-trade', kind: 'window', target: 'tab-trade', label: '거래', code: 'KeyR' }
+    { id: 'window:tab-trade', kind: 'window', target: 'tab-trade', label: '거래', code: 'KeyR' },
+    // 2026-11-26 사용자: 바닥 아이템 이름 보기를 Z로 켜고 끈다(Z는 비어 있던 키). setting은 설정 창의 같은 스위치(settings-view flip).
+    { id: 'view:floorLootNames', kind: 'view', target: 'floorLootNames', setting: 'showFloorLootNames', label: '바닥 아이템 이름 보기', code: 'KeyZ' }
 ].map(Object.freeze));
 
 // 바꿀 수 있는 키: 글자·숫자·숫자패드와 기호 몇 개. 브라우저 동작과 겹치는 Esc·Tab·Enter·Space·F키는 제외.

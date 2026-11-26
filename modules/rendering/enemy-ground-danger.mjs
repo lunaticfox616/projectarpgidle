@@ -8,7 +8,8 @@ const DANGER_FANG = [
     ' #+:#  ',
     ' ##    '
 ];
-const FANG_TONES = { '#': '#211925', ':': '#b67275', '+': '#e7d6f4' };
+// The ink is a deep warm brown, not black, so the sign sits in the warning's colour instead of reading as a sticker (2026-11-26).
+const FANG_TONES = { '#': '#5a2c26', ':': '#c27a6c', '+': '#f2dccc' };
 const FANG_PIXELS = Object.entries(FANG_TONES).map(([symbol, color]) => ({
     color,
     points: DANGER_FANG.flatMap((row, y) =>

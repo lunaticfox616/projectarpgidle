@@ -15,6 +15,7 @@ export function restoreDisplaySettings(deps, context) {
     context.merged.settings.showDeathNotice = context.merged.settings.showDeathNotice !== false;
     context.merged.settings.uiSounds = context.merged.settings.uiSounds !== false;
     context.merged.settings.runeTimingOff = context.merged.settings.runeTimingOff === true;
+    context.merged.settings.showFloorLootNames = context.merged.settings.showFloorLootNames !== false;
     context.merged.settings.soundVolume = clampFiniteNumber(context.merged.settings.soundVolume, 100, 0, 100);
     context.merged.settings.bgm = context.merged.settings.bgm !== false;
     context.merged.settings.bgmVolume = clampFiniteNumber(context.merged.settings.bgmVolume, 70, 0, 100);

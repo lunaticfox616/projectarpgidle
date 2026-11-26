@@ -43,6 +43,8 @@ const labels = new BattlefieldLabels({
     get translate() {return _t;},
     get locale() {return document.documentElement.lang;},
     get mechanics() { return COSMOS_MECHANIC_DB; },
+    get eliteTraits() { return ENEMY_TRAIT_POOL; },
+    get chaosAffixes() { return CHAOS_REALM_AFFIX_POOL; },
     get habitats() { return COSMOS_ROUTE_G1.habitats; },
     get tones() { return statToneText; }
 }, text);
@@ -255,6 +257,7 @@ const travelEffects = new CombatTravelEffect({
     get signature() { return drawSkillSignatureTravel; },
     get footprint() { return projectSkillFootprint; },
     game: () => window.GameModules.state.game,
+    effects: () => battleFx,
     drawnHeight: enemy => body.drawnHeight(enemy),
     headOrigin: (...args) => stageRoster.headOrigin(...args)
 }, images, cellEffects);
@@ -278,6 +281,7 @@ const ground = new BattlefieldGround({
     get cellKey() { return gridCellKey; },
     get sideEncounters() { return sideEncounterCanvas; },
     get combatTime() { return getCombatTime; },
+    get smoothCombatTime() { return bossAttackView.now; },
     get traps() { return trialTrapArt; },
     get remake() { return fxRemake; },
     get stageEffects() { return typeof stageSkillVfx === 'object' ? stageSkillVfx : undefined; },

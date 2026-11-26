@@ -94,7 +94,8 @@ export function arcHeight(t, vz, g, bounce = 0.3) {
     return rest < second ? speed * rest - g * rest * rest / 2 : 0;
 }
 
-function fillDots(ctx, dots, colour, p) {
+/** Whole dots in one colour: [x, y, size in dots] each, one path and one fill. */
+export function fillDots(ctx, dots, colour, p) {
     if (!dots.length) return;
     ctx.fillStyle = colour;
     ctx.beginPath();

@@ -1,25 +1,62 @@
 import { drawGroundDangerSign, drawGroundDangerDye } from './enemy-ground-danger.mjs';
 import { paintDangerLife, paintDangerTiles } from './danger-tiles.mjs';
+import { paintGlow } from './fx-particles.mjs';
 
+/** A plain outline (skill areas, shift marks, the observer's floors): the current path, as before. */
 function strokeGroundBoundary(ctx, color, alpha, outlineOnly) {
-    const warning = typeof alpha === 'object' ? alpha : null;
-    if (warning) strokeGroundShadow(ctx, warning);
-    ctx.globalAlpha = warning?.edge ?? Math.min(1, alpha * (outlineOnly ? 1 : 0.32));
+    ctx.globalAlpha = Math.min(1, alpha * (outlineOnly ? 1 : 0.32));
     ctx.strokeStyle = color;
-    ctx.lineWidth = warning?.rim || groundBoundaryWidth(warning, outlineOnly);
+    ctx.lineWidth = outlineOnly ? 2 : 1.2;
     ctx.stroke();
 }
 
-function strokeGroundShadow(ctx, warning) {
+/** An enemy warning reads by its fill and inner light, so its edge stays quiet (2026-11-26 user: the boss warning's heavy border looked
+ * odd): a soft band of its colour just inside the boundary (the caller clips to the warned floor; the current path is the boundary),
+ * stronger when only the edge is left after the release. */
+function paintQuietBand(ctx, color, warning, { outlineOnly, tileH }) {
+    const strength = Math.min(1, warning.edge) * (outlineOnly ? 1.5 : 1);
+    ctx.strokeStyle = color;
+    for (const [width, alpha] of [[0.42, 0.1], [0.18, 0.14]]) {
+        ctx.globalAlpha = alpha * strength;
+        ctx.lineWidth = Math.max(2, tileH * width);
+        ctx.stroke();
+    }
+}
+
+/** The boundary itself: one thin, faint line (dashed for a later wave that asks for it). */
+function strokeQuietLine(ctx, color, warning) {
     if (warning.dash) ctx.setLineDash(warning.dash);
-    ctx.globalAlpha = warning.dash ? .45 : .66;
-    ctx.strokeStyle = '#2b202b';
-    ctx.lineWidth = warning.marks > 0 ? 4.2 : 2.8;
+    ctx.globalAlpha = 0.34 * Math.min(1, warning.edge);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
     ctx.stroke();
+    ctx.setLineDash([]);
 }
 
-function groundBoundaryWidth(warning, outlineOnly) {
-    return warning ? (warning.marks > 0 ? 2.2 : 1.25) : outlineOnly ? 2 : 1.2;
+/** Light from below each warned cell (smooth, laid over as a tint), brighter toward the hit. */
+function paintInnerLight(ctx, footprint, color, warning) {
+    const alpha = 0.16 + 0.2 * (warning.charge || 0);
+    for (const point of footprint.points) paintGlow(ctx, { x: point.x, y: point.y, rx: footprint.tileW * 0.62, ry: footprint.tileH * 0.66,
+        colour: color, alpha, mode: 'source-over' });
+}
+
+function cellsPath(ctx, footprint) {
+    ctx.beginPath();
+    footprint.points.forEach(point => ctx.rect(point.x - footprint.tileW / 2, point.y - footprint.tileH / 2, footprint.tileW, footprint.tileH));
+}
+
+/** The exterior edges of a cell union as one path (never the grid of cell borders inside it). */
+function exteriorEdgesPath(ctx, footprint) {
+    const keys = new Set(footprint.points.map(point => `${point.gx},${point.gy}`)), halfW = footprint.tileW / 2, halfH = footprint.tileH / 2;
+    const edges = [[0, -1, -halfW, -halfH, halfW, -halfH], [1, 0, halfW, -halfH, halfW, halfH], [0, 1, halfW, halfH, -halfW, halfH], [-1, 0, -halfW, halfH, -halfW, -halfH]];
+    ctx.beginPath();
+    for (const point of footprint.points) {
+        for (const [dx, dy, x1, y1, x2, y2] of edges) {
+            if (keys.has(`${point.gx + dx},${point.gy + dy}`)) continue;
+            ctx.moveTo(point.x + x1, point.y + y1);
+            ctx.lineTo(point.x + x2, point.y + y2);
+        }
+    }
 }
 
 function drawDangerSigns(ctx, footprint, warning) {
@@ -206,28 +243,26 @@ class SkillFootprintRenderer {
     }
 
     drawGroundCells(ctx, footprint, {color, look, outlineOnly}) {
-        let keys = new Set(footprint.points.map(point => `${point.gx},${point.gy}`));
-        let halfW = footprint.tileW / 2, halfH = footprint.tileH / 2;
         ctx.globalCompositeOperation = 'source-over';
         ctx.filter = 'none';
         ctx.fillStyle = look?.fillColor ?? color;
         // Canvas ignores a globalAlpha above 1 (it keeps the previous value), so strong warnings and impact flashes clamp.
         ctx.globalAlpha = typeof look === 'object' ? look.fill : Math.min(1, look * 0.07);
-        ctx.beginPath();
-        footprint.points.forEach(point => ctx.rect(point.x - halfW, point.y - halfH, footprint.tileW, footprint.tileH));
+        cellsPath(ctx, footprint);
         if (!outlineOnly) ctx.fill();
-        ctx.beginPath();
-        footprint.points.forEach(point => {
-            let edges = [[0, -1, -halfW, -halfH, halfW, -halfH], [1, 0, halfW, -halfH, halfW, halfH],
-                [0, 1, halfW, halfH, -halfW, halfH], [-1, 0, -halfW, halfH, -halfW, -halfH]];
-            edges.forEach(edge => {
-                const [dx, dy, x1, y1, x2, y2] = edge;
-                if (keys.has(`${point.gx + dx},${point.gy + dy}`)) return;
-                ctx.moveTo(point.x + x1, point.y + y1);
-                ctx.lineTo(point.x + x2, point.y + y2);
-            });
-        });
-        strokeGroundBoundary(ctx, look?.edgeColor ?? color, look, outlineOnly);
+        if (typeof look !== 'object') {
+            exteriorEdgesPath(ctx, footprint);
+            return strokeGroundBoundary(ctx, color, look, outlineOnly);
+        }
+        const edge = look.edgeColor ?? color;
+        ctx.save();
+        ctx.clip();
+        if (!outlineOnly) paintInnerLight(ctx, footprint, look.fillColor ?? color, look);
+        exteriorEdgesPath(ctx, footprint);
+        paintQuietBand(ctx, edge, look, { outlineOnly, tileH: footprint.tileH });
+        ctx.restore();
+        exteriorEdgesPath(ctx, footprint);
+        strokeQuietLine(ctx, edge, look);
     }
 
     /** The smooth boundary uses the same cell-center geometry as combat, including at board edges. */
@@ -240,8 +275,12 @@ class SkillFootprintRenderer {
         // clipSkillFootprint leaves the circle/triangle as the current path.
         ctx.globalAlpha = typeof alpha === 'object' ? alpha.fill : Math.min(1, alpha * 0.035);
         if (!outlineOnly) ctx.fill();
-        const edge = typeof alpha === 'number' && !outlineOnly ? alpha * 0.875 : alpha;
-        strokeGroundBoundary(ctx, color, edge, outlineOnly);
+        if (typeof alpha === 'object') {
+            if (!outlineOnly) paintGlow(ctx, { x: footprint.x, y: footprint.y, rx: footprint.width * 0.5, ry: footprint.height * 0.5, colour: color,
+                alpha: 0.16 + 0.2 * (alpha.charge || 0), mode: 'source-over' });
+            paintQuietBand(ctx, color, alpha, { outlineOnly, tileH: footprint.tileH });
+            strokeQuietLine(ctx, color, alpha);
+        } else strokeGroundBoundary(ctx, color, !outlineOnly ? alpha * 0.875 : alpha, outlineOnly);
         paintWarningDye(ctx, footprint, alpha);
         paintGroundWarningMarks(ctx, footprint, alpha);
         ctx.restore();
