@@ -5,7 +5,8 @@ const native = createStageProjectileImpact({
     get STAGE_SKILL_VFX() { return STAGE_SKILL_VFX; },
     get SKILL_DB() { return SKILL_DB; },
     get stageSkillVfx() { return stageSkillVfx; },
-    get STAGE_VIEW() { return STAGE_VIEW; }
+    get STAGE_VIEW() { return STAGE_VIEW; },
+    get stageSkillDraws() { return stageSkillDraws; }
 });
 const stageProjectileImpact = Object.freeze({
     note: native.note,

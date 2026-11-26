@@ -1,10 +1,10 @@
 import { gemMoveStart, gemLandNear, gemMoveReach, gemCell, gemMoveRadius, gemBesideTarget, gemPullLanding, gemDistance, gemLandingNow, gemSame, gemArea } from './gem-cast-geometry.mjs';
-import { gemGrow, gemMs } from './gem-cast-math.mjs';
+import { gemGrow, gemReach, gemMs } from './gem-cast-math.mjs';
 import { gemVisual, gemContact } from './gem-cast-common.mjs';
 import { SMOKE_RADIUS } from './gem-cast-values.mjs';
 
 export function gemLaunchRift(env, state,c,enemies) {                   // 54: a tear before the caster, out of a second one
-    const {live,aim}=gemMoveStart(env, state,c,enemies),to=gemLandNear(env, c.source,aim,live,gemMoveReach(54,gemGrow(c.stats)));
+    const {live,aim}=gemMoveStart(env, state,c,enemies),to=gemLandNear(env, c.source,aim,live,gemMoveReach(54,gemGrow(c.stats),gemReach(c.stats)));
     if(!to){c.done=true;return;}
     const tear=c.at+gemMs(c,300),close=tear+gemMs(c,380);
     c.move={from:gemCell(c.source),to,tear,openB:tear+gemMs(c,120),vanish:[tear+gemMs(c,80),tear+gemMs(c,340)],close,burst:close+gemMs(c,40),

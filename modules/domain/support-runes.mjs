@@ -22,6 +22,7 @@ const behavior = {
         sweep: (out, val) => { out.sweep = { extra: val, damagePct: 70 }; },
         pierce: (out, val) => { out.pierce = val; out.damageMultiplier *= 0.85; },
         expansion: (out, val) => { out.expansion = val; out.damageMultiplier *= 0.85; },
+        range: (out, val) => { out.range = val; },
         push: (out, val) => { out.push = val; out.damageMultiplier *= 0.9; },
         ignite: (out, val) => { out.ignite = { chancePct: val, durationMs: 1000 }; },
         corpse: (out, val) => { out.corpse = { chancePct: val, lifePct: 10 }; },
@@ -56,6 +57,7 @@ class SupportRunes {
 
     behaviorMatches(def, skill, tags) {
         if (this.conversionBlocked(def, skill)) return false;
+        if (def.requireRange && !skill.rangeAxis) return false;
         if (def.kind === 'reinforcement' && !tags.has('summon_attack')) return false;
         if (def.transform === 'embers' && tags.has('dot') && !tags.has('attack')) return false;
         return true;
@@ -230,6 +232,7 @@ class SupportRunes {
         repeat: (def, val) => this.translate('한 번 더 발동, 두 번째 피해 {val}%', { val }),
         projectiles: (def, val) => this.translate('투사체 +{val}발', { val }), chain: (def, val) => this.translate('추가 연쇄 {val}회', { val }),
         sweep: (def, val) => this.translate('주변 {val}기 추가 타격, 추가 피해 70%', { val }),
+        range: (def, val) => this.translate('사거리 +{val}칸', { val }),
         transform: (def, val) => `${def.name} ${val > 0 ? '+' : ''}${val}${def.isPct ? '%' : this.translate('칸')}`
     };
 }

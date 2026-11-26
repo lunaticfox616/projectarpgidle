@@ -39,6 +39,7 @@ const panel = new DevTestPanel({
     get atlasRun() { return atlasRun; },
     get atlasUi() { return atlasUi; },
     get changeSkill() { return changeSkill; },
+    get unequipItem() { return unequipItem; },
     get changeZone() { return changeZone; },
     get checkUnlocks() { return checkUnlocks; },
     get clearInterval() { return windowClearInterval; },

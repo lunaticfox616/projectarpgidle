@@ -1,4 +1,5 @@
 import { coreHasKeystone } from '../combat/core-keystones.mjs';
+import { energyShieldCapWithSoul } from '../domain/player-soul-shield.mjs';
 
 export function coreApplyLeechSoftcap(env, rawLeech) {
     return env.deps.combatResources.caps.softcap(rawLeech);
@@ -94,6 +95,7 @@ export function coreGetMossRecoveryOccupied(env) {
     return mossRows.reduce((sum, row) => sum + Math.max(0, Number(row && row.amount) || 0), 0);
 }
 
+/** 회복 한도: 영혼 흡수(97)의 보호막이 남아 있으면 그 몫만큼 위로(modules/domain/player-soul-shield.mjs). */
 export function coreGetPlayerEnergyShieldRecoveryCap(env, pStats) {
-    return env.deps.combatResources.caps.shield(pStats);
+    return energyShieldCapWithSoul(env.deps.combatResources.caps.shield(pStats), env.owner.playerEnergyShield, env.runtime.soulShield, env.deps.getCombatTime());
 }

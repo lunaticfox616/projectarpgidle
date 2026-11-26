@@ -18,7 +18,7 @@ export function buildGetSkillTargetPreference(env, tactics, now) {
 
 /** options.dormant: monsters that have not noticed the hero, which the area may catch but the gem never aims at. */
 export function buildSelectCombatGemTargets(env, name, skill, source, { enemies, options }) {
-    if (skill.nativeCastId) return env.deps.skillGemCasts.targets(skill.nativeCastId,source,enemies,env.deps.skillEffectExpansion.extra(skill)).map(enemy=>({enemy,mult:1}));
+    if (skill.nativeCastId) return env.deps.skillGemCasts.targets(skill.nativeCastId,source,enemies,env.deps.skillEffectExpansion.extra(skill),Math.max(0,Number(skill.supportEffects?.range)||0)).map(enemy=>({enemy,mult:1}));
     const dormant=options && options.dormant;
     if (!dormant || !dormant.length) return env.deps.selectGridSkillTargets(name,skill,source,enemies,options);
     return env.deps.selectGridSkillTargets(name,skill,source,enemies.concat(dormant),{...options,splashOnly:new Set(dormant)});

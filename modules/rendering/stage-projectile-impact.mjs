@@ -9,7 +9,9 @@ class StageProjectileImpact {
     constructor(deps) {
         this.deps = deps;
         this.K = this.deps.stageSkillKit;
-        this.WEIGHT = Object.freeze({ 7: 1.3, 9: 1.3, 11: 1.3, 26: 1.3, 30: 1.7, 14: 1, 25: 1, 78: 1, 44: 1.2, 66: 1.4, 45: 1.3, 49: 1 });
+        this.WEIGHT = Object.freeze({ 7: 1.3, 9: 1.3, 11: 1.3, 26: 1.3, 30: 1.7, 14: 1, 25: 1, 78: 1, 44: 1.2, 66: 1.4, 45: 1.3, 49: 1, 98: 1.5 });
+        /** 제 그림이 맞은 자리의 섬광, 빛 웅덩이를 대신하는 투사체: 98 기공파(나아가는 쪽으로 벌어지는 압축파 터짐, modules/rendering/stage-ki-wave.mjs). */
+        this.OWN_IMPACT = Object.freeze({ 98: (at, angle, element) => this.deps.stageSkillDraws.kiImpact(at, angle, element) });
         this.ONLY = Object.freeze({ 49: fx => String(fx.damageTextGroupId).endsWith(':stab') });
         this.BODY_WEIGHT = Object.freeze({ arrow: 1, spear: 1, flask: 1.2 });
         this.weightOf = (gem, fx) => (this.WEIGHT[gem.id] && (!this.ONLY[gem.id] || this.ONLY[gem.id](fx)) ? this.WEIGHT[gem.id] : this.BODY_WEIGHT[gem.meta.body] || 0);
@@ -80,10 +82,16 @@ class StageProjectileImpact {
         const { victim, look, fx } = hit, face = look.face, shade = this.colours(fx.element);
         const angle = Math.atan2((victim.gy - from.gy) * this.K.DEEP, Math.abs(victim.gx - from.gx) * this.K.WIDE + 1), own = gem.map.pfxImpact;
         const spot = this.K.at(victim, -face * 4, this.SPARK_HEIGHT);
+        if (this.OWN_IMPACT[gem.id]) { this.OWN_IMPACT[gem.id](spot, face > 0 ? angle : Math.PI - angle, fx.element); this.kickFor(weight); return; }
         this.deps.stageSkillVfx.play(own || `pfx_hitspark@${this.rampOf(fx.element)}`, spot, { face, rot: own ? 0 : angle, scale: 0.9 + 0.25 * (weight - 1), minor: true });
         if (gem.map.pfxBurst) this.deps.stageSkillVfx.play(gem.map.pfxBurst, this.K.at(victim, 0, 1), { face, alpha: 0.95 });
         this.deps.stageSkillVfx.paint(this.K.at(victim, 0, 1), { life: 260, layer: 'ground' }, this.paintGround(shade, weight));
         this.deps.stageSkillVfx.paint(spot, { life: 170 }, this.paintLight(shade, 16 + 6 * weight));
+        this.kickFor(weight);
+    }
+
+    /** 무게만큼의 화면 흔들림. */
+    kickFor(weight) {
         const dot = scaleForStageArt(this.deps.stageSkillVfx.projection()?.tileW || this.K.WIDE, this.deps.STAGE_VIEW.heroTile);
         this.shakeKick((weight >= 1.6 ? 2 : weight >= 1.2 ? 1.5 : 1) * dot, 90 + 30 * weight);
     }
