@@ -118,6 +118,38 @@ function verifyEditedTree() {
     })`);
     assert.deepStrictEqual(ailments, [[['ignite'], ['shock'], ['bleed']], [[], [], ['bleed']]]);
 
+    const scale = read(`[65, -1].map(total => {
+        const fire = total - 5 + 10;
+        const state = { actRewardBonuses: [reward('firePctDmg',fire),reward('coldPctDmg',-10),
+            reward('lightPctDmg',5),reward('elementalPctDmg',15),reward('fireFlatDmg',100),
+            ...['ignite','shock','chill','freeze'].map(type => reward(type+'Chance', 100))] };
+        const expected = Math.floor(total/3);
+        const ids = ['pt_keystone_elemental_distribution'];
+        const stats = evaluate(state, ids).stats;
+        const control = evaluate({...state,actRewardBonuses:state.actRewardBonuses.slice(3).concat(
+            ['fire','cold','light'].map(e => reward(e+'PctDmg',expected)))}, []).stats;
+        const originalRandom = Math.random;
+        Math.random = () => 0.001;
+        const ailments = [ids,[...ids,edited[1]]].map(nodes => {
+            const current = evaluate(state,nodes).stats;
+            const enemy = {hp:1000,maxHp:1000,ailments:[]};
+            applyEnemyAilmentFromHit(enemy,{...current,sSkill:{...current.sSkill,ele:'phys'}},300,false);
+            return enemy.ailments.map(a => a.type).sort();
+        });
+        Math.random = originalRandom;
+        const source = stats.talentSourceStats;
+        return {modifiers:[source.firePct,source.coldPct,source.lightPct],common:source.elementalPct,
+            sameFlat: stats.flatElementHitDamage.fire === control.flatElementHitDamage.fire,ailments};
+    })`);
+    for (const [index, expected] of [21, -1].entries()) {
+        const row = scale[index];
+        assert.deepStrictEqual(row.modifiers, [expected, expected, expected]);
+        assert.strictEqual(row.common, 15);
+        assert.ok(row.sameFlat, 'added elemental hits must use the same distributed percentage');
+        const elemental = ['chill','freeze','ignite','shock'];
+        assert.deepStrictEqual(row.ailments, [elemental,elemental], 'a physical skill can roll all elemental ailments');
+    }
+
     const life = read('paired(3, supported)');
     assert.strictEqual(life[1].hp - life[0].hp, 50, 'six spent out of sixteen leaves ten resonance');
     const overload = read(`[6, 7, 7].map((extraSlots, i) => evaluate({

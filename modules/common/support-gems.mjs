@@ -70,3 +70,29 @@ function hasSupportGemOwned(name, state) {
 }
 
 export { isTierlessSupportGem, getSupportTierCap, getSupportResonanceCost, getSupportResonanceCostAtTier, getSupportTierLabel, getSupportTierMultiplier, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned };
+/** Reserves assigned places first, then lays out old saves and newly added runes in the remaining places. */
+export const supportSlotNames = (state, cap) => {
+    const slots = Array(cap).fill('');
+    const unplaced = [];
+    for (const name of state.equippedSupports || []) {
+        const index = state.supportSlotByName?.[name];
+        if (slots[index] === '') slots[index] = name;
+        else unplaced.push(name);
+    }
+    let next = 0;
+    for (const name of unplaced) {
+        while (next < cap && slots[next]) next++;
+        if (next < cap) slots[next++] = name;
+    }
+    return slots;
+};
+
+export const keepSupportSlotAssignments = state => {
+    const used = new Set();
+    return Object.fromEntries((state.equippedSupports || []).flatMap(name => {
+        const index = state.supportSlotByName?.[name];
+        if (!Number.isSafeInteger(index) || index < 0 || used.has(index)) return [];
+        used.add(index);
+        return [[name, index]];
+    }));
+};

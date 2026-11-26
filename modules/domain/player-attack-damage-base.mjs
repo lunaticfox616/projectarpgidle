@@ -146,7 +146,7 @@ function rollHitDamage(c, h) {
     if (!Number.isFinite(h.dmg)) h.dmg = 0;
     h.minRoll = Math.max(1, Math.floor(c.pStats.minDmgRoll || 80));
     h.maxRoll = Math.max(h.minRoll, Math.floor(c.pStats.maxDmgRoll || 100));
-    h.rollPct = h.minRoll + c.deps.random() * (h.maxRoll - h.minRoll);
+    h.rollPct ??= h.minRoll + c.deps.random() * (h.maxRoll - h.minRoll);
     if (c.pStats.uniqueCeilingSmashDouble && h.rollPct >= 140 && c.deps.random() < 0.15) {
         h.dmg *= 2;
         h.ailmentSourceDamage *= 2;

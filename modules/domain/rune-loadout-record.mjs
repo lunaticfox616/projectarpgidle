@@ -1,4 +1,4 @@
-
+import { keepSupportSlotAssignments } from '../common/support-gems.mjs';
 
 export function runePresetFailure(reason) { return { ok: false, reason }; }
 
@@ -32,5 +32,5 @@ export function runePresetNormalizeRuneLoadout(raw) {
     if (invalidReason) return { version: 1, invalidReason: invalidReason.slice(0, 180) };
     return { version: 1, activeSkill: raw.activeSkill, mobilitySkill: raw.mobilitySkill,
         equippedSummonSkills: raw.equippedSummonSkills.slice(), summonSkillCounts: { ...raw.summonSkillCounts },
-        equippedSupports: raw.equippedSupports.slice(), supportTiers: { ...raw.supportTiers } };
+        equippedSupports: raw.equippedSupports.slice(), supportSlotByName: keepSupportSlotAssignments(raw), supportTiers: { ...raw.supportTiers } };
 }

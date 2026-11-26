@@ -133,7 +133,7 @@ function runCommands(commands) {
     return step.value;
 }
 const api = {
-    addUncappedSkillTargets(skill, name) { return part0.buildAddUncappedSkillTargets(env, skill, name); },
+    addUncappedSkillTargets(skill, name, stats) { return part0.buildAddUncappedSkillTargets(env, skill, name, stats); },
     getSkillTargetPreference(tactics, now) { return part0.buildGetSkillTargetPreference(env, tactics, now); },
     selectCombatGemTargets(name, skill, source, enemies, options) { return part0.buildSelectCombatGemTargets(env, name, skill, source, { enemies, options }); },
     getSplashDormantEnemies() { return part0.buildGetSplashDormantEnemies(env); },

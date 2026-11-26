@@ -48,6 +48,12 @@ function presentationPattern(owner, name, skill, stats, deps) {
     return mode ? deps.applyPattern(skill, mode, active ? active.projectilePatternSource : '창공 각인', active ? active.projectilePatternDamageMultiplier : null) : skill;
 }
 
+function presentedSkill(owner, name, skill, stats, deps) {
+    const current = stats.sSkill;
+    if (name === owner.activeSkill && (current?.areaKind || current?.firstAimBonus)) return current;
+    return deps.resolve(presentationPattern(owner, name, skill, stats, deps));
+}
+
 function skillPresentation(owner, name, context, deps) {
     const { stats, sources } = context;
     const db = deps.skills[name];
@@ -57,7 +63,7 @@ function skillPresentation(owner, name, context, deps) {
     const gem = normalizeGemRecord((owner.gemData || {})[name], deps.forgeRules);
     if (db.levelable) owner.gemData[name] = gem;
     const levels = skillLevels(name, db, gem, sources, deps);
-    const skill = deps.resolve(presentationPattern(owner, name, leveledSkill(db, gem, levels.finalLevel, deps.forgeEffects), stats, deps));
+    const skill = presentedSkill(owner, name, leveledSkill(db, gem, levels.finalLevel, deps.forgeEffects), stats, deps);
     return { baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus,
         permanentSkyBonus: levels.permanentSkyBonus, engraveLevel: levels.engraveLevel, enhanceLevel: gem.enhanceLevel || 0,
         skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened,

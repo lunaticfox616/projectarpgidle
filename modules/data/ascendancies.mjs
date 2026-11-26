@@ -244,7 +244,7 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
         { id: 'gw9', name: '세계수의 숨결', desc: '냉기 피해 +90%, 중독 피해 +60%, 원소 타격마다 그 적의 원소 저항 -2%(최대 -15%)', fifthJobOnly: true, stats: [ascendancyStatLine('coldPctDmg', 90), ascendancyStatLine('poisonDamageMultiplierPct', 60)], uniques: [ascendancyUniqueLine('stackingElementalResDownOnHit', {perHit: 2, max: 15})] }
     ],
     bombardier: [
-        { id: 'bm1', name: '불붙은 병', desc: '포션 스킬 피해 +35%, 포션 스킬 효과 확장 +1(다른 효과 확장 +1과 겹치지 않음)', req: null, stats: [ascendancyStatLine('potionPctDmg', 35)] },
+        { id: 'bm1', name: '불붙은 병', desc: '포션 스킬 피해 +35%. 가변 범위 포션 스킬, 탄성 플라스크, 빈 플라스크의 효과 확장 +1 (다른 효과 확장 +1과 겹치지 않음)', req: null, stats: [ascendancyStatLine('potionPctDmg', 35)] },
         { id: 'bm2', name: '넓은 투척', desc: '범위 피해 +10%, 한 번의 폭발에 맞은 적 하나마다 그 폭발 피해 6% 증폭(최대 8기)', req: null, stats: [ascendancyStatLine('aoePctDmg', 10)] },
         { id: 'bm3', name: '화약 냄새', desc: '점화 확률 +15%, 피해의 10%를 화염 피해로 추가', req: null, stats: [ascendancyStatLine('igniteChance', 15), ascendancyStatLine('addedFireDamagePct', 10)] },
         { id: 'bm4', name: '이중 폭발', desc: '포션 스킬이 6% 확률로 같은 자리에서 한 번 더 터짐(두 번째 폭발은 범위 +1칸)', req: 'bm1' },

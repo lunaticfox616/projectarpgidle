@@ -41,7 +41,7 @@ class StageStormFlask {
         ctx.fillStyle = 'rgba(8,6,12,0.35)';
         this.shared.ovalFill(ctx, Math.round(at.x), Math.round(at.y) + 1, 11 * at.dot, 3 * at.dot);
         ctx.restore();
-        this.deps.stageSkillDraws.body(ctx, 'flask', { x: at.x, y: at.top, dot: at.dot, face: 1, t, element: c.element });
+        this.deps.stageSkillDraws.body(ctx, 'flask', { x: at.x, y: at.top, dot: at.dot, face: 1, t, element: c.element, style: 'static', progress: t / Math.max(1, c.event.duration) });
         this.stormStatic(ctx, at, t);
         return true;
     }

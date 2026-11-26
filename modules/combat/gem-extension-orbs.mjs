@@ -1,26 +1,31 @@
 import { ORB, BOLT_LIFE, TAU, ORBIT } from './gem-extension-values.mjs';
 import { runeFoeOf, runeReachOf, runeLive, runeByNear, runeFaceTo } from './gem-extension-common.mjs';
 
+/** 구체가 나는 길이: 사거리 증가 보조룬이 늘린다. */
+export function runeOrbRange(env, c) { return ORB.range + Number(env.kit.reach(c.stats)); }
+
 export function runeOrbAim(env, c, foe, index, missing) {
     const from = c.source;
+    const reach = runeOrbRange(env, c) + (c.stats.sSkill.firstAimBonus || 0);
     if (foe) {
         const p = env.deps.getGridUnitCenter(foe), angle = Math.atan2(p.gy - from.gy, p.gx - from.gx);
-        return { angle, reach: Math.max(ORB.least, Math.min(ORB.range, env.kit.distance(from, p) + ORB.past)) };
+        return { angle, reach: Math.max(ORB.least, Math.min(reach, env.kit.distance(from, p) + ORB.past)) };
     }
     const side = (missing % 2 ? 1 : -1) * Math.ceil((missing + 1) / 2) * ORB.fan;
-    return { angle: (c.face > 0 ? 0 : Math.PI) + side, reach: ORB.range };
+    return { angle: (c.face > 0 ? 0 : Math.PI) + side, reach };
 }
 
 export function runeLaunchFrozenOrb(env, state, c, enemies) {
     const release = c.at + env.kit.ms(c, ORB.release), first = runeFoeOf(c, enemies);
     const count = 1 + env.kit.grow(c.stats) + env.kit.supportShots(c) + env.deps.rollProjectileExtraShots(c.stats.projectileExtraShots);
-    const aimed = [first, ...runeReachOf(env, ORB.range)(82, c.source, runeLive(enemies)).filter(e => e !== first).sort(runeByNear(env, c.source))].slice(0, count);
+    const more = runeOrbRange(env, c) - ORB.range + (c.stats.sSkill.firstAimBonus || 0);
+    const aimed = [first, ...runeReachOf(env, ORB.range)(82, c.source, runeLive(enemies), 0, more).filter(e => e !== first).sort(runeByNear(env, c.source))].slice(0, count);
     c.face = runeFaceTo(env, c, first);
     env.kit.letGo(c, release, release + env.kit.ms(c, 160));
     c.flownTo = release; c.nextAt = release; c.bolted = 0;
     c.orbs = Array.from({ length: count }, (_, i) => {
         const aim = runeOrbAim(env, c, aimed[i], i, i - aimed.length), start = release + env.kit.ms(c, ORB.stagger * i);
-        const orb = { start, ...aim, dur: aim.reach / ORB.speed * 1000, next: start, spin: i * 1.7, bolts: [], nova: false };
+        const orb = { start, ...aim, dur: aim.reach / ORB.speed * 1000, next: start, spin: i * 1.7, bolts: [], nova: false, event: null };
         orb.event = env.kit.visual(state, c, 'orb', start, orb.dur + BOLT_LIFE + 200, { orbFrom: env.kit.cell(c.source), orbAngle: aim.angle, orbReach: aim.reach,
             orbSpeed: ORB.speed, orbBolts: orb.bolts, orbSeed: i, orbNovaAt: start + orb.dur, boltSpeed: ORB.bolt.speed, boltLife: BOLT_LIFE });
         return orb;

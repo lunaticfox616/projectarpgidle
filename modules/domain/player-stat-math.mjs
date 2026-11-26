@@ -88,7 +88,9 @@ function computePlayerElementHits(input) {
     ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(ele => {
         let amt = Math.max(0, Number(flatElementSources[ele]) || 0);
         if (amt <= 0) return;
-        let inc = 1 + (generalPctDmg + Math.max(0, flatElementPctByEle[ele])) / 100;
+        const distributed = input.authoredPassiveRules?.flags.elementalDistribution && ['fire', 'cold', 'light'].includes(ele);
+        const elementPct = distributed ? flatElementPctByEle[ele] : Math.max(0, flatElementPctByEle[ele]);
+        let inc = Math.max(0, 1 + (generalPctDmg + elementPct) / 100);
         flatElementHitDamage[ele] = amt * inc * flatElementSkillMul;
     });
     return { flatElementHitDamage };

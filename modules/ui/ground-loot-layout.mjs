@@ -1,9 +1,8 @@
 // DOM placement only; coordinates and inventory ownership remain in the domain.
 const EDGE_PAD = 4;
 const EDGE_GRIP = 12;
-// Space between two piles' names stacked on each other, and how many name rows a pile's names may climb from its picture.
+// Space kept between two piles' names, so names that touch read as one pile.
 const STACK_GAP = 10;
-const STACK_REACH = 16;
 
 function edgeShift(x, half, width) {
     const atEdge = x < EDGE_PAD + EDGE_GRIP || x > width - EDGE_PAD - EDGE_GRIP;
@@ -38,7 +37,7 @@ function place(marker, point, view, entries, hero) {
     const above = caption - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
     const under = y >= 0 && above > 0 && below < above;
     setStyle(marker, '--label-shift', shift + 'px');
-    stackLabel(marker, { x, y, half, shift, height, under, ceiling: caption, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) }, entries, hero);
+    stackLabel(marker, { x, y, half, shift, height, under, ceiling: caption, floor: view.height - EDGE_PAD }, entries, hero);
 }
 
 function needsPlacement(marker, point) {
@@ -124,21 +123,13 @@ function blockersFor(marker, entries, hero) {
     return blockers;
 }
 
-/** Where a pile's names settle on one side of its picture: just past whatever they would cover, away from the picture, while they
- * fit and stay within STACK_REACH rows of it. clear: nothing covered and inside the battlefield. */
+/** Where a pile's names sit on one side of its picture: right by it, never lifted away on a line (2026-11-26 사용자: 위로 늘어나서
+ * 선 연장되는거 삭제). clear: they cover no other names nor the hero and stay inside the battlefield. */
 function settle(box, blockers, under) {
-    const centre = box.x + box.shift;
-    const hit = top => blockers.find(other => top < other.top + other.height + STACK_GAP && other.top < top + box.height + STACK_GAP
+    const centre = box.x + box.shift, top = under ? box.y + 24 : box.y - 30 - box.height;
+    const covers = blockers.some(other => top < other.top + other.height + STACK_GAP && other.top < top + box.height + STACK_GAP
         && Math.abs(other.centre - centre) < box.half + other.half + 4);
-    const base = under ? box.y + 24 : box.y - 30 - box.height, reach = (box.row + 2) * STACK_REACH;
-    const inside = top => under ? top + box.height <= box.floor : top >= box.ceiling;
-    let top = base, blocker = hit(top);
-    for (let tries = 0; blocker && tries < blockers.length; tries++) {
-        const next = under ? blocker.top + blocker.height + STACK_GAP : blocker.top - STACK_GAP - box.height;
-        if (Math.abs(next - base) > reach || !inside(next)) break;
-        top = next; blocker = hit(top);
-    }
-    return { top, lift: Math.abs(top - base), clear: !blocker && inside(top) };
+    return { top, clear: !covers && (under ? top + box.height <= box.floor : top >= box.ceiling) };
 }
 
 /** A clear STACK_GAP between two piles' names shows which names belong together (2026-11-26). Names that find no clear place on
@@ -153,7 +144,6 @@ function stackLabel(marker, box, entries, hero) {
     marker.classList.toggle('is-under', under);
     marker.dataset.labelTop = String(spot.top);
     marker.dataset.labelCentre = String(box.x + box.shift);
-    setStyle(marker, '--label-lift', spot.lift + 'px');
 }
 
 function originFor(cell, projection) {

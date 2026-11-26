@@ -26,6 +26,7 @@ function runtimeNode(node) {
         'specialSynergyClass', 'activationRequirement', 'connectedDevotionPenalty', 'iconFamily', 'iconAsset'].forEach(key => {
         if (node[key] !== undefined) output[key] = node[key];
     });
+    if (node.useAuthoredEffectDescription) output.effectLabel = node.desc;
     return output;
 }
 

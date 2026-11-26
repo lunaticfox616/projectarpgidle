@@ -21,6 +21,7 @@ export const PASSIVE_KARMA_PER_TARGET_CAP = 500;
 export const PASSIVE_KEYSTONE_NODE_ID_BY_TITLE = Object.freeze({
     '균형의 공명': 'pt_keystone_balance_resonance',
     '세 갈래 불빛': 'pt_keystone_three_lights',
+    '원소 천칭': 'pt_keystone_elemental_distribution',
     '회심의 일격': 'pt_keystone_critical_conversion',
     '육신의 공명': 'nmwc5dia92',
     '의지의 공명': 'nmwc5lu2h3',

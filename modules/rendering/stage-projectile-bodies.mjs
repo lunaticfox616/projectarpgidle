@@ -1,4 +1,5 @@
-import { pixelEffectLine } from './pixel-effect-math.mjs';
+import { createStageFlaskDetail } from './stage-flask-detail.mjs';
+import { createStageKiWave } from './stage-ki-wave.mjs';
 
 const SPEAR_DECOR = Object.freeze({
             cold(px, ink, s, frame) {
@@ -34,13 +35,14 @@ class StageProjectileBodies {
             arrow: [[-24, 0, 26, 1, '#b08858'], [2, -2, 3, 5, '#cfd3dc'], [5, -1, 2, 3, '#f1ece2'], [-26, -2, 5, 1, '#e8e2d6'], [-26, 2, 5, 1, '#e8e2d6'], [-24, -1, 4, 1, '#8a6b48'], [-24, 1, 4, 1, '#8a6b48']],
             harpoon: [[-28, 0, 28, 2, '#8a6b48'], [0, -3, 7, 8, '#c9ced8'], [7, -1, 3, 4, '#f1ece2'], [-4, -5, 3, 3, '#c9ced8'], [-4, 4, 3, 3, '#c9ced8']]
         });
-        this.FLASK = Object.freeze({ rim: '#0b0b0b', glassEdge: '#779186', glass: '#8da6a1', shine: '#ccf4d2' });
-        this.EMPTY = Object.freeze({ OL: '#0b0b0b', RIM: '#779186', GLS: '#8da6a1', DK: '#5b726d', IN: '#a9c4bd', HI: '#ccf4d2', WH: '#f4fff6' });
+        this.flasks = createStageFlaskDetail(deps);
+        this.ki = createStageKiWave(deps);
         this.ROCK = Object.freeze({ outline: '#141210', dark: '#4a4238', mid: '#6e6456', light: '#968a76', high: '#bdb29a', crack: '#2a2420',
             rune: '#c9a65e', cork: '#8a6b48', rope: '#c9b48a', ropeDark: '#7a6448' });
         this.BODIES = Object.freeze({
             spear: (g, t, element) => this.drawSpear(g, t, element, false), bigspear: (g, t, element) => this.drawSpear(g, t, element, true),
-            fang: this.drawFangs.bind(this), shield: this.drawShield.bind(this), arrow: g => this.drawBlocks(g, 'arrow'), harpoon: g => this.drawBlocks(g, 'harpoon'), flask: this.drawFlask.bind(this), emptyFlask: this.drawEmptyFlask.bind(this), rock: this.drawRock.bind(this)
+            fang: this.drawFangs.bind(this), shield: this.drawShield.bind(this), arrow: g => this.drawBlocks(g, 'arrow'), harpoon: g => this.drawBlocks(g, 'harpoon'), flask: this.drawFlask.bind(this), emptyFlask: this.drawEmptyFlask.bind(this), rock: this.drawRock.bind(this),
+            ki: (g, t, element) => this.ki.body(g, t, element)
         });
         this.brush = brush;
     }
@@ -199,144 +201,23 @@ class StageProjectileBodies {
 
     drawBlocks(g, name) { for (const [x, y, w, h, colour] of this.BLOCKS[name]) { g.fillStyle = colour; g.fillRect(x, y, w, h); } }
 
-    /** 병 속에서 도는 물결 두 줄 위인지. */
-    flaskSwirl(x, y) {
-        const wave = (x + 1) * (x + 1) / 38 + (y - 1) * (y - 1) / 9, swirl = (x - 3) * (x - 3) / 16 + (y - 5) * (y - 5) / 4;
-        return (Math.abs(wave - 1) < 0.2 && x < 4) || (Math.abs(swirl - 1) < 0.25 && x > 0);
-    }
+    /** 던진 플라스크, 빈 플라스크, 바위 병(2026-11-26 전달본 V3.24 후속의 병 그림, modules/rendering/stage-flask-detail.mjs). 붓은 병의 가운데에 있다. */
+    drawFlask(g, t, element, at) { this.flasks.draw(g, { ...at, t, element }); }
 
-    flaskFill(x, y, ink) {
-        if (y < -8) return this.FLASK.glass;
-        if (y === -7 && x > -7 && x < 6) return ink.c1;
-        if (this.flaskSwirl(x, y)) return ink.mid;
-        return y > 5 || x > 6 ? ink.c3 : ink.c2;
-    }
-
-    flaskBody(px, ink, cx, cy) {
-        for (let y = -12; y <= 12; y++) for (let x = -12; x <= 12; x++) {
-            const far = Math.hypot(x, y);
-            if (far > 12.4) continue;
-            if (far > 11.3) px(cx + x, cy + y, this.FLASK.rim);
-            else if (far > 10.3) px(cx + x, cy + y, y < 0 ? this.FLASK.glassEdge : ink.c3);
-            else px(cx + x, cy + y, this.flaskFill(x, y, ink));
-        }
-        for (const [x, y] of [[-7, -4], [-7, -3], [-6, -5], [-8, -2]]) px(cx + x, cy + y, this.FLASK.shine);
-    }
-
-    /** 목과 입구. */
-    flaskNeck(px, cx, cy) {
-        for (let y = cy - 18; y < cy - 11; y++) { px(cx - 3, y, this.FLASK.rim); px(cx + 2, y, this.FLASK.rim); px(cx - 2, y, this.FLASK.glass); px(cx - 1, y, this.FLASK.shine); px(cx, y, this.FLASK.glass); px(cx + 1, y, this.FLASK.glassEdge); }
-        for (let x = cx - 4; x <= cx + 3; x++) { px(x, cy - 21, this.FLASK.rim); px(x, cy - 18, this.FLASK.rim); }
-        for (let y = cy - 20; y <= cy - 19; y++) {
-            px(cx - 4, y, this.FLASK.rim); px(cx + 3, y, this.FLASK.rim);
-            for (let x = cx - 3; x <= cx + 2; x++) px(x, y, x === cx - 2 ? this.FLASK.shine : this.FLASK.glass);
-        }
-    }
-
-    flaskSprite(element) {
-        return this.brush.cached('flask|' + element, () => {
-            const look = this.brush.drawInk(element), sheet = this.brush.drawCanvas(28, 37);
-            this.flaskBody(sheet.px, { ...look, mid: this.brush.drawMix(look.c2, look.c1, 0.45) }, 14, 23);
-            this.flaskNeck(sheet.px, 14, 23);
-            return sheet.canvas;
-        });
-    }
-
-    /** 던진 플라스크: 70ms마다 사분의 일씩 돈다. 붓은 플라스크의 가운데에 있다. */
-    drawFlask(g, t, element) {
-        g.rotate(Math.floor(t / 70) * Math.PI / 2);
-        g.drawImage(this.flaskSprite(element), -14, -23);
-    }
-
-    emptyGlassInk(x, y, d, R) {
-        if (d > R - 2.4) return x + y < -4 ? this.EMPTY.HI : (y > 3 || x > 6 ? this.EMPTY.DK : this.EMPTY.RIM);   // 유리 두께: 왼쪽 위 밝게, 오른쪽 아래 어둡게
-        let c = x * 0.6 + y > 6 ? this.EMPTY.RIM : this.EMPTY.GLS;
-        if (x + y > 15) c = this.EMPTY.DK;
-        if (Math.abs(Math.hypot((x + 1) / 12.5, (y - 2) / 11) - 1) < 0.09 && y > -1) c = this.EMPTY.IN;   // 안쪽 뒷벽이 비치는 고리
-        return y < -10 ? this.EMPTY.IN : c;
-    }
-
-    emptyFlaskNeck(px, cx, cy) {
-        const top = cy - 25, bottom = cy - 15;
-        for (let y = top + 2; y <= bottom; y++) [[-4, this.EMPTY.OL], [3, this.EMPTY.OL], [-3, this.EMPTY.HI], [-2, this.EMPTY.GLS], [-1, this.EMPTY.IN], [0, this.EMPTY.GLS], [1, this.EMPTY.GLS], [2, this.EMPTY.RIM]].forEach(([x, c]) => px(cx + x, y, c));
-        for (let x = cx - 5; x <= cx + 4; x++) { px(x, top - 1, this.EMPTY.OL); px(x, top + 2, this.EMPTY.OL); }
-        for (let y = top; y <= top + 1; y++) {
-            px(cx - 5, y, this.EMPTY.OL); px(cx + 4, y, this.EMPTY.OL);
-            for (let x = cx - 4; x <= cx + 3; x++) px(x, y, x === cx - 3 ? this.EMPTY.WH : x > cx + 1 ? this.EMPTY.RIM : this.EMPTY.HI);
-        }
-    }
-
-    emptyFlaskSprite() {
-        return this.brush.cached('emptyFlask', () => {
-            const sheet = this.brush.drawCanvas(38, 50), px = sheet.px, cx = 19, cy = 32, R = 16.4;
-            for (let y = -17; y <= 17; y++) for (let x = -17; x <= 17; x++) {
-                const d = Math.hypot(x, y);
-                if (d <= R) px(cx + x, cy + y, d > R - 1.2 ? this.EMPTY.OL : this.emptyGlassInk(x, y, d, R));
-            }
-            for (let a = 3.3; a < 4.4; a += 0.04) px(Math.round(cx + Math.cos(a) * 11.6), Math.round(cy + Math.sin(a) * 11.6), this.EMPTY.WH);   // 큰 흰 반사 호
-            for (let a = 3.5; a < 4.1; a += 0.06) px(Math.round(cx + Math.cos(a) * 9.6), Math.round(cy + Math.sin(a) * 9.6), this.EMPTY.HI);
-            [[6, 7], [7, 6], [5, 8], [8, 5]].forEach(([x, y]) => px(cx + x, cy + y, this.EMPTY.HI));   // 오른쪽 아래 작은 반사
-            px(cx - 8, cy - 9, this.EMPTY.WH); px(cx - 9, cy - 8, this.EMPTY.WH);
-            this.emptyFlaskNeck(px, cx, cy);
-            return sheet.canvas;
-        });
-    }
-
-    /** 던진 빈 플라스크: 80ms마다 사분의 일씩 돌고, 0.18초마다 병에 흰 반짝임이 스친다. */
-    drawEmptyFlask(g, t) {
-        g.save();
-        g.rotate(Math.floor(t / 80) * Math.PI / 2);
-        g.drawImage(this.emptyFlaskSprite(), -19, -32);
-        g.restore();
+    /** 빈 플라스크: 병 위로 0.18초마다 흰 반짝임이 스친다(병 그림은 돌아도 반짝임은 그대로). */
+    drawEmptyFlask(g, t, element, at) {
+        this.flasks.draw(g, { ...at, t, element, style: 'empty' });
         if (Math.floor(t / 60) % 3 !== 0) return;
-        g.globalAlpha = 0.9; g.fillStyle = this.EMPTY.WH;
+        g.globalAlpha = 0.9; g.fillStyle = '#f4fff6';
         g.fillRect(-10, -8, 7, 1); g.fillRect(-7, -11, 1, 7);
         g.globalAlpha = 1;
     }
 
-    /** 바위 병: 플라스크와 같은 크기(둥근 몸 지름 23도트), 왼쪽 위에서 빛을 받는 거친 돌결(추가본의 rockFlaskSprite 그대로). */
-    rockSprite() {
-        return this.brush.cached('rock', () => {
-            const sheet = this.brush.drawCanvas(28, 37), px = sheet.px, cx = 14, cy = 23;
-            const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
-            for (let y = -12; y <= 12; y++) for (let x = -12; x <= 12; x++) {
-                const d = Math.hypot(x, y) + (hash(Math.floor(x / 3), Math.floor(y / 3)) - 0.5) * 1.2;   // 울퉁불퉁한 돌 테두리
-                if (d > 12.2) continue;
-                if (d > 11.1) { px(cx + x, cy + y, this.ROCK.outline); continue; }
-                const lit = (-x - y) / 17 + (hash(Math.floor((x + 13) / 2), Math.floor((y + 13) / 2)) - 0.5) * 0.7;   // 왼쪽 위 빛과 돌결 얼룩
-                px(cx + x, cy + y, lit > 0.55 ? this.ROCK.high : lit > 0.1 ? this.ROCK.light : lit > -0.45 ? this.ROCK.mid : this.ROCK.dark);
-            }
-            this.rockMarks(px, cx, cy);
-            return sheet.canvas;
-        });
-    }
+    drawRock(g, t, element, at) { this.flasks.draw(g, { ...at, t, element, style: 'rock' }); }
 
-    /** 갈라진 금 넷, 연성 룬 금빛 줄, 돌 병목, 코르크, 병목에 감은 줄. */
-    rockMarks(px, cx, cy) {
-        for (const [x0, y0, x1, y1] of [[-6, -6, -1, 1], [-1, 1, 2, 7], [4, -8, 7, -2], [-9, 3, -5, 6]]) {
-            pixelEffectLine(cx + x0, cy + y0, cx + x1, cy + y1, (x, y) => px(x, y, this.ROCK.crack));
-        }
-        for (let i = -6; i <= 6; i++) px(cx + i, cy + 2 + Math.round(Math.sin(i / 2.2) * 1.5), this.ROCK.rune);
-        for (const [x, y] of [[-3, -1], [3, 5], [0, -1]]) px(cx + x, cy + y, this.ROCK.rune);
-        this.rockBox(px, { x: cx, y: cy, x0: -3, x1: 3, y0: -17, y1: -11 }, x => (Math.abs(x) === 3 ? this.ROCK.outline : x < 0 ? this.ROCK.light : this.ROCK.mid));   // 돌 병목
-        this.rockBox(px, { x: cx, y: cy, x0: -2, x1: 2, y0: -21, y1: -18 }, (x, y) => (Math.abs(x) === 2 || y === -21 ? this.ROCK.outline : this.ROCK.cork));   // 코르크
-        this.rockBox(px, { x: cx, y: cy, x0: -4, x1: 4, y0: -14, y1: -13 }, (x, y) => (y === -14 ? this.ROCK.rope : this.ROCK.ropeDark));   // 병목에 감은 줄
-        px(cx + 4, cy - 15, this.ROCK.rope); px(cx + 5, cy - 16, this.ROCK.rope);
-    }
-
-    /** 칸 하나하나를 colourOf(x, y)의 색으로 찍는다(가운데 기준의 x0..x1, y0..y1). */
-    rockBox(px, box, colourOf) {
-        for (let y = box.y0; y <= box.y1; y++) for (let x = box.x0; x <= box.x1; x++) px(box.x + x, box.y + y, colourOf(x, y));
-    }
-
-    /** 던진 바위 병: 플라스크처럼 70ms마다 사분의 일씩 돈다. */
-    drawRock(g, t) {
-        g.rotate(Math.floor(t / 70) * Math.PI / 2);
-        g.drawImage(this.rockSprite(), -14, -23);
-    }
-
-    /** 투사체의 몸을 그 자리에 그린다. @param {string} look 'spear'|'bigspear'|'fang'|'shield'|'arrow'|'harpoon'|'flask'|'emptyFlask'|'rock'
-     * @param {{x:number,y:number,dot:number,face:number,angle?:number,t:number,element:string}} at 화면 자리, 보는 쪽, 기울기(오른쪽을 볼 때의 라디안), 날아온 시간 */
+    /** 투사체의 몸을 그 자리에 그린다. @param {string} look 'spear'|'bigspear'|'fang'|'shield'|'arrow'|'harpoon'|'flask'|'emptyFlask'|'rock'|'ki'
+     * @param {{x:number,y:number,dot:number,face:number,angle?:number,t:number,element:string,progress?:number,gem?:number,style?:string}} at 화면 자리, 보는 쪽, 기울기(오른쪽을 볼 때의 라디안), 날아온 시간,
+     *     플라스크는 날아간 몫(0~1)과 룬 번호 또는 병 이름(modules/rendering/stage-flask-detail.mjs) */
     drawBody(ctx, look, at) {
         const body = this.BODIES[look];
         if (!body) return false;
@@ -345,7 +226,7 @@ class StageProjectileBodies {
         ctx.scale(at.face * at.dot, at.dot);
         if (at.angle) ctx.rotate(at.angle);
         ctx.imageSmoothingEnabled = false;
-        body(ctx, at.t, at.element);
+        body(ctx, at.t, at.element, at);
         ctx.restore();
         return true;
     }
@@ -353,5 +234,5 @@ class StageProjectileBodies {
 
 export function createStageProjectileBodies(deps, brush) {
     const instance = new StageProjectileBodies(deps, brush);
-    return Object.freeze({ body: instance.drawBody.bind(instance), rock: instance.ROCK });
+    return Object.freeze({ body: instance.drawBody.bind(instance), rock: instance.ROCK, kiMuzzle: instance.ki.muzzle, kiImpact: instance.ki.impact });
 }

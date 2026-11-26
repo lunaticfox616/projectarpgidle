@@ -33,9 +33,17 @@ export function normalizeAllocatedPassiveTreeNodes(deps, rawIds, passiveStarEvol
     });
     const candidate = { ...passiveSaveState, passives: kept };
     const connected = deps.passiveRouting.connected(candidate, deps.PASSIVE_TREE, (0, deps.getPassiveRouting)(candidate));
+    const seenChoices = new Set();
+    const passives = connected.filter(id => {
+        const node = deps.PASSIVE_TREE.nodes[id];
+        if (node.kind !== 'keystone' || !node.choiceGroup) return true;
+        if (seenChoices.has(node.choiceGroup)) return false;
+        seenChoices.add(node.choiceGroup);
+        return true;
+    });
     const lostBonus = Math.max(0, deps.passiveRouting.paleBonus({ ...candidate, passives: rawList })
-        - deps.passiveRouting.paleBonus({ ...candidate, passives: connected }));
-    return { passives: connected, refunded: refunded + kept.length - connected.length, lostBonus };
+        - deps.passiveRouting.paleBonus({ ...candidate, passives }));
+    return { passives, refunded: refunded + kept.length - passives.length, lostBonus };
 }
 
 export function migratePassiveSaveNodeReferences(deps, state) {

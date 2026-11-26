@@ -50,7 +50,7 @@ export function open(runtime, anchor, type, name) {
     if (anchor.classList.contains('equipment-blocked')) {
         const warning = runtime.deps.document.createElement('p');
         warning.className = 'condition-rule-warning';
-        warning.textContent = anchor.querySelector('.gem-usage-state').textContent;
+        warning.textContent = runtime.deps._t(runtime.deps.getSkillRuneWeaponNote(name));
         content.prepend(warning);
     }
     root.showPopover();

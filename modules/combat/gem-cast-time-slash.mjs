@@ -1,5 +1,5 @@
 import { TIME_SLASH } from './gem-cast-values.mjs';
-import { gemMs, gemLetGo, gemGrow, gemSupportShots } from './gem-cast-math.mjs';
+import { gemMs, gemLetGo, gemGrow, gemReach, gemSupportShots } from './gem-cast-math.mjs';
 import { gemDistance, gemCell } from './gem-cast-geometry.mjs';
 import { gemVisual, gemContact } from './gem-cast-common.mjs';
 
@@ -13,13 +13,16 @@ export function gemLaunchTimeSlash(env, state,c) {
 
 /** 찌르기가 나가는 때: 둔화할 적과 치는 차례(strikes)를 정한다. 대상이 없으면 둔화만 남는다(시뮬레이터의 빈 시간장). */
 export function gemTimeSlashRelease(env, state,c,input) {
-    const range=TIME_SLASH.range+gemGrow(c.stats),near=input.enemies.filter(e=>e.hp>0 && env.deps.getGridUnitCells(e).some(p=>gemDistance(input.source,p)<=range)).sort((a,b)=>env.deps.getGridUnitDistance(input.source,a)-env.deps.getGridUnitDistance(input.source,b));
+    const baseReach = TIME_SLASH.range + gemGrow(c.stats), more = gemReach(c.stats) + (c.stats.sSkill.firstAimBonus || 0);
+    const within = (enemy, reach) => env.deps.getGridUnitCells(enemy).some(p => gemDistance(input.source,p) <= reach);
+    const found = e => within(e, baseReach) || (more > 0 && within(e, baseReach + more) && env.deps.actExplorationState.inSight(e));
+    const near = input.enemies.filter(e=>e.hp>0 && found(e)).sort((a,b)=>env.deps.getGridUnitDistance(input.source,a)-env.deps.getGridUnitDistance(input.source,b));
     const shots=1+gemSupportShots(env, c)+env.deps.rollProjectileExtraShots(c.stats.projectileExtraShots),aimed=near.slice(0,shots),at=c.at+c.hitDelay;
     c.index=1;c.source=gemCell(input.source);c.cast=++env.memo.timeSlashCasts;
     aimed.forEach(e=>c.primary.add(e.id));
     gemVisual(env, state,c,'field',c.nextAt,gemMs(c,TIME_SLASH.cycle-TIME_SLASH.slowStart)+TIME_SLASH.slow,{timeSlowUntil:c.nextAt+TIME_SLASH.slow,timeActorEnd:c.at+gemMs(c,TIME_SLASH.cycle),timeSpeed:c.speed,sourceCell:c.source});
     for(let i=0,last=0;i<(aimed.length?shots:0);i++)last=gemTimeSlashVolley(env, state,c,aimed,{ i, first: i?last+gemMs(c,TIME_SLASH.volleyGap):at });
-    return [{type:'timeSlow',targets:near.map(e=>e.id),at:c.nextAt,ms:TIME_SLASH.slow}];
+    return [{type:'timeSlow',targets:near.filter(e=>within(e,baseReach)).map(e=>e.id),at:c.nextAt,ms:TIME_SLASH.slow}];
 }
 
 /** i번째 발: 첫 검이 first에 닿고, 묶음(첫 발과 다시 치는 발은 일곱, 새 대상은 하나)의 마지막 검이 닿는 때를 돌려준다. 그때 피해 한 번. */

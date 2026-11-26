@@ -18,7 +18,7 @@ export function createGemCardsView(deps) {
     runtime.handlers.openGemEngraveSlotOverlay = index => openGemEngraveSlotOverlay(runtime, index);
     runtime.api.openGemEngraveSlotOverlay = runtime.handlers.openGemEngraveSlotOverlay;
     runtime.api.closeGemEngraveSlotOverlay = () => closeGemEngraveSlotOverlay(runtime);
-    runtime.api.changeSkill = (name, slotKind) => changeSkill(runtime, name, slotKind);
+    runtime.api.changeSkill = (name, slotKind, replacedName) => changeSkill(runtime, name, slotKind, replacedName);
     runtime.api.getSkillGemArtPath = name => getSkillGemArtPath(runtime, name);
     return runtime.api;
 }

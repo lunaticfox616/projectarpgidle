@@ -10,6 +10,7 @@ export function passiveRuleGetPassiveKeystoneCombatFlags(env, owner, skillTags) 
     const tags = new Set(Array.isArray(skillTags) ? skillTags : []);
     return {
         threeBranchLight: passiveRuleHasAuthoredPassiveKeystone(env, owner, '세 갈래 불빛'),
+        elementalDistribution: passiveRuleHasAuthoredPassiveKeystone(env, owner, '원소 천칭'),
         criticalLimit: passiveRuleHasAuthoredPassiveKeystone(env, owner, '회심의 일격'),
         fleshResonance: passiveRuleHasAuthoredPassiveKeystone(env, owner, '육신의 공명'),
         willResonance: passiveRuleHasAuthoredPassiveKeystone(env, owner, '의지의 공명'),

@@ -4,17 +4,12 @@ import { gemTargets } from './gem-cast-targets.mjs';
 import { gemVisual, gemContact } from './gem-cast-common.mjs';
 import { gemArea, gemDistance, gemCells, gemCell, gemCross, gemSame } from './gem-cast-geometry.mjs';
 
-export function gemLancePlan(stats) {
-    const n=gemGrow(stats);
-    return stats.sSkill.effectExpansionFromSupport ? {count:LANCE.targets,blast:LANCE.blast+n} : {count:LANCE.targets+n,blast:LANCE.blast+n/2};
-}
-
 export function gemLaunchLance(env, state,c,enemies) {
-    const plan=gemLancePlan(c.stats),release=c.at+gemMs(c,180),near=gemTargets(env, 45,c.source,enemies,gemGrow(c.stats))
-        .sort((a,b)=>env.deps.getGridUnitDistance(c.source,a)-env.deps.getGridUnitDistance(c.source,b)).slice(0,plan.count);
+    const release=c.at+gemMs(c,180),near=gemTargets(env, 45,c.source,enemies)
+        .sort((a,b)=>env.deps.getGridUnitDistance(c.source,a)-env.deps.getGridUnitDistance(c.source,b)).slice(0,LANCE.targets);
     const order=near.map(foe=>({foe,key:env.deps.random()})).sort((a,b)=>a.key-b.key).map(row=>row.foe);
     let start=release+gemMs(c,env.deps.random()*LANCE.first);
-    c.blast=plan.blast;c.points=[];
+    c.blast=LANCE.blast;c.points=[];
     c.lances=order.map((foe,index)=>{
         if(index)start+=gemMs(c,gemBetween(env, LANCE.gap));
         const fall=Math.max(1,gemMs(c,gemBetween(env, LANCE.fall)));
@@ -63,7 +58,7 @@ export function gemLaunchMist(env, state,c) {
 
 export function gemStepMist(env, state,c,input) {
     c.source=gemCell(input.source);c.aim=gemCell(input.source);c.event.holySource=gemCell(input.source);
-    const hit=gemTargets(env, 50,input.source,input.enemies,gemGrow(c.stats));c.done=true;
+    const hit=gemTargets(env, 50,input.source,input.enemies,{extra:gemGrow(c.stats)});c.done=true;
     gemVisual(env, state,c,'mist',c.nextAt,Math.round(700/c.speed),{holySource:gemCell(input.source),holyRadius:1+gemGrow(c.stats)});
     gemMarkMistTargets(env, state,c,hit);
     return [gemContact(env, c,hit,c.nextAt),{type:'mist',targets:hit.map(e=>e.id),at:c.nextAt}];

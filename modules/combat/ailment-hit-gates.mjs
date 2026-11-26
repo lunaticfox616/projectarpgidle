@@ -32,10 +32,16 @@ export function hitIsElementalAilmentHit(element, sourceType, appliedType) {
         || ELEMENTAL_HIT_AILMENTS.includes(sourceType) || ELEMENTAL_HIT_AILMENTS.includes(appliedType);
 }
 
+function blockedByThreeLights(flags, element, sourceType, appliedType) {
+    if (!flags.threeBranchLight) return false;
+    if (flags.elementalDistribution && ELEMENTAL_HIT_AILMENTS.includes(sourceType)) return false;
+    return hitIsElementalAilmentHit(element, sourceType, appliedType);
+}
+
 /** Keystones and talent cards that forbid the ailment. */
 export function hitHitAilmentForbidden(env, pStats, appliedType, sourceType, element) {
     let passiveFlags = (pStats && pStats.passiveKeystoneFlags) || {};
-    if (passiveFlags.threeBranchLight && hitIsElementalAilmentHit(element, sourceType, appliedType)) return true;
+    if (blockedByThreeLights(passiveFlags, element, sourceType, appliedType)) return true;
     if (passiveFlags.singleMystique && appliedType !== pStats.mystiqueAilmentType) return true;
     if (passiveFlags.blackDistill && ELEMENTAL_HIT_AILMENTS.includes(appliedType)) return true;
     return typeof env.deps.canTalentCardApplyEnemyAilment === 'function' && !env.deps.canTalentCardApplyEnemyAilment(appliedType);

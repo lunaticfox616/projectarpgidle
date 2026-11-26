@@ -256,7 +256,7 @@ function applyFirstStrikeAndDistance(c, h) {
         h.dmg = Math.floor(h.dmg * firstStrikeMul);
         h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * firstStrikeMul);
     }
-    h.directHitDistanceMul = c.deps.getGridDirectHitDistanceMultiplier(c.owner.gridPlayer, h.targetEnemy);
+    h.directHitDistanceMul = h.linkedDistanceMul ?? c.deps.getGridDirectHitDistanceMultiplier(c.owner.gridPlayer, h.targetEnemy);
     h.dmg = Math.floor(h.dmg * h.directHitDistanceMul);
     h.damageBeforeMitigation = Math.floor(h.damageBeforeMitigation * h.directHitDistanceMul);
     h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * h.directHitDistanceMul);

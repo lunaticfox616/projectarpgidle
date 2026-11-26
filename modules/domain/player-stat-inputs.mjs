@@ -130,6 +130,11 @@ function applyTargetInputCap(skill, bonus) {
     } else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
 }
 
+function firstAimBonus(skill, equipmentBonus) {
+    if (!skill.firstAimEligible && !skill.supportEffects?.throwRange) return 0;
+    return equipmentBonus;
+}
+
 function prepareTargetInputs(input, deps) {
     const { owner, skill, buckets, totalStrength, totalDexterity, weaponStance, sumStatAcrossBuckets } = input;
     const flatAccuracy = Math.max(0, sumStatAcrossBuckets('accuracy'));
@@ -144,7 +149,13 @@ function prepareTargetInputs(input, deps) {
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += sumTargetInputSources(buckets, 'targetSlam');
     applyTargetInputCap(skill, targetBonus);
     const cappedTargets = skill.targets;
-    deps.uncappedTargets(skill, owner.activeSkill);
+    skill.firstAimBonus = firstAimBonus(skill, sumStatAcrossBuckets('rangeFirstAim'));
+    deps.uncappedTargets(skill, owner.activeSkill, {
+        rangeAreaExpansion: sumStatAcrossBuckets('rangeAreaExpansion'),
+        rangeAdditionalTargets: sumStatAcrossBuckets('rangeAdditionalTargets'),
+        rangeFarHorizon: sumStatAcrossBuckets('rangeFarHorizon'),
+        rangeCloseCalamity: sumStatAcrossBuckets('rangeCloseCalamity')
+    });
     skill.projectileChain = (skill.tags || []).includes('projectile') ? sumStatAcrossBuckets('projectileChain') : 0;
     return { flatAccuracy, accuracyBonusPct, playerAccuracy, bladeBundleShots, skillBaseTargets, totalProjectileExtraShots, cappedTargets };
 }

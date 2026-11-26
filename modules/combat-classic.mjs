@@ -26,6 +26,7 @@ const runtime = {
     set combatTacticsRuntime(value) { window.GameModules.state.combat.combatTacticsRuntime = value; },
     get skillGemCombatRuntime() { return window.GameModules.state.combat.skillGemCombatRuntime; },
     set skillGemCombatRuntime(value) { window.GameModules.state.combat.skillGemCombatRuntime = value; },
+    get soulShield() { return window.GameModules.state.combat.soulShield; },
     get combatChannelRuntime() { return window.GameModules.state.combat.combatChannelRuntime; },
     set combatChannelRuntime(value) { window.GameModules.state.combat.combatChannelRuntime = value; },
     get combatChannelResumeSkillName() { return window.GameModules.state.combat.combatChannelResumeSkillName; },

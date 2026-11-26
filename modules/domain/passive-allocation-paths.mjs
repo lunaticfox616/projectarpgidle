@@ -49,9 +49,24 @@ export function allocationGetPassiveKeystoneConflict(env, owner, path) {
     const corruptId = env.deps.getPassiveKeystoneNodeId('타락한 복음');
     const tripleId = env.deps.getPassiveKeystoneNodeId('삼중 계시');
     if ((owned.has(corruptId) && pending.has(tripleId)) || (owned.has(tripleId) && pending.has(corruptId))) {
-        return env.deps._t('{title}, {title2}는 동시에 할당할 수 없습니다.', { title: env.deps.PASSIVE_TREE.nodes[corruptId].title, title2: env.deps.PASSIVE_TREE.nodes[tripleId].title });
+        return keystoneConflictMessage(env, env.deps.PASSIVE_TREE.nodes[corruptId], env.deps.PASSIVE_TREE.nodes[tripleId]);
+    }
+    const nodes = env.deps.PASSIVE_TREE.nodes;
+    const pendingChoices = [...pending].map(id => nodes[id]).filter(node => node?.kind === 'keystone' && node.choiceGroup);
+    if (pendingChoices.length === 0) return '';
+    const selected = [...new Set([...owned, ...pending])].map(id => nodes[id]);
+    for (const node of pendingChoices) {
+        const other = selected.find(candidate => candidate && candidate.id !== node.id && candidate.kind === 'keystone'
+            && candidate.choiceGroup === node.choiceGroup);
+        if (other) return keystoneConflictMessage(env, node, other);
     }
     return '';
+}
+
+function keystoneConflictMessage(env, first, second) {
+    return env.deps._t('{title}, {title2} 두 키스톤을 동시에 할당할 수 없습니다.', {
+        title: env.deps._t(first.title), title2: env.deps._t(second.title)
+    });
 }
 
 /** Woodsman build lock and unlock checks happen before spending or revealing any node. */

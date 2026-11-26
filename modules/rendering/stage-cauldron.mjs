@@ -1,217 +1,290 @@
+/** 연금 가마솥(88)의 큰 고딕 가마솥(2026-11-26 스킬 전달본 V3.24 후속 cauldron-gothic-vfx.js): 황동 장식의 주물 솥이 대상 위에 떠서 기울고,
+ * 끓는 물약이 굵은 줄기로 쏟아져 세 번 덮친 뒤 바닥의 웅덩이가 약 1초에 걸쳐 옅어진다. 피해의 때는 전투가 정한다(modules/combat/gem-extension-flasks.mjs).
+ * 솥은 84×64 도트를 한 번 그려 두고 2배(전달본 2.05배를 도트가 고른 정수 배율로)로 그린다. 웅덩이는 범위 크기로 한 장 그려 두고
+ * 넓어지는 만큼 타원으로 잘라 보인다(늘이지 않는다). 그 밖의 줄기, 물방울, 물결, 거품은 그때그때 도트로 찍는다. */
+const INK = '#18141f', BRASS = '#a38560', GOLD = '#d6b786', TARNISH = '#634c40', IRON = '#343242', SILVER = '#777487';
+const SCALE = 2;
+const clamp = value => Math.max(0, Math.min(1, value));
+const easeOut = value => 1 - (1 - clamp(value)) ** 2;
+const smooth = value => { const u = clamp(value); return u * u * (3 - 2 * u); };
+
 class StageCauldron {
     constructor(deps, shared) {
         this.deps = deps;
         this.shared = shared;
-        this.easeOut = u => 1 - (1 - u) * (1 - u);
-        this.POT = Object.freeze({ OUT: '#0d0b11', D: '#1d1924', M: '#2c2736', L: '#433c4f', HL: '#655c74', HOLE: '#100d15' });
-        this.potShade = (r, lit) => (r > 0.86 ? this.POT.OUT : lit > 0.62 ? this.POT.HL : lit > 0.18 ? this.POT.L : lit > -0.4 ? this.POT.M : this.POT.D);
-        this.rimShade = (r, inner, dy) => (inner <= 1 ? this.POT.HOLE : r > 0.84 ? this.POT.OUT : dy < -0.1 ? this.POT.HL : this.POT.L);
-        this.POUR = Object.freeze({ tip: 2.25, scale: 1.75, green: '#7fc96a', lift: 132, top: 52 });
+        this.TAU = Math.PI * 2;
+        this.vessel = null;
+        this.pools = new Map();
     }
 
-    cauldronBelly(px) {
-        for (let y = 12; y < 42; y++) for (let x = 2; x < 50; x++) {
-            const dx = (x + 0.5 - 26) / 22.5, dy = (y + 0.5 - 26) / 15, r = dx * dx + dy * dy;
-            if (r <= 1) px(x, y, this.potShade(r, -dx * 0.55 - dy * 0.75 + (Math.abs(dx) < 0.25 ? 0.05 : 0)));
-        }
+    surface(width, height) {
+        const canvas = this.deps.document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const g = canvas.getContext('2d');
+        g.imageSmoothingEnabled = false;
+        return g;
     }
 
-    cauldronRim(px) {
-        for (let y = 6; y < 20; y++) for (let x = 0; x < 52; x++) {
-            const dx = (x + 0.5 - 26) / 25, dy = (y + 0.5 - 12.5) / 5.6, ix = (x + 0.5 - 26) / 20.5, iy = (y + 0.5 - 12.8) / 3.6, r = dx * dx + dy * dy;
-            if (r <= 1) px(x, y, this.rimShade(r, ix * ix + iy * iy, dy));
-        }
-    }
-
-    /** 52×44 무쇠 가마솥(시뮬레이터 cauldronSprite): 다리 셋, 둥근 몸, 손잡이 고리, 넓은 테와 입. 왼쪽 위에서 빛. */
-    cauldronSprite() {
-        return this.shared.sprite('cauldron', [52, 44], (g, px) => {
-            [[11, 38, 4, 5], [24, 40, 4, 4], [37, 38, 4, 5]].forEach(([x, y, w, h]) => { g.fillStyle = this.POT.OUT; g.fillRect(x - 1, y, w + 2, h); g.fillStyle = this.POT.D; g.fillRect(x, y, w, h - 1); });
-            this.cauldronBelly(px);
-            for (const s of [-1, 1]) {
-                const x0 = s < 0 ? 1 : 47;
-                g.fillStyle = this.POT.OUT; g.fillRect(x0, 17, 4, 1); g.fillRect(x0, 23, 4, 1); g.fillRect(s < 0 ? x0 : x0 + 3, 17, 1, 7);
-                g.fillStyle = this.POT.L; g.fillRect(s < 0 ? x0 + 1 : x0 + 2, 18, 1, 5);
+    polygon(g, colour, vertices) {
+        const ys = vertices.map(v => v[1]);
+        g.fillStyle = colour;
+        for (let y = Math.min(...ys); y < Math.max(...ys); y++) {
+            const cuts = [];
+            for (let i = 0; i < vertices.length; i++) {
+                const [a, b] = vertices[i], [c, d] = vertices[(i + 1) % vertices.length];
+                if (y + 0.5 < Math.min(b, d) || y + 0.5 >= Math.max(b, d)) continue;
+                cuts.push(a + (c - a) * (y + 0.5 - b) / (d - b));
             }
-            this.cauldronRim(px);
-        });
+            cuts.sort((a, b) => a - b);
+            for (let i = 0; i < cuts.length; i += 2) { const x = Math.ceil(cuts[i] - 0.5); g.fillRect(x, y, Math.ceil(cuts[i + 1] - 0.5) - x, 1); }
+        }
     }
 
-    /** 가마솥 실루엣을 그 색으로 칠한 사본(테두리 빛). */
-    cauldronGlow(colour) {
-        return this.shared.sprite('cauldron|' + colour, [52, 44], g => { g.drawImage(this.cauldronSprite(), 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = colour; g.fillRect(0, 0, 52, 44); });
+    ellipsePixels(g, colour, [cx, cy], rx, ry) {
+        g.fillStyle = colour;
+        for (let y = Math.ceil(cy - ry); y < cy + ry; y++) {
+            const u = (y + 0.5 - cy) / ry, width = Math.floor(rx * Math.sqrt(Math.max(0, 1 - u * u)));
+            if (width > 0) g.fillRect(Math.round(cx) - width, y, width * 2, 1);
+        }
     }
 
-    potBits(spot, A, B, pot) {
-        const rr = this.shared.ST.random(Math.floor(spot.gx * 320 + spot.gy * 32)), E = pot.E, G = this.POUR.green;
-        pot.puffs = Array.from({ length: 10 }, () => ({ a: rr() * this.shared.TAU, d: 14 + rr() * 22, r: 4 + rr() * 5 }));
-        pot.drops = Array.from({ length: 28 }, () => {
-            const a = rr() * this.shared.TAU, k = 0.35 + rr() * 0.65;
-            return { x1: Math.cos(a) * A * k, y1: Math.sin(a) * B * k, h: 18 + rr() * 26, dur: 260 + rr() * 200, c: rr() < 0.25 ? G : rr() < 0.5 ? E.c1 : E.c2 };
-        });
-        pot.bubbles = Array.from({ length: 16 }, () => { const a = rr() * this.shared.TAU, k = Math.sqrt(rr()) * 0.8; return { x: Math.cos(a) * A * k, y: Math.sin(a) * B * k, ph: rr(), per: 260 + rr() * 260, g: rr() < 0.3 }; });
-        pot.fumes = Array.from({ length: 9 }, () => { const a = rr() * this.shared.TAU, k = rr() * 0.7; return { x: Math.cos(a) * A * k, y: Math.sin(a) * B * k, t0: pot.T0 + rr() * (pot.T_END - pot.T0), r: 5 + rr() * 5, g: rr() < 0.4 }; });
+    /** 뒤 다리와 발톱 다리 둘(몸과 함께 기운다), 구멍이 뚫린 무쇠 손잡이 둘. */
+    vesselFeet(g, p) {
+        p(INK, [[-9, 19], [9, 19], [6, 27], [6, 30], [0, 32], [-7, 29], [-7, 25]]);
+        p(IRON, [[-6, 21], [6, 20], [4, 28], [0, 29], [-4, 28]]);
+        for (const side of [-1, 1]) {
+            g.save(); g.scale(side, 1);
+            p(INK, [[11, 19], [26, 17], [25, 23], [22, 29], [25, 31], [29, 30], [31, 33], [26, 34], [17, 34], [15, 31], [16, 26]]);
+            p(IRON, [[16, 21], [24, 19], [22, 24], [20, 29], [22, 31], [27, 32], [19, 33], [17, 31], [19, 24]]);
+            p(BRASS, [[18, 23], [23, 22], [20, 25], [19, 29], [17, 30], [17, 27]]);
+            p(TARNISH, [[21, 31], [27, 31], [28, 33], [22, 33]]);
+            g.restore();
+        }
+        for (const side of [-1, 1]) {
+            g.save(); g.scale(side, 1);
+            p(INK, [[27, -19], [33, -24], [39, -23], [42, -19], [42, -13], [38, -9], [31, -8], [28, -11], [29, -15], [35, -14], [37, -17], [36, -19], [33, -18], [30, -14]]);
+            p(TARNISH, [[30, -18], [33, -22], [38, -22], [40, -19], [40, -14], [37, -11], [32, -10], [31, -12], [36, -13], [38, -17], [36, -21], [33, -20], [31, -16]]);
+            p(GOLD, [[32, -21], [36, -22], [39, -20], [40, -17], [38, -16], [37, -19], [35, -20], [32, -18]]);
+            g.restore();
+        }
     }
 
+    /** 둥근 무쇠 몸통을 띠와 면으로 나눈다. */
+    vesselBody(p) {
+        p(INK, [[-35, -16], [-31, -19], [31, -19], [35, -15], [35, 1], [31, 12], [23, 21], [12, 26], [-11, 26], [-23, 21], [-31, 12], [-35, 1]]);
+        p('#262331', [[-33, -14], [-29, -17], [30, -17], [33, -13], [33, 0], [29, 11], [22, 19], [11, 24], [-12, 24], [-23, 19], [-29, 11], [-33, 1]]);
+        p(IRON, [[-30, -13], [-24, -16], [21, -14], [27, -8], [26, 6], [20, 15], [11, 20], [-8, 22], [-20, 19], [-27, 11], [-30, 4]]);
+        p('#4b4757', [[-28, -12], [-21, -11], [-19, -4], [-20, 7], [-13, 19], [-21, 16], [-25, 10], [-28, 4]]);
+        p(SILVER, [[-27, -9], [-23, -9], [-22, -6], [-23, 1], [-22, 6], [-24, 6], [-26, 1]]);
+        p('#484353', [[-15, -13], [15, -13], [22, -3], [20, 10], [11, 18], [-3, 20], [-12, 16], [-16, 7]]);
+        p(INK, [[29, -9], [33, -7], [33, 0], [29, 11], [22, 19], [13, 23], [11, 23], [18, 18], [23, 12], [27, 5]]);
+    }
+
+    /** 단조한 띠와 고딕 성유물함 같은 첨두 아치 셋, 리벳. */
+    vesselBand(g, p) {
+        p(TARNISH, [[-33, -8], [-17, -4], [0, -3], [17, -4], [33, -8], [32, -3], [16, 0], [0, 1], [-16, 0], [-32, -3]]);
+        p(BRASS, [[-32, -7], [-17, -4], [0, -3], [17, -4], [32, -7], [31, -5], [17, -2], [0, -1], [-16, -2], [-31, -5]]);
+        p(GOLD, [[-31, -7], [-17, -5], [-12, -4], [-12, -3], [-22, -4], [-31, -6]]);
+        for (const [x, y, wide] of [[-16, 7, 5], [0, 6, 7], [16, 7, 5]]) {
+            p(INK, [[x, y - 5], [x + wide + 1, y + 1], [x + wide + 1, y + 9], [x, y + 12], [x - wide - 1, y + 9], [x - wide - 1, y + 1]]);
+            p(TARNISH, [[x, y - 4], [x + wide, y + 1], [x + wide, y + 8], [x, y + 11], [x - wide, y + 8], [x - wide, y + 1]]);
+            p('#33283a', [[x, y - 2], [x + wide - 2, y + 2], [x + wide - 2, y + 7], [x, y + 9], [x - wide + 2, y + 7], [x - wide + 2, y + 2]]);
+            p(BRASS, [[x, y - 4], [x - 1, y - 2], [x - wide + 1, y + 2], [x - wide + 1, y + 7], [x - wide, y + 7], [x - wide, y + 1]]);
+            p(GOLD, [[x, y - 3], [x + 1, y - 2], [x, y], [x - 1, y - 2]]);
+        }
+        p(TARNISH, [[-27, 14], [-17, 20], [-8, 23], [10, 22], [20, 19], [27, 13], [24, 18], [15, 23], [9, 25], [-10, 25], [-20, 22]]);
+        for (const [x, y] of [[-28, -3], [-23, -2], [-12, 0], [12, 0], [24, -2], [29, -3]]) { g.fillStyle = TARNISH; g.fillRect(x, y, 2, 2); g.fillStyle = GOLD; g.fillRect(x, y, 1, 1); }
+    }
+
+    /** 앞 테두리: 안티에일리어스 없이 가로 띠로 찍는다. */
+    vesselRim() {
+        const rim = this.surface(76, 12);
+        rim.translate(38, 17);
+        this.polygon(rim, INK, [[-35, -16], [-26, -13], [-11, -11], [11, -11], [26, -13], [35, -16], [33, -11], [25, -8], [11, -6], [-11, -6], [-26, -8], [-33, -11]]);
+        this.polygon(rim, TARNISH, [[-33, -14], [-25, -11], [-11, -9], [11, -9], [25, -11], [33, -14], [31, -11], [24, -9], [11, -7], [-11, -7], [-25, -9], [-31, -11]]);
+        rim.fillStyle = GOLD;
+        [[-31, -13, 7], [-24, -12, 7], [-17, -11, 9], [-8, -10, 11]].forEach(([x, y, w]) => rim.fillRect(x, y, w, 1));
+        rim.fillStyle = BRASS;
+        [[3, -10, 12], [15, -11, 10], [25, -12, 5]].forEach(([x, y, w]) => rim.fillRect(x, y, w, 1));
+        return rim.canvas;
+    }
+
+    makeVessel() {
+        const g = this.surface(84, 64), p = (colour, vertices) => this.polygon(g, colour, vertices);
+        g.translate(42, 28);
+        this.vesselFeet(g, p);
+        this.vesselBody(p);
+        this.vesselBand(g, p);
+        this.ellipsePixels(g, INK, [0, -16], 36, 10); this.ellipsePixels(g, BRASS, [0, -17], 34, 8); this.ellipsePixels(g, TARNISH, [0, -17], 32, 6);
+        this.ellipsePixels(g, '#231b2b', [0, -17], 30, 5); this.ellipsePixels(g, '#130f1b', [0, -18], 27, 4);
+        return { body: g.canvas, rim: this.vesselRim() };
+    }
+
+    /** 범위 크기의 웅덩이 한 장(가장자리가 고르지 않은 타원, 결과 반사). 물결과 줄무늬는 전달본의 180×88 판의 줄(row)로 재서 큰 판에서도 같은 모양이다. */
+    makePool(colour, A, B) {
+        const width = Math.max(16, Math.round(A * 2)), height = Math.max(8, Math.round(B * 2)), cx = width / 2, cy = height / 2, g = this.surface(width, height);
+        for (let y = 2; y < height - 2; y++) {
+            const ny = (y - cy) / (cy - 5), span = Math.sqrt(Math.max(0, 1 - ny * ny)) * (cx - 6), row = Math.floor(y * 88 / height);
+            const left = Math.round(cx - span * (0.89 + 0.065 * Math.cos(row * 0.47) + 0.045 * Math.sin(row * 0.19)) - 2);
+            const right = Math.round(cx + span * (0.87 + 0.07 * Math.cos(row * 0.36 + 2) + 0.05 * Math.sin(row * 0.19)) + 2);
+            if (right - left < 8) continue;
+            g.fillStyle = INK; g.fillRect(left - 1, y, right - left + 2, 1);
+            g.globalAlpha = 0.84; g.fillStyle = colour.c3; g.fillRect(left + 2, y, right - left - 4, 1); g.globalAlpha = 1;
+            if (row % 7 < 3) { g.fillStyle = colour.c2; g.fillRect(left + 2, y, 2, 1); g.fillRect(right - 4, y, 2, 1); }
+            if (row % 10 < 3 && Math.abs(ny) < 0.86) {
+                const offset = Math.round(Math.sin(row * 2.1) * span * 0.45 + span * 0.16);
+                g.globalAlpha = 0.28 + (row % 3) * 0.13; g.fillStyle = colour.c2; g.fillRect(cx + offset - 12, y, 8 + row % 13, 1); g.globalAlpha = 1;
+            }
+        }
+        return g.canvas;
+    }
+
+    poolFor(colour, A, B) {
+        const key = `${colour.c3}|${Math.round(A)}|${Math.round(B)}`;
+        if (!this.pools.has(key)) {
+            if (this.pools.size >= 12) this.pools.delete(this.pools.keys().next().value);
+            this.pools.set(key, this.makePool(colour, A, B));
+        }
+        return this.pools.get(key);
+    }
+
+    /** 사건 하나의 계획: 때(전투의 붓기, 떨어짐, 간격), 범위, 방울과 거품의 자리. */
     potPlan(event, E) {
-        const [A, B] = this.shared.semi(Number(event.cauldronRadius) || 2.5), pour = event.cauldronPour, fall = Math.max(1, event.cauldronFall), every = event.cauldronEvery, hits = event.cauldronHits;
-        const T0 = pour + fall, T_END = T0 + every * (hits - 1) + 160, T_OUT = T_END + 200;
-        const pot = { A, B, E, dir: event.cauldronDir || 1, fall, every, hits, T_IN: pour - 120, T_TIP: pour, T0, T_END, T_OUT, LIFE: T_OUT + 520, cy: null };
-        this.potBits(event.landingCell, A, B, pot);
+        const [A, B] = this.shared.semi(Number(event.cauldronRadius) || 2.5), rr = this.shared.ST.random(Math.floor(event.landingCell.gx * 320 + event.landingCell.gy * 32));
+        const pour = event.cauldronPour, fall = Math.max(1, event.cauldronFall), every = event.cauldronEvery, hits = event.cauldronHits || 3;
+        const impact = pour + fall, lastHit = impact + every * (hits - 1), pot = { A, B, E, dir: event.cauldronDir < 0 ? -1 : 1, pour, fall, every, hits, impact, lastHit,
+            cut: lastHit + 105, poolEnd: lastHit + 975, top: null };
+        pot.droplets = Array.from({ length: 21 }, (_, i) => {
+            const ang = (i + rr() * 0.65) * this.TAU / 21, length = 0.35 + rr() * 0.56;
+            return { x: Math.cos(ang) * A * length, y: Math.sin(ang) * B * length, height: 12 + rr() * 35, width: 2 + i % 4, life: 195 + rr() * 245, hit: i < 13 ? 0 : i < 17 ? 1 : 2 };
+        });
+        pot.bubbles = Array.from({ length: 17 }, (_, i) => {
+            const ang = (i + rr()) * this.TAU / 17, distance = 0.15 + rr() * 0.65;
+            return { x: Math.cos(ang) * distance, y: Math.sin(ang) * distance, phase: rr(), interval: 260 + rr() * 300 };
+        });
+        pot.LIFE = pot.poolEnd + 100;
         return pot;
     }
 
-    /** 기우는 각(바로 섬 → 살짝 뒤로 → 0.12초에 쏟는 각 → 쏟는 동안 흔들림 → 0.2초에 바로 섬). */
-    potAngle(t, pot) {
-        if (t < pot.T_IN) return 0;
-        if (t < pot.T_TIP) return -0.12 * Math.sin((t - pot.T_IN) / 120 * Math.PI);
-        if (t < pot.T_TIP + 120) return this.POUR.tip * this.easeOut((t - pot.T_TIP) / 120);
-        if (t < pot.T_END) return this.POUR.tip + Math.sin(t / 70) * 0.04;
-        return t < pot.T_OUT ? this.POUR.tip * (1 - this.easeOut((t - pot.T_END) / 200)) : 0;
+    /** 그때 솥의 자세(자리, 기운 각, 입), 줄기의 앞과 꼬리, 웅덩이의 깊이와 남은 몫. */
+    pose(t, pot) {
+        const { dir } = pot, fall = clamp((t - pot.pour) / pot.fall), pull = smooth((t - pot.cut - 80) / 250), tip = smooth((t - (pot.pour - 115)) / 220);
+        const angle = (tip * 1.28 + 0.022 * Math.sin(t / 64)) * (1 - pull);
+        const px = -dir * (33 + 15 * tip) + dir * 8 * pull, py = pot.top + 8 * tip - 16 * pull + Math.sin(t / 120) * (1 - tip) * 2, lipX = 31 * SCALE, lipY = -17 * SCALE;
+        return { t, x: px, y: py, angle, fall, alpha: easeOut(t / 128) * (1 - smooth((t - pot.cut - 80) / 325)),
+            mouthX: px + dir * (Math.cos(angle) * lipX - Math.sin(angle) * lipY), mouthY: py + Math.sin(angle) * lipX + Math.cos(angle) * lipY,
+            tail: clamp((t - pot.cut) / pot.fall), depth: t < pot.impact ? 0 : 0.26 + 0.74 * easeOut((t - pot.impact) / 420),
+            residue: t < pot.impact ? 0 : 1 - smooth((t - (pot.lastHit + 260)) / (pot.poolEnd - pot.lastHit - 260)) };
     }
 
-    potMouth(a, pot) { const k = 12 * this.POUR.scale; return { x: k * Math.sin(a * pot.dir), y: pot.cy - k * Math.cos(a * pot.dir) }; }
-
-    potCall(ctx, t, pot) {
-        const a = Math.min(1, t / 200) * (t > pot.T0 ? Math.max(0, 1 - (t - pot.T0) / 120) : 1);
-        ctx.globalAlpha = 0.7 * a; ctx.fillStyle = pot.E.c2; this.shared.dotRing(ctx, { a: pot.A, b: pot.B, n: 64, step: 2, turn: t / 500 });
-        ctx.fillStyle = pot.E.c1; this.shared.dotRing(ctx, { a: pot.A * 0.86, b: pot.B * 0.86, n: 6, turn: -t / 400, w: 3, nudge: 1 });
-    }
-
-    potBubbles(ctx, t, pot, kA, fade) {
-        for (const b of pot.bubbles) {
-            if (Math.hypot(b.x / pot.A, b.y / pot.B) > kA) continue;
-            const u = ((t / b.per) + b.ph) % 1, r = Math.round(1 + u * 2.5), x = Math.round(b.x), y = Math.round(b.y);
-            ctx.globalAlpha = (u < 0.85 ? 0.85 : 0.3) * fade; ctx.fillStyle = b.g ? this.POUR.green : pot.E.c1;
-            ctx.fillRect(x - r, y, 1, 1); ctx.fillRect(x + r, y, 1, 1); ctx.fillRect(x, y - r, 1, 1); ctx.fillRect(x, y + r, 1, 1);
+    ripple(g, pot, [phase, rx, ry], alpha) {
+        g.globalAlpha = alpha; g.fillStyle = pot.E.c1;
+        for (let i = 0; i < 38; i++) {
+            if (i % 5 === 0) continue;
+            const angle = i / 38 * this.TAU + 0.26 * phase;
+            g.fillRect(Math.round(Math.cos(angle) * rx), Math.round(Math.sin(angle) * ry), 2 + i % 3, 1);
         }
     }
 
-    /** 피해마다 웅덩이 가운데에서 번지는 물결. */
-    potRipples(ctx, t, pot) {
-        ctx.fillStyle = pot.E.c1;
+    poolBubbles(g, p, pot, shrink) {
+        for (const bubble of pot.bubbles) {
+            const u = (p.t / bubble.interval + bubble.phase) % 1;
+            if (u < 0.28 || Math.hypot(bubble.x, bubble.y) > p.depth * 0.9) continue;
+            const x = Math.round(bubble.x * pot.A * shrink), y = Math.round(bubble.y * pot.B * shrink), radius = 1 + Math.round(u * 2);
+            g.globalAlpha = (u < 0.87 ? 0.68 : 0.32) * p.residue; g.fillStyle = u < 0.87 ? pot.E.c2 : pot.E.c1;
+            g.fillRect(x - radius, y, radius * 2 + 1, 1); g.fillRect(x - 1, y - radius, 2, 1);
+        }
+    }
+
+    /** 바닥: 쏟기 전에는 부르는 물결과 그림자, 닿은 뒤에는 넓어지는 웅덩이(타원으로 잘라 보인다), 타격마다 물결, 거품. */
+    ground(g, t, pot) {
+        const p = this.pose(t, pot), { A, B } = pot;
+        if (!p.depth) {
+            const rise = easeOut(t / 180);
+            this.ripple(g, pot, [rise, A * 0.91, B * 0.9], 0.34 * rise);
+            g.globalAlpha = 0.31 * rise; this.ellipsePixels(g, INK, [0, 0], 29 + 12 * rise, 11);
+            return;
+        }
+        if (!p.residue) return;
+        const shrink = 1 - 0.11 * (1 - p.residue), rx = Math.round(A * p.depth * shrink), ry = Math.round(B * p.depth * shrink), pool = this.poolFor(pot.E, A, B);
+        g.save();
+        g.beginPath(); g.ellipse(0, 0, Math.max(1, rx), Math.max(1, ry), 0, 0, this.TAU); g.clip();
+        g.globalAlpha = 0.78 * p.residue; g.drawImage(pool, -Math.round(pool.width / 2), -Math.round(pool.height / 2));
+        g.restore();
         for (let i = 0; i < pot.hits; i++) {
-            const tw = t - (pot.T0 + i * pot.every), u = tw / 260, k = 0.2 + 0.85 * u;
-            if (tw < 0 || tw > 260) continue;
-            ctx.globalAlpha = 0.8 * (1 - u); this.shared.dotRing(ctx, { a: pot.A * k, b: pot.B * k, n: 40, step: 2 });
+            const u = (t - pot.impact - i * pot.every) / 305;
+            if (u < 0 || u >= 1) continue;
+            const extent = (0.2 + 0.8 * easeOut(u)) * p.depth;
+            this.ripple(g, pot, [u, A * extent, B * extent], (1 - u) * 0.62 * p.residue);
+        }
+        this.poolBubbles(g, p, pot, shrink);
+    }
+
+    /** 솥 안의 물약(쏟을수록 준다)과 끓는 거품, 앞 테두리. 붓은 솥의 몸 원점(2배, 기운 상태)에 있다. */
+    drawVessel(g, t, E, fill) {
+        g.drawImage(this.vessel.body, -42, -28);
+        this.ellipsePixels(g, E.c3, [0, -17], 28, 4);
+        this.ellipsePixels(g, E.c2, [-2 * (1 - fill), -16], 25 * fill, 3);
+        g.fillStyle = E.c1;
+        for (let i = 0; i < 5; i++) {
+            const x = -19 + i * 8 + Math.sin(i + t / 115) * 2;
+            if (Math.abs(x) < 23 * fill) g.fillRect(Math.round(x), -17 + i % 2, 2 + i % 3, 1);
+        }
+        g.drawImage(this.vessel.rim, -38, -17);
+    }
+
+    /** 줄기: 입에서 넓은 막, 가운데 좁은 목, 바닥에 닿으며 무겁게 넓어진다. */
+    stream(g, p, pot) {
+        if (p.fall <= p.tail) return;
+        const top = Math.round(p.mouthY - p.mouthY * p.tail), bottom = Math.round(p.mouthY - p.mouthY * p.fall), pathHeight = Math.max(1, -p.mouthY), E = pot.E;
+        for (let py = top; py <= bottom; py += 2) {
+            const u = (py - p.mouthY) / pathHeight, wave = Math.sin(u * 14 - p.t / 35);
+            const width = Math.round(23 - 8 * Math.sin(Math.PI * u) + 9 * (u ** 4) + wave * 2);
+            const center = p.mouthX - p.mouthX * u + pot.dir * Math.sin(Math.PI * u) * 7 + wave * 2, x = Math.round(center - width / 2), height = Math.min(2, bottom - py + 1);
+            g.globalAlpha = 0.91;
+            g.fillStyle = INK; g.fillRect(x - 2, py, width + 4, height);
+            g.fillStyle = E.c3; g.fillRect(x, py, width, height);
+            g.fillStyle = E.c2; g.fillRect(x + 3, py, Math.round(width * 0.68), height);
+            g.globalAlpha = 0.69; g.fillStyle = E.c1;
+            g.fillRect(x + 3 + Math.round((wave + 1) * 2), py, 2 + Math.round((1 - u) * 3), height);
+            if (Math.sin(u * 91 - p.t / 24) > 0.38) g.fillRect(x + width - 4, py, 2, height);
         }
     }
 
-    /** 웅덩이: 땅에 닿은 뒤 범위 끝까지 퍼지고 쏟기가 끝나면 0.5초에 증발한다. 지대처럼 안 보이게 옅게. */
-    potPuddle(ctx, t, pot) {
-        const { A, B, E } = pot, grow = this.easeOut(Math.min(1, (t - pot.T0) / 280)), fade = t < pot.T_END ? 1 : Math.max(0, 1 - (t - pot.T_END) / 500);
-        const kA = (0.25 + 0.7 * grow) * (t < pot.T_END ? 1 : 1 - 0.12 * (1 - fade));
-        ctx.globalAlpha = 0.5 * fade; ctx.fillStyle = E.c3; this.shared.ovalFill(ctx, 0, 0, A * kA, B * kA);
-        ctx.globalAlpha = 0.28 * fade; ctx.fillStyle = E.c2; this.shared.ovalFill(ctx, -A * 0.06, -B * 0.08, A * kA * 0.72, B * kA * 0.62);
-        ctx.globalAlpha = 0.85 * fade; this.shared.dotRing(ctx, { a: A * kA, b: B * kA, n: 48, step: 2 });
-        this.potBubbles(ctx, t, pot, kA, fade);
-        this.potRipples(ctx, t, pot);
-    }
-
-    /** 바닥: 가마솥 그림자, 부르는 고리, 웅덩이. */
-    potGround(ctx, t, pot) {
-        const appear = Math.min(1, t / 160), gone = t > pot.T_OUT ? Math.max(0, 1 - (t - pot.T_OUT) / 200) : 1;
-        ctx.globalAlpha = 0.3 * appear * gone; ctx.fillStyle = '#0d0b11'; this.shared.ovalFill(ctx, 0, 0, 26, 8);
-        if (t < pot.T0 + 120) this.potCall(ctx, t, pot);
-        if (t >= pot.T0) this.potPuddle(ctx, t, pot);
-        ctx.globalAlpha = 1;
-    }
-
-    /** 나타날 때와 사라질 때의 연기. */
-    potPuff(ctx, t, t0, a0, pot) {
-        const u = (t - t0) / 360;
-        if (u < 0 || u > 1) return;
-        ctx.fillStyle = '#3a3246'; ctx.globalAlpha = a0 * (1 - u);
-        for (const p of pot.puffs) { const d = p.d * (0.4 + u); ctx.beginPath(); ctx.arc(Math.cos(p.a) * d, pot.cy + Math.sin(p.a) * d * 0.6, p.r * (0.6 + u * 0.8), 0, this.shared.TAU); ctx.fill(); }
-    }
-
-    potStreamRow(ctx, t, y, pot) {
-        const E = pot.E, Mo = pot.mouthTip, k = (y - Mo.y) / Math.max(1, -Mo.y), x = Mo.x - Mo.x * k + Math.sin(y * 0.21 + t * 0.025) * 1.6;
-        const w = Math.round(10 + 10 * k + Math.sin(y * 0.33 + t * 0.04) * 1.5), x0 = Math.round(x - w / 2);
-        ctx.globalAlpha = 0.95; ctx.fillStyle = E.c3; ctx.fillRect(x0 - 1, y, w + 2, 1); ctx.fillStyle = E.c2; ctx.fillRect(x0, y, w, 1);
-        ctx.globalAlpha = 0.8; ctx.fillStyle = E.c1; ctx.fillRect(x0 + 3, y, 2, 1);
-        if ((y + Math.floor(t / 40)) % 9 === 0) { ctx.fillStyle = this.POUR.green; ctx.fillRect(x0 + w - 3, y, 2, 1); }
-    }
-
-    /** 물줄기: 입에서 땅까지(앞이 떨어지는 동안 내려오고, 끝나면 꼬리가 떨어진다). 줄기 둘레의 방울 여섯. */
-    potStream(ctx, t, pot) {
-        const sOn = pot.T_TIP + 60, Mo = pot.mouthTip = this.potMouth(this.POUR.tip, pot);
-        const top = t < pot.T_END ? Mo.y : Mo.y - Mo.y * Math.min(1, (t - pot.T_END) / pot.fall), bot = Mo.y - Mo.y * Math.min(1, (t - sOn) / Math.max(1, pot.T0 - sOn));
-        for (let y = Math.round(top); y <= Math.round(bot); y++) this.potStreamRow(ctx, t, y, pot);
-        ctx.globalAlpha = 0.8;
-        for (let i = 0; i < 6; i++) {
-            const u = ((t / 260) + i / 6) % 1, yy = Mo.y + (bot - Mo.y) * u;
-            if (yy > bot) continue;
-            ctx.fillStyle = i % 2 ? pot.E.c2 : this.POUR.green; ctx.fillRect(Math.round(Mo.x - Mo.x * u + (i % 2 ? 9 : -9) * (0.4 + u)), Math.round(yy), 2, 2);
+    splash(g, p, pot) {
+        for (const drop of pot.droplets) {
+            const u = (p.t - pot.impact - drop.hit * pot.every) / drop.life;
+            if (u < 0 || u >= 1) continue;
+            const drift = 0.16 + 0.84 * easeOut(u), x = Math.round(drop.x * drift), y = Math.round(drop.y * drift - Math.sin(Math.PI * u) * drop.height);
+            g.globalAlpha = 0.85 * (1 - u);
+            g.fillStyle = pot.E.c3; g.fillRect(x - 1, y - 1, drop.width + 2, 4);
+            g.fillStyle = u < 0.38 ? pot.E.c1 : pot.E.c2; g.fillRect(x, y, drop.width, 2);
         }
     }
 
-    /** 첫 닿음 물보라: 방울이 둘레로 튀어 떨어진다. */
-    potDrops(ctx, t, pot) {
-        for (const d of pot.drops) {
-            const u = (t - pot.T0) / d.dur, uu = Math.min(1, u), landed = u >= 1;
-            if (u > 1.6) continue;
-            ctx.globalAlpha = landed ? Math.max(0, 0.9 - (u - 1) * 1.5) : 0.95; ctx.fillStyle = d.c;
-            ctx.fillRect(Math.round(d.x1 * uu), Math.round(d.y1 * uu - Math.sin(uu * Math.PI) * d.h), landed ? 3 : 2, landed ? 1 : 2);
+    /** 위: 솥(2배, 기울기), 줄기, 물방울. 솥은 대상 위 151도트에 뜨고, 화면 위 끝에서 55도트보다 올라가지 않는다. */
+    sky(g, t, pot) {
+        if (pot.top === null) pot.top = Math.max(this.shared.screenTop(g) + 55, -151);
+        const p = this.pose(t, pot);
+        if (p.alpha > 0) {
+            g.save();
+            g.globalAlpha = p.alpha;
+            g.translate(Math.round(p.x), Math.round(p.y)); g.scale(pot.dir * SCALE, SCALE); g.rotate(p.angle);
+            g.imageSmoothingEnabled = false;
+            this.drawVessel(g, t, pot.E, 1 - clamp((t - pot.pour) / (pot.cut - pot.pour)) * 0.76);
+            g.restore();
         }
+        this.stream(g, p, pot);
+        this.splash(g, p, pot);
+        g.globalAlpha = 1;
     }
 
-    /** 웅덩이에서 피어오르는 보라와 초록 김. */
-    potFumes(ctx, t, pot) {
-        for (const fm of pot.fumes) {
-            const u = (t - fm.t0) / 700;
-            if (u < 0 || u > 1) continue;
-            ctx.globalAlpha = 0.28 * (1 - u); ctx.fillStyle = fm.g ? this.POUR.green : pot.E.c2;
-            ctx.beginPath(); ctx.arc(fm.x + Math.sin(u * 5) * 3, fm.y - 8 - u * 34, fm.r * (0.6 + u * 0.7), 0, this.shared.TAU); ctx.fill();
-        }
-    }
-
-    /** 바로 선 동안: 끓는 물약 표면, 거품, 김. */
-    potBrew(ctx, t, pot, gone) {
-        const E = pot.E, G = this.POUR.green;
-        ctx.fillStyle = E.c3; ctx.fillRect(-19, -12, 38, 2); ctx.fillStyle = E.c2; ctx.fillRect(-17, -13, 34, 2); ctx.fillRect(-13, -14, 26, 1);
-        ctx.fillStyle = G; ctx.fillRect(-15, -13, 5, 1); ctx.fillRect(4, -13, 7, 1); ctx.fillStyle = E.c1; ctx.fillRect(-9, -14, 3, 1); ctx.fillRect(6, -14, 2, 1); ctx.fillRect(-2, -13, 2, 1);
-        for (let i = 0; i < 6; i++) {
-            const u = ((t / 300) + i / 6) % 1, bx = -14 + i * 5.6 + Math.sin(i * 7) * 2;
-            ctx.globalAlpha = gone * (1 - u); ctx.fillStyle = i % 2 ? G : E.c1; ctx.fillRect(Math.round(bx), Math.round(-15 - u * 14), 2, 2);
-        }
-        for (let i = 0; i < 3; i++) {
-            const u = ((t / 520) + i / 3) % 1;
-            ctx.globalAlpha = gone * 0.3 * (1 - u); ctx.fillStyle = i % 2 ? G : E.c2;
-            ctx.beginPath(); ctx.arc(-8 + i * 8 + Math.sin(u * 6 + i) * 3, -18 - u * 22, 3 + u * 4, 0, this.shared.TAU); ctx.fill();
-        }
-    }
-
-    /** 가마솥: 나타나며 커지고, 기울어 쏟고, 테두리에 원소색 빛. 쏟는 동안 입에서 물약이 넘친다. */
-    potVessel(ctx, t, pot) {
-        const gone = t > pot.T_OUT ? Math.max(0, 1 - (t - pot.T_OUT) / 200) : 1, show = gone * Math.min(1, t / 90), a = this.potAngle(t, pot);
-        const sc = this.POUR.scale * (0.6 + 0.4 * this.easeOut(Math.min(1, t / 160))), bob = t < pot.T_TIP ? Math.sin(t / 90) * 1.5 : 0, glow = this.cauldronGlow(pot.E.c2);
-        ctx.save();
-        ctx.translate(0, Math.round(pot.cy + bob)); ctx.rotate(a * pot.dir); ctx.scale(sc, sc); ctx.imageSmoothingEnabled = false;
-        ctx.globalAlpha = show * 0.85;
-        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(glow, -26 + ox, -24 + oy);
-        ctx.globalAlpha = show; ctx.drawImage(this.cauldronSprite(), -26, -24);
-        if (a < 0.6) this.potBrew(ctx, t, pot, gone);
-        ctx.restore();
-        if (t < pot.T_END && t > pot.T_TIP) { const Mo = this.potMouth(a, pot); ctx.globalAlpha = 0.9; ctx.fillStyle = pot.E.c2; ctx.fillRect(Math.round(Mo.x) - 4, Math.round(Mo.y) - 1, 8, 2); }
-    }
-
-    /** 위: 연기, 물줄기, 물보라, 김, 가마솥. 가마솥은 대상 위 132도트(화면 위 끝에서 52도트보다 내려오지 않게)에 뜬다. */
-    potSky(ctx, t, pot) {
-        if (pot.cy === null) pot.cy = Math.max(this.shared.screenTop(ctx) + this.POUR.top, -this.POUR.lift);
-        this.potPuff(ctx, t, 0, 0.45, pot); this.potPuff(ctx, t, pot.T_OUT - 60, 0.4, pot);
-        if (t > pot.T_TIP + 60 && t < pot.T_END + pot.fall) this.potStream(ctx, t, pot);
-        if (t > pot.T0 && t < pot.T0 + 700) this.potDrops(ctx, t, pot);
-        this.potFumes(ctx, t, pot);
-        if (t < pot.T_OUT + 200) this.potVessel(ctx, t, pot);
-        ctx.globalAlpha = 1;
-    }
-
-    /** 대상 머리 위의 마녀 가마솥이 기울어 물약을 쏟는다(시뮬레이터 cauldronFx). */
+    /** 대상 위의 큰 고딕 가마솥이 기울어 물약을 쏟는다. */
     cauldron(c) {
         if (!c.first) return true;
+        if (!this.vessel) this.vessel = this.makeVessel();
         const pot = this.potPlan(c.event, this.shared.ink(c.element));
-        this.shared.hangPair(c.event.landingCell, pot.LIFE, (g, t) => this.potGround(g, t, pot), (g, t) => this.potSky(g, t, pot));
+        this.shared.hangPair(c.event.landingCell, pot.LIFE, (g, t) => { g.imageSmoothingEnabled = false; this.ground(g, t, pot); g.globalAlpha = 1; }, (g, t) => this.sky(g, t, pot));
         return true;
     }
 

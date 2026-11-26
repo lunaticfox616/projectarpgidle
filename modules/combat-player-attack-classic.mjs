@@ -102,6 +102,7 @@ const deps = {
     get copyCombatGridCell() { return copyCombatGridCell; },
     get skillGemCasts() { return skillGemCasts; },
     get getCombatTime() { return getCombatTime; },
+    get combatResources() { return window.GameModules.combat.resources; },
     get noteCombatTacticAttack() { return noteCombatTacticAttack; },
     get hasPlayerChannelBreakingAilment() { return hasPlayerChannelBreakingAilment; },
     get rollProjectileExtraShots() { return rollProjectileExtraShots; },
@@ -131,7 +132,9 @@ const deps = {
 const env = {
     get owner() { return game; }, deps, resolver,
     get nativeCasts() { return window.GameModules.state.combat.skillGemCombatRuntime; },
-    set nativeCasts(value) { window.GameModules.state.combat.skillGemCombatRuntime = value; }
+    set nativeCasts(value) { window.GameModules.state.combat.skillGemCombatRuntime = value; },
+    get soulShield() { return window.GameModules.state.combat.soulShield; },
+    set soulShield(value) { window.GameModules.state.combat.soulShield = value; }
 };
 // Presentation is bound only at the application boundary; native combat emits ordered commands.
 // Remove this classic binding with the final application entry, like encounter presentation.

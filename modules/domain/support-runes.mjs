@@ -2,6 +2,7 @@ import { activeSupportTier, getSupportTierMultiplier, getSupportResonanceCostAtT
 import { formatSupportGemEffectValue } from '../common/formatting.mjs';
 import { getGemLevelGrowthSteps } from './gem-growth.mjs';
 import { getRuneLevelNote } from './rune-requirements.mjs';
+import { areaSkillKind } from './skill-effect-expansion.mjs';
 
 // Pure skill-local preparation. Original tags make repeated preparation idempotent.
 const elementTags = { phys: 'physical', fire: 'fire', cold: 'cold', light: 'lightning', chaos: 'chaos' };
@@ -15,13 +16,19 @@ const summonStatMap = Object.freeze({ aspd: 'summonAspd', crit: 'summonCrit', cr
 
 const supportedCommonStats = Object.freeze(['aspd', 'crit', 'critDmg', 'resPen']);
 
+/** A variable area's base size, as skill-effect-expansion.mjs variableAreaGeometry reads it for 발밑의 재앙. */
+const areaBaseSize = skill => skill.supportEffects?.spreadRadius || skill.areaBaseRadius || 0;
+
 const behavior = {
+        additionalTargets: (out, val) => { out.additionalTargets = val; },
+        linkedStrike: (out, val) => { out.linkedStrike = val; },
         repeat: (out, val) => { out.repeat = { count: 1, damagePct: val }; out.speedMultiplier *= 0.9; },
         projectiles: (out, val) => { out.projectiles = { extra: val, damagePct: 80 }; out.damageMultiplier *= 0.8; },
         chain: (out, val) => { out.chain = { count: val, stepDamagePct: -25 }; },
         sweep: (out, val) => { out.sweep = { extra: val, damagePct: 70 }; },
         pierce: (out, val) => { out.pierce = val; out.damageMultiplier *= 0.85; },
-        expansion: (out, val) => { out.expansion = val; out.damageMultiplier *= 0.85; },
+        expansion: (out, val) => { out.expansion = val; },
+        range: (out, val) => { out.range = val; },
         push: (out, val) => { out.push = val; out.damageMultiplier *= 0.9; },
         ignite: (out, val) => { out.ignite = { chancePct: val, durationMs: 1000 }; },
         corpse: (out, val) => { out.corpse = { chancePct: val, lifePct: 10 }; },
@@ -55,7 +62,19 @@ class SupportRunes {
     }
 
     behaviorMatches(def, skill, tags) {
+        if (def.kind === 'linkedStrike') return this.linkedStrikeMatches(skill, tags);
+        if (def.kind === 'expansion' || def.kind === 'additionalTargets') return areaSkillKind(skill) === 'variable';
+        return this.legacyBehaviorMatches(def, skill, tags);
+    }
+
+    linkedStrikeMatches(skill, tags) {
+        return tags.has('single') && !['aoe','projectile','summon','mobility'].some(tag => tags.has(tag))
+            && !skill.supportEffects?.sweep && (skill.supportEffects?.focus || !skill.nativeCastId);
+    }
+
+    legacyBehaviorMatches(def, skill, tags) {
         if (this.conversionBlocked(def, skill)) return false;
+        if (def.requireRange && !skill.rangeAxis) return false;
         if (def.kind === 'reinforcement' && !tags.has('summon_attack')) return false;
         if (def.transform === 'embers' && tags.has('dot') && !tags.has('attack')) return false;
         return true;
@@ -170,9 +189,28 @@ class SupportRunes {
         if (this.overriddenConversion(def, skill)) return { name: entry.name, status: 'off', reason: this.translate('{supportElementOverride} 속성 변환 우선', { supportElementOverride: skill.supportElementOverride }) };
         if (!def || !this.tagMatches(def, skill)) return { name: entry.name, status: 'off', reason: this.translate('요구 태그가 맞지 않음') };
         if (entry.role === 'summon' && this.unavailableForSummon(def, skill)) return { name: entry.name, status: 'na', reason: this.translate('소환수에는 대응 효과 없음') };
+        const idle = this.expansionIdleRow(def, skill, entry, state);
+        if (idle) return idle;
         const on = this.matches(name, skill, entry.role);
         return { name: entry.name, status: on ? 'on' : 'off', reason: on ? '적용 중' : '소환수 전용 효과' };
     }
+
+    /** 넓은 판정 grows the main skill's variable area only when nothing else sets or widens its size (skill-effect-expansion.mjs variableAreaGeometry). */
+    expansionIdleRow(def, skill, entry, state) {
+        if (def?.kind !== 'expansion' || entry.role !== 'main') return null;
+        const reason = this.areaSizeOwner(skill, state);
+        return reason ? { name: entry.name, status: 'off', reason } : null;
+    }
+
+    areaSizeOwner(skill, state) {
+        const passives = new Set(state.passives || []);
+        if (passives.has('n_range_far_horizon')) return this.translate('끝없는 지평이 범위 크기를 정함');
+        if (passives.has('n_range_close_calamity') && areaBaseSize(skill) >= 2) return this.translate('발밑의 재앙이 범위 크기를 정함');
+        if (passives.has('n_range_area_expansion') || this.potionWidened(skill, state)) return this.translate('다른 효과가 이미 범위를 넓힘');
+        return '';
+    }
+
+    potionWidened(skill, state) { return this.keystoneOn('bm1', state) && (skill.tags || []).includes('potion'); }
 
     overriddenConversion(def, skill) { return def?.kind === 'conversion' && skill.supportElementOverride; }
 
@@ -226,10 +264,13 @@ class SupportRunes {
         return { equippedSupports, removed };
     }
     describeBehavior = {
+        additionalTargets: (def, val) => this.translate('가변 범위 스킬이 범위 안의 다른 적을 {val}기 더 맞힙니다.', { val }),
+        linkedStrike: (def, val) => this.translate('투사체를 쓰지 않는 단일 공격이 첫 대상에 인접한 다른 적 1기를 첫 타격 피해의 {val}%로 동시에 맞힙니다.', { val }),
         conversion: (def, val) => this.translate('피해 {val}% {name}', { val, name: def.name }),
         repeat: (def, val) => this.translate('한 번 더 발동, 두 번째 피해 {val}%', { val }),
         projectiles: (def, val) => this.translate('투사체 +{val}발', { val }), chain: (def, val) => this.translate('추가 연쇄 {val}회', { val }),
         sweep: (def, val) => this.translate('주변 {val}기 추가 타격, 추가 피해 70%', { val }),
+        range: (def, val) => this.translate('사거리 +{val}칸', { val }),
         transform: (def, val) => `${def.name} ${val > 0 ? '+' : ''}${val}${def.isPct ? '%' : this.translate('칸')}`
     };
 }

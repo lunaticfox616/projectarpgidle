@@ -56,7 +56,11 @@ function unavailableNodeAction(runtime, options) {
 }
 
 async function confirmAndActivatePath(runtime, targetNode, activationPath, canPathActivate, pointCost) {
-    const targetNodeId = targetNode.id;
+    const conflict = targetNode.choiceGroup ? (0, runtime.deps.getPassiveKeystoneConflict)(activationPath) : '';
+    if (conflict) {
+        (0, runtime.deps.addLog)(conflict, 'attack-monster', { toast: true });
+        return;
+    }
     const attributeNodeCount = activationPath.filter(id => runtime.deps.PASSIVE_TREE.nodes[id] && runtime.deps.PASSIVE_TREE.nodes[id].kind === 'attribute').length;
     if (canPathActivate && !await runtime.deps.passiveSelectionUi.confirmPath(targetNode, activationPath)) return;
     let attributeStat = null;
@@ -64,8 +68,12 @@ async function confirmAndActivatePath(runtime, targetNode, activationPath, canPa
         attributeStat = await (0, runtime.deps.requestGameChoice)(attributeChoices(runtime, attributeNodeCount));
         if (!attributeStat) return;
     }
+    commitPassivePath(runtime, targetNode, { attributeStat, expectedPath: activationPath }, canPathActivate, pointCost);
+}
+
+function commitPassivePath(runtime, targetNode, options, canPathActivate, pointCost) {
     runtime.state.pendingTouchPassiveId = null;
-    let activationResult = (0, runtime.deps.activatePassivePath)(targetNodeId, { forcePulseNodeId: targetNodeId, attributeStat, expectedPath: activationPath });
+    const activationResult = (0, runtime.deps.activatePassivePath)(targetNode.id, { ...options, forcePulseNodeId: targetNode.id });
     if (!activationResult.activated) {
         (0, runtime.deps.calculateReachableNodes)();
         let reason = activationResult.reason === 'points'

@@ -1,7 +1,6 @@
 import { GEM_TYPE_LABELS } from '../data/gem-presentation.mjs';
 import { listenView, releaseViewTarget } from './view-events.mjs';
-import { getSummonSkillCount, getSupportTierResonanceCost, getSupportActiveTier } from './../domain/gem-loadout-state.mjs';
-import { getEffectiveResonanceCap } from './gem-loadout-actions.mjs';
+import { getSummonSkillCount } from './../domain/gem-loadout-state.mjs';
 
 export function getSkillGemArtPath(runtime, name) {
     const paths = runtime.deps.SKILL_GEM_ART_PATHS;
@@ -90,7 +89,7 @@ export function getGemTileSummary(runtime, name, def) {
 /** Tiles open the detail on click / Enter / Space (js/gem-selection-ui.js); a mouse hover shows the short hint. */
 export function getGemTileHandlers(runtime, type, name) {
     let action = `gemSelectionUi.open(this,'${type}','${name}')`;
-    return `role="button" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" onpointerenter="showGemCardHint(event,'${type}','${name}')" onpointerleave="hideInfoTooltip()"`;
+    return `onclick="${action}" onpointerenter="showGemCardHint(event,'${type}','${name}')" onpointerleave="hideInfoTooltip()"`;
 }
 
 export function renderGemTileLevel(runtime, gemInfo) {
@@ -103,54 +102,55 @@ export function renderGemTileCopies(runtime, name) {
     return spares ? `<span class="gem-tile-copies">×${spares + 1}</span>` : '';
 }
 
+const runeWornBadge = (runtime, name, summonEquipped) => {
+    const { deps } = runtime;
+    const count = summonEquipped ? getSummonSkillCount(runtime, name) : 0;
+    const label = count ? deps._t('소환 ×{name}', { name: count }) : deps._t('장착');
+    return `<span class="gem-tile-worn" role="img" aria-label="${deps.escapeHTML(label)}">${count > 1 ? `×${count}` : '✓'}</span>`;
+};
+
+const restrictionLine = (deps, reason) => reason ? `<small class="rune-card-restriction">${deps.escapeHTML(reason)}</small>` : '';
+
+function runeCardFace(runtime, name, highlightedName, art, { kind, reason }) {
+    const { deps } = runtime;
+    const label = deps._t(name);
+    const panel = kind === 'support' ? 'support-board-detail' : 'ui-skill-board';
+    const description = reason ? ` aria-description="${deps.escapeHTML(reason)}"` : '';
+    return `<button type="button" class="rune-card-pick" data-${kind}-rune-pick aria-controls="${panel}" aria-pressed="false" aria-label="${deps.escapeHTML(label)}"${description}>${art}</button>
+        <button type="button" class="gem-tile-name rune-card-detail" data-${kind}-rune-detail aria-label="${deps.escapeHTML(deps._t('룬 상세') + ', ' + label)}">${highlightedName}</button>`;
+}
+
 export function renderAttackGemCard(runtime, name, highlightedName, stats) {
     let def = runtime.deps.SKILL_DB[name] || {};
     let gemInfo = (0, runtime.deps.getUiGemPresentation)(name, false, stats);
     let meta = getGemCardMeta(runtime, def);
-    let { summonEquipped, active, equipmentReady, state } = attackGemCardState(runtime, name, def);
-    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked'].filter(Boolean).join(' ');
-    let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? (0, runtime.deps._t)('소환 ×{name}', { name: getSummonSkillCount(runtime, name) }) : (0, runtime.deps._t)('장착')}</span>` : '';
-    return `<article class="${classes}" data-attack-rune="${(0, runtime.deps.escapeHTML)(name)}" ${getGemTileHandlers(runtime, 'active', name)} aria-label="${(0, runtime.deps.escapeHTML)(name)} Lv.${(0, runtime.deps.formatValue)('', gemInfo.totalLevel)}${active ? (0, runtime.deps._t)(', 장착 중') : ''}${equipmentReady ? '' : ', ' + (0, runtime.deps.escapeHTML)((0, runtime.deps.getSkillRuneWeaponNote)(name))}">
-        ${renderGemTileLevel(runtime, gemInfo)}${worn}${renderGemTileCopies(runtime, name)}${renderSkillGemArt(runtime, name, 'gem-card-sigil gem-card-art gem-tile-art')}
-        <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${(0, runtime.deps.escapeHTML)(state)}</small>
+    let { summonEquipped, active, reason } = attackGemCardState(runtime, name, def);
+    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', reason ? 'equipment-blocked' : ''].filter(Boolean).join(' ');
+    let worn = active ? runeWornBadge(runtime, name, summonEquipped) : '';
+    return `<article class="${classes}" data-attack-rune="${(0, runtime.deps.escapeHTML)(name)}" draggable="${!reason}" data-info-tooltip-anchor="1" ${getGemTileHandlers(runtime, 'active', name)} aria-label="${(0, runtime.deps.escapeHTML)(name)} Lv.${(0, runtime.deps.formatValue)('', gemInfo.totalLevel)}${active ? (0, runtime.deps._t)(', 장착 중') : ''}${reason ? ', ' + runtime.deps.escapeHTML(reason) : ''}">
+        ${renderGemTileLevel(runtime, gemInfo)}${worn}${renderGemTileCopies(runtime, name)}
+        ${runeCardFace(runtime, name, highlightedName, renderSkillGemArt(runtime, name, 'gem-card-sigil gem-card-art gem-tile-art'), { kind: 'attack', reason })}
+        ${restrictionLine(runtime.deps, reason)}
     </article>`;
 }
 
 function attackGemCardState(runtime, name, def) {
     let summonEquipped = (def.tags || []).includes('summon') && (runtime.deps.game.equippedSummonSkills || []).includes(name);
     let active = summonEquipped || [runtime.deps.game.activeSkill, runtime.deps.game.mobilitySkill].includes(name);
-    let equipmentReady = typeof runtime.deps.canUseSkillWithCurrentEquipment !== 'function' || (0, runtime.deps.canUseSkillWithCurrentEquipment)(name);
-    let state = equipmentReady ? getGemTileSummary(runtime, name, def) : (0, runtime.deps.getSkillRuneWeaponNote)(name);
-    return { summonEquipped, active, equipmentReady, state };
+    const note = runtime.deps.getSkillRuneWeaponNote(name);
+    const reason = runtime.deps.game.woodsmanBuildLock ? runtime.deps._t('세팅 변경 잠김') : note && runtime.deps._t(note);
+    return { summonEquipped, active, reason };
 }
 
-/** Why a support gem cannot go on right now ('' when it can, or when it is already worn). */
-export function getSupportEquipFailure(runtime, name, stats) {
-    if ((runtime.deps.game.equippedSupports || []).includes(name)) return '';
-    let equippedSupports = runtime.deps.game.equippedSupports || [];
-    let supportCap = Math.max(0, Math.floor((stats && stats.suppCap) || 0));
-    if (equippedSupports.length >= supportCap) return '';
-    const conflict = runtime.deps.window.GameModules.skills.supports.conflictReason(name, runtime.deps.game);
-    if (conflict) return conflict;
-    if (runtime.deps.gemDropRewards.allowsResonanceOverflow(stats)) return '';
-    let used = equippedSupports.reduce((sum, supportName) => sum + getSupportTierResonanceCost(runtime, supportName), 0);
-    let available = Math.max(0, getEffectiveResonanceCap(runtime, stats) - used);
-    let cost = getSupportTierResonanceCost(runtime, name);
-    return available < cost ? (0, runtime.deps._t)('공명력 {value} 모자람', { value: cost - available }) : '';
-}
-
-export function renderSupportGemCard(runtime, name, highlightedName, stats) {
-    let gemInfo = (0, runtime.deps.getUiGemPresentation)(name, true, stats);
-    let active = (runtime.deps.game.equippedSupports || []).includes(name);
-    let failure = getSupportEquipFailure(runtime, name, stats);
-    let tier = getSupportActiveTier(runtime, name);
-    let state = failure || runtime.deps.gemSelectionUi.application(name, stats);
-    let classes = ['skill-gem', 'support-gem', 'gem-library-card', 'gem-tile', `is-tone-${runtime.deps.supportGemSigil.tone(name)}`, active ? 'active' : '', failure ? 'equipment-blocked' : ''].filter(Boolean).join(' ');
-    return `<article class="${classes}" ${getGemTileHandlers(runtime, 'support', name)} aria-label="${(0, runtime.deps.escapeHTML)(name)}${active ? (0, runtime.deps._t)(', 장착 중') : (failure ? `, ${(0, runtime.deps.escapeHTML)(failure)}` : '')}">
-        ${renderGemTileLevel(runtime, gemInfo)}${active ? (0, runtime.deps._t)('<span class="gem-tile-worn">장착</span>') : ''}${runtime.deps.supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', tier)}
-        <strong class="gem-tile-name">${highlightedName}</strong>${runtime.deps.gemSelectionUi.indicators(name)}<small class="gem-usage-state">${(0, runtime.deps.escapeHTML)(state)}</small>
-        <span class="support-library-effect">${(0, runtime.deps.escapeHTML)(runtime.deps.gemSelectionUi.effectText(name, tier, stats))}</span><small>${(0, runtime.deps._t)('공명 {name}, {value}', { name: getSupportTierResonanceCost(runtime, name), value: active ? (0, runtime.deps._t)('등급과 교체 보기') : (0, runtime.deps._t)('후보 상세 보기') })}</small>
-    </article>`;
+export function renderSupportGemCard(runtime, name, highlightedName, stats, reason = '') {
+    const { deps } = runtime;
+    const worn = deps.game.equippedSupports.includes(name), key = deps.escapeHTML(name), label = deps.escapeHTML(deps._t(name));
+    const info = deps.getUiGemPresentation(name, true, stats);
+    const art = deps.supportGemSigil.html(name, 'gem-tile-art', 0);
+    return `<article class="skill-gem gem-library-card gem-tile${worn ? ' active' : ''}${reason ? ' equipment-blocked' : ''}" data-support-rune="${key}" draggable="${!worn && !reason && !deps.game.woodsmanBuildLock}"${reason ? ` data-rune-restriction="${deps.escapeHTML(reason)}"` : ''}
+        data-info-tooltip-anchor="1" onpointerenter="showGemCardHint(event,'support',this.dataset.supportRune)" onpointerleave="hideInfoTooltip()">
+        ${renderGemTileLevel(runtime, info)}${worn ? runeWornBadge(runtime, name, false) : ''}
+        ${runeCardFace(runtime, name, highlightedName ?? label, art, { kind: 'support', reason })}${restrictionLine(deps, reason)}</article>`;
 }
 
 /** Gem card hover, mouse only (a tap opens the detail instead): the full gem tooltip with its numbers (2026-10-11 사용자: 룬을

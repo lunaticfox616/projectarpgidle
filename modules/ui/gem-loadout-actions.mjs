@@ -1,16 +1,45 @@
 import { prepareSupportTierChange } from '../domain/gem-loadout-state.mjs';
-import { isSummonAttackSkillGem, normalizeEquippedSummonAttackSkills, getSummonSkillCount, getSummonEquipCapFromStats, getOtherWornBlessing, getEquippedSummonCount, getSupportTierResonanceCost } from './../domain/gem-loadout-state.mjs';
+import { activeSupportTier, supportSlotNames, keepSupportSlotAssignments } from '../common/support-gems.mjs';
+import { inspectSupportPlacement, inspectWornSupportMove } from '../domain/rune-support-loadout.mjs';
+import { boardBudget, planFailure } from './support-placement-feedback.mjs';
+import { isSummonAttackSkillGem, normalizeEquippedSummonAttackSkills, getSummonSkillCount, getSummonEquipCapFromStats, getOtherWornBlessing, getEquippedSummonCount } from './../domain/gem-loadout-state.mjs';
 
-export function changeSkill(runtime, name, slotKind) {
+function takesOffMobilityRune(deps, name, slotKind) {
+    return slotKind !== 'active' && deps.game.mobilitySkill === name && deps.mobilitySkill.isMobilityGem(name);
+}
+
+export function changeSkill(runtime, name, slotKind, replacedName) {
     const { deps } = runtime;
     if (!runtime.active || !deps.assertBuildEditable()) return;
-    if (deps.mobilitySkill.isMobilityGem(name) && deps.game.mobilitySkill === name) return wearMobilityGem(runtime, '');
+    if (takesOffMobilityRune(deps, name, slotKind)) return wearMobilityGem(runtime, '');
     if (typeof deps.canUseSkillWithCurrentEquipment === 'function' && !deps.canUseSkillWithCurrentEquipment(name)) {
         return deps.addLog(deps._t('[{name}]{particle} 지금 쓸 수 없습니다: {why}.', { name: deps._t(name), particle: deps.pickParticle(name, '은', '는'), why: deps.getSkillRuneWeaponNote(name) }), 'attack-monster');
     }
+    if (replacedName) return replaceSummonRune(runtime, name, replacedName);
     if (isSummonAttackSkillGem(runtime, name)) return toggleSummonAttackGem(runtime, name);
     if (deps.mobilitySkill.isMobilityGem(name)) return wearMobilityRune(runtime, name, slotKind);
     selectAttackRune(runtime, name);
+}
+
+function replaceSummonRune(runtime, name, replacedName) {
+    const { deps } = runtime, owner = deps.game, worn = owner.equippedSummonSkills;
+    if (!owner.skills.includes(name) || !isSummonAttackSkillGem(runtime, name) || !worn.includes(replacedName) || worn.includes(name)) return false;
+    const count = rune => Math.max(1, Math.floor(Number(owner.summonSkillCounts[rune]) || 1));
+    const blessing = getOtherWornBlessing(runtime, name);
+    const kept = worn.filter(rune => rune !== replacedName && rune !== blessing);
+    const cap = getSummonEquipCapFromStats(runtime, deps.getUiPlayerStats());
+    const available = cap - kept.reduce((sum, rune) => sum + count(rune), 0);
+    if (available < 1) return false;
+    const nextCount = deps.SKILL_DB[name].tags.includes('summon_attack') ? Math.min(available, count(replacedName)) : 1;
+    if (blessing && blessing !== replacedName) takeOffWornBlessing(runtime, blessing, name);
+    owner.equippedSummonSkills = owner.equippedSummonSkills.map(rune => rune === replacedName ? name : rune);
+    delete owner.summonSkillCounts[replacedName];
+    owner.summonSkillCounts[name] = nextCount;
+    owner.summonLoadoutInitialized = true;
+    owner.gemEnhanceTargetSkill = name;
+    deps.playUiFeedbackSound('gemSocket');
+    deps.updateStaticUI();
+    return true;
 }
 
 function selectAttackRune(runtime, name) {
@@ -78,6 +107,10 @@ export function wearMobilityRune(runtime, name, slotKind) {
     }
     runtime.deps.game.activeSkill = name;
     runtime.deps.game.gemEnhanceTargetSkill = name;
+    if (runtime.deps.game.mobilitySkill === name) {
+        runtime.deps.game.mobilitySkill = '';
+        runtime.deps.mobilitySkill.reset();
+    }
     (0, runtime.deps.playUiFeedbackSound)('gemSocket');
     (0, runtime.deps.updateStaticUI)();
 }
@@ -97,54 +130,81 @@ export function getEffectiveResonanceCap(runtime, statsOverride) {
 }
 
 export function setSupportActiveTier(runtime, name, tier) { if (!(0, runtime.deps.assertBuildEditable)()) return;
-    if (!runtime.deps.SUPPORT_GEM_DB[name]) return;
+    if (!runtime.deps.game.supports.includes(name) || !runtime.deps.SUPPORT_GEM_DB[name]) return;
     const { rec, nextTier, prevTier, equipped } = prepareSupportTierChange(runtime, name, tier);
-    if (equipped && nextTier !== prevTier) {
-        let used = (runtime.deps.game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(runtime, n), 0);
-        rec.activeTier = nextTier;
-        runtime.deps.game.supportGemData[name] = rec;
-        let nextUsed = (runtime.deps.game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(runtime, n), 0);
+    if (nextTier !== tier || nextTier === prevTier) return;
+    if (equipped) {
+        const costAt = runtime.deps.getSupportResonanceCostAtTier;
+        const used = runtime.deps.game.equippedSupports.reduce((sum, n) =>
+            sum + costAt(n, activeSupportTier(n, runtime.deps.game, runtime.deps.SUPPORT_GEM_DB)), 0);
+        const nextUsed = used - costAt(name, prevTier) + costAt(name, nextTier);
         const stats = (0, runtime.deps.getUiPlayerStats)();
         let resonancePower = getEffectiveResonanceCap(runtime, stats);
         if (runtime.deps.gemDropRewards.exceedsResonanceBudget(stats, nextUsed, resonancePower)) {
-            rec.activeTier = prevTier;
-            runtime.deps.game.supportGemData[name] = rec;
             let need = Math.max(0, nextUsed - used);
             let remain = Math.max(0, resonancePower - used);
             return (0, runtime.deps.addLog)((0, runtime.deps._t)('공명력 부족 ({remain}/{need})', { remain, need }), 'attack-monster', { toast: true });
         }
-    } else {
-        rec.activeTier = nextTier;
-        runtime.deps.game.supportGemData[name] = rec;
     }
-    (0, runtime.deps.normalizeSupportLoadout)(false);
+    rec.activeTier = nextTier;
+    runtime.deps.game.supportGemData[name] = rec;
     (0, runtime.deps.updateStaticUI)();
+    return true;
 }
 
-export function toggleSupport(runtime, name) { if (!(0, runtime.deps.assertBuildEditable)()) return;
-    if (![runtime.deps.contentProgression.isUnlocked('support'), runtime.deps.game.supports.includes(name), runtime.deps.SUPPORT_GEM_DB[name]].every(Boolean)) return;
-    (0, runtime.deps.normalizeSupportLoadout)(false);
-    runtime.deps.game.equippedSupports = Array.isArray(runtime.deps.game.equippedSupports) ? runtime.deps.game.equippedSupports : [];
-    let idx = runtime.deps.game.equippedSupports.indexOf(name);
-    if (idx > -1) runtime.deps.game.equippedSupports.splice(idx, 1);
-    else {
-        let stats = (0, runtime.deps.getUiPlayerStats)();
-        if (runtime.deps.game.equippedSupports.length >= stats.suppCap) {
-            (0, runtime.deps.addLog)((0, runtime.deps._t)('보조스킬룬 장착 한도 부족 ({length}/{max}), 다른 보조스킬룬을 먼저 해제하세요.', { length: runtime.deps.game.equippedSupports.length, max: Math.max(0, Math.floor(stats.suppCap || 0)) }), 'attack-monster', { toast: true });
-            (0, runtime.deps.updateStaticUI)();
-            return;
-        }
-        const conflict = runtime.deps.window.GameModules.skills.supports.conflictReason(name, runtime.deps.game);
-        if (conflict) return (0, runtime.deps.addLog)(conflict, 'attack-monster', { toast: true });
-        let used = runtime.deps.game.equippedSupports.reduce((sum, n) => sum + getSupportTierResonanceCost(runtime, n), 0);
-        let remain = Math.max(0, getEffectiveResonanceCap(runtime, stats) - used);
-        let cost = getSupportTierResonanceCost(runtime, name);
-        if (remain < cost && !runtime.deps.gemDropRewards.allowsResonanceOverflow(stats)) return (0, runtime.deps.addLog)((0, runtime.deps._t)('공명력 부족 ({remain}/{cost})', { remain, cost }), 'attack-monster', { toast: true });
-        runtime.deps.game.equippedSupports.push(name);
-        (0, runtime.deps.playUiFeedbackSound)('gemSocket');
-    }
-    (0, runtime.deps.updateStaticUI)();
+export function toggleSupport(runtime, name, move = null) {
+    const { deps } = runtime, owner = deps.game;
+    if (!deps.assertBuildEditable() || !deps.contentProgression.isUnlocked('support') || !owner.supports.includes(name) || !deps.SUPPORT_GEM_DB[name]) return false;
+    if (move && Object.hasOwn(move, 'from')) return moveWornSupport(runtime, name, move);
+    return toggleOwnedSupport(runtime, name, move);
 }
+
+function toggleOwnedSupport(runtime, name, move) {
+    const { deps } = runtime, owner = deps.game;
+    if (!move && owner.equippedSupports.includes(name)) {
+        const slots = supportSlotNames(owner, Math.max(0, Math.floor(deps.getUiPlayerStats().suppCap || 0)));
+        owner.equippedSupports = owner.equippedSupports.filter(rune => rune !== name);
+        owner.supportSlotByName = keepSupportSlotAssignments({ ...owner, supportSlotByName: supportAssignments(slots) });
+    } else if (!placeSupport(runtime, name, move)) return false;
+    deps.updateStaticUI();
+    return true;
+}
+
+function moveWornSupport(runtime, name, move) {
+    const { deps } = runtime, owner = deps.game;
+    const capacity = Math.max(0, Math.floor(deps.getUiPlayerStats().suppCap || 0));
+    const slots = inspectWornSupportMove(owner, name, move, capacity);
+    if (!slots) return false;
+    if (move.index === null) owner.equippedSupports = owner.equippedSupports.filter(rune => rune !== name);
+    const hidden = Object.entries(keepSupportSlotAssignments(owner)).filter(([rune, index]) => index >= capacity && !slots.includes(rune));
+    owner.supportSlotByName = { ...Object.fromEntries(hidden), ...supportAssignments(slots) };
+    deps.updateStaticUI();
+    return true;
+}
+
+function placeSupport(runtime, name, move) {
+    const { deps } = runtime, owner = deps.game, stats = deps.getUiPlayerStats();
+    const budget = boardBudget(deps, stats), capacity = budget.capacity;
+    const { index, expected } = move || { index: supportSlotNames(owner, capacity).indexOf(''), expected: '' };
+    const plan = inspectSupportPlacement(owner, { name, index, expected }, budget);
+    if (plan.invalid) {
+        if (index === -1) deps.addLog(deps._t('보조스킬룬 장착 한도 부족 ({length}/{max}), 다른 보조스킬룬을 먼저 해제하세요.',
+            { length: owner.equippedSupports.length, max: capacity }), 'attack-monster', { toast: true });
+        return false;
+    }
+    const note = planFailure(deps, plan);
+    if (note) {
+        deps.addLog(note, 'attack-monster', { toast: true });
+        return false;
+    }
+    const replaced = plan.replaced;
+    owner.equippedSupports = replaced ? owner.equippedSupports.map(rune => rune === replaced ? name : rune) : owner.equippedSupports.concat(name);
+    owner.supportSlotByName = supportAssignments(plan.slots);
+    deps.playUiFeedbackSound('gemSocket');
+    return true;
+}
+
+const supportAssignments = slots => Object.fromEntries(slots.flatMap((name, index) => name ? [[name, index]] : []));
 
 function addSummonSkill(runtime, name, current) {
     let cap = getSummonEquipCapFromStats(runtime, (0, runtime.deps.getUiPlayerStats)(null));

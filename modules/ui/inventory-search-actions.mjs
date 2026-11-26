@@ -9,7 +9,27 @@ export function renderSearchSection(runtime, options) {
     updateSearchSectionActions(runtime, root, key, actionButtonsHtml);
     if (input && input.value !== String(sf[key] || '')) input.value = String(sf[key] || '');
     // Keep the existing input and results while their content is unchanged.
-    let v = rowsHtml || emptyHtml || ''; if (list.__lastHtml !== v) { list.innerHTML = v; list.__lastHtml = v; }
+    updateSearchResults(list, key, rowsHtml || emptyHtml || '');
+}
+
+function updateSearchResults(list, key, html) {
+    if (list.__lastHtml === html) return;
+    if (key === 'skill' || key === 'support') updateRuneSearchResults(list, html);
+    else list.innerHTML = html;
+    list.__lastHtml = html;
+}
+
+// Keep unchanged rune tiles in place while an equip operation changes one or two cards.
+function updateRuneSearchResults(list, html) {
+    const template = list.ownerDocument.createElement('template');
+    template.innerHTML = html;
+    const incoming = Array.from(template.content.children), current = Array.from(list.children);
+    const markup = incoming.map(node => node.outerHTML);
+    if (incoming.length !== current.length || !list.__runeMarkup) list.replaceChildren(...incoming);
+    else incoming.forEach((node, index) => {
+        if (list.__runeMarkup[index] !== markup[index]) current[index].replaceWith(node);
+    });
+    list.__runeMarkup = markup;
 }
 
 function searchSectionShell(runtime, root, { key, placeholder, actionButtonsHtml }, sf) {

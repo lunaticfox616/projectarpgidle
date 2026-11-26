@@ -52,6 +52,8 @@ class StageWarmup {
         if (vfx) this.deps.stageSkillVfx.keepStrips(owner, worn.flatMap(name => this.deps.stageSkillRules.clipsOf(name, this.elementsOf(owner, name))).concat(this.deps.stageBlessing.clipsOf(worn)));
         // 향로 다섯 룬의 고딕 그림(js/canvas-stage-gothic-remakes.js): 끼면 그림을 연다. 열기 전에 쏘면 그 시전은 예전 그림이다.
         if (worn.some(name => this.deps.stageGothicRemakes.GEMS.includes((this.deps.SKILL_DB[name] || {}).nativeCastId))) this.deps.stageGothicRemakes.ready();
+        // 계약의 건틀릿, 영혼 흡수의 위습, 난격의 붕대 주먹(js/canvas-stage-runes-v313-b.js의 V3.25 묶음): 끼면 그림을 연다. 열기 전에 쓴 시전은 그리지 않는다.
+        worn.forEach(name => this.deps.stageRunesV313B.warmV325((this.deps.SKILL_DB[name] || {}).nativeCastId));
         const tree = worn.some(name => this.deps.SKILL_FX_ATLAS[name]), remade = this.deps.fxRemake.isEnabled();
         this.sheetKeys = this.COMMON_SHEETS.concat(tree && !remade ? [this.WORLD_TREE_SHEET] : []);
         this.remakeDue = tree && remade;

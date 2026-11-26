@@ -13,20 +13,17 @@
 .battle-loot-item{position:absolute;width:28px;height:26px;max-width:none;object-fit:contain;left:-14px;top:-14px;filter:drop-shadow(1px 2px 1px #14130f);transform:rotate(var(--rest-angle,-15deg))}
 .battle-loot-glyph{width:12px;height:12px;left:-6px;top:-8px;background:var(--loot-color,#e8c46a);border:2px solid #14130f;transform:rotate(45deg)}
 .battle-loot-item.weapon{width:38px;height:38px;left:-19px;top:-19px;transform:rotate(var(--rest-angle,58deg)) scaleY(.8)}
-.battle-loot-drop::after{content:'';position:absolute;left:-1px;bottom:30px;width:2px;height:var(--label-lift,0px);background:linear-gradient(color-mix(in srgb,var(--loot-color) 85%,transparent),color-mix(in srgb,var(--loot-color) 35%,transparent));box-shadow:0 0 0 1px rgba(0,0,0,.45);opacity:0;transition:opacity 220ms 90ms}
-.battle-loot-drop.landed::after{opacity:.9}
 /* 한 더미의 이름표 묶음(2026-11-26 사용자 "재료 4종으로 묶지 말고 모두 표시"): 아이템마다 이름 하나, 가장 중요한 이름이 그림에
    가장 가깝다. 한 줄기에 넓은 화면 6개, 좁은 화면 4개까지 쌓고 더 많으면 줄기를 옆에 더한다(ground-loot-presentation.mjs labelBlock).
    z-index 14라 모든 더미의 그림(12)과 캐릭터 판(13)보다 위에 그려진다(날아가는 알갱이 층 battle-loot-air 14가 그 위).
    가장자리에서는 묶음을 안쪽으로 밀되 더미 지점은 이름표 아래에 남긴다. */
-.battle-loot-labels{position:absolute;left:0;bottom:calc(30px + var(--label-lift,0px));transform:translateX(calc(-50% + var(--label-shift,0px)));display:flex;align-items:flex-end;gap:4px;z-index:14}
+.battle-loot-labels{position:absolute;left:0;bottom:30px;transform:translateX(calc(-50% + var(--label-shift,0px)));display:flex;align-items:flex-end;gap:4px;z-index:14}
 .battle-loot-column{display:flex;flex-direction:column-reverse;align-items:center;gap:2px}
 /* 위쪽 공간이 부족하면 이름을 그림 아래로 뒤집는다(첫 이름이 여전히 그림에 가장 가깝다). */
-.battle-loot-drop.is-under .battle-loot-labels{bottom:auto;top:calc(24px + var(--label-lift,0px));align-items:flex-start}
+.battle-loot-drop.is-under .battle-loot-labels{bottom:auto;top:24px;align-items:flex-start}
 .battle-loot-drop.is-under .battle-loot-column{flex-direction:column}
-.battle-loot-drop.is-under::after{bottom:auto;top:24px;transform:scaleY(-1)}
 /* 바닥 아이템 이름 보기 끔(settings.showFloorLootNames, 단축키 Z): 이름표와 이름표로 이어지는 줄만 숨기고 더미 그림과 줍기는 그대로다. */
-.battle-loot-layer.hides-names .battle-loot-labels,.battle-loot-layer.hides-names .battle-loot-drop::after{display:none}
+.battle-loot-layer.hides-names .battle-loot-labels{display:none}
 .battle-loot-name{position:relative;white-space:nowrap;max-width:min(220px,calc((var(--loot-width) - 16px) / var(--loot-columns,1) - 4px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--loot-color) 58%,#26231d);background:rgba(6,7,9,.94);box-shadow:0 0 0 1px rgba(0,0,0,.88),0 2px 4px rgba(0,0,0,.55);padding:2px 7px;color:var(--loot-color);font:600 12px/1.4 sans-serif;text-shadow:0 1px 1px #000;opacity:0}
 .battle-loot-drop.landed .battle-loot-name{opacity:1;animation:loot-name-in 120ms cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(var(--row,0) * 20ms)}
 /* 차례로 쌓이는 드랍: 새 이름만 튀어 오르고 이미 떠 있던 이름은 가만히 있다(js/battle-ground-loot-ui.js nameRow). */

@@ -1,6 +1,7 @@
 import { summon, finishLoadout } from './saved-support-runes.mjs';
 import { estimateSummonEquipCapForMergedSave } from './saved-summon-capacity.mjs';
 import { normalizeGemEnhanceTargetSave } from './saved-gems.mjs';
+import { keepSupportSlotAssignments } from '../common/support-gems.mjs';
 
 export function restoreSummonCounts(deps, context) {
     restoreOwnedSummonNames(deps, context);
@@ -15,8 +16,29 @@ export function restoreSummonCapacity(deps, context) {
         finishLoadout(deps, snapshot, estimateSummonEquipCapForMergedSave(deps, { ...context.merged, ...snapshot }), hadCounts, context.supportRuneMigration.locked.equip);
     }
     context.merged.summonLoadoutInitialized = true;
+    migrateWideSupport(deps, context);
     normalizeGemEnhanceTargetSave(deps, context.merged);
     if (typeof context.merged.currentZoneId === 'string' && /^\d+$/.test(context.merged.currentZoneId)) context.merged.currentZoneId = parseInt(context.merged.currentZoneId, 10);
+}
+
+function migrateWideSupport(deps, { save, merged }) {
+    if (save.saveMeta?.wideSupportVersion === 1) return;
+    const live = releaseUnusedWideSupport(deps, merged, merged);
+    const locked = merged.woodsmanBuildSnapshot;
+    const previous = locked && releaseUnusedWideSupport(deps, locked, { ...merged, ...locked });
+    merged.saveMeta.wideSupportVersion = 1;
+    if (live || previous) merged.saveMeta.wideSupportNotice = true;
+}
+
+function releaseUnusedWideSupport(deps, loadout, state) {
+    const name = '넓은 판정';
+    if (!Array.isArray(loadout.equippedSupports) || !loadout.equippedSupports.includes(name)) return false;
+    const { main, mobility, summons } = deps.supportTargets(name, state);
+    if ([main, mobility, ...summons].some(row => row.status === 'on')) return false;
+    loadout.equippedSupports = loadout.equippedSupports.filter(rune => rune !== name);
+    loadout.supports = [...new Set([...(Array.isArray(loadout.supports) ? loadout.supports : []), name])];
+    loadout.supportSlotByName = keepSupportSlotAssignments(loadout);
+    return true;
 }
 
 function restoreOwnedSummonNames(deps, context) {

@@ -1,4 +1,4 @@
-import { gemMs, gemGrow } from './gem-cast-math.mjs';
+import { gemMs, gemGrow, gemReach } from './gem-cast-math.mjs';
 import { gemVisual, gemContact } from './gem-cast-common.mjs';
 import { gemCell, gemSame, gemLanding, gemToward, gemFlickerLanding } from './gem-cast-geometry.mjs';
 import { FLICKER } from './gem-cast-values.mjs';
@@ -26,7 +26,7 @@ export function gemStepAssassin(env, state,c,input) {
 
 export function gemTeleport(env, state,c,input,target) {
     const destination=gemLanding(env, target,input.source,input.enemies.filter(e=>e.hp>0));
-    if(!destination || env.deps.getGridUnitDistance(input.source,target)>4+gemGrow(c.stats)){c.done=true;c.failed=true;return [];}
+    if(!destination || env.deps.getGridUnitDistance(input.source,target)>4+gemGrow(c.stats)+gemReach(c.stats)){c.done=true;c.failed=true;return [];}
     c.destination=destination;c.anchor=gemCell(target);c.direction=gemToward(env, destination,target);
     const lead=c.lead||0;c.index=1;c.nextAt=c.at+lead+240;
     gemVisual(env, state,c,'arrive',c.at+lead+100,180,{blinkCell:gemCell(destination)});
@@ -41,7 +41,7 @@ export function gemLaunchFlicker(state,c) {
 export function gemFlickerOrder(env, c,live,from) {
     if(!c.index) {
         const first=live.find(e=>e.id===c.targetId);
-        return [first,...live.filter(e=>e!==first && env.deps.getGridUnitDistance(from,e)<=FLICKER.first).sort(gemFlickerNear(env, from))].filter(Boolean);
+        return [first,...live.filter(e=>e!==first && env.deps.getGridUnitDistance(from,e)<=FLICKER.first+gemReach(c.stats)).sort(gemFlickerNear(env, from))].filter(Boolean);
     }
     const last=live.find(e=>e.id===c.prev),base=last||from;
     const near=live.filter(e=>e!==last && env.deps.getGridUnitDistance(base,e)<=FLICKER.jump).sort(gemFlickerNear(env, base));

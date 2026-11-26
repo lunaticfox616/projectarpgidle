@@ -1,5 +1,6 @@
 import { cellGridChebyshevDist, cellGridCellKey } from './grid-units.mjs';
 import { tickCopyCombatGridCell } from './skill-delivery-rules.mjs';
+import { effectAreaTargetLimit } from '../domain/skill-effect-expansion.mjs';
 
 export function tickGetPendingSkillCollisionCells(env, row) {
     if (!row || !row.sourceCell || !row.targetCells || row.targetCells.length <= 0) return row && row.targetCells || [];
@@ -58,7 +59,8 @@ export function tickGetPendingSkillImpactTargets(env, row) {
         }).filter(Boolean);
     }
     let used = new Set();
-    let maxTargets = Math.max(1, row.options?.targetLimit || (row.targetEntries || []).length);
+    const skill = row.pStats?.sSkill;
+    const maxTargets = tickGetPendingTargetLimit(row, skill);
     let cells = tickGetPendingSkillCollisionCells(env, row);
     // 단두대처럼 시전 대상에게 예고하는 기술: 아직 판정 칸에 남은 대상을 먼저 치고, 빈자리는 기존 칸 순서로 채운다.
     function keptCastTargets() {
@@ -73,11 +75,36 @@ export function tickGetPendingSkillImpactTargets(env, row) {
         }
         return kept;
     }
-    return keptCastTargets().concat(cells.map(cell => {
+    const kept = keptCastTargets();
+    if (skill?.areaKind) return kept.concat(tickGetAreaCollisionTargets(env, cells, used)).slice(0, maxTargets);
+    return kept.concat(cells.map(cell => {
         let enemy = (env.owner.enemies || []).find(candidate => candidate && candidate.hp > 0
             && env.deps.getGridUnitCells(candidate).some(occupied => occupied.gx === cell.gx && occupied.gy === cell.gy) && !used.has(candidate.id));
         if (!enemy) return null;
         used.add(enemy.id);
         return { enemy, mult: cell.mult };
     }).filter(Boolean)).slice(0, maxTargets);
+}
+
+function tickGetPendingTargetLimit(row, skill) {
+    if (row.options?.targetLimit != null) return row.options.targetLimit;
+    return skill?.areaKind ? effectAreaTargetLimit(skill) : Math.max(1, (row.targetEntries || []).length);
+}
+
+function tickGetAreaCollisionTargets(env, cells, used) {
+    const byCell = new Map();
+    cells.forEach((cell, index) => {
+        const key = cellGridCellKey(cell.gx, cell.gy);
+        if (!byCell.has(key)) byCell.set(key, { index, mult: cell.mult });
+    });
+    const hits = [];
+    for (const enemy of env.owner.enemies || []) {
+        if (!enemy || enemy.hp <= 0 || used.has(enemy.id)) continue;
+        const first = env.deps.getGridUnitCells(enemy).map(cell => byCell.get(cellGridCellKey(cell.gx, cell.gy)))
+            .filter(Boolean).sort((a, b) => a.index - b.index)[0];
+        if (!first) continue;
+        used.add(enemy.id);
+        hits.push({ enemy, mult: first.mult, index: first.index });
+    }
+    return hits.sort((a, b) => a.index - b.index).map(({ enemy, mult }) => ({ enemy, mult }));
 }

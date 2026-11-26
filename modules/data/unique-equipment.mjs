@@ -281,6 +281,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['액막이 향로','ember_censer',29,30,0,30],
     ['군락을 사르는 향','coal_censer',41,45,0,45],
     ['마지막 수호의 향로','steel_censer',49,55,0,55],
+    ['천리안','phase_sentinel_helm',37,0,45,45],
     // 콘텐츠 귀속 고유(2026-10-22)
     ['미궁 수문장의 관','bastion_helm',21,40,0,0],
     ['층계참의 반지','topaz_ring',17,0,0,0],

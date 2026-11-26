@@ -15,7 +15,7 @@ export function runeStepStorm(env, state, c, input) {
     }
     c.done = true;
     env.kit.visual(state, c, 'bolt', c.nextAt, 820, { landingCell: env.kit.cell(c.aim), stormRadius: runeStormRadius(env, c) });
-    return [env.kit.contact(c, env.kit.area(input.enemies, c.aim, 'circle', runeStormRadius(env, c)), c.nextAt, { damagePct: STORM.pct })];
+    return [env.kit.areaContact(c, env.kit.area(input.enemies, c.aim, 'circle', runeStormRadius(env, c)), c.nextAt, { damagePct: STORM.pct })];
 }
 
 export function runeCauldronRadius(env, c) { return CAULDRON.radius + env.kit.grow(c.stats); }

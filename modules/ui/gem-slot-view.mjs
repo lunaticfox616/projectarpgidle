@@ -1,4 +1,6 @@
 import { listenView, releaseViewEvents } from './view-events.mjs';
+import { installSupportBoard, refreshSupportBoard } from './support-board-view.mjs';
+import { installAttackBoard, refreshAttackBoard } from './attack-board-view.mjs';
 import { openSlotDialog, slotGemHint, supportTierLineHtml, onSlotDialogClick, onSlotSearchInput, slotTierButtons, slotCountButtons, slotEnhanceButton, isSupportSlot, chooseSlotGem } from './gem-slot-actions.mjs';
 
 /** Owns this screen's transient state. deps reads the current game after save replacement. */
@@ -8,7 +10,10 @@ export function createGemSlotView(deps) {
     for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(undefined, runtime);
     initialize(runtime);
 
-    runtime.api = Object.freeze({ open: runtime.handlers.openSlotDialog, hint: runtime.handlers.slotGemHint, tierLineHtml: runtime.handlers.supportTierLineHtml , dispose: () => disposeGemSlot(runtime) });
+    runtime.api = Object.freeze({ open: runtime.handlers.openSlotDialog, hint: runtime.handlers.slotGemHint, tierLineHtml: runtime.handlers.supportTierLineHtml,
+        refreshSupport: stats => { refreshSupportBoard(runtime, stats); refreshAttackBoard(runtime); }, dispose: () => disposeGemSlot(runtime) });
+    installSupportBoard(runtime);
+    installAttackBoard(runtime);
     listenView(runtime, runtime.deps.document, 'click', runtime.handlers.onSlotDialogClick);
     listenView(runtime, runtime.deps.document, 'input', runtime.handlers.onSlotSearchInput);
     return runtime.api;
@@ -36,7 +41,7 @@ function initialize(runtime) {
         choose: button => chooseSlotGem(runtime, button.dataset.name),
         preview: button => { runtime.state.slot.preview = button.dataset.name; },
         'candidate-tier': button => { (0, runtime.deps.setSupportActiveTier)(button.dataset.name, Number(button.dataset.tier)); runtime.state.slot.preview = button.dataset.name; },
-        'replace-slot': button => { runtime.state.slot.name = button.dataset.name; runtime.state.slot.preview = runtime.state.slot.pending; runtime.state.slot.pending = ''; },
+        'replace-slot': button => { runtime.state.slot.name = button.dataset.name; runtime.state.slot.index = undefined; runtime.state.slot.preview = runtime.state.slot.pending; runtime.state.slot.pending = ''; },
         'cancel-replace': () => { runtime.state.slot.pending = ''; }
     });
 }
