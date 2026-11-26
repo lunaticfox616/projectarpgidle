@@ -244,7 +244,8 @@ class BossAttacks {
         ctx.globalAlpha = (0.04 + 0.055 * look.share) * look.blink;
         ctx.fillStyle = '#e7a06f';
         ctx.fill();
-        for (const [width, colour, alpha] of [[0.14, '#ff6a40', 0.35], [0.05, '#fff1e2', 0.6 + 0.4 * look.share]]) {
+        // The front stays a thin line: near the hit it lies on the area's edge, which stays quiet (2026-11-26).
+        for (const [width, colour, alpha] of [[0.14, '#ff6a40', 0.3], [0.03, '#fff1e2', 0.4 + 0.3 * look.share]]) {
             ctx.globalAlpha = Math.min(1, alpha) * look.blink;
             ctx.strokeStyle = colour;
             ctx.lineWidth = Math.max(2, unit * width);

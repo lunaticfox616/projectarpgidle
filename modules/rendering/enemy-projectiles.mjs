@@ -5,6 +5,7 @@ import { drawSkillSpriteFrame } from './skill-sprite-geometry.mjs';
 import { realmLiquid, REALM_LIQUID_ASSET, paintRealmFlight, paintRealmContact } from './enemy-realm-liquids.mjs';
 import { paintDangerLife, paintDangerTiles, paintFootGlow, paintTileStrike } from './danger-tiles.mjs';
 import { chorusDot, paintChorusBurst, paintChorusFloor, paintChorusPath } from './chorus-burst.mjs';
+import { paintGlow } from './fx-particles.mjs';
 
 const CHAOS_FALLBACK = { asset: 'skillFxSignatureVoidSlash', color: '#e2a7ff', height: 2.15,
     ground: 0.54, angle: -0.31, frames: [5, 6, 8, 10, 12, 14] };
@@ -259,13 +260,17 @@ class EnemyProjectiles {
         const edge = Math.min(2, width / 8, height / 6), inset = edge;
         const left = x - width / 2 + inset, top = y - height / 2 + inset;
         const right = x + width / 2 - inset, bottom = y + height / 2 - inset;
-        ctx.fillStyle = '#da753e'; ctx.globalAlpha = 0.36 + share * 0.17;
+        ctx.fillStyle = '#da753e'; ctx.globalAlpha = 0.3 + share * 0.17;
         ctx.fillRect(left, top, right - left, bottom - top);
+        paintGlow(ctx, { x, y, rx: width * 0.6, ry: height * 0.64, colour: '#e8884a', alpha: 0.18 + 0.22 * share, mode: 'source-over' });
         drawGroundDangerDye(ctx, footprint, 0.24 + share * 0.18);
-        ctx.globalAlpha = 0.88;
-        ctx.strokeStyle = '#261c29'; ctx.lineWidth = edge + 2;
-        ctx.strokeRect(left, top, right - left, bottom - top);
-        ctx.strokeStyle = '#ffc794'; ctx.lineWidth = edge;
+        // A quiet edge like the boss warnings (js/rendering/skill-footprint.mjs): a soft band inside the cell and one faint line.
+        ctx.strokeStyle = '#ffc794';
+        for (const [band, alpha] of [[height * 0.42, 0.1], [height * 0.18, 0.14]]) {
+            ctx.globalAlpha = alpha; ctx.lineWidth = band;
+            ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+        }
+        ctx.globalAlpha = 0.34; ctx.lineWidth = 1;
         ctx.strokeRect(left, top, right - left, bottom - top);
         drawGroundDangerSign(ctx, footprint, 0.79 + share * 0.21);
         this.warningRune(ctx, fx, { left, right, top, width, height });

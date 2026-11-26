@@ -2,6 +2,7 @@ import { clampNumber } from '../common/numbers.mjs';
 import { combatScreenPoint, radialEffectRadius } from './combat-effect-geometry.mjs';
 import { vfxElement, projectileStyle, combatTravelImage, skillEffectFilter, specializedTravelImage } from './skill-effect-look.mjs';
 import { paintElementProjectile } from './element-projectile.mjs';
+import { isAlwaysHitShot, paintEnemyShot, shotHit } from './enemy-shot.mjs';
 
 function projectileSize(fx, profile) {
     if (profile.projectileAsset) return { width: Number(profile.projectileWidth) || 58, height: Number(profile.projectileHeight) || 26 };
@@ -97,8 +98,24 @@ export class CombatTravelEffect {
         const imageKey = combatTravelImage(fx, this.deps.profile(fx.skillName));
         const element = vfxElement(fx.element, fx.element);
         if (this.deps.signature(ctx, fx, { now, launchAt, arriveAt, source, targets }, projection)) return;
-        if (fx.delivery === 'magicCell') this.cell(ctx, fx, scene, { now, arriveAt, source, targets, imageKey, element });
-        else this.moving(ctx, fx, { now, launchAt, arriveAt, source, targets, imageKey, element });
+        this.deliver(ctx, fx, scene, { now, launchAt, arriveAt, source, targets, imageKey, element });
+    }
+
+    deliver(ctx, fx, scene, flight) {
+        if (isAlwaysHitShot(fx) && flight.targets[0]) this.alwaysHitShot(ctx, fx, { ...flight, target: flight.targets[0] }, scene);
+        else if (fx.delivery === 'magicCell') this.cell(ctx, fx, scene, flight);
+        else this.moving(ctx, fx, flight);
+    }
+
+    /** An enemy shot that always hits (js/rendering/enemy-shot.mjs): from the caster's middle (a boss's head) to the hero's body. The drawn
+     * ends are kept on the effect (screenShot) for the impact the hero's playerHit paints. */
+    alwaysHitShot(ctx, fx, flight, scene) {
+        const { tileW, tileH } = scene.projection, lift = fx.screenShotScale ? 0 : tileH * 0.9;
+        const to = fx.targetType === 'player' && scene.playerPos ? scene.playerPos : flight.target;
+        fx.screenShot = { from: { x: flight.source.x, y: flight.source.y - lift }, to: { x: to.x, y: to.y - tileH * 1.45 } };
+        paintEnemyShot(ctx, fx, { now: flight.now, launchAt: flight.launchAt, arriveAt: flight.arriveAt, ...fx.screenShot,
+            p: Math.max(1, Math.round(tileH / 13)), tileW, reduced: this.deps.tree.feedback.reduced(), scale: fx.screenShotScale ? 1.5 : 1,
+            hit: fx.targetType === 'player' ? shotHit(this.deps.effects(), fx) : null });
     }
 
     cell(ctx, fx, scene, flight) {
