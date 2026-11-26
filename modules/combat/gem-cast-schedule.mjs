@@ -1,5 +1,5 @@
 import { gemTargets } from './gem-cast-targets.mjs';
-import { gemGrow } from './gem-cast-math.mjs';
+import { gemGrow, gemReach } from './gem-cast-math.mjs';
 import { gemCell } from './gem-cast-geometry.mjs';
 import { gemThrowExtraFlasks, gemChainContacts } from './gem-cast-projectile-flow.mjs';
 import { gemUpdateMistTargets } from './gem-cast-prayer.mjs';
@@ -10,7 +10,7 @@ export function gemCreateState() {return {casts:[],events:[],sequence:0,lastSkil
 export function gemStart(env, state,input) {
     const {id,name,stats,source,enemies,now}=input;
     state.visuals=input.visuals;
-    const options=gemTargets(env, id,source,enemies,gemGrow(stats));
+    const options=gemTargets(env, id,source,enemies,{ extra: gemGrow(stats), reach: gemReach(stats) });
     if(!options.length)return false;
     if(env.registry.SINGLE_CAST.has(id) && state.casts.some(c=>c.id===id))return false;
     // 잠근 몬스터(js/act-exploration-state.js lockOn)가 닿으면 그 몬스터를, 아니면 가장 가까운 몬스터를 노린다(다른 룬과 같다).
@@ -42,7 +42,7 @@ export function gemUpdate(env, state,input) {
     return commands;
 }
 
-/** 새 룬의 판정을 더한다(2026-11-08 전달본 V3.13, js/skill-gem-casts-v313.js). def: targets(id, source, live, extra), launch(state, c, enemies),
+/** 새 룬의 판정을 더한다(2026-11-08 전달본 V3.13, js/skill-gem-casts-v313.js). def: targets(id, source, live, extra, reach 사거리 증가), launch(state, c, enemies),
  * step(state, c, input), phase 그 룬의 그림 사건에서 단계 이름이 적힌 칸, area(c) 피해 칸(선택), single 겹쳐 쓰지 않음, thrown 던지는 병(추가 발사가 병을 더 던진다). */
 export function gemDefine(env, id,def) {
     env.registry.TARGETS[id]=def.targets;env.registry.launch[id]=def.launch;env.registry.steps[id]=def.step;env.registry.PHASE_KEYS[id]=def.phase;

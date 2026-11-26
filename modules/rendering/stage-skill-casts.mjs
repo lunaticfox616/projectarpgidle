@@ -2,7 +2,8 @@ import { createStageWispCasts } from './stage-wisp-casts.mjs';
 
 const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
     'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase', 'rockFlaskPhase', 'homingPhase', 'petrifyPhase', 'timeSlashPhase',
-    'frozenOrbPhase', 'orbitPhase', 'singularityPhase', 'issenPhase', 'voidPhase', 'stormFlaskPhase', 'cauldronPhase', 'bellPhase', 'chandelierPhase', 'gavelPhase']);
+    'frozenOrbPhase', 'orbitPhase', 'singularityPhase', 'issenPhase', 'voidPhase', 'stormFlaskPhase', 'cauldronPhase', 'bellPhase', 'chandelierPhase', 'gavelPhase',
+    'pactPhase', 'soulPhase', 'flurryPhase']);
 
 class StageSkillCasts {
     constructor(deps) {
@@ -13,7 +14,7 @@ class StageSkillCasts {
         this.TAU = Math.PI * 2;
         this.seen = new WeakSet();
         this.BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 14: 'arrow', 25: 'arrow',
-            44: 'flask', 47: 'flask', 48: 'flask', 49: 'emptyFlask', 79: 'flask' });
+            44: 'flask', 47: 'flask', 48: 'flask', 49: 'emptyFlask', 79: 'flask', 98: 'ki' });
         this.bodyOf = gem => this.BODIES[gem.id] || gem.meta.body || null;
         this.LOBBED = new Set(['flask', 'emptyFlask']);
         this.PHASE_KEYS = PHASE_KEYS;
@@ -59,7 +60,11 @@ class StageSkillCasts {
             88: { cauldron: this.deps.stageRunesV313B.cauldron, splash: this.deps.stageRunesV313B.cauldronSplash },
             89: { bell: this.deps.stageRunesV313B.bell },
             90: { chandelier: this.deps.stageRunesV313B.chandelier, burn: this.deps.stageRunesV313B.chandelierBurn },
-            91: { gavel: this.deps.stageRunesV313B.gavel, verdict: this.deps.stageRunesV313B.verdict }
+            91: { gavel: this.deps.stageRunesV313B.gavel, verdict: this.deps.stageRunesV313B.verdict },
+            // 2026-11-26 전달본 V3.24 후속, V3.25(modules/rendering/stage-runes-v325.mjs)
+            96: { pact: this.deps.stageRunesV313B.pact },
+            97: { soul: this.deps.stageRunesV313B.soul, shield: this.deps.stageRunesV313B.shield },
+            99: { punch: this.deps.stageRunesV313B.punch }
         });
     }
 
@@ -84,7 +89,7 @@ class StageSkillCasts {
         ctx.beginPath(); ctx.ellipse(Math.round(at.x), Math.round(at.y) + 1, (empty ? 14 : 11) * at.dot, (empty ? 4 : 3) * at.dot, 0, 0, Math.PI * 2); ctx.fill();
         if (empty) this.castGlassTrail(ctx, spot, elapsed);
         ctx.restore();
-        this.deps.stageSkillDraws.body(ctx, look, { x: at.x, y: at.top, dot: at.dot, face: 1, t: elapsed, element: c.element });
+        this.deps.stageSkillDraws.body(ctx, look, { x: at.x, y: at.top, dot: at.dot, face: 1, t: elapsed, element: c.element, gem: c.gem.id, progress: elapsed / Math.max(1, event.duration) });
     }
 
     castGlassTrail(ctx, spot, elapsed) {
@@ -131,10 +136,16 @@ class StageSkillCasts {
     /** 날아가는 사건 하나: 처음 볼 때 발사 섬광(활이면 활의 섬광)을 틀고, 나는 동안 프레임마다 몸을 그린다. */
     castBody(c) {
         const look = this.bodyOf(c.gem), elapsed = c.view.now - c.event.at, bow = this.deps.stageSkillRunes.bow(c.gem);
-        const flash = bow ? this.deps.stageSkillRunes.bowFlash(c.gem, c.element) : c.gem.map.muzzle;
-        if (c.first && flash) this.deps.stageSkillVfx.play(flash, this.K.at(this.K.heroSpot(), c.look.face * (bow ? 30 : 26), bow ? -54 : -52), c.look);
+        if (c.first) this.castMuzzle(c, look, bow);
         if (elapsed >= 0 && elapsed < c.event.duration) this.castDrawBody(c, look, bow ? bow.arrow : c.gem.map.proj);
         return true;
+    }
+
+    /** 발사 섬광(활이면 활의 섬광). 기공파는 손바닥 앞의 충격 고리(나아가는 쪽을 본다). */
+    castMuzzle(c, look, bow) {
+        const flash = bow ? this.deps.stageSkillRunes.bowFlash(c.gem, c.element) : c.gem.map.muzzle;
+        if (flash) this.deps.stageSkillVfx.play(flash, this.K.at(this.K.heroSpot(), c.look.face * (bow ? 30 : 26), bow ? -54 : -52), c.look);
+        if (look === 'ki') this.deps.stageSkillDraws.kiMuzzle(this.K.at(this.K.heroSpot(), c.look.face * 30, -50), c.look.face < 0 ? Math.PI : 0, c.element);
     }
 
     castHop(c) {
@@ -374,7 +385,7 @@ class StageSkillCasts {
         ctx.fillStyle = 'rgba(8,6,12,0.35)';
         ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y) + 1, 11 * dot, 3 * dot, 0, 0, this.TAU); ctx.fill();
         ctx.restore();
-        this.deps.stageSkillDraws.body(ctx, 'rock', { x, y: y - h, dot, face: 1, t: now - move.release });
+        this.deps.stageSkillDraws.body(ctx, 'rock', { x, y: y - h, dot, face: 1, t: now - move.release, progress: k });
         return { x, y: y - h - 8 * dot };
     }
 

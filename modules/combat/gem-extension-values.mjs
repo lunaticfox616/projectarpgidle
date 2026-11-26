@@ -13,3 +13,13 @@ export const BELL = Object.freeze({ range: 6, radius: 3, drop: 220, tolls: Objec
 export const CHANDELIER = Object.freeze({ range: 5, radius: 2, hang: 140, fall: 220, pct: 100, fireLag: 70, contact: 540, frame: 6, mageContact: 630, mageFrame: 7, hold: 140 });
 export const GAVEL = Object.freeze({ near: 0.5, far: 3.5, depth: 1.5, grow: 0.25, length: 2.3, windup: 150, swing: 170, pct: 120, impact: 320, hold: 200,
     verdict: Object.freeze({ delay: 200, gap: 45, pct: 60, lag: 50 }) });
+// 2026-11-26 전달본 V3.24 후속(96 계약)과 V3.25(97 영혼 흡수, 99 야만스러운 난격). release: 시전 동작이 놓이는 때(오브 cast, 맨손 flurry).
+// 계약: 문양(seal) 뒤 주먹이 떨어져(fall) 그 순간 둘레를 친다(전달본: 연출 시작 0.34초에 적중).
+export const PACT = Object.freeze({ range: 6, radius: 3, release: 320, seal: 200, fall: 140, hold: 360, pct: 170, after: 640 });
+// 영혼 흡수: 둘레 reach칸(네모) 안 가까운 적 1명 + levels마다 1명, gap마다 하나씩 뽑는다. 영혼은 pull 동안 뽑혀 나와 fly 동안 시전자에게 난다.
+// 보호막은 준 피해의 shieldPct%, 최대 생명력의 capLifePct%까지, lifeMs 동안(다시 얻으면 새로 찬다).
+export const SOUL = Object.freeze({ reach: 5, release: 320, gap: 70, pull: 140, fly: 420, pct: 130, levels: Object.freeze([5, 10, 15, 20]),
+    shieldPct: 40, capLifePct: 40, lifeMs: 8000, hold: 200 });
+// 야만스러운 난격: 앞 depth칸, 위아래 band줄. 레벨(hits의 열쇠 이상 가운데 가장 높은 것)마다 친 횟수, 간격은 gap과 maxDur / 횟수 가운데 짧은 쪽(least 아래로는 안 줄어든다).
+export const FLURRY = Object.freeze({ depth: 2, band: 1, release: 210, gap: 120, maxDur: 1800, least: 40,
+    hits: Object.freeze([[1, 3], [5, 6], [10, 9], [15, 12], [20, 15], [25, 30]]) });

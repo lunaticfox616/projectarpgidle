@@ -97,6 +97,8 @@ export class DevTestPanel {
         if (!family || this.deps.isSkillRuneUsableWithStance(name, this.deps.getEquippedWeaponStance())) return;
         const own = this.deps.SKILL_RUNE_STANCE_BY_CATEGORY[this.deps.HANA_WEAPON_COMBOS.classWeapons[this.deps.game.selectedClassId]];
         const stance = this.deps.SKILL_RUNE_WEAPONS[family].includes(own) ? own : this.deps.SKILL_RUNE_WEAPONS[family].find(value => value !== 'unarmed');
+        // 맨손 전용(기공파, 야만스러운 난격): 무기를 가방으로 벗는다
+        if (!stance) { if (this.deps.game.equipment['무기']) this.deps.unequipItem('무기'); return; }
         const category = Object.keys(this.deps.SKILL_RUNE_STANCE_BY_CATEGORY).find(id => this.deps.SKILL_RUNE_STANCE_BY_CATEGORY[id] === stance);
         this.wearTestItem(this.deps.WEAPON_CATEGORIES[category].name, base => base.slot === '무기' && this.deps.getWeaponCategoryOfBase(base.id) === category);
     }

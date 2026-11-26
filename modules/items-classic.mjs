@@ -5,6 +5,8 @@ import { consumeDomainCommands } from './common/consume-commands.mjs';
 
 const rules = createItemRules({
     get getWeaponCategoryId() { return getWeaponCategoryId; },
+    get SKILL_RUNE_FAMILY() { return SKILL_RUNE_FAMILY; },
+    get SKILL_RUNE_WEAPONS() { return SKILL_RUNE_WEAPONS; },
     get SLENDER_GREATSWORD_BASES() { return SLENDER_GREATSWORD_BASES; },
     get getWeaponBaseId() { return getWeaponBaseId; },
     get bagItems() { return bagItems; },

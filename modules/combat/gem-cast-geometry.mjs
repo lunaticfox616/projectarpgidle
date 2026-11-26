@@ -125,8 +125,8 @@ export function gemPullLanding(env, source,target,enemies) {
     return before && touches(before) ? before : gemNearestNeighbour(target,source,c=>gemFree(env, c,enemies));
 }
 
-export function gemMoveTargets(env, id,source,live,extra) {
-    const range=gemMoveReach(id,extra);
+/** range: 그 이동 룬이 닿는 칸(gemMoveReach). */
+export function gemMoveTargets(env, id,source,live,range) {
     return live.filter(e=>{
         const aim=env.deps.getClosestGridUnitCell(source,e);
         if(gemReach2(source,aim)>range*range)return false;
@@ -135,7 +135,7 @@ export function gemMoveTargets(env, id,source,live,extra) {
     });
 }
 
-export function gemMoveReach(id, extra) { return MOVES[id].range+(MOVES[id].grows==='range'?extra:0); }
+export function gemMoveReach(id, extra, reach=0) { return MOVES[id].range+(MOVES[id].grows==='range'?extra:0)+reach; }
 
 export function gemMoveRadius(c) { return 1+(MOVES[c.id].grows==='radius'?gemGrow(c.stats):0); }
 

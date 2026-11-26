@@ -1,5 +1,6 @@
 import { windowCancelAnimationFrame, windowClearInterval, windowMatchMedia, windowRequestAnimationFrame, windowSetInterval } from './browser/window-methods.mjs';
 import { createCombatHudView } from './ui/combat-hud-view.mjs';
+import { soulShieldView } from './domain/player-soul-shield.mjs';
 const combatHudView = createCombatHudView({
     get document() { return typeof document === 'undefined' ? undefined : document; },
     get Date() { return Date; },
@@ -15,6 +16,7 @@ const combatHudView = createCombatHudView({
     get openTabPane() { return openTabPane; },
     get hotkeysUi() { return hotkeysUi; },
     get getCombatTime() { return getCombatTime; },
+    soulShieldState: () => soulShieldView(window.GameModules.state.combat?.soulShield, window.GameModules.state.game.playerEnergyShield, getCombatTime()),
     get mobilitySkill() { return mobilitySkill; },
     get SKILL_SIGNATURE_SPRITES() { return SKILL_SIGNATURE_SPRITES; },
     get SKILL_GEM_VFX_PROFILES() { return SKILL_GEM_VFX_PROFILES; },

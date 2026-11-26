@@ -3,6 +3,9 @@ import { effectExpansionExtra } from '../domain/skill-effect-expansion.mjs';
 // 시간 가속·과냉각 혼합물 never do.
 export function gemGrow(stats) { return effectExpansionExtra(stats && stats.sSkill); }
 
+/** 사거리 증가 보조룬(2026-11-26 전달본 V3.24 후속)이 더하는 칸: 대상을 고르는 거리와 곧게 나는 것의 길이. 받는 룬만 값이 있다. */
+export function gemReach(stats) { return Math.max(0, Number(stats?.sSkill?.supportEffects?.range) || 0); }
+
 export function gemMs(c, value) { return Math.round(value/c.speed); }
 
 /** 무대의 주인공이 놓는 순간(js/combat-player-attack.js noteNativeGemSwing): 그 룬의 동작이 이때 타격 장에 온다. */

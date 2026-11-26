@@ -41,6 +41,7 @@ export function buildPlayerUniqueEffectIcons(runtime, pStats, now) {
     let icons = [];
     appendStoneShieldIcon(runtime, now, icons);
     appendUniqueGuardIcon(runtime, pStats, now, icons);
+    appendSoulShieldIcon(runtime, now, icons);
     appendStealthLeechIcons(runtime, pStats, now, icons);
     appendUniqueStackIcons(runtime, pStats, now, icons);
     appendUniqueReadyIcons(runtime, pStats, now, icons);
@@ -105,6 +106,12 @@ function appendUniqueGuardIcon(runtime, pStats, now, icons) {
         let maximum = Math.max(Number(guard.amount) || 0, Math.floor(Number(pStats.maxHp || 0) * hpPct / 100));
         icons.push(renderUiRuntimeEffectIcon(runtime, { key: 'playerUniqueGuard', value: guard.amount, maxValue: maximum, expiresAt: guard.expiresAt }, now));
     }
+}
+
+/** 영혼 흡수(97)의 보호막 층: 남은 양과 최대치, 끝나는 때(modules/domain/player-soul-shield.mjs). */
+function appendSoulShieldIcon(runtime, now, icons) {
+    const view = runtime.deps.soulShieldState();
+    if (view) icons.push(renderUiRuntimeEffectIcon(runtime, { key: 'soulShield', value: view.remaining, maxValue: view.cap, expiresAt: view.until }, now));
 }
 
 function appendStoneShieldIcon(runtime, now, icons) {

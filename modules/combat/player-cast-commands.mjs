@@ -1,6 +1,7 @@
 import { castNoteNativeGemArrivalSwing } from './player-cast-effects.mjs';
 import { CAST_MARKS } from './player-cast-controls.mjs';
 import { castPerformPlayerAttack } from './player-attack-execution.mjs';
+import { gainSoulShield } from '../domain/player-soul-shield.mjs';
 
 export function* castApplySkillGemCommand(env, command,stats) {
     if (command.type==='pose') return yield* castNoteNativeGemArrivalSwing(env, command);
@@ -36,6 +37,17 @@ export function* castApplySkillGemDot(env, command,targets) {
     }
 }
 
+/** 영혼 흡수(97): 이번 타격으로 깎은 생명력과 보호막의 shieldPct%를 에너지 보호막으로(최대 생명력의 capLifePct%까지, lifeMs 동안). */
+export function castGainSoulShield(env, command, targets, before) {
+    const dealt = targets.reduce((sum, enemy, i) => sum + Math.max(0, before[i] - Math.max(0, enemy.hp) - (enemy.energyShield || 0)), 0);
+    if (!(dealt > 0)) return;
+    const stats = command.stats, rule = command.soul, baseCap = env.deps.combatResources.caps.shield(stats);
+    const next = gainSoulShield({ gain: dealt * rule.shieldPct / 100, cap: Math.floor((stats.maxHp || 0) * rule.capLifePct / 100), lifeMs: rule.lifeMs,
+        now: env.deps.getCombatTime(), baseCap, energyShield: env.owner.playerEnergyShield });
+    env.soulShield = next.shield;
+    env.owner.playerEnergyShield = Math.floor(next.energyShield);
+}
+
 export function* castApplySkillGemContact(env, command,targets) {
     const stats=command.stats;
     const before=targets.map(e=>e.hp+(e.energyShield||0));
@@ -45,6 +57,7 @@ export function* castApplySkillGemContact(env, command,targets) {
         hitDamageMultiplier:(command.bonus?env.deps.PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1)*(command.damagePct??100)/100,damageTextGroupId:command.key});
     env.deps.supports.repeatNative(command, targets);
     env.deps.supports.augmentNative(command, targets);
+    if (command.soul) castGainSoulShield(env, command, targets, before);
     if (!command.ailment) return;
     targets.forEach((enemy,i)=>{
         if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;

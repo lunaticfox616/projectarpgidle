@@ -1,4 +1,4 @@
-import { gemMs, gemLetGo, gemGrow, gemChainsOf, gemSupportShots } from './gem-cast-math.mjs';
+import { gemMs, gemLetGo, gemGrow, gemReach, gemChainsOf, gemSupportShots } from './gem-cast-math.mjs';
 import { FLASK_RELEASE, BOUNCE_REACH, BOUNCE_POP_PCT, PETRIFY, STAB } from './gem-cast-values.mjs';
 import { gemFlight, gemVisual, gemContact } from './gem-cast-common.mjs';
 import { gemTargets } from './gem-cast-targets.mjs';
@@ -13,7 +13,7 @@ export function gemLaunchFlask(env, state,c) {
 
 export function gemBounceTarget(env, c,enemies) {
     const live=enemies.filter(e=>e.hp>0);
-    if(c.targetId===null)return c.firstFoe || env.deps.findNearestGridEnemy(c.source,gemTargets(env, 44,c.source,live,gemGrow(c.stats)));
+    if(c.targetId===null)return c.firstFoe || env.deps.findNearestGridEnemy(c.source,gemTargets(env, 44,c.source,live,{ extra: gemGrow(c.stats), reach: gemReach(c.stats) }));
     const near=live.filter(e=>e.id!==c.targetId && gemDistance(c.aim,env.deps.getGridUnitCenter(e))<=BOUNCE_REACH);
     const fresh=near.filter(e=>!c.struck.has(e.id));
     if(fresh.length || near.length)return env.deps.findNearestGridEnemy(c.aim,fresh.length?fresh:near);

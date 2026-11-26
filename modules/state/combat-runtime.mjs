@@ -11,7 +11,9 @@ export function createCombatRuntime(tactics) {
         nextCombatChannelId: 1,
         nextPlayerDamageTextGroupId: 1,
         trialHazardRuntime: { nextAt: 0, active: null },
-        skillGemCombatRuntime: null
+        skillGemCombatRuntime: null,
+        /** 영혼 흡수(97)의 보호막 층(modules/domain/player-soul-shield.mjs): { amount, cap, until, flashAt } | null. */
+        soulShield: null
     };
 }
 
@@ -19,11 +21,11 @@ export function captureCombatSnapshot(runtime, clock, participants) {
     const { pTimer, progressStallTicks, itemIdCounter, lastTime } = clock;
     const { pendingSkillStageHits, pendingEnemyCombatAttacks, combatTacticsRuntime,
         combatChannelRuntime, combatChannelResumeSkillName, nextCombatChannelId,
-        nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime } = runtime;
+        nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime, soulShield } = runtime;
     return { pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId,
-        trialHazardRuntime, skillGemCombatRuntime,
+        trialHazardRuntime, skillGemCombatRuntime, soulShield,
         mobilitySkill: participants.mobilitySkill.capture(),
         wispSummons: participants.wispSummons.capture(),
         ascendancyNodeRules: participants.ascendancyNodeRules.capture() };
@@ -35,11 +37,11 @@ export function restoreCombatSnapshot(runtime, clock, participants, snapshot) {
     const { pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId,
-        trialHazardRuntime, skillGemCombatRuntime } = snapshot;
+        trialHazardRuntime, skillGemCombatRuntime, soulShield = null } = snapshot;
     Object.assign(clock, { pTimer, progressStallTicks, itemIdCounter, lastTime });
     Object.assign(runtime, { pendingSkillStageHits, pendingEnemyCombatAttacks, combatTacticsRuntime,
         combatChannelRuntime, combatChannelResumeSkillName, nextCombatChannelId,
-        nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime });
+        nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime, soulShield });
     participants.mobilitySkill.restore(snapshot.mobilitySkill);
     participants.wispSummons.restore(snapshot.wispSummons);
     participants.ascendancyNodeRules.restore(snapshot.ascendancyNodeRules);

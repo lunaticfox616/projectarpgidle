@@ -6,6 +6,15 @@
   바닥에서는 체이싱 티어 빛기둥, 주우면 체이싱 알림이 뜬다.
   하켄의 무작위 및 상시 진열, 암거래상, 전직 시련의 확정 지급에서 제외한다. 이전 저장의 상점 재고만 정리하고 보유 룬과 바닥 전리품은 유지한다.
 
+## 전달본 V3.24 후속과 V3.25의 룬 (2026-11-26)
+
+- 새 공격 룬 96 계약, 97 영혼 흡수(오브), 98 기공파, 99 야만스러운 난격(맨손 전용 계열 unarmed: 무기를 벗어야 쓴다). 다른 공격 룬처럼 드랍, 진열대, 룬 상점에 나오고
+  요구 레벨은 계약과 난격 37, 영혼 흡수 17, 기공파 없음이다(data/skills.js SKILL_RUNE_LEVEL_REQ). 판정은 modules/combat/gem-extension-v325.mjs, 기공파는 곧은 투사체다.
+- 영혼 흡수의 보호막은 따로 막는 칸 없이 에너지 보호막 위에 얹는 층이다(modules/domain/player-soul-shield.mjs): 회복 한도가 남은 층만큼 위로 올라가고, 맞으면 층부터 깎이며
+  저절로 다시 차지 않고 8초 뒤 사라진다. 층은 전투 런타임(modules/state/combat-runtime.mjs soulShield)에만 있고 저장하지 않는다. 최대치는 최대 생명력의 40%다.
+- 보조룬 사거리 증가(하급 +1, 중급 +2, 상급 +3칸, 공명 6, 12, 21): 태그가 아니라 룬의 rangeAxis(data/skills.js SKILL_RANGE_AXES)가 있는 스킬만 받는다.
+  격자 범위는 modules/domain/support-attack.mjs grid가, 따로 시전하는 룬은 그 판정의 reach(modules/combat/gem-cast-math.mjs gemReach)가 칸을 더한다.
+
 ## 룬 봉인과 복원 (2026-10-26)
 
 - 2026-11-09 바뀐 규칙(사용자): 봉인한 룬 2개마다 공명력 +1이다. `game.resonancePower`는 봉인 몫을 뺀 기본값만 저장하고(saveVersion 21,

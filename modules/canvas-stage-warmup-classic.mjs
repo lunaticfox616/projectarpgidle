@@ -7,6 +7,7 @@ const native = createStageWarmup({
     get stageSkillRules() { return stageSkillRules; },
     get stageBlessing() { return stageBlessing; },
     get stageGothicRemakes() { return stageGothicRemakes; },
+    get stageRunesV313B() { return stageRunesV313B; },
     get SKILL_FX_ATLAS() { return SKILL_FX_ATLAS; },
     get fxRemake() { return fxRemake; },
     get actExplorationState() { return actExplorationState; },
