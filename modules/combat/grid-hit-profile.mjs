@@ -2,8 +2,8 @@ import { SKILL_HIT_SEQUENCE_CONFIG } from './grid-hit-values.mjs';
 import { skillGetSkillGridProfile } from './grid-skill-profile.mjs';
 import { cellGetGridUnitDistance } from './grid-units.mjs';
 
-/** 강타 룬 가운데 여진 수치(aftershockDamagePct)를 가진 것(강타)만 본 타격 뒤 여진으로 나눠 친다. 강타 태그만 있는 룬(불사르기, 혹한의 지진,
- * 도약 강타: 2026-10-17 강타 피해와 여진이 닿도록 붙인 태그)은 제 판정 그대로 한 번에 친다. */
+/** 강타 룬 가운데 여진 수치(aftershockDamagePct)를 가진 것(강타)만 본 타격 뒤 여진으로 나눠 친다. 강타 태그만 있는 룬(불사르기, 혹한의 지진:
+ * 2026-10-17 강타 피해와 여진이 닿도록 붙인 태그)은 제 판정 그대로 한 번에 친다. */
 export function skillGetSlamAftershockProfile(skill) {
     if (!(Number(skill.aftershockDamagePct) > 0)) return null;
     return {

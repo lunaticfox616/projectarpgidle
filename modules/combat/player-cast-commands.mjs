@@ -9,14 +9,7 @@ export function* castApplySkillGemCommand(env, command,stats) {
         if (!env.owner.isBackgroundCalculation) yield { kind: 'addBattleFx', args: ['bellToll', { duration: 180 }] };
         return;
     }
-    if (command.type==='teleport') {
-        if (!env.deps.skillGemCasts.free(command.to,env.owner.enemies.filter(e=>e.hp>0))) return;
-        env.deps.actExplorationMotion.cancel(env.owner.actExploration);
-        Object.assign(env.owner.gridPlayer,command.to);
-        yield { kind: 'addBattleFx', args: ['playerMobility',{skillName:command.name,fromCell:command.from,toCell:command.to,instant:true,duration:180}] };
-        if (command.swing) yield* castNoteNativeGemArrivalSwing(env, command);
-        return;
-    }
+    if (command.type==='teleport') return yield* castTeleport(env, command);
     env.deps.actExplorationProgress.objects.area(command.splashCells);
     env.deps.actExplorationState.wake(env.owner,env.deps.getSplashDormantEnemies().filter(e=>command.targets.includes(e.id)));
     const targets=env.owner.enemies.filter(e=>e.hp>0 && command.targets.includes(e.id));
@@ -24,6 +17,18 @@ export function* castApplySkillGemCommand(env, command,stats) {
     if (command.type==='dot') return yield* castApplySkillGemDot(env, command,targets);
     if (!targets.length) return;
     yield* castApplySkillGemContact(env, command,targets,stats);
+}
+
+/** 순간이동하는 룬(차원찢기, 향로구름, 강림)의 칸 옮기기. 닿는 칸이 막혔으면 옮기지 않는다. descend(강림): 무대의 주인공이 떠난 칸에서 화면 밖으로
+ * 솟구쳤다가 닿는 칸으로 내리꽂힌다(modules/rendering/stage-rune-air.mjs). */
+export function* castTeleport(env, command) {
+    if (!env.deps.skillGemCasts.free(command.to,env.owner.enemies.filter(e=>e.hp>0))) return;
+    env.deps.actExplorationMotion.cancel(env.owner.actExploration);
+    Object.assign(env.owner.gridPlayer,command.to);
+    const move={skillName:command.name,fromCell:command.from,toCell:command.to,instant:true,duration:180};
+    if (command.descend) move.descend=command.descend;
+    yield { kind: 'addBattleFx', args: ['playerMobility',move] };
+    if (command.swing) yield* castNoteNativeGemArrivalSwing(env, command);
 }
 
 export function* castApplySkillGemDot(env, command,targets) {
@@ -48,6 +53,18 @@ export function castGainSoulShield(env, command, targets, before) {
     env.owner.playerEnergyShield = Math.floor(next.energyShield);
 }
 
+/** 독사의 춤(94): 깎인 적에게 게임의 피해 상태이상을 반드시 건다. dots: [{ element 그 속성의 상태이상(물리 출혈, 카오스 중독), sourcePct 원천 피해(타격 기본 피해의 %),
+ * seconds 길이(초) }]. 다시 맞으면 게임의 규칙대로 시간을 새로 채우고 센 쪽을 남긴다. */
+export function castApplyContactDots(env, command, targets, before) {
+    const stats = command.stats;
+    targets.forEach((enemy, i) => {
+        if (enemy.hp <= 0 || enemy.hp + (enemy.energyShield || 0) >= before[i]) return;
+        for (const dot of command.dots) env.deps.applyEnemyAilmentFromHit(enemy, { ...stats, sSkill: { ...stats.sSkill, ele: dot.element } }, stats.baseDmg * dot.sourcePct / 100, false,
+            { primaryAilmentChance: 1, damageAilmentSeconds: { [dot.type]: dot.seconds } });
+        if (enemy.hp <= 0) env.deps.handleEnemyDeath(enemy, stats);
+    });
+}
+
 export function* castApplySkillGemContact(env, command,targets) {
     const stats=command.stats;
     const before=targets.map(e=>e.hp+(e.energyShield||0));
@@ -58,6 +75,7 @@ export function* castApplySkillGemContact(env, command,targets) {
     env.deps.supports.repeatNative(command, targets);
     env.deps.supports.augmentNative(command, targets);
     if (command.soul) castGainSoulShield(env, command, targets, before);
+    if (command.dots) castApplyContactDots(env, command, targets, before);
     if (!command.ailment) return;
     targets.forEach((enemy,i)=>{
         if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;

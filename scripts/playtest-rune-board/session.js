@@ -1,6 +1,12 @@
 (() => {
     const query = new URLSearchParams(location.search);
-    const presets = { area:'대지의 함성', aim:'과냉각 혼합물', link:'암흑 파열', runes:'대지의 함성', balance:'화염 참격', slots:'대지의 함성' };
+    const previews = {
+        baptism: { name:'불의 세례', base:'tin_censer' },
+        viper: { name:'독사의 춤', base:'rusted_blade' },
+        descent: { name:'강림', base:'dull_greatsword' }
+    };
+    const presets = { area:'대지의 함성', aim:'과냉각 혼합물', link:'암흑 파열', runes:'대지의 함성', balance:'화염 참격', slots:'대지의 함성',
+        ...Object.fromEntries(Object.entries(previews).map(([key, rune]) => [key, rune.name])) };
     const mode = Object.hasOwn(presets,query.get('try')) ? query.get('try') : 'area';
     const name = presets[mode];
     const testLimits = mode === 'slots' && query.get('limits') === '1';
@@ -16,6 +22,16 @@
     document.head.append(style);
     document.querySelector('#tab-skills').prepend(panel);
     const output = panel.querySelector('output');
+    if (previews[mode]) {
+        const nav = panel.querySelector('nav');
+        for (const item of [...nav.children]) if (!item.hasAttribute('data-test-battle')) item.hidden = true;
+        for (const [key, rune] of Object.entries(previews)) {
+            const link = document.createElement('a');
+            link.href = '/?try=' + key;
+            link.textContent = rune.name;
+            nav.insertBefore(link, nav.querySelector('[data-test-battle]'));
+        }
+    }
     const nodes = {n_range_area_expansion:'넓게 퍼지는 힘', n_range_additional_targets:'다음 표적',
         n_range_far_horizon:'끝없는 지평', n_range_close_calamity:'발밑의 재앙'};
     if (mode === 'area') {
@@ -35,11 +51,12 @@
         const equippedSupports = mode === 'slots' ? ['가속'] : [];
         if (mode === 'slots' && !testLimits) equippedSupports.push('추가 표적');
         if (mode === 'slots') support.push('날카로움','범위 피해','무자비','생명력 흡수','연속타격','갑주 파쇄','저항 침식','재생 억제','과충전 상한','밀어내기','휩쓸기','처형','터지는 시체');
-        const skills = [...new Set([...Object.values(presets),'강타','돌진','도약 강타','서리베기','번개 타격','화염 위습 소환','냉기 위습 소환','수액 골렘 소환','장군의 가호'])];
+        const skills = [...new Set([...Object.values(presets),'강타','돌진','강림','서리베기','번개 타격','화염 위습 소환','냉기 위습 소환','수액 골렘 소환','장군의 가호'])];
         const owner = mergeDefaults({heroSelectionInitialized:true,selectedClassId:'warrior',selectedHeroId:'hero1',
             seenTutorials:guides, season:6, level:101, talentSelectionInitialized:true, passivePoints:200, resonancePower:testLimits ? 8 : 100, skills, supports:support,
             equippedSupports, supportSlotByName:Object.fromEntries(equippedSupports.map((rune,index)=>[rune,index])),
-            summonLoadoutInitialized:true, equippedSummonSkills:[], activeSkill:name,
+            summonLoadoutInitialized:true, equippedSummonSkills:[], activeSkill:mode === 'descent' ? '강타' : name,
+            mobilitySkill:mode === 'descent' ? name : '',
             settings:{autoMove:false,pauseGameOnOverlay:false,mapCompleteAction:'stop'}});
         owner.contentProgression.inherited = ['support','passiveTree'];
         owner.actRewardBonuses = ['strength','dexterity','intelligence','suppCap'].map(stat=>({actId:1,stat,value:stat==='suppCap'?3:100}));
@@ -49,7 +66,8 @@
             }
         }
         for (const rune of support) owner.supportGemData[rune] = {level:1,exp:0,unlockedTier:SUPPORT_GEM_DB[rune].noTiers?1:3,activeTier:1};
-        const base = BASE_ITEM_DB.find(row=>row.id===(mode==='aim'?'cracked_flask':'dull_greatsword'));
+        const baseId = previews[mode]?.base || (mode === 'aim' ? 'cracked_flask' : 'dull_greatsword');
+        const base = BASE_ITEM_DB.find(row => row.id === baseId);
         owner.equipment['무기']=createItemFromBase(base,'normal',1);
         return owner;
     }
@@ -57,7 +75,7 @@
         openTabPane('tab-skills');
         switchSkillSubtab('skill-tab-equip','library');
         updateStaticUI();
-        skillGemBoardUi.pick(['runes','balance'].includes(mode) ? 'active' : 'support');
+        skillGemBoardUi.pick(mode === 'descent' ? 'mobility' : previews[mode] || ['runes','balance'].includes(mode) ? 'active' : 'support');
     }
     function showScales() {
         openTabPane('tab-char');
@@ -73,6 +91,11 @@
         }));
     }
     function refresh() {
+        if (previews[mode]) {
+            output.textContent = name + ' / ' + game.equipment['무기'].name + ' 장착. ' +
+                (mode === 'descent' ? '전투에서 이동 룬을 누르면 적 곁으로 도약합니다.' : '전투에서 사용을 누르면 이 룬으로 공격합니다.');
+            return;
+        }
         panel.querySelector('[data-test-helm]').textContent = game.equipment['투구']?.uniqueEffectKey === 'rangeFirstAim'?'천리안 해제':'천리안 장착';
         if (mode === 'slots') {
             if (testLimits) {

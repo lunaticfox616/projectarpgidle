@@ -4,7 +4,7 @@ const SKILL_EFFECT_EXPANSION = Object.freeze({
     penaltyFrom: 2,
     damagePenaltyPct: 30,
     kinds: Object.freeze({
-        '회오리': 'radius', '대지의 함성': 'radius', '도약 강타': 'radius', '폭발성 타격': 'radius', '피뢰침': 'radius',
+        '회오리': 'radius', '대지의 함성': 'radius', '폭발성 타격': 'radius', '피뢰침': 'radius',
         '신성한 단두대': 'radius', '얼어붙은 고리': 'radius', '불씨의 함성': 'radius', '화살비': 'radius',
         '중력 붕괴': 'radius', '화염 폭풍핵': 'radius', '유성 낙화': 'radius', '난타 눈보라': 'radius', '번개 각인': 'radius',
         '폭발 혼합물': 'radius', '바위 플라스크': 'radius', '병에 담긴 번개': 'radius',

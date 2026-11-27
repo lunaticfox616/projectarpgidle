@@ -70,7 +70,6 @@ const SKILL_DB = {
     '참격파': { isGem: true, baseDmg: 1.4, baseSpd: 0.85, leech: 0, crit: 5, dmgScale: 0.07, spdScale: 0.015, ele: 'phys', targetMode: 'cleave', targets: 3, combatPattern: { kind: 'moving', intervalMs: 80 }, desc: '크게 베어 바닥을 긁으며 나아가는 칼바람을 3칸 보냅니다.', tags: ['attack', 'melee', 'physical', 'aoe', 'strength'] },
     '올려 베기': { isGem: true, baseDmg: 1.2, baseSpd: 0.95, leech: 0, crit: 5, dmgScale: 0.06, spdScale: 0.015, ele: 'phys', targetMode: 'cleave', targets: 2, launchMs: 420, desc: '아래에서 위로 베어 올려 맞은 적을 0.42초 띄웁니다. 떠 있는 동안 적은 움직이지도 공격하지도 못합니다.', tags: ['attack', 'melee', 'physical', 'strength'] },
     '돌진': { isGem: true, baseDmg: 1.1, baseSpd: 0.8, leech: 0, crit: 4, dmgScale: 0.055, spdScale: 0.012, ele: 'phys', targetMode: 'cleave', targets: 3, mobilityPattern: { kind: 'charge', maxCells: 3 }, pushAwayCells: 1, mobilityCooldownMs: 3000, desc: '앞으로 3칸 돌진하며 부딪친 적 셋을 밀어냅니다.', tags: ['attack', 'melee', 'physical', 'mobility', 'strength'] },
-    '도약 강타': { isGem: true, baseDmg: 1.6, baseSpd: 0.7, leech: 0, crit: 6, dmgScale: 0.08, spdScale: 0.01, ele: 'phys', targetMode: 'cleave', targets: 4, mobilityPattern: { kind: 'blink', maxCells: 4, airMs: 300 }, mobilityCooldownMs: 4000, desc: '4칸 안 적 앞으로 뛰어올라 내려찍어, 착지 둘레의 적 넷을 칩니다.', tags: ['attack', 'melee', 'physical', 'aoe', 'mobility', 'slam', 'strength'] },
     '섬머솔트 슬래시': { isGem: true, baseDmg: 2.2, baseSpd: 0.55, leech: 0, crit: 8, dmgScale: 0.11, spdScale: 0.008, ele: 'phys', targetMode: 'cleave', targets: 3, mobilityPattern: { kind: 'charge', maxCells: 2, airMs: 360 }, mobilityCooldownMs: 4000, desc: '앞으로 공중제비를 돌며 2칸 나아가, 착지와 함께 앞을 크게 내려벱니다.', tags: ['attack', 'melee', 'physical', 'aoe', 'mobility', 'strength'] },
     '불사르기': { isGem: true, baseDmg: 1.7, baseSpd: 0.7, leech: 0, crit: 5, dmgScale: 0.085, spdScale: 0.012, ele: 'fire', targetMode: 'cleave', targets: 5, pushAwayCells: 1, ailmentChanceBonus: { ignite: 25 }, desc: '무기를 치켜들었다 내려치며 앞쪽으로 넓게 불길을 터뜨려 적을 밀어냅니다.', tags: ['attack', 'melee', 'elemental', 'fire', 'aoe', 'slam', 'strength'] },
     '부싯돌 베기': { isGem: true, baseDmg: 1.3, baseSpd: 0.9, leech: 0, crit: 6, dmgScale: 0.065, spdScale: 0.015, ele: 'fire', projectileTravelTimeMultiplier: 1.4, projectilePattern: { mode: 'pierce', kind: 'line' }, targetMode: 'pierce', targets: 3, ailmentChanceBonus: { ignite: 20 }, desc: '무기 끝으로 바닥을 긁어 불꽃을 일으킨 뒤 올려 베어, 바닥을 타고 달리는 화염 검기를 5칸 날립니다.', tags: ['attack', 'melee', 'elemental', 'fire', 'projectile', 'strength'] },
@@ -182,6 +181,14 @@ Object.assign(SKILL_DB, {
     "기공파": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.9,"targetMode":"pierce","targets":1,"desc":"손바닥으로 기를 쏘아 5칸까지 날려 보냅니다. 근접 공격과 투사체 보조 룬이 적용됩니다.","tags":["attack","melee","projectile","physical","dexterity"],"baseDmg":1.5,"dmgScale":0.075,"spdScale":0.015,"crit":5,"leech":0,"projectilePattern":{"mode":"pierce","kind":"line"}},
     "야만스러운 난격": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.9,"targetMode":"cleave","targets":99,"nativeCastId":99,"desc":"앞 2칸과 위아래 3줄에 주먹을 빠르게 퍼붓습니다. 난격은 레벨 5에서 6회, 10에서 9회, 15에서 12회, 20에서 15회, 25에서 30회 타격합니다.","tags":["attack","melee","physical","aoe","strength"],"baseDmg":0.32,"dmgScale":0.016,"spdScale":0.01,"crit":5,"leech":0,"rangeText":"앞 2칸, 위아래 3줄, 레벨에 따라 3~30회"}
 });
+// 2026-11-27 V3.24 시뮬레이터의 93~95(사용자 "세개 다 지금 게임 문법에 맞게"). 피해는 전달본의 기본 피해 / 100(190, 100, 220)이고 한 번 치는 몫(%)은 판정이 정한다
+// (modules/combat/gem-extension-v324.mjs). 공격 속도와 레벨 성장은 같은 무기, 같은 갈래 룬에 맞춘 값이다(불의 세례는 같은 화면 끝까지 긋는 일섬, 독사의 춤은
+// 한손검 룬, 강림은 같은 피해의 섬머솔트 슬래시와 지운 도약 강타). 강림은 2026-11-13 사용자 결정으로 도약 강타를 잇는 대검 전용 이동기다(RETIRED_GEM_SUCCESSORS).
+Object.assign(SKILL_DB, {
+    "불의 세례": {"isGem":true,"category":"attack","ele":"fire","baseSpd":0.55,"targetMode":"aimed-cell","targets":99,"nativeCastId":93,"desc":"향로를 한 번 휘둘러 천장 밧줄에 매달린 거대한 금빛 향로를 불러냅니다. 숯불이 타오르는 대향로가 흰 연기를 끌며 화면 끝에서 끝까지 한 번 가로지르고, 지나가는 순간 그 줄과 위아래 한 줄의 적이 차례로 화염 피해를 입고 지나가는 쪽으로 2칸 밀려납니다. 쓸 때마다 대향로가 들어오는 쪽이 좌우로 번갈아 바뀝니다.","tags":["attack","melee","fire","elemental","aoe","strength","intelligence"],"baseDmg":1.9,"dmgScale":0.095,"spdScale":0.008,"crit":6,"leech":0,"rangeText":"자기 줄과 위아래 한 줄, 앞뒤 10칸, 2칸 밀어냄"},
+    "독사의 춤": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"all-enemies-around-caster","targets":99,"nativeCastId":94,"desc":"제자리에서 돌며 사복검을 풀어 휘두릅니다. 쇠줄에 이어진 칼날 마디들이 서로 멀리 벌어지며 둘레 3칸을 넓게 한 바퀴 훑고(80%), 칼날에 스친 적은 출혈(물리 지속 피해)과 중독(카오스 지속 피해)에 걸립니다. 다시 스치면 지속 시간만 새로 채웁니다.","tags":["attack","melee","physical","chaos","aoe","dot","strength","dexterity"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.012,"crit":6,"leech":0,"rangeText":"주변 3칸, 출혈 2초 동안 48%, 중독 2.5초 동안 50%"},
+    "강림": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.6,"targetMode":"nearest-enemy","targets":99,"nativeCastId":95,"desc":"사거리 제한 없이 가장 가까운 적이 있는 곳으로, 몸이 화면 밖으로 사라질 만큼 높이 뛰어올랐다가 내리꽂혀 착지 둘레를 내려찍습니다(60%). 찍은 자리에서 땅이 갈라지며 지진이 두 번 퍼져 더 넓은 둘레의 적을 다시 칩니다(20%씩).","tags":["attack","melee","physical","aoe","slam","mobility","strength"],"baseDmg":2.2,"dmgScale":0.11,"spdScale":0.008,"crit":6,"leech":0,"mobilityCooldownMs":4000,"rangeText":"사거리 제한 없음, 착지 둘레 2칸, 지진 3칸과 4칸"}
+});
 // The mobility slot's cooldowns for the mobility gems that were main gems before (provisional).
 Object.assign(SKILL_DB['그림자 점멸'], { mobilityCooldownMs: 3500 });
 Object.assign(SKILL_DB['암살'], { mobilityCooldownMs: 4000 });
@@ -260,7 +267,9 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
     // 2026-11-01 스킬 전체 전달본 V3.6이 지운 분광 위습: 같은 번개 위습이 잇는다
     '분광 위습 소환': '번개 위습 소환',
     // 2026-11-08 전달본 V3.13이 지운 정화의 집행: 같은 향로 전용, 화염 피해를 주는 범위 공격인 탐욕 파문이 잇는다
-    '정화의 집행': '탐욕 파문'
+    '정화의 집행': '탐욕 파문',
+    // 2026-11-13 사용자 "대검 전용 이동 스킬이 필요 … 도약강타를 삭제 … 강림": 같은 대검 전용 이동기 강림이 잇는다(2026-11-27 반영)
+    '도약 강타': '강림'
 });
 /** 지운 보조스킬룬: 대신 받는 룬 없이 저장에서 걷어 낸다(js/save-migrations.js dropRetiredSupportGems).
  * 2026-10-23 사용자 "방패 공명: 보조 스킬 룬 삭제"(방패가 완갑이 된 뒤). */
@@ -279,7 +288,7 @@ const GEM_AWAKENED_PERKS = Object.freeze({
 
 /** 스킬룬 계열 → 쓸 수 있는 무기 자세(data/stage-view.js STAGE_VIEW.stances). 2026-10-17 스킬룬 인계(v32) §4의 사용자 결정: 근접 = 맨손, 대검,
  * 한손검, 향로 / 투사체 = 활, 오브, 한손검 / 주문, 위습 = 맨손 제외 / 함성 = 일곱 무기 모두 / 전용 = 그 무기만. 이동기는 전용 무기로만 쓴다:
- * 돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용(2026-10-20 사용자 결정, 비어 있던 대검 전용 자리), 전도성 난격은 근접 무기 넷이 함께 쓴다.
+ * 돌진, 섬머솔트 슬래시, 강림(지운 도약 강타의 자리)은 대검 전용(2026-10-20 사용자 결정, 비어 있던 대검 전용 자리), 전도성 난격은 근접 무기 넷이 함께 쓴다.
  * 기본 공격은 어느 무기로나 쓴다.
  * 무기 이름은 2026-10-20 스킬룬 전달본 v42를 따른다(새 그림이 방패 없는 양손 대검과 한손검이라 검방패, 단검 표기를 되돌렸다). */
 const SKILL_RUNE_WEAPONS = Object.freeze({
@@ -364,7 +373,7 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '작살화살': 'bow',
     // greatsword
     '돌진': 'greatsword',
-    '도약 강타': 'greatsword',
+    '강림': 'greatsword',
     '섬머솔트 슬래시': 'greatsword',
     '특이점 분리': 'greatsword',
     '일섬': 'greatsword',
@@ -372,6 +381,7 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '암살': 'sword',
     '그림자 점멸': 'sword',
     '시간의 사선': 'sword',
+    '독사의 춤': 'sword',
     // orb
     '차원찢기': 'orb',
     '절대 영도': 'orb',
@@ -388,6 +398,7 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '거둬 가는 종': 'censer',
     '탐욕 파문': 'censer',
     '판결-유죄': 'censer',
+    '불의 세례': 'censer',
     // flask
     '탄성 플라스크': 'flask',
     '폭발 혼합물': 'flask',
@@ -407,9 +418,9 @@ const SKILL_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
     17: ['회오리', '참격파', '올려 베기', '추적 사격', '빙결 파열창', '천뢰 분기',
         '시간의 사선', '석화 혼합물', '돌진', '그림자 점멸', '작살화살', '향로구름', '바위 플라스크', '차원찢기', '수액 골렘 소환', '공허의 빙의', '병에 담긴 번개', '거둬 가는 종',
         '영혼 흡수'],
-    37: ['공허 가르기', '불사르기', '폭발성 타격', '혹한의 지진', '전도성 난격', '화염 폭풍핵', '유성 낙화', '난타 눈보라', '번개 각인', '화살비', '도약 강타', '폭발 혼합물', '과냉각 혼합물',
+    37: ['공허 가르기', '불사르기', '폭발성 타격', '혹한의 지진', '전도성 난격', '화염 폭풍핵', '유성 낙화', '난타 눈보라', '번개 각인', '화살비', '강림', '폭발 혼합물', '과냉각 혼합물',
         '파문심판', '화염의 가호', '한기의 가호', '낙뢰의 가호', '심연의 가호', '수액의 가호', '절대 영도', '특이점 분리', '연금 가마솥', '탐욕 파문', '판결-유죄',
-        '계약', '야만스러운 난격'],
+        '계약', '야만스러운 난격', '불의 세례', '독사의 춤'],
     67: ['신성한 단두대', '신성한 기도', '암살', '섬머솔트 슬래시', '시간 가속', '장군의 가호', '전도성 형상체', '일섬', '탐욕의 광기']
 }).flatMap(([level, names]) => names.map(name => [name, Number(level)]))));
 /** 일반 룬보다 드물게 뽑히는 룬의 무게 배율(js/skills.js getSkillRuneRewardWeight). */
@@ -491,6 +502,9 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '영혼 흡수': {family:'worldTree',scale:1,impactVfx:false},
     '기공파': {family:'worldTree',scale:1,impactVfx:false},
     '야만스러운 난격': {family:'worldTree',scale:1,impactVfx:false},
+    '불의 세례': {family:'worldTree',scale:1,impactVfx:false},
+    '독사의 춤': {family:'worldTree',scale:1,impactVfx:false},
+    '강림': {family:'worldTree',scale:1,impactVfx:false},
     '신성한 안개': {family:'worldTree',scale:1,impactVfx:false},
     '파문심판': {family:'worldTree',scale:1,impactVfx:false},
     '암살': {family:'worldTree',scale:1,impactVfx:false},
@@ -530,7 +544,6 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '참격파': { family: 'slash', scale: 0.96 },
     '올려 베기': { family: 'slash', scale: 0.9 },
     '돌진': { signature: 'charge', family: 'charge', scale: 1.0, sigilVfx: false, impactAccentVfx: false },
-    '도약 강타': { family: 'slam', scale: 1.04 },
     '섬머솔트 슬래시': { family: 'slash', scale: 1.0 },
     '불사르기': { family: 'slash', scale: 1.0 },
     '부싯돌 베기': { family: 'projectile', scale: 0.9 },
@@ -648,7 +661,6 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '참격파': 'assets/gems/runes/060_blade-gale.png',
     '올려 베기': 'assets/gems/runes/061_rising-slash.png',
     '돌진': 'assets/gems/runes/062_onrush.png',
-    '도약 강타': 'assets/gems/runes/063_leaping-smash.png',
     '섬머솔트 슬래시': 'assets/gems/runes/064_somersault-slash.png',
     '불사르기': 'assets/gems/runes/065_immolate.png',
     '부싯돌 베기': 'assets/gems/runes/066_flintstrike.png',
@@ -698,6 +710,10 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '영혼 흡수': 'assets/gems/runes/097_soul-drain.png',
     '기공파': 'assets/gems/runes/098_ki-wave.png',
     '야만스러운 난격': 'assets/gems/runes/099_barbaric-flurry.png',
+    // 2026-11-27: V3.24 전달본 그림판(신규_룬_아이콘)의 93~95 칸 그대로
+    '불의 세례': 'assets/gems/runes/093_fire-baptism.png',
+    '독사의 춤': 'assets/gems/runes/094_viper-dance.png',
+    '강림': 'assets/gems/runes/095_descent.png',
     // 기초 스킬: 그 무기의 그림을 속성 룬 테두리 안에 넣은 아이콘(scripts/build-basic-skill-icons.js)
     ...Object.fromEntries(BASIC_SKILL_ROWS.map(row => [row.name, `assets/gems/runes/${row.id}_basic-${row.family}-${row.ele}.png`])),
 });
@@ -744,6 +760,10 @@ const SKILL_GRID_DB = {
     '영혼 흡수': { kind: 'nova', range: 5, radius: 5, shape: 'square' },
     '기공파': { kind: 'line', range: 5 },
     '야만스러운 난격': { kind: 'line', range: 2, band: 1 },
+    // 2026-11-27 V3.24 시뮬레이터의 93~95(판정은 modules/combat/gem-extension-v324.mjs). 강림은 시야 안 누구에게나 뛰므로 판정에 거리가 없고, 이 표의 10칸은 범위 표시와 거리 유지만 쓴다
+    '불의 세례': { kind: 'line', range: 10, band: 1 },
+    '독사의 춤': { kind: 'nova', range: 3, radius: 3, shape: 'circle', distanceMetric: 'euclidean' },
+    '강림': { kind: 'blast', range: 10, radius: 2, shape: 'circle', distanceMetric: 'euclidean' },
     "신성한 안개": {"kind":"nova","range":1,"radius":1,"shape":"square"},
     "파문심판": {"kind":"blast","range":2,"radius":1,"shape":"cross"},
     "암살": {"kind":"melee","range":4},
@@ -780,7 +800,6 @@ const SKILL_GRID_DB = {
     '참격파': { kind: 'line', range: 3, band: 1 },
     '올려 베기': { kind: 'arc', range: 1 },
     '돌진': { kind: 'arc', range: 3 },
-    '도약 강타': { kind: 'blast', range: 4, radius: 1, shape: 'square' },
     '섬머솔트 슬래시': { kind: 'cone', range: 2 },
     '불사르기': { kind: 'cone', range: 3, band: 1 },
     '부싯돌 베기': { kind: 'line', range: 5 },
@@ -813,10 +832,10 @@ const SKILL_GRID_DB = {
 // 범위 보조와 적중 상한은 피해 태그(aoe)와 별도로 분류한다. 방향형의 길이는 반경으로 세지 않는다.
 for (const name of ['화염 부패', '빙결 침식', '시간 가속', '과냉각 혼합물', '신성한 안개', '파문심판', '특이점 분리', '일섬',
     '판결-유죄', '차원찢기', '향로구름', '석화 혼합물', '공허의 빙의', '연금 가마솥', '거둬 가는 종', '탐욕 파문', '신성한 기도', '계약',
-    '야만스러운 난격']) {
+    '야만스러운 난격', '불의 세례', '독사의 춤', '강림']) {
     SKILL_DB[name].areaKind = 'fixed';
 }
-for (const name of ['회오리', '대지의 함성', '도약 강타', '폭발성 타격', '피뢰침', '신성한 단두대', '얼어붙은 고리', '불씨의 함성',
+for (const name of ['회오리', '대지의 함성', '폭발성 타격', '피뢰침', '신성한 단두대', '얼어붙은 고리', '불씨의 함성',
     '공허 가르기', '서리 파동', '참격파', '섬머솔트 슬래시', '불사르기', '혹한의 지진', '서리바람 내지르기', '중력 붕괴', '화염 폭풍핵',
     '유성 낙화', '난타 눈보라', '번개 각인', '화살비', '폭발 혼합물', '바위 플라스크', '병에 담긴 번개']) {
     const skill = SKILL_DB[name], grid = SKILL_GRID_DB[name];

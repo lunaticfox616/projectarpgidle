@@ -1,10 +1,12 @@
 import { runeReachOf } from './gem-extension-common.mjs';
-import { ORB, STORM, CAULDRON, BELL, CHANDELIER, ORBIT, RIFT, ISSEN, VOID, GAVEL, PACT, SOUL, FLURRY } from './gem-extension-values.mjs';
+import { ORB, STORM, CAULDRON, BELL, CHANDELIER, ORBIT, RIFT, ISSEN, VOID, GAVEL, PACT, SOUL, FLURRY, PENDULUM, VIPER, DESCENT } from './gem-extension-values.mjs';
 import { runeLaunchFrozenOrb, runeStepFrozenOrb, runeOrbitReach, runeLaunchOrbit, runeStepOrbit } from './gem-extension-orbs.mjs';
 import { runeRiftTargets, runeLaunchRift, runeStepRift, runeIssenTargets, runeLaunchIssen, runeStepIssen } from './gem-extension-rifts.mjs';
 import { runeVoidTargets, runeLaunchVoid, runeStepVoid } from './gem-extension-void.mjs';
 import { runeLaunchStorm, runeStepStorm, runeStormRadius, runeLaunchCauldron, runeStepCauldron, runeCauldronRadius } from './gem-extension-flasks.mjs';
 import { runePactRadius, runeLaunchPact, runeStepPact, runeSoulTargets, runeLaunchSoul, runeStepSoul, runeSoulReach, runeFlurryTargets, runeLaunchFlurry, runeStepFlurry, runeFlurryCells } from './gem-extension-v325.mjs';
+import { runeBaptismTargets, runeLaunchBaptism, runeStepBaptism, runeBaptismCells, runeViperTargets, runeLaunchViper, runeStepViper, runeViperRadius,
+    runeDescentTargets, runeLaunchDescent, runeStepDescent } from './gem-extension-v324.mjs';
 import { runeLaunchBell, runeStepBell, runeBellRadius, runeLaunchChandelier, runeStepChandelier, runeChandRadius, runeGavelTargets, runeLaunchGavel, runeStepGavel } from './gem-extension-relics.mjs';
 
 function registerGemOrbExtensions(controller, env) {
@@ -37,6 +39,15 @@ function registerGemV325Extensions(controller, env) {
     controller.define(99, { targets: (id, source, foes, extra) => runeFlurryTargets(env, id, source, foes, extra), launch: (state, c, enemies) => runeLaunchFlurry(env, state, c, enemies),
         step: (state, c, input) => runeStepFlurry(env, state, c, input), phase: 'flurryPhase', area: c => runeFlurryCells(env, c), single: true });
 }
+/** 2026-11-27 V3.24 시뮬레이터의 93 불의 세례, 94 독사의 춤, 95 강림(이동기). */
+function registerGemV324Extensions(controller, env) {
+    controller.define(93, { targets: (id, source, foes, extra) => runeBaptismTargets(env, id, source, foes, extra), launch: (state, c, enemies) => runeLaunchBaptism(env, state, c, enemies),
+        step: (state, c, input) => runeStepBaptism(env, state, c, input), phase: 'pendulumPhase', area: c => runeBaptismCells(c) });
+    controller.define(94, { targets: (id, source, foes, extra) => runeViperTargets(env, id, source, foes, extra), launch: (state, c, enemies) => runeLaunchViper(env, state, c, enemies),
+        step: (state, c, input) => runeStepViper(env, state, c, input), phase: 'viperPhase', area: c => env.kit.cells(c.source, 'circle', runeViperRadius(env, c)) });
+    controller.define(95, { targets: (id, source, foes) => runeDescentTargets(env, id, source, foes), launch: (state, c, enemies) => runeLaunchDescent(env, state, c, enemies),
+        step: (state, c, input) => runeStepDescent(env, state, c, input), phase: 'descentPhase', single: true, area: c => (c.center ? env.kit.cells(c.center, 'circle', c.areaRadius || 0) : []) });
+}
 // Install once at the original script slot. The shared scheduler retains its public define/kit contract.
 export function installGemCastExtensions(controller, deps) {
     const env = { kit: controller.kit, deps };
@@ -44,5 +55,6 @@ export function installGemCastExtensions(controller, deps) {
     registerGemMovementExtensions(controller, env);
     registerGemRelicExtensions(controller, env);
     registerGemV325Extensions(controller, env);
-    return Object.freeze({ ORB, ORBIT, RIFT, ISSEN, VOID, STORM, CAULDRON, BELL, CHANDELIER, GAVEL, PACT, SOUL, FLURRY });
+    registerGemV324Extensions(controller, env);
+    return Object.freeze({ ORB, ORBIT, RIFT, ISSEN, VOID, STORM, CAULDRON, BELL, CHANDELIER, GAVEL, PACT, SOUL, FLURRY, PENDULUM, VIPER, DESCENT });
 }

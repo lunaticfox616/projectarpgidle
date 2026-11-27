@@ -30,5 +30,17 @@ export const CAST_MARKS = Object.freeze({
     petrify(_env, command, targets) { for (const enemy of targets) castPetrifyEnemy(enemy, command.at, command.ms / 1000); },
     timeSlow(_env, command, targets) { for (const enemy of targets) enemy.timeSlowUntil = command.at + command.ms; },
     pull(env, command, targets) { for (const enemy of targets) castPullEnemyToward(env, enemy, command); },
+    // A swinging censer pushes on the same row and stops against a wall or another unit.
+    shove(env, command, targets) {
+        for (const enemy of targets) {
+            if (!env.deps.canPushEnemy(enemy)) continue;
+            const blocked = env.deps.getGridBlockedCells(enemy), footprint = env.deps.getGridUnitFootprint(enemy);
+            for (let i = 0; i < command.cells; i++) {
+                const gx = enemy.gx + command.face;
+                if (!env.deps.canPlaceGridFootprint(blocked, gx, enemy.gy, footprint)) break;
+                enemy.gx = gx;
+            }
+        }
+    },
     weaken(_env, command, targets) { for (const enemy of targets) enemy.voidWeakUntil = command.at + command.ms; }
 });

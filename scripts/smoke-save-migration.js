@@ -15,6 +15,22 @@ assert.strictEqual(typeof ctx.mergeDefaults, 'function', 'mergeDefaults를 불�
 
 const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
 
+// A retired mobility rune keeps its slot, investments and spare copies across repeated loads.
+{
+    const old = '도약 강타', next = '강림';
+    const migrated = merge({ level: 60, skills: [old, next], mobilitySkill: old,
+        gemData: { [old]: { level: 12, exp: 23, quality: 13, awakened: true }, [next]: { level: 3 } },
+        runeSpares: { [old]: 2, [next]: 1 } });
+    for (const save of [migrated, merge(migrated)]) {
+        assert.strictEqual(save.mobilitySkill, next);
+        assert.deepStrictEqual(Array.from(save.skills.filter(name => name === old || name === next)), [next]);
+        assert.strictEqual(save.gemData[next].level, 12);
+        assert.strictEqual(save.gemData[next].quality, 13);
+        assert.strictEqual(save.gemData[next].awakened, true);
+        assert.strictEqual(save.runeSpares[next], 3);
+    }
+}
+
 // Sound level is a percentage of the previous mix, independent of the mute switch.
 {
     assert.strictEqual(merge({settings: {uiSounds: false}}).settings.soundVolume, 100);
