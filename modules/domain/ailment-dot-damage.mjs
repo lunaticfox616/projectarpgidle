@@ -10,11 +10,14 @@ export function hitGetStoredAilmentHitDamage(ail) {
     return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
 }
 
+/** 피해 상태이상의 초당 피해 = 원천 타격 피해 × 이 몫(배율을 곱하기 전). 지속 피해의 합을 정해 둔 룬(독사의 춤)이 원천 피해를 거꾸로 잰다. */
+export const DAMAGE_AILMENT_DPS_SHARE = 0.9;
+
 export function hitGetDamageAilmentBaseDpsFromHit(hitDamage, power, scale, critDotBonusPct, critDotBonusScale) {
     let source = Math.max(0, Number(hitDamage) || 0);
     if (source <= 0) return 0;
     let mul = effectGetDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale);
-    return Math.max(1, Math.floor(source * 0.90 * mul));
+    return Math.max(1, Math.floor(source * DAMAGE_AILMENT_DPS_SHARE * mul));
 }
 
 export function hitGetEnemyDamageAilmentDps(env, ail, pStats) {

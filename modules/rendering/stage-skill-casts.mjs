@@ -3,7 +3,7 @@ import { createStageWispCasts } from './stage-wisp-casts.mjs';
 const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
     'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase', 'rockFlaskPhase', 'homingPhase', 'petrifyPhase', 'timeSlashPhase',
     'frozenOrbPhase', 'orbitPhase', 'singularityPhase', 'issenPhase', 'voidPhase', 'stormFlaskPhase', 'cauldronPhase', 'bellPhase', 'chandelierPhase', 'gavelPhase',
-    'pactPhase', 'soulPhase', 'flurryPhase']);
+    'pactPhase', 'soulPhase', 'flurryPhase', 'pendulumPhase', 'viperPhase', 'descentPhase']);
 
 class StageSkillCasts {
     constructor(deps) {
@@ -64,7 +64,11 @@ class StageSkillCasts {
             // 2026-11-26 전달본 V3.24 후속, V3.25(modules/rendering/stage-runes-v325.mjs)
             96: { pact: this.deps.stageRunesV313B.pact },
             97: { soul: this.deps.stageRunesV313B.soul, shield: this.deps.stageRunesV313B.shield },
-            99: { punch: this.deps.stageRunesV313B.punch }
+            99: { punch: this.deps.stageRunesV313B.punch },
+            // 2026-11-27 V3.24 시뮬레이터의 93~95(modules/rendering/stage-fire-baptism.mjs, stage-viper-dance.mjs, stage-descent.mjs)
+            93: { swing: this.deps.stageRunesV313B.pendulum, flame: this.deps.stageRunesV313B.pendulumFlame },
+            94: { swirl: this.deps.stageRunesV313B.viper, bite: this.deps.stageRunesV313B.viperBite },
+            95: { leap: this.deps.stageRunesV313B.descentLeap, quake: this.deps.stageRunesV313B.descentQuake }
         });
     }
 
@@ -430,7 +434,7 @@ class StageSkillCasts {
         this.castStand(c.gem.map.land, to, { ...c.look, delay: kick + 100 });
     }
 
-    /** 이동하는 사건(mobility): 돌진, 도약 강타, 섬머솔트 슬래시(js/canvas-stage-skill-runes.js)와 그림자 점멸은 새 연출이, 암살은 제 단계가 그린다. */
+    /** 이동하는 사건(mobility): 돌진, 섬머솔트 슬래시(js/canvas-stage-skill-runes.js)와 그림자 점멸은 새 연출이, 암살과 강림은 제 단계가 그린다. */
     castMobility(c) {
         const move = { from: c.event.sourceCell, to: c.event.targetCells[0], ms: c.event.glideMs }, runes = this.deps.stageSkillRunes.moves(c.gem);
         if (c.first && runes) this.deps.stageSkillRunes.mobility(c.gem, move);

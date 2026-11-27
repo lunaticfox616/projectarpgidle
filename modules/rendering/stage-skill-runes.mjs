@@ -320,7 +320,7 @@ class StageSkillRunes {
      * @param {{from:object, to:object, ms:?number}} move 떠난 칸, 닿는 칸, 옮겨 가는 시간 */
     runeMobility(gem, move) {
         // 몸이 뜨는 룬은 공중 시간 동안 날아 그 끝에 내려앉는다(착지 충격도 그때)
-        const map = gem.map, face = Math.sign(move.to.gx - move.from.gx) || this.K.heroFace(), air = this.motion.runeAir(gem, move), ms = air ? air.ms : Math.max(120, move.ms || 280);
+        const map = gem.map, face = Math.sign(move.to.gx - move.from.gx) || this.K.heroFace(), air = this.motion.runeAir(gem), ms = air ? air.ms : Math.max(120, move.ms || 280);
         const follow = this.followHero;
         if (map.kick) this.runeKick(map, move, face);
         if (map.charge) this.SP.charge({ at: this.K.at(move.from), follow, face, ms });
@@ -328,16 +328,15 @@ class StageSkillRunes {
         this.runeLanding(map, move.to, { face, ms });
     }
 
-    /** 착지 자리의 충격 클립들: 도약 강타는 몸 앞 0.6칸, 섬머솔트 슬래시는 0.9칸에서 차례로(첫째는 바닥 층). */
+    /** 착지 자리의 충격 클립들: 섬머솔트 슬래시는 몸 앞 0.9칸에서 차례로(첫째는 바닥 층). 강림의 착지는 modules/rendering/stage-descent.mjs가 그린다. */
     runeLanding(map, to, o) {
-        [].concat(map.impact || []).forEach((ref, k) => this.deps.stageSkillVfx.play(ref, this.K.at(to, o.face * (map.flip ? 0.9 : 0.6) * this.WIDE + (k === 3 ? o.face * 18 : 0), this.K.onGround(ref) ? 1 : -30),
+        [].concat(map.impact || []).forEach((ref, k) => this.deps.stageSkillVfx.play(ref, this.K.at(to, o.face * 0.9 * this.WIDE + (k === 3 ? o.face * 18 : 0), this.K.onGround(ref) ? 1 : -30),
             { face: o.face, delay: o.ms + k * 30, layer: k === 0 ? 'ground' : 'top' }));
     }
 
-    /** 박차고 나가는 먼지: 돌진은 등 뒤로 작게, 도약은 발밑에. */
+    /** 박차고 나가는 먼지(돌진): 등 뒤로 작게. */
     runeKick(map, move, face) {
-        const charge = !!map.charge;
-        this.deps.stageSkillVfx.play(map.kick, this.K.at(move.from, charge ? -face * 10 : 0, 1), { face: charge ? -face : face, layer: 'ground', scale: charge ? 0.7 : 0.8, alpha: charge ? 0.6 : 0.7 });
+        this.deps.stageSkillVfx.play(map.kick, this.K.at(move.from, -face * 10, 1), { face: -face, layer: 'ground', scale: 0.7, alpha: 0.6 });
     }
 
     /** 활을 들고 쏘는 화살 룬의 마법 화살(인계: 활일 때만): { arrow, exp }. 활이 아니거나 정하지 않은 룬이면 null. */

@@ -1,5 +1,6 @@
 import { npcTradeRollGemWares, npcTradeRollUniqueWares, npcTradeRollGearWares } from './npc-shop-rolls.mjs';
 import { npcTradePackShopWares } from './npc-shop-layout.mjs';
+import { hashSeed } from '../common/numbers.mjs';
 
 /** One meeting with npc ({ id, tone }) in zoneId: counted (kept across loops), and the stock rolled anew ('npc-shop-stocked'
  * tells an open shop window). */
@@ -22,7 +23,14 @@ export function npcTradeAllRunesOpen(env, owner, id = env.ALL_RUNES.npc) { retur
 
 /** What the whole shelf holds: supports join once their unlock opens, so the mark tells when to lay it again. */
 // 이름이 달라지면 진열대를 다시 편다(2026-11-02: 가진 룬도 팔게 되어 옛 진열대에는 빠진 룬이 있다. 2026-11-04: 호박석 값이 뿌리와 덩굴이 됐다).
-export function npcTradeAllRunesMark(env, owner) { return env.deps.contentProgression.isUnlocked('support', owner) ? 'full-roots' : 'attacks-roots'; }
+export function npcTradeAllRunesMark(env, owner) {
+    // Static for this game build. Rebuild a saved shelf once when its sellable rune catalog changes.
+    if (env.catalogStamp === undefined) {
+        env.catalogStamp = hashSeed(JSON.stringify([env.deps.gemDropRewards.attackRunes(), Object.keys(env.deps.SUPPORT_GEM_DB)]));
+    }
+    const shelf = env.deps.contentProgression.isUnlocked('support', owner) ? 'full-roots' : 'attacks-roots';
+    return shelf + '-' + env.catalogStamp;
+}
 
 export function npcTradeRollAllRunes(env, owner) {
     const runes = env.deps.gemDropRewards.attackRunes(), weights = env.deps.getSkillRuneRewardWeights(runes);

@@ -573,9 +573,10 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   js/combat-grid.js getGridBandAreaCells). 칠 쪽은 대상을 고를 때 정하고, 판정 칸, 그림(attackFootprint.band), 주인공이 보는 쪽
   (playerSwing bandSide)이 같은 값을 쓴다. 그림은 그 줄들을 덮게 두툼하게 그린다. 띠 밖의 적에게는 줄을 맞추러 걷는다.
 - 주인공에 붙는 연출은 그려진 주인공을 따라간다(js/canvas-stage-skill-kit.js heroDrawn): 이동 룬은 칸을 바로 옮기고 그림이 뒤따른다.
-- 도약 강타는 포물선으로 뛰고 섬머솔트 슬래시는 뛰며 한 바퀴 돈다(2026-10-17 사용자: 시뮬레이터처럼 이 두 룬만 주인공 그림을 띄우고 돌린다.
-  js/canvas-stage-skill-runes.js heroAir, 공중 시간은 data/skills.js mobilityPattern.airMs). 다른 룬은 주인공 그림을 움직이지 않는다.
-  실제로 이동한 이 두 룬의 피해 예약은 공중 시간보다 이르지 않다(js/combat.js landingMs). 이동하지 않은 공격과 돌진은 원래 타이밍을 쓴다.
+- 섬머솔트 슬래시는 뛰며 한 바퀴 돈다(2026-10-17 사용자: 시뮬레이터처럼 주인공 그림을 띄우고 돌린다. js/canvas-stage-skill-runes.js heroAir,
+  공중 시간은 data/skills.js mobilityPattern.airMs). 포물선으로 뛰던 도약 강타는 2026-11-27 강림이 이었다: 주인공 그림을 통째로 화면 밖까지 올렸다가
+  내리꽂는다(modules/rendering/stage-rune-air.mjs descendPose, 사용자 결정 "사라질 정도로 높이 점프"). 다른 룬은 주인공 그림을 움직이지 않는다.
+  실제로 이동한 섬머솔트 슬래시의 피해 예약은 공중 시간보다 이르지 않다(js/combat.js landingMs). 이동하지 않은 공격과 돌진은 원래 타이밍을 쓴다.
   공격 대기시간·이동 룬 재사용 시간은 늘리지 않는다. 피해는 전투 시계, 공중 그림은 화면 시계를 쓰므로 테스트 배속·히트스톱에서는 차이가 날 수 있다.
 - 동작: 룬마다 직업과 무기 자세의 동작을 인계의 표대로 고른다(js/canvas-stage-actors.js motionFor, 휘두름에 적힌 룬을 따른다). 표에 없는 룬과
   기본 공격은 그 자세의 기본 휘두름을 쓴다. 2026-10-14에 받은 전사 검방패 시트(찌르기, 베기, 회전)는 10-20 새 주인공으로 바꾸며 뺐다.
@@ -590,7 +591,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   그림이 떠난 칸에 있고(kickoffMs), 암살은 그만큼 늦게 사라진다(js/skill-gem-casts.js lead). 작살화살은 끌려가는 동안 밧줄을 당긴다.
 - 따로 시전하는 룬(플라스크 넷, 신성한 기도, 시간 가속, 신성한 안개, 파문심판)도 놓는 순간(c.swing)에 그 룬의 동작으로 휘두른다. 플라스크는 그때 손을 떠난다.
 - 도약과 공중제비는 그림이 스스로 뛰고 돌아, 그림이 뜨는 높이만큼 포물선을 낮추고 공중제비 그림이면 코드로 돌리지 않는다.
-- 같은 날 사용자 답: 돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용(data/skills.js SKILL_RUNE_FAMILY greatsword). 한손검 투사체 룬은
+- 같은 날 사용자 답: 돌진, 도약 강타(2026-11-27부터 강림), 섬머솔트 슬래시는 대검 전용(data/skills.js SKILL_RUNE_FAMILY greatsword). 한손검 투사체 룬은
   한손검 투척 그림으로 던진다(scripts/build-stage-skill-vfx.cjs motionOf, 방랑자는 그 그림이 없어 찌르기).
 - 투사체는 휘두름 준비의 55%에 손을 떠난다(js/combat-tick.js PROJECTILE_RELEASE_SHARE). 휘두름의 releaseDelayMs로 주인공의 놓는 장도 그때 온다
   (js/canvas-battle-units.js getHanaSwingTiming).
@@ -1137,6 +1138,12 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   98 기공파는 stage-ki-wave.mjs(투사체 몸 'ki', 손 앞 고리, 맞은 자리 터짐), 99 난격은 stage-flurry.mjs(assets/stage-vfx/flurry/의 붕대 주먹)다.
   96, 97, 99는 js/canvas-stage-runes-v313-b.js의 묶음(stageRunesV313B)에 새 전역 없이 더했고, 그 룬을 끼면 그림을 미리 연다(stage-warmup).
   스프라이트는 정수 배율로만 그리고 눌림과 늘림은 뺐다(건틀릿 2배, 주먹 2배와 1배, 위습 1배). 화면 흔들림은 넣지 않았다.
+- V3.24 시뮬레이터의 93~95(2026-11-27): 93 불의 세례는 stage-fire-baptism.mjs(리메이크 V3.15.3의 고딕 대향로 2배, 기울기 27자세는 그림이 오면 한 번
+  돌려 담는다, 연기 52개는 정수 배율 2배에서 3배, 불꽃 시트 1배, assets/stage-vfx/fire-baptism/), 94 독사의 춤은 stage-viper-dance.mjs(리메이크 V3.16.7의
+  칼날 마디 2배와 64자세, 잔상 질감과 베임, 독 안개는 구입한 vfx.png, vfx2.png의 rogue2, x_cut, x_poison을 처음 쓸 때 다시 칠해 담는다,
+  assets/stage-vfx/viper-dance/), 95 강림은 stage-descent.mjs(솟구침과 내리꽂힘의 빛줄, 떨어질 자리 그림자, 금과 돌 띠, 착지 클립은 전달본 VFX 표)다.
+  효과 줄이기에서는 연기 절반, 숯불, 칼날 실루엣, 흩어지는 잔상 조각, 튀는 돌조각, 지진 먼지를 뺀다. 전달본과 다르게 둔 것: 착지 클립의 1.25배, 지진 먼지의
+  0.8배, 잔상 조각의 0.22배(정수 배율 규칙), 화면 흔들림.
 
 ### PC 창의 칸 크기는 단계로 고른다 (2026-11-02, 사용자: "캐릭터랑 칸이랑 맵 크기랑 동기화")
 - 칸 너비가 어중간하면 방 그림의 2px 도트가 캔버스 픽셀에 떨어지지 않아 옆 색과 섞인다(1920×850에서 칸 91px, 도트 2.84px). 앞의 "칸 크기가 이어서 변한다"는 PC 창에서 이 규칙으로 바뀌었다.

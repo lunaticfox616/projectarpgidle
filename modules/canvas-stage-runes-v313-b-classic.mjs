@@ -19,6 +19,7 @@ const later = createStageRunesV325({
     get stageSkillVfx() { return stageSkillVfx; },
     get document() { return document; },
     get stagePictures() { return stagePictures; },
+    reduced: () => uiDisplay.reducedEffects(),
     soulShieldState: () => soulShieldView(window.GameModules.state.combat?.soulShield, game.playerEnergyShield, getCombatTime())
 });
 const stageRunesV313B = Object.freeze({
@@ -36,6 +37,12 @@ const stageRunesV313B = Object.freeze({
     soul: later.soul,
     shield: later.shield,
     punch: later.punch,
+    pendulum: later.pendulum,
+    pendulumFlame: later.pendulumFlame,
+    viper: later.viper,
+    viperBite: later.viperBite,
+    descentLeap: later.descentLeap,
+    descentQuake: later.descentQuake,
     warmV325: later.warm
 });
 safeExposeGlobals({ stageRunesV313B });

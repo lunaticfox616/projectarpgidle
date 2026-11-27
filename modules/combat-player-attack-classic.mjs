@@ -111,6 +111,8 @@ const deps = {
     get supports() { return window.GameModules.combat.supports; },
     get mobilitySkill() { return mobilitySkill; },
     get canPushEnemy() { return canPushEnemy; },
+    get canPlaceGridFootprint() { return canPlaceGridFootprint; },
+    get getGridUnitFootprint() { return getGridUnitFootprint; },
     get gridStepToward() { return gridStepToward; },
     get getGridBlockedCells() { return getGridBlockedCells; },
     get actExplorationMotion() { return actExplorationMotion; },

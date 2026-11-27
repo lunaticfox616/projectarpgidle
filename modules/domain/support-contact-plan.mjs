@@ -53,9 +53,10 @@ class SupportContactPlanner {
             return [row, ...extra];
         });
     }
+    /** ownRepeat: 그 룬의 판정이 반복을 제 길로 다시 쏜다(불의 세례의 둘째 향로는 반대쪽에서 다시 가로지른다). */
     repeat(command, targets) {
         const stats = command.stats, repeat = stats.sSkill.supportEffects?.repeat;
-        if (!repeat) return null;
+        if (!repeat || command.ownRepeat) return null;
         const rows = [{ kind: 'supportRepeat', label: this.inputs.translate('반복'), delayMs: REPEAT_GAP_MS,
             damageMultiplier: (command.damagePct ?? 100) / 100 * repeat.damagePct / 100,
             targets: targets.map(enemy => ({ enemy, mult: 1 })), singleRepeat: true }];

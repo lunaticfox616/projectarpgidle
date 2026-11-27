@@ -110,6 +110,13 @@ export class LegacySummonMigration {
         });
     }
 
+    /** Spare rune copies (summed) and the rune selections saved with each equipment set (2026-11-27: 도약 강타 → 강림 keeps a set's main and mobility slots). */
+    migrateLegacySummonGemSets(merged) {
+        if (merged.runeSpares && typeof merged.runeSpares === 'object') merged.runeSpares = this.renameLegacySummonGemCounts(merged.runeSpares, (a, b) => a + b);
+        const presets = merged.equipmentLoadouts && Array.isArray(merged.equipmentLoadouts.presets) ? merged.equipmentLoadouts.presets : [];
+        presets.forEach(preset => { if (preset && preset.runeLoadout && typeof preset.runeLoadout === 'object') this.migrateLegacySummonGemLoadout(preset.runeLoadout); });
+    }
+
     /** Outside the loadout: sky tower gem boosts, black market gem offers, NPC rune shop stock, pending exploration loot. */
     migrateLegacySummonGemHoldings(merged) {
         const boosts = merged.skyTower?.gemBoosts;
@@ -126,6 +133,7 @@ export class LegacySummonMigration {
         this.migrateLegacySummonGemLoadout(merged);
         if (merged.woodsmanBuildSnapshot && typeof merged.woodsmanBuildSnapshot === 'object') this.migrateLegacySummonGemLoadout(merged.woodsmanBuildSnapshot);
         this.migrateLegacySummonGemHoldings(merged);
+        this.migrateLegacySummonGemSets(merged);
         if (merged.settings) delete merged.settings.summonArtStyle; // the animal sheets' look (glow · dark · simple · cute)
     }
 }

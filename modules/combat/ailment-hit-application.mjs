@@ -17,7 +17,7 @@ export function hitApplyHitAilment(env, hit, sourceType, forceChance, manifestat
     let power = hitGetHitAilmentPower(hit, type, damageAilment, gate);
     let row = enemy.ailments.find(a => a.type === type);
     let durationMul = hitGetAilmentDurationMultiplier(env, type, damageAilment, pStats);
-    let dur = env.deps.combatSupports.igniteDuration(pStats, type, (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hit.hitRatio * 4) : (2 + hit.hitRatio * 10))) * durationMul);
+    let dur = env.deps.combatSupports.igniteDuration(pStats, type, (damageAilment ? damageAilmentSeconds(hit, type) : (type === 'freeze' ? (0.8 + hit.hitRatio * 4) : (2 + hit.hitRatio * 10))) * durationMul);
     let payload = { type: type, time: dur, duration: dur, power: power, stacks: 1 };
     if (damageAilment) hitFillDamageAilmentPayload(hit, payload, { type, gate });
     if (typeof env.deps.decorateTalentAilmentPayload === 'function') env.deps.decorateTalentAilmentPayload(type, payload, pStats);
@@ -28,6 +28,9 @@ export function hitApplyHitAilment(env, hit, sourceType, forceChance, manifestat
     if (typeof env.deps.afterTalentAilmentApplied === 'function') env.deps.afterTalentAilmentApplied(enemy, sourceType);
     return true;
 }
+
+/** 피해 상태이상(점화, 중독, 출혈)의 기본 길이(초, 배율 전): 3초. 길이를 정해 둔 룬은 options.damageAilmentSeconds({ bleed: 2 })로 넘긴다(독사의 춤). */
+function damageAilmentSeconds(hit, type) { return Number(hit.opts.damageAilmentSeconds?.[type]) || 3; }
 
 /** 독초(숲지기 gw2, 2026-11-11): 냉기 타격도 중독을 건다. 중독의 원천 피해는 타격의 coldPoisonPct%. */
 export function hitApplyGroveColdPoison(env, hit, ele) {

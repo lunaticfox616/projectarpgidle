@@ -43,9 +43,9 @@ export function tickGetPendingSkillTravelCellMs(env, row) {
     return row.delivery?.startsWith('projectile') ? tickGetCombatTravelCellMs(env, row.pStats && row.pStats.sSkill) : 0;
 }
 
-/** 공격을 시작해 맞히기까지(ms): 강타는 내려찍을 준비가 길다. 뛰어올라 내려찍는 도약 강타는 착지가 곧 타격이라(landingMs) 강타 준비를 쓰지 않는다. */
+/** 공격을 시작해 맞히기까지(ms): 강타는 내려찍을 준비가 길다. 뛰어올라 내려찍는 강림은 따로 시전해 제 때를 쓴다(modules/combat/gem-extension-v324.mjs). */
 export function tickGetAttackMotionMs(tags) {
-    if (tags.includes('slam') && !tags.includes('mobility')) return 460;
+    if (tags.includes('slam')) return 460;
     return tags.includes('projectile') ? 400 : 360;
 }
 

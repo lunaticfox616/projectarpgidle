@@ -41,16 +41,23 @@ class PlayerFigureRenderer {
             motion: this.deps.stageView.poseMotions[timing.attack && timing.attack.pose] || this.deps.actors.motionFor(name, this.deps.appearance(), stance) };
     }
 
-    /** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시) 동안의 몸 그림: 포물선 높이만큼 띄우고, 공중제비는 몸 가운데를 축으로 돌린다
+    /** 몸이 뜨는 이동 룬(섬머솔트 슬래시, 강림) 동안의 몸 그림: 포물선 높이만큼(강림은 화면 밖까지) 통째로 띄우고, 공중제비는 몸 가운데를 축으로 돌린다
      * (battleVisualState.playerAir, js/canvas-battlefield.js getStageHeroAirGround). 2026-10-17 사용자가 시뮬레이터처럼 이 두 룬만 그림을 움직이게 했다.
      * drawHeroBodyAt(y)는 발의 y로 몸을 그린다. */
     drawStageHeroAloft(ctx, position, tile, drawHeroBodyAt) {
         const air = this.deps.playerAir();
         if (!air) return drawHeroBodyAt(position.y);
-        const dot = this.deps.actors.scaleFor(tile), y = position.y - air.lift * dot, centre = y - 56 * dot;   // 몸 가운데(새 주인공은 키 약 110도트)
+        const dot = this.deps.actors.scaleFor(tile), y = position.y - (air.lift + this.skyLift(ctx, position, air, dot)) * dot, centre = y - 56 * dot;   // 몸 가운데(새 주인공은 키 약 110도트)
         ctx.save();
         ctx.translate(position.x, centre); ctx.rotate(air.rot); ctx.translate(-position.x, -centre);
         try { return drawHeroBodyAt(y); } finally { ctx.restore(); }
+    }
+
+    /** 강림의 화면 밖 높이(도트): 발에서 화면 위 끝까지에 170도트를 더한 높이(시뮬레이터: 발이 화면 위 끝보다 170px 더 올라가 몸이 다 사라진다)의 sky 몫. */
+    skyLift(ctx, position, air, dot) {
+        if (!air.sky) return 0;
+        const m = ctx.getTransform(), top = -m.f / (m.d || 1);
+        return air.sky * ((position.y - top) / dot + 170);
     }
 
     /** The stage hero: timing from the battle effects; spells play the cast clips, a thrown flask the throw. */

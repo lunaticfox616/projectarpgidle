@@ -2403,7 +2403,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext("BASIC_SKILL_ROWS.forEach(row=>{if(getRuneLevelReq(row.name))throw new Error('기초 스킬에 요구 레벨: '+row.name);})", context);
   assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), 'Lv.67 필요');
   context.game.level = 100;
-  assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('강림'), false, '돌진, 섬머솔트 슬래시, 강림은 대검 전용이다');
   assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), '대검 필요');
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('전도성 난격'), true, '전도성 난격은 근접 무기 넷이 함께 쓴다');
   context.game.equipment['무기'] = weaponOf('greatsword', 9917);

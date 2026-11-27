@@ -4,6 +4,7 @@ const skillGemCastsV313 = installGemCastExtensions(skillGemCasts, {
     get getGridUnitDistance() { return getGridUnitDistance; },
     get getGridUnitCells() { return getGridUnitCells; },
     get getGridUnitCenter() { return getGridUnitCenter; },
+    get getClosestGridUnitCell() { return getClosestGridUnitCell; },
     get rollProjectileExtraShots() { return rollProjectileExtraShots; },
     get random() { return Math.random; },
     get getHeroAppearanceId() { return getHeroAppearanceId; }
